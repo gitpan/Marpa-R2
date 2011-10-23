@@ -1,0 +1,118 @@
+{
+   "abstract" : "Release 2 of Marpa",
+   "author" : [
+      "Jeffrey Kegler"
+   ],
+   "dynamic_config" : 1,
+   "generated_by" : "Module::Build version 0.38, CPAN::Meta::Converter version 2.110930",
+   "license" : [
+      "unknown"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "Marpa-R2",
+   "no_index" : {
+      "directory" : [
+         "pperl",
+         "config",
+         "inc",
+         "tool",
+         "t",
+         "html",
+         "devlib",
+         "libmarpa",
+         "author.t"
+      ],
+      "namespace" : [
+         "Marpa::R2::Recognizer",
+         "Marpa::R2::Grammar",
+         "Marpa::R2::Value",
+         "Marpa::Perl",
+         "Marpa::Test",
+         "Marpa::Display",
+         "Marpa::R2::Internal",
+         "Marpa::PP"
+      ],
+      "package" : [
+         "Marpa::R2::Value",
+         "Marpa::Perl",
+         "Marpa::Test",
+         "Marpa::Display",
+         "Marpa::R2::Internal",
+         "Marpa::PP"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::CBuilder" : "0.27",
+            "Test::More" : "0.94"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::PkgConfig" : "1.12",
+            "Glib" : "1.223",
+            "Module::Build" : "0.3601"
+         }
+      },
+      "runtime" : {
+         "recommends" : {
+            "PPI" : "1.206",
+            "Test::Weaken" : "3.004000"
+         },
+         "requires" : {
+            "Carp" : "1.08",
+            "Data::Dumper" : "2.125",
+            "ExtUtils::PkgConfig" : "1.12",
+            "Glib" : "1.223",
+            "List::Util" : "1.21",
+            "Scalar::Util" : "1.21",
+            "Task::Weaken" : 0
+         }
+      }
+   },
+   "provides" : {
+      "Marpa::R2" : {
+         "file" : "lib/Marpa/R2.pm",
+         "version" : "0.001_000"
+      },
+      "Marpa::R2::Grammar" : {
+         "file" : "lib/Marpa/R2/Grammar.pm",
+         "version" : "0.001_000"
+      },
+      "Marpa::R2::Internal" : {
+         "file" : "lib/Marpa/R2/Internal.pm",
+         "version" : "0.001_000"
+      },
+      "Marpa::R2::Internal::Grammar" : {
+         "file" : "lib/Marpa/R2/Grammar.pm",
+         "version" : 0
+      },
+      "Marpa::R2::Internal::Recognizer" : {
+         "file" : "lib/Marpa/R2/Value.pm",
+         "version" : 0
+      },
+      "Marpa::R2::Internal::Value" : {
+         "file" : "lib/Marpa/R2/Value.pm",
+         "version" : 0
+      },
+      "Marpa::R2::Recognizer" : {
+         "file" : "lib/Marpa/R2/Recognizer.pm",
+         "version" : "0.001_000"
+      },
+      "Marpa::R2::Value" : {
+         "file" : "lib/Marpa/R2/Value.pm",
+         "version" : "0.001_000"
+      }
+   },
+   "release_status" : "testing",
+   "resources" : {
+      "repository" : {
+         "url" : "git://github.com/jeffreykegler/Marpa-R2.git"
+      }
+   },
+   "version" : "0.001_000"
+}
