@@ -1,3 +1,4 @@
+#!perl
 # Copyright 2011 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
@@ -13,11 +14,29 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-Revision history for Marpa::R2
+use 5.010;
+use strict;
+use warnings;
 
-0.001_001 Mon Oct 24 20:29:34 PDT 2011
-0.001_000 Fri Oct 21 20:57:44 PDT 2011
+use lib 'lib';
+use Test::More tests => 3;
 
-	* Series of developer's versions
+Test::More::use_ok('HTML::PullParser');
+Test::More::use_ok('Marpa::R2::HTML');
 
-	* Marpa::R2 forked from Marpa::XS 0.019_002
+use Carp;
+use Data::Dumper;
+use English qw( -no_match_vars );
+use Fatal qw(open close);
+
+my $document;
+{
+    local $RS = undef;
+    open my $fh, q{<:utf8}, 'html/t/test.html';
+    $document = <$fh>;
+    close $fh
+};
+
+my $value = Marpa::R2::HTML::html( \$document );
+
+Test::More::is( ${$value}, $document, 'Straight copy using defaults' );

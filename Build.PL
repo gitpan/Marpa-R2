@@ -21,6 +21,7 @@ use Fatal qw(open close mkdir chdir);
 use File::Spec 0.82;
 use IPC::Cmd;
 use File::Path;
+use File::Find;
 
 use Config;
 use Module::Build;
@@ -52,19 +53,43 @@ my %recommends =
 my %pod_files = ();
 $pod_files{'pod/Marpa_R2.pod'} = 'lib/Marpa/R2.pod';
 
+my %pm_files = ();
+File::Find::find(
+    sub {
+        return if not m/[.]pm \z/xms;
+        $pm_files{$File::Find::name} = $File::Find::name;
+    },
+    'lib'
+);
+File::Find::find(
+    sub {
+        return if not m/[.]pm \z/xms;
+        my ( $vol, $dirs, $file ) = File::Spec->splitpath($File::Find::name);
+        my @dirs      = File::Spec->splitdir($dirs);
+        my $dest_dirs = File::Spec->catdir( @dirs[ 1 .. $#dirs ] );
+        my $dest_name = File::Spec->catpath( $vol, $dest_dirs, $file );
+        $pm_files{$File::Find::name} = $dest_name;
+    },
+    'html/lib'
+);
+for my $pm_file (qw(Version.pm Installed.pm)) {
+    my $pm_fullname = 'lib/Marpa/R2/' . $pm_file;
+    $pm_files{$pm_fullname} = $pm_fullname;
+}
+
 my @no_index_namespace_inclusive = (
 
     # not for now, at least
-    qw(Marpa::R2::Value Marpa::Perl Marpa::Test Marpa::Display ),
+    qw(Marpa::R2::Value Marpa::R2::Perl Marpa::R2::Test Marpa::R2::Display ),
 
     # never intended to see the light of day
-    qw( Marpa::R2::Internal Marpa::PP ),
+    qw( Marpa::R2::Internal ),
 
 );
 
 my @files_to_cleanup = (
-    'lib/Marpa/R2/Version.pm',   'pperl/Marpa/Perl/Version.pm',
-    'lib/Marpa/R2/Installed.pm', 'pperl/Marpa/Perl/Installed.pm',
+    'lib/Marpa/R2/Version.pm',   'pperl/Marpa/R2/Perl/Version.pm',
+    'lib/Marpa/R2/Installed.pm', 'pperl/Marpa/R2/Perl/Installed.pm',
     'lib/Marpa/R2.o',            'libmarpa/main/build',
 );
 
@@ -82,13 +107,17 @@ my $build = Marpa::R2::Build_Me->new(
         "$glib_2_0_compiler_flags -I$gperl_h_location -Ilibmarpa/dist",
     extra_linker_flags => "$glib_2_0_linker_flags",
     PL_files           => {},
+    pm_files           => \%pm_files,
+    script_files => [ 'html/script/marpa_r2_html_fmt', 'html/script/marpa_r2_html_score', ],
     xs_files           => { 'xs/R2.xs' => 'lib/Marpa/R2.xs' },
     meta_merge         => {
         resources =>
             { repository => 'git://github.com/jeffreykegler/Marpa-R2.git', },
         no_index => {
             directory =>
-                [qw( pperl config inc tool t html devlib libmarpa author.t )],
+                [qw( pperl config inc tool t html devlib libmarpa author.t
+		    html/etc html/sandbox html/script html/t
+		)],
             namespace => [
                 'Marpa::R2::Recognizer', 'Marpa::R2::Grammar',
                 @no_index_namespace_inclusive
@@ -99,7 +128,7 @@ my $build = Marpa::R2::Build_Me->new(
     pod_files          => \%pod_files,
     create_readme      => 0,
     create_makefile_pl => 'small',
-    test_files         => [ map { glob $_ } qw(t/*.t t/shared/*.t) ],
+    test_files         => [ map { glob $_ } qw(t/*.t html/t/*.t) ],
 );
 
 $build->create_build_script;
