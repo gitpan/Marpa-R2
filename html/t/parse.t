@@ -18,21 +18,34 @@ use 5.010;
 use strict;
 use warnings;
 use English qw( -no_match_vars );
+use Test::More;
+
+BEGIN {
+    use lib 'html/tool/lib';
+    my $eval_result = eval { require Marpa::R2::HTML::Test::Util; 1 };
+    if ( !$eval_result ) {
+        Test::More::plan tests => 1;
+        Test::More::fail(
+            "Could not load Marpa::R2::HTML::Test::Util; $EVAL_ERROR");
+        exit 0;
+    } ## end if ( !$eval_result )
+} ## end BEGIN
+
+BEGIN { Marpa::R2::HTML::Test::Util::load_or_skip_all('HTML::PullParser'); }
+BEGIN { Marpa::R2::HTML::Test::Util::load_or_skip_all('HTML::Entities'); }
 
 # These tests are based closely on those in the HTML-Tree module,
 # the authors of which I gratefully acknowledge.
 
-use Test::More tests => 43;
+Test::More::plan tests => 41;
 my $DEBUG = 2;
 
-Test::More::use_ok('HTML::Entities');
-Test::More::use_ok('HTML::PullParser');
 Test::More::use_ok('Marpa::R2::HTML');
 
 my $html_args = {
     ':CRUFT' => sub {
         my $literal = Marpa::R2::HTML::literal();
-        say STDERR 'Cruft: ', $literal
+        say {*STDERR} 'Cruft: ', $literal
             or Carp::croak("Cannot print: $ERRNO");
         return qq{<CRUFT literal="$literal">};
     },
@@ -201,7 +214,8 @@ sub same {
     if ( ref $code2 ) { $code2 = ${$code2} }
 
     my $value1;
-    if ( not eval { $value1 = Marpa::R2::HTML::html( \$code1, $html_args ); 1 } )
+    if (not eval { $value1 = Marpa::R2::HTML::html( \$code1, $html_args ); 1 }
+        )
     {
         say "No parse for $code1"
             or Carp::croak("Cannot print: $ERRNO");
@@ -209,7 +223,8 @@ sub same {
     } ## end if ( not eval { $value1 = Marpa::R2::HTML::html( \$code1...)})
 
     my $value2;
-    if ( not eval { $value2 = Marpa::R2::HTML::html( \$code2, $html_args ); 1 } )
+    if (not eval { $value2 = Marpa::R2::HTML::html( \$code2, $html_args ); 1 }
+        )
     {
         say "No parse for $code2"
             or Carp::croak("Cannot print: $ERRNO");

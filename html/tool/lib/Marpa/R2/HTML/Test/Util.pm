@@ -54,9 +54,7 @@ sub build_command_line {
     }
 
     return "$EXECUTABLE_NAME -Ilib @args";
-    # capture-stderr drops core on my Mac OS Tiger laptop
-    # return
-        # "$EXECUTABLE_NAME -Ilib ./lib/Marpa/HTML/Test/capture-stderr $catcherr_file @args";
+
 } ## end sub build_command_line
 
 sub run_command {
@@ -86,14 +84,44 @@ sub run_with_stderr {
         ( $CHILD_ERROR >> 8 ),
     );
 
-    # Previous logic drops core on Darwin
-    # open my $fh, '<', $catcherr_file;
-    # my $stderr = do { local $RS = undef; <$fh> };
-    # close $fh;
-    # unlink $catcherr_file;
-
     return ( $stdout, q{}, $rc );
-    # return ( $stdout, $stderr, $rc );
+
 } ## end sub run_with_stderr
+
+# This method must be called *BEFORE* any test plan is
+# written -- it creates its own test plan
+sub load_or_skip_all {
+    my ($module_name) = @_;
+## no critic(BuiltinFunctions::ProhibitStringyEval)
+    my $eval_result = eval "require $module_name; '$module_name'->import; 1";
+    if ( !$eval_result ) {
+        my $eval_error = $EVAL_ERROR;
+        $eval_error =~ s/^/# /gxms;
+        print "1..0 # Skip Could not load $module_name\n", $eval_error
+            or Carp::croak("say failed: $ERRNO");
+        exit 0;
+    } ## end if ( !$eval_result )
+    use lib 'config';
+    $eval_result = eval { require Marpa::R2::Config; 1 };
+    if ( !$eval_result ) {
+	Test::More::plan tests => 1;
+	Test::More::diag($EVAL_ERROR);
+	Test::More::fail("Could not load Marpa::R2::Config\n");
+        exit 0;
+    } ## end if ( !$eval_result )
+    my $version_wanted = $Marpa::R2::VERSION_FOR_CONFIG{$module_name};
+    if ( not defined $version_wanted ) {
+	Test::More::plan tests => 1;
+	Test::More::fail("$module_name is not known to Marpa::R2");
+        exit 0;
+    }
+    my $module_version = eval q{$} . $module_name . '::VERSION';
+    if ( !$module_name->VERSION($version_wanted) ) {
+        say
+            "1..0 # Skip $module_name version is $module_version; we wanted $version_wanted"
+            or Carp::croak("say failed: $ERRNO");
+        exit 0;
+    } ## end if ( !$module_name->VERSION($version_wanted) )
+} ## end sub load_or_skip_all
 
 1;

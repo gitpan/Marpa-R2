@@ -20,9 +20,11 @@ use strict;
 use warnings;
 
 use vars qw( $VERSION $STRING_VERSION );
-$VERSION = '0.001_001';
+$VERSION = '0.001_002';
 $STRING_VERSION = $VERSION;
+## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
+## use critic
 
 our @EXPORT_OK;
 use base qw(Exporter);
