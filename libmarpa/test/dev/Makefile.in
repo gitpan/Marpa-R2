@@ -16,18 +16,18 @@
 @SET_MAKE@
 
 # Copyright 2011 Jeffrey Kegler
-# This file is part of Marpa::XS.  Marpa::XS is free software: you can
+# This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
 # either version 3 of the License, or (at your option) any later version.
 #
-# Marpa::XS is distributed in the hope that it will be useful,
+# Marpa::R2 is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 #
 # You should have received a copy of the GNU Lesser
-# General Public License along with Marpa::XS.  If not, see
+# General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
 VPATH = @srcdir@
@@ -49,7 +49,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-noinst_PROGRAMS = testleak$(EXEEXT)
+noinst_PROGRAMS = testleak$(EXEEXT) balanced$(EXEEXT)
 subdir = .
 DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/configure config.guess \
@@ -67,9 +67,16 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 PROGRAMS = $(noinst_PROGRAMS)
+balanced_SOURCES = balanced.c
+balanced_OBJECTS = balanced-balanced.$(OBJEXT)
+am__DEPENDENCIES_1 =
+balanced_DEPENDENCIES = $(LIBOBJS) $(am__DEPENDENCIES_1) \
+	../../build/libmarpa.la
+balanced_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(CCLD) $(balanced_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
+	$(LDFLAGS) -o $@
 testleak_SOURCES = testleak.c
 testleak_OBJECTS = testleak-testleak.$(OBJEXT)
-am__DEPENDENCIES_1 =
 testleak_DEPENDENCIES = $(LIBOBJS) $(am__DEPENDENCIES_1) \
 	../../build/libmarpa.la
 testleak_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
@@ -88,8 +95,8 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = testleak.c
-DIST_SOURCES = testleak.c
+SOURCES = balanced.c testleak.c
+DIST_SOURCES = balanced.c testleak.c
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -228,6 +235,8 @@ ACLOCAL_AMFLAGS = -I m4
 EXTRA_DIST = README
 testleak_LDADD = $(LIBOBJS) $(GLIB_LIBS) ../../build/libmarpa.la
 testleak_CFLAGS = $(GLIB_CFLAGS) $(WARNING_CFLAGS) -I../../dist
+balanced_LDADD = $(LIBOBJS) $(GLIB_LIBS) ../../build/libmarpa.la
+balanced_CFLAGS = $(GLIB_CFLAGS) $(WARNING_CFLAGS) -I../../dist
 all: all-am
 
 .SUFFIXES:
@@ -275,6 +284,9 @@ clean-noinstPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
+balanced$(EXEEXT): $(balanced_OBJECTS) $(balanced_DEPENDENCIES) 
+	@rm -f balanced$(EXEEXT)
+	$(balanced_LINK) $(balanced_OBJECTS) $(balanced_LDADD) $(LIBS)
 testleak$(EXEEXT): $(testleak_OBJECTS) $(testleak_DEPENDENCIES) 
 	@rm -f testleak$(EXEEXT)
 	$(testleak_LINK) $(testleak_OBJECTS) $(testleak_LDADD) $(LIBS)
@@ -285,6 +297,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/balanced-balanced.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/testleak-testleak.Po@am__quote@
 
 .c.o:
@@ -307,6 +320,20 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
+
+balanced-balanced.o: balanced.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(balanced_CFLAGS) $(CFLAGS) -MT balanced-balanced.o -MD -MP -MF $(DEPDIR)/balanced-balanced.Tpo -c -o balanced-balanced.o `test -f 'balanced.c' || echo '$(srcdir)/'`balanced.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/balanced-balanced.Tpo $(DEPDIR)/balanced-balanced.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='balanced.c' object='balanced-balanced.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(balanced_CFLAGS) $(CFLAGS) -c -o balanced-balanced.o `test -f 'balanced.c' || echo '$(srcdir)/'`balanced.c
+
+balanced-balanced.obj: balanced.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(balanced_CFLAGS) $(CFLAGS) -MT balanced-balanced.obj -MD -MP -MF $(DEPDIR)/balanced-balanced.Tpo -c -o balanced-balanced.obj `if test -f 'balanced.c'; then $(CYGPATH_W) 'balanced.c'; else $(CYGPATH_W) '$(srcdir)/balanced.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/balanced-balanced.Tpo $(DEPDIR)/balanced-balanced.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='balanced.c' object='balanced-balanced.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(balanced_CFLAGS) $(CFLAGS) -c -o balanced-balanced.obj `if test -f 'balanced.c'; then $(CYGPATH_W) 'balanced.c'; else $(CYGPATH_W) '$(srcdir)/balanced.c'; fi`
 
 testleak-testleak.o: testleak.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(testleak_CFLAGS) $(CFLAGS) -MT testleak-testleak.o -MD -MP -MF $(DEPDIR)/testleak-testleak.Tpo -c -o testleak-testleak.o `test -f 'testleak.c' || echo '$(srcdir)/'`testleak.c
