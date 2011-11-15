@@ -138,8 +138,7 @@ that processing of input catches up to the furthest earleme.
 name: Recognizer alternative Synopsis
 normalize-whitespace: 1
 
-    defined $recce->alternative( 'a', 42, 1 )
-        or return 'First alternative failed';
+    $recce->alternative( 'a', 42, 1 ) or return 'First alternative failed';
 
 =for Marpa::R2::Display::End
 
@@ -169,10 +168,9 @@ To advance the current earleme when
 input is read using the C<alternative> method,
 the C<complete_earleme> method must be called.
 
-On success, C<alternative> returns the current earleme.
-On failures, other than the rejection of a token in interactive mode,
-C<alternative> throws an exception.
-If the token is rejected, C<alternative> returns a Perl C<undef>.
+On success, C<alternative> returns a Perl true value.
+If the token is rejected, C<alternative> returns a Perl false.
+On other failures, C<alternative> throws an exception.
 
 =head2 current_earleme
 
@@ -200,26 +198,34 @@ normalize-whitespace: 1
 
 Processes all tokens at the current earleme and advances the current
 earleme by 1.
-Returns the number of terminals acceptable at the new current earleme.
-Note that, in alternative input models,
-a return value of 0 does B<not> necessarily indicate an
-exhausted parser.
+If the earleme cannot be completed,
+an exception is thrown.
+Otherwise, an "event" count is returned.
+If zero is returned, the earleme was completed without event.
 
+In this context,
+an "event" is one of a list of occurrences of special interest during
+the successful completion of an earleme.
+One example of an event is parse exhaustion.
+To determine if one of the events was parse exhaustion,
+the L<C<exhausted> method|/"exhausted">
+can be used.
+
+All tokens read using the C<alternative> method start at one
+location -- the current earleme.
 When reading input using the C<alternative> method,
-C<earleme_complete> is used to move
+C<earleme_complete> is used to move complete processing
+at the current earleme and move
 forward in
 the input stream.
-All tokens read using the C<alternative> method are read at the same
-location -- the current earleme.
-A C<earleme_complete> call causes the tokens
-read using the C<alternative> method to be processed,
-and the current earleme to be advanced.
 
 C<earleme_complete> may be called even if the C<alternative>
 method has been not called since the last
 call to C<earleme_complete>.
-This will create an earleme with no tokens,
-which is often useful.
+This will create an earleme with no tokens.
+In certain input models,
+such as the character-per-earleme model,
+this can be useful.
 
 =head2 exhausted
 
@@ -302,18 +308,6 @@ method.
 The C<read> method has the same effect as a single call
 to the C<alternative> method, followed immediately
 by a call of the C<earleme_complete> method.
-More precisely,
-the C<read> method is equivalent to
-
-=for Marpa::R2::Display
-ignore: 1
-
-    sub Marpa::R2::Recognizer::read {
-	my $recce = shift;
-	return defined $recce->alternative(@_) ? $recce->earleme_complete() : undef;
-    }
-
-=for Marpa::R2::Display::End
 
 =head1 AMBIGUOUS LEXING
 

@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_004';
+$VERSION        = '0.001_005';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -35,7 +35,6 @@ BEGIN {
     :package=Marpa::R2::Internal::Recognizer
 
     C { A C structure }
-    ID { A unique ID provided by libmarpa }
 
     GRAMMAR { the grammar used }
     FINISHED
@@ -78,35 +77,6 @@ package Marpa::R2::Internal::Recognizer;
 use English qw( -no_match_vars );
 
 my $parse_number = 0;
-my %recce_by_id  = ();
-
-sub get_recognizer_by_id {
-    my ($recce_id) = @_;
-    my $recce = $recce_by_id{$recce_id};
-    if ( not defined $recce ) {
-        Carp::croak(
-            "Attempting to use a recognizer which has been garbage collected\n",
-            'Recognizer with id ',
-            q{#},
-            "$recce_id no longer exists\n"
-        );
-    } ## end if ( not defined $recce )
-    return $recce;
-} ## end sub get_recognizer_by_id
-
-sub message_cb {
-    my ( $recce_id, $message_id ) = @_;
-    my $recce    = get_recognizer_by_id($recce_id);
-    my $recce_c  = $recce->[Marpa::R2::Internal::Grammar::C];
-    my $trace_fh = $recce->[Marpa::R2::Internal::Grammar::TRACE_FILE_HANDLE];
-    if ( $message_id eq 'recce not active' ) {
-        my $phase = $recce_c->phase();
-        Marpa::R2::exception("Recognizer not active, phase is $phase");
-        return;
-    }
-    Marpa::R2::exception(qq{Unexpected message, type "$message_id"});
-    return;
-} ## end sub message_cb
 
 # Returns the new parse object or throws an exception
 sub Marpa::R2::Recognizer::new {
@@ -157,11 +127,6 @@ sub Marpa::R2::Recognizer::new {
             qq{Recognizer created failed with unexpected error code: "$error"}
         );
     } ## end if ( not defined $recce_c )
-    my $recce_id = $recce_c->id();
-    $recce->[Marpa::R2::Internal::Recognizer::ID] = $recce_id;
-    $recce_by_id{$recce_id} = $recce;
-    Scalar::Util::weaken( $recce_by_id{$recce_id} );
-    $recce_c->message_callback_set( \&message_cb );
 
     $recce->[Marpa::R2::Internal::Recognizer::WARNINGS]       = 1;
     $recce->[Marpa::R2::Internal::Recognizer::RANKING_METHOD] = 'none';
@@ -942,12 +907,10 @@ sub report_progress {
 } ## end sub report_progress
 
 sub Marpa::R2::Recognizer::read {
-
-    # For efficiency, args are not unpacked
     my $recce = shift;
-    return
-        defined $recce->alternative(@_) ? $recce->earleme_complete() : undef;
-} ## end sub Marpa::R2::Recognizer::read
+    return if not $recce->alternative(@_);
+    return $recce->earleme_complete();
+}
 
 sub Marpa::R2::Recognizer::alternative {
 
@@ -970,12 +933,9 @@ sub Marpa::R2::Recognizer::alternative {
     my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
     my $symbol_id   = $symbol_hash->{$symbol_name};
 
-## no critic(Subroutines::ProhibitExplicitReturnUndef)
-    # This is not
-    # a bare return, to be consistent with undef return from libmarpa
-    # alternative() call, below
-    return undef if not defined $symbol_id;
-## use critic
+    if (not defined $symbol_id) {
+        Marpa::R2::exception(qq{alternative(): symbol "$symbol_name" does not exist});
+    }
 
     my $value_ix = 0;
     if ( defined $value ) {
@@ -985,10 +945,6 @@ sub Marpa::R2::Recognizer::alternative {
     $length //= 1;
 
     my $result = $recce_c->alternative( $symbol_id, $value_ix, $length );
-    Marpa::R2::exception(
-        qq{"$symbol_name" already scanned with length $length at location },
-        $recce_c->current_earleme() )
-        if defined $result and $result == -3;
 
     my $trace_terminals =
         $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS];
@@ -1000,7 +956,8 @@ sub Marpa::R2::Recognizer::alternative {
             or Marpa::R2::exception("Cannot print: $ERRNO");
     } ## end if ($trace_terminals)
 
-    return $result;
+    return if not defined $result;
+    return 1;
 
 } ## end sub Marpa::R2::Recognizer::alternative
 
@@ -1036,15 +993,20 @@ sub Marpa::R2::Recognizer::earleme_complete {
     my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
     my $symbols     = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
 
-    my $no_of_terminals_expected = $recce_c->earleme_complete();
-    if ( not defined $no_of_terminals_expected ) {
-        my $error = $recce_c->error();
-        if ( $error eq 'parse exhausted' ) {
-            Marpa::R2::exception('parse exhausted');
-        }
-        Marpa::R2::exception( 'Uncaught error from earleme_complete(): ',
-            $recce_c->error() );
-    } ## end if ( not defined $no_of_terminals_expected )
+    my $event_count = $recce_c->earleme_complete();
+    EVENT: for my $event_ix ( 0 .. $event_count - 1 ) {
+        my $event_type = $recce_c->earleme_event($event_ix);
+        next EVENT if $event_type eq 'exhausted';
+        if ( $event_type eq 'earley item count' ) {
+            say {
+                $recce->[Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE] }
+                "Earley item count exceeds warning threshold"
+                or die "say: $ERRNO";
+            next EVENT;
+        } ## end if ( $event_type eq 'earley item count' )
+        Marpa::R2::exception(
+            "Unknown earleme completion event; type = $event_type");
+    } ## end for my $event_ix ( 0 .. $event_count - 1 )
 
     if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_EARLEY_SETS] ) {
         my $latest_set = $recce_c->latest_earley_set();
@@ -1067,7 +1029,7 @@ sub Marpa::R2::Recognizer::earleme_complete {
         }
     } ## end if ( $trace_terminals > 1 )
 
-    return $no_of_terminals_expected;
+    return $event_count;
 
 } ## end sub Marpa::R2::Recognizer::earleme_complete
 

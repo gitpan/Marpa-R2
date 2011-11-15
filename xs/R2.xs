@@ -68,26 +68,6 @@ xs_g_message_callback(Grammar *g, Marpa_Message_ID id)
 }
 
 static void
-xs_r_message_callback(struct marpa_r *r, Marpa_Message_ID id)
-{
-    SV* cb = marpa_r_message_callback_arg(r);
-    if (!cb) return;
-    if (!SvOK(cb)) return;
-    {
-    dSP;
-    ENTER;
-    SAVETMPS;
-    PUSHMARK(SP);
-    XPUSHs(sv_2mortal(newSViv( marpa_r_id(r))));
-    XPUSHs(sv_2mortal(newSVpv(id, 0)));
-    PUTBACK;
-    call_sv(cb, G_DISCARD);
-    FREETMPS;
-    LEAVE;
-    }
-}
-
-static void
 xs_rule_callback(Grammar *g, Marpa_Rule_ID id)
 {
     SV* cb = marpa_rule_callback_arg(g);
@@ -931,7 +911,6 @@ PPCODE:
     g = g_wrapper->g;
     r = marpa_r_new(g);
     if (!r) { croak ("failure in marpa_r_new: %s", marpa_g_error (g)); };
-    marpa_r_message_callback_set( r, &xs_r_message_callback );
     Newx( r_wrapper, 1, R_Wrapper );
     r_wrapper->r = r;
     r_wrapper->g_sv = g_sv;
@@ -950,42 +929,10 @@ PREINIT:
 CODE:
     g_sv = r_wrapper->g_sv;
     r = r_wrapper->r;
-    {
-       SV *sv = marpa_r_message_callback_arg(r);
-	marpa_r_message_callback_arg_set( r, NULL );
-       if (sv) { SvREFCNT_dec(sv); }
-    }
     g_array_free(r_wrapper->gint_array, TRUE);
     marpa_r_free( r );
     SvREFCNT_dec(g_sv);
     Safefree( r_wrapper );
-
- # Note the Perl callback closure
- # is, in the libmarpa context, the *ARGUMENT* of the callback,
- # not the callback itself.
- # The libmarpa callback is a wrapper
- # that calls the Perl closure.
-void
-message_callback_set( r_wrapper, sv )
-    R_Wrapper *r_wrapper;
-    SV *sv;
-PPCODE:
-    {
-       struct marpa_r* r = r_wrapper->r;
-       SV *old_sv = marpa_r_message_callback_arg(r);
-       if (old_sv) {
-       SvREFCNT_dec(old_sv); }
-	marpa_r_message_callback_arg_set( r, sv );
-	SvREFCNT_inc(sv);
-    }
-
-Marpa_Recognizer_ID
-id( r_wrapper )
-    R_Wrapper *r_wrapper;
-CODE:
-    RETVAL = marpa_r_id(r_wrapper->r);
-OUTPUT:
-    RETVAL
 
  # Someday replace this with a function which translates the
  # error
@@ -1014,7 +961,6 @@ CODE:
     case initial_phase: RETVAL = "initial"; break;
     case input_phase: RETVAL = "read"; break;
     case evaluation_phase: RETVAL = "evaluation"; break;
-    case error_phase: RETVAL = "error"; break;
     }
 OUTPUT:
     RETVAL
@@ -1085,8 +1031,7 @@ PPCODE:
 
  # current earleme on success -- return that directly
  # -1 means rejected because unexpected -- return undef
- # -3 means rejected as duplicate -- return that directly
- #      because Perl can do better error message for this
+ # -3 means rejected as duplicate -- call croak
  # -2 means some other failure -- call croak
 void
 alternative( r_wrapper, symbol_id, value, length )
@@ -1103,7 +1048,11 @@ PPCODE:
 	{
 	  XSRETURN_UNDEF;
 	}
-      if (result < 0 && result != -3)
+      if (result == -3)
+	{
+	  croak ("r->alternative(): Attempt to read same symbol twice at same location");
+	  }
+      if (result < 0)
 	{
 	  croak ("Invalid alternative: %s", marpa_r_error (r));
 	}
@@ -1456,6 +1405,25 @@ PPCODE:
 	  croak ("Problem in r->earleme_complete(): %s", marpa_r_error (r));
 	}
 	XPUSHs( sv_2mortal( newSViv(result) ) );
+    }
+
+void
+earleme_event( r_wrapper, ix )
+    R_Wrapper *r_wrapper;
+    int ix;
+PPCODE:
+    { struct marpa_r* r = r_wrapper->r;
+      struct marpa_r_event event;
+      char *result_string = "unknown";
+        Marpa_Earleme result = marpa_r_event(r, &event, ix);
+	if (result < 0) {
+	  croak ("Problem in r->earleme_event(): %s", marpa_r_error (r));
+	}
+	switch (result)  {
+	case MARPA_R_EV_EXHAUSTED: result_string = "exhausted"; break;
+	case MARPA_R_EV_EARLEY_ITEM_THRESHOLD: result_string = "earley item count"; break;
+	}
+	XPUSHs( sv_2mortal( newSVpv(result_string, 0) ) );
     }
 
 void
