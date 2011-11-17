@@ -47,64 +47,23 @@ typedef struct {
 static const char grammar_c_class_name[] = "Marpa::R2::Internal::G_C";
 static const char recce_c_class_name[] = "Marpa::R2::Internal::R_C";
 
-static void
-xs_g_message_callback(Grammar *g, Marpa_Message_ID id)
+static const char *
+event_type_to_string (Marpa_Event_Type type)
 {
-    SV* cb = marpa_g_message_callback_arg(g);
-    if (!cb) return;
-    if (!SvOK(cb)) return;
+  switch (type)
     {
-    dSP;
-    ENTER;
-    SAVETMPS;
-    PUSHMARK(SP);
-    XPUSHs(sv_2mortal(newSViv( marpa_grammar_id(g))));
-    XPUSHs(sv_2mortal(newSVpv(id, 0)));
-    PUTBACK;
-    call_sv(cb, G_DISCARD);
-    FREETMPS;
-    LEAVE;
+    case MARPA_G_EV_EXHAUSTED:
+      return "exhausted";
+    case MARPA_G_EV_EARLEY_ITEM_THRESHOLD:
+      return "earley item count";
+    case MARPA_G_EV_LOOP_RULES:
+      return "loop rules";
+    case MARPA_G_EV_NEW_SYMBOL:
+      return "new symbol";
+    case MARPA_G_EV_NEW_RULE:
+      return "new rule";
     }
-}
-
-static void
-xs_rule_callback(Grammar *g, Marpa_Rule_ID id)
-{
-    SV* cb = marpa_rule_callback_arg(g);
-    if (!cb) return;
-    if (!SvOK(cb)) return;
-    {
-    dSP;
-    ENTER;
-    SAVETMPS;
-    PUSHMARK(SP);
-    XPUSHs(sv_2mortal(newSViv( marpa_grammar_id(g))));
-    XPUSHs(sv_2mortal(newSViv(id)));
-    PUTBACK;
-    call_sv(cb, G_DISCARD);
-    FREETMPS;
-    LEAVE;
-    }
-}
-
-static void
-xs_symbol_callback(Grammar *g, Marpa_Symbol_ID id)
-{
-    SV* cb = marpa_symbol_callback_arg(g);
-    if (!cb) return;
-    if (!SvOK(cb)) return;
-    {
-    dSP;
-    ENTER;
-    SAVETMPS;
-    PUSHMARK(SP);
-    XPUSHs(sv_2mortal(newSViv( marpa_grammar_id(g))));
-    XPUSHs(sv_2mortal(newSViv(id)));
-    PUTBACK;
-    call_sv(cb, G_DISCARD);
-    FREETMPS;
-    LEAVE;
-    }
+  return NULL;
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2
@@ -134,9 +93,6 @@ PREINIT:
     G_Wrapper *g_wrapper;
 PPCODE:
     g = marpa_g_new();
-    marpa_g_message_callback_set( g, &xs_g_message_callback );
-    marpa_rule_callback_set( g, &xs_rule_callback );
-    marpa_symbol_callback_set( g, &xs_symbol_callback );
     Newx( g_wrapper, 1, G_Wrapper );
     g_wrapper->g = g;
     g_wrapper->gint_array = g_array_new( FALSE, FALSE, sizeof(gint));
@@ -151,79 +107,9 @@ PREINIT:
     struct marpa_g * grammar;
 CODE:
     grammar = g_wrapper->g;
-    {
-       SV *sv = marpa_g_message_callback_arg(grammar);
-	marpa_g_message_callback_arg_set( grammar, NULL );
-       if (sv) {
-       SvREFCNT_dec(sv);
-       }
-    }
-    {
-       SV *sv = marpa_rule_callback_arg(grammar);
-	marpa_rule_callback_arg_set( grammar, NULL );
-       if (sv) { 
-        SvREFCNT_dec(sv); }
-    }
-    {
-       SV *sv = marpa_symbol_callback_arg(grammar);
-	marpa_symbol_callback_arg_set( grammar, NULL );
-       if (sv) {
-       SvREFCNT_dec(sv); }
-    }
     g_array_free(g_wrapper->gint_array, TRUE);
     marpa_g_free( grammar );
     Safefree( g_wrapper );
-
- # Note the Perl callback closure
- # is, in the libmarpa context, the *ARGUMENT* of the callback,
- # not the callback itself.
- # The libmarpa callback is a wrapper
- # that calls the Perl closure.
-void
-message_callback_set( g, sv )
-    Grammar *g;
-    SV *sv;
-PPCODE:
-    {
-       SV *old_sv = marpa_g_message_callback_arg(g);
-       if (old_sv) { SvREFCNT_dec(old_sv); }
-    }
-    marpa_g_message_callback_arg_set( g, sv );
-    SvREFCNT_inc(sv);
-
-void
-rule_callback_set( g, sv )
-    Grammar *g;
-    SV *sv;
-PPCODE:
-    {
-       SV *old_sv = marpa_rule_callback_arg(g);
-       if (old_sv) {
-       SvREFCNT_dec(old_sv); }
-    }
-    marpa_rule_callback_arg_set( g, sv );
-    SvREFCNT_inc(sv);
-
-void
-symbol_callback_set( g, sv )
-    Grammar *g;
-    SV *sv;
-PPCODE:
-    {
-       SV *old_sv = marpa_symbol_callback_arg(g);
-       if (old_sv) {
-       SvREFCNT_dec(old_sv); }
-    }
-    marpa_symbol_callback_arg_set( g, sv );
-    SvREFCNT_inc(sv);
-
-Marpa_Grammar_ID
-id( g )
-    Grammar *g;
-CODE:
-    RETVAL = marpa_grammar_id(g);
-OUTPUT:
-    RETVAL
 
 void
 start_symbol_set( g, id )
@@ -269,6 +155,28 @@ PPCODE:
     { gint boolean = marpa_is_precomputed( g );
     if (boolean) XSRETURN_YES;
     XSRETURN_NO;
+    }
+
+void
+event( g, ix )
+    Grammar *g;
+    int ix;
+PPCODE:
+    {
+      struct marpa_g_event event;
+      const char *result_string = NULL;
+      Marpa_Event_Type result = marpa_g_event (g, &event, ix);
+      if (result < 0)
+	{
+	  croak ("Problem in g->event(): %s", marpa_g_error (g));
+	}
+      result_string = event_type_to_string (result);
+      if (!result_string)
+	{
+	  croak ("Problem in g->event(): unknown event %d", result);
+	}
+      XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
+      XPUSHs (sv_2mortal (newSViv (event.t_value)));
     }
 
 void
@@ -433,21 +341,58 @@ Marpa_Symbol_ID
 symbol_null_alias( g, symbol_id )
     Grammar *g;
     Marpa_Symbol_ID symbol_id;
-CODE:
-    RETVAL = marpa_symbol_null_alias(g, symbol_id);
-    if (RETVAL < 0) { XSRETURN_UNDEF; }
-OUTPUT:
-    RETVAL
+PPCODE:
+    {
+    Marpa_Symbol_ID alias_id = marpa_symbol_null_alias(g, symbol_id);
+      if (alias_id < -1)
+	{
+	  croak ("problem with g->symbol_null_alias: %s",
+		 marpa_g_error (g));
+	}
+      if (alias_id < 0)
+	{
+	  XSRETURN_UNDEF;
+	}
+      XPUSHs (sv_2mortal (newSViv (alias_id)));
+    }
 
 Marpa_Symbol_ID
 symbol_proper_alias( g, symbol_id )
     Grammar *g;
     Marpa_Symbol_ID symbol_id;
-CODE:
-    RETVAL = marpa_symbol_proper_alias(g, symbol_id);
-    if (RETVAL < 0) { XSRETURN_UNDEF; }
-OUTPUT:
-    RETVAL
+PPCODE:
+    {
+    Marpa_Symbol_ID alias_id = marpa_symbol_proper_alias(g, symbol_id);
+      if (alias_id < -1)
+	{
+	  croak ("problem with g->symbol_proper_alias: %s",
+		 marpa_g_error (g));
+	}
+      if (alias_id < 0)
+	{
+	  XSRETURN_UNDEF;
+	}
+      XPUSHs (sv_2mortal (newSViv (alias_id)));
+    }
+
+Marpa_Rule_ID
+symbol_virtual_lhs_rule( g, symbol_id )
+    Grammar *g;
+    Marpa_Symbol_ID symbol_id;
+PPCODE:
+    {
+      Marpa_Rule_ID rule_id = marpa_symbol_virtual_lhs_rule (g, symbol_id);
+      if (rule_id < -1)
+	{
+	  croak ("problem with g->symbol_virtual_lhs_rule: %s",
+		 marpa_g_error (g));
+	}
+      if (rule_id < 0)
+	{
+	  XSRETURN_UNDEF;
+	}
+      XPUSHs (sv_2mortal (newSViv (rule_id)));
+    }
 
  # Rules
 
@@ -706,11 +651,41 @@ PPCODE:
 int
 AHFA_item_count( g )
     Grammar *g;
-CODE:
-    RETVAL = marpa_AHFA_item_count(g );
-    if (RETVAL < 0) { XSRETURN_UNDEF; }
-OUTPUT:
-    RETVAL
+PPCODE:
+    {
+	gint count = marpa_AHFA_item_count(g );
+	if (count < -1) {
+	  croak ("Problem in g->AFHA_item_count(): %s", marpa_g_error (g));
+	}
+	if (count < 0) { XSRETURN_UNDEF; }
+	XPUSHs( sv_2mortal( newSViv(count) ) );
+    }
+
+int
+rule_count( g )
+    Grammar *g;
+PPCODE:
+    {
+	gint count = marpa_rule_count(g );
+	if (count < -1) {
+	  croak ("Problem in g->rule_count(): %s", marpa_g_error (g));
+	}
+	if (count < 0) { XSRETURN_UNDEF; }
+	XPUSHs( sv_2mortal( newSViv(count) ) );
+    }
+
+int
+symbol_count( g )
+    Grammar *g;
+PPCODE:
+    {
+	gint count = marpa_symbol_count(g );
+	if (count < -1) {
+	  croak ("Problem in g->symbol_count(): %s", marpa_g_error (g));
+	}
+	if (count < 0) { XSRETURN_UNDEF; }
+	XPUSHs( sv_2mortal( newSViv(count) ) );
+    }
 
 Marpa_Rule_ID
 AHFA_item_rule( g, item_id )
@@ -852,29 +827,6 @@ PPCODE:
     XPUSHs( sv_2mortal( newSViv(result) ) );
     }
 
-void
-context( g, key )
-    Grammar *g;
-    char *key;
-PREINIT:
-    union marpa_context_value* value;
-    const char *string;
-PPCODE:
-    value = marpa_g_context_value(g, key);
-    if (!value) {
-	XSRETURN_UNDEF;
-    }
-    string = MARPA_CONTEXT_STRING_VALUE(value);
-    if (string) {
-	XPUSHs( sv_2mortal( newSVpv( string, 0 ) ) );
-	goto finished;
-    }
-    if (MARPA_IS_CONTEXT_INT(value)) {
-	gint payload = MARPA_CONTEXT_INT_VALUE(value);
-	XPUSHs( sv_2mortal( newSViv( payload ) ) );
-    } else { XSRETURN_UNDEF; }
-    finished: ;
-
 char *error( g )
     Grammar *g;
 CODE:
@@ -885,8 +837,13 @@ OUTPUT:
 void precompute( g )
     Grammar *g;
 PPCODE:
-    if  (marpa_precompute(g)) { XSRETURN_YES; }
-    XSRETURN_NO;
+    {
+      gint result = marpa_precompute (g);
+      if (result < 0) {
+         XSRETURN_UNDEF;
+      }
+      XPUSHs (sv_2mortal (newSViv (result)));
+    }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Internal::R_C
 
@@ -1408,22 +1365,26 @@ PPCODE:
     }
 
 void
-earleme_event( r_wrapper, ix )
+event( r_wrapper, ix )
     R_Wrapper *r_wrapper;
     int ix;
 PPCODE:
-    { struct marpa_r* r = r_wrapper->r;
-      struct marpa_r_event event;
-      char *result_string = "unknown";
-        Marpa_Earleme result = marpa_r_event(r, &event, ix);
-	if (result < 0) {
+    {
+      struct marpa_r * const r = r_wrapper->r;
+      struct marpa_g_event event;
+      const char *result_string = NULL;
+      Marpa_Event_Type result = marpa_r_event (r, &event, ix);
+      if (result < 0)
+	{
 	  croak ("Problem in r->earleme_event(): %s", marpa_r_error (r));
 	}
-	switch (result)  {
-	case MARPA_R_EV_EXHAUSTED: result_string = "exhausted"; break;
-	case MARPA_R_EV_EARLEY_ITEM_THRESHOLD: result_string = "earley item count"; break;
+	result_string = event_type_to_string(result);
+      if (!result_string)
+	{
+	  croak ("Problem in r->earleme_event(): unknown event %d", result);
 	}
-	XPUSHs( sv_2mortal( newSVpv(result_string, 0) ) );
+      XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
+      XPUSHs (sv_2mortal (newSViv (event.t_value)));
     }
 
 void
@@ -1431,7 +1392,7 @@ earleme( r_wrapper, ordinal )
      R_Wrapper *r_wrapper;
      Marpa_Earley_Set_ID ordinal;
 PPCODE:
-    { struct marpa_r* r = r_wrapper->r;
+    { struct marpa_r* const r = r_wrapper->r;
 	gint result = marpa_earleme(r, ordinal);
 	if (result == -1) { XSRETURN_UNDEF; }
 	if (result < 0) {

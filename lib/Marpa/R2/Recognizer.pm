@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_005';
+$VERSION        = '0.001_006';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -461,9 +461,7 @@ sub Marpa::R2::show_leo_item {
     my $predecessor_symbol_id = $recce_c->leo_predecessor_symbol();
     my $base_origin_set_id    = $recce_c->leo_base_origin();
     my $base_origin_earleme   = $recce_c->earleme($base_origin_set_id);
-    my $symbols = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
-    my $postdot_symbol_name =
-        $symbols->[$postdot_symbol_id]->[Marpa::R2::Internal::Symbol::NAME];
+    my $postdot_symbol_name = $grammar->symbol_name($postdot_symbol_id);
 
     my $text = sprintf 'L%d@%d', $postdot_symbol_id, $trace_earleme;
     my @link_texts = qq{"$postdot_symbol_name"};
@@ -501,8 +499,7 @@ sub Marpa::R2::show_token_link_choice {
             . $origin_earleme . q{-}
             . $middle_earleme;
     } ## end if ( defined $predecessor_state )
-    my $symbol_name =
-        $symbols->[$token_id]->[Marpa::R2::Internal::Symbol::NAME];
+    my $symbol_name = $grammar->symbol_name($token_id);
     push @pieces, 's=' . $symbol_name;
     my $token_length = $current_earleme - $middle_earleme;
     my $value =
@@ -978,8 +975,7 @@ sub Marpa::R2::Recognizer::terminals_expected {
     my ($recce) = @_;
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
     my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
-    my $symbols = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
-    return [ map { $symbols->[$_]->[Marpa::R2::Internal::Symbol::NAME] }
+    return [ map { $grammar->symbol_name($_) }
             $recce_c->terminals_expected() ];
 } ## end sub Marpa::R2::Recognizer::terminals_expected
 
@@ -995,17 +991,17 @@ sub Marpa::R2::Recognizer::earleme_complete {
 
     my $event_count = $recce_c->earleme_complete();
     EVENT: for my $event_ix ( 0 .. $event_count - 1 ) {
-        my $event_type = $recce_c->earleme_event($event_ix);
+        my ($event_type, $value) = $recce_c->event($event_ix);
         next EVENT if $event_type eq 'exhausted';
         if ( $event_type eq 'earley item count' ) {
             say {
                 $recce->[Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE] }
-                "Earley item count exceeds warning threshold"
+                "Earley item count ($value) exceeds warning threshold"
                 or die "say: $ERRNO";
             next EVENT;
         } ## end if ( $event_type eq 'earley item count' )
         Marpa::R2::exception(
-            "Unknown earleme completion event; type = $event_type");
+            qq{Unknown earleme completion event; type="$event_type"});
     } ## end for my $event_ix ( 0 .. $event_count - 1 )
 
     if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_EARLEY_SETS] ) {
