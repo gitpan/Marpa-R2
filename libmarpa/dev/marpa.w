@@ -667,15 +667,25 @@ const guint marpa_minor_version = MARPA_MINOR_VERSION;
 const guint marpa_micro_version = MARPA_MICRO_VERSION;
 const guint marpa_interface_age = MARPA_INTERFACE_AGE;
 const guint marpa_binary_age = MARPA_BINARY_AGE;
-@ Return the version in a 3 element int array
-@<Function definitions@> =
-void marpa_version(int* version) {
-        version[0] = MARPA_MAJOR_VERSION;
-        version[1] = MARPA_MINOR_VERSION,
-        version[2] = MARPA_MICRO_VERSION;
+@ @<Function definitions@> =
+const gchar *
+marpa_check_version (guint required_major,
+                    guint required_minor,
+                    guint required_micro)
+{
+  gint marpa_effective_micro = 100 * MARPA_MINOR_VERSION + MARPA_MICRO_VERSION;
+  gint required_effective_micro = 100 * required_minor + required_micro;
+
+  if (required_major > MARPA_MAJOR_VERSION)
+    return "libmarpa version too old (major mismatch)";
+  if (required_major < MARPA_MAJOR_VERSION)
+    return "libmarpa version too new (major mismatch)";
+  if (required_effective_micro < marpa_effective_micro - MARPA_BINARY_AGE)
+    return "libmarpa version too new (micro mismatch)";
+  if (required_effective_micro > marpa_effective_micro)
+    return "libmarpa version too old (micro mismatch)";
+  return NULL;
 }
-@ @<Public function prototypes@> =
-void marpa_version(int* version);
 
 @*0 Header file.
 |GLIB_VAR| is to
@@ -807,7 +817,7 @@ void rule_add(
     RULE rule)
 {
     g_array_insert_val(g->t_rules, (unsigned)rule_id, rule);
-    LV_Size_of_G(g) += 1 + Length_of_RULE(rule);
+    Size_of_G(g) += 1 + Length_of_RULE(rule);
     g->t_max_rule_length = MAX(Length_of_RULE(rule), g->t_max_rule_length);
 }
 
@@ -894,10 +904,9 @@ from the count.
 The purpose of tracking grammar size is to allocate resources,
 and for that purpose a high-ball estimate is adequate.
 @d Size_of_G(g) ((g)->t_size)
-@d LV_Size_of_G(g) ((g)->t_size)
 @ @<Int aligned grammar elements@> = int t_size;
 @ @<Initialize grammar elements@> =
-LV_Size_of_G(g) = 0;
+Size_of_G(g) = 0;
 
 @*0 The Maximum Rule Length.
 This is a high-ball estimate of the length of the
@@ -1060,7 +1069,7 @@ void int_event_new(struct marpa_g* g, gint type, gint value)
   top_of_stack->t_value =  value;
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_g_event(struct marpa_g *g, struct marpa_g_event *public_event, gint ix);
 @ @<Function definitions@> =
 gint
@@ -3583,7 +3592,6 @@ A lot of code relies on these facts.
    AIM* t_AHFA_items_by_rule;
 @
 @d AIM_Count_of_G(g) ((g)->t_aim_count)
-@d LV_AIM_Count_of_G(g) AIM_Count_of_G(g) 
 @<Int aligned grammar elements@> =
    guint t_aim_count;
 @ The space is allocated during precomputation.
@@ -3718,7 +3726,7 @@ void create_AHFA_items(GRAMMAR g) {
 	}
     }
     SYMI_Count_of_G(g) = symbol_instance_of_next_rule;
-    no_of_items = LV_AIM_Count_of_G(g) = current_item - base_item;
+    no_of_items = AIM_Count_of_G(g) = current_item - base_item;
     g->t_AHFA_items = g_renew(struct s_AHFA_item, base_item, no_of_items);
     @<Set up the items-by-rule list@>@;
     @<Set up the AHFA item ids@>@;
@@ -3983,9 +3991,7 @@ typedef struct s_AHFA_state AHFA_Object;
 
 @*0 Complete Symbols Container.
 @ @d Complete_SYMIDs_of_AHFA(state) ((state)->t_complete_symbols)
-@d LV_Complete_SYMIDs_of_AHFA(state) Complete_SYMIDs_of_AHFA(state)
 @d Complete_SYM_Count_of_AHFA(state) ((state)->t_complete_symbol_count)
-@d LV_Complete_SYM_Count_of_AHFA(state) Complete_SYM_Count_of_AHFA(state)
 @<Int aligned AHFA state elements@> =
 guint t_complete_symbol_count;
 @ @<Widely aligned AHFA state elements@> =
@@ -3994,14 +4000,12 @@ SYMID* t_complete_symbols;
 @*0 AHFA Item Container.
 @ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
 @d AIM_of_AHFA_by_AEX(ahfa, aex) (AIMs_of_AHFA(ahfa)[aex])
-@d LV_AIMs_of_AHFA(ahfa) AIMs_of_AHFA(ahfa)
 @d AIM_Count_of_AHFA(ahfa) ((ahfa)->t_item_count)
-@d LV_AIM_Count_of_AHFA(ahfa) AIM_Count_of_AHFA(ahfa)
 @d AEX_of_AHFA_by_AIM(ahfa, aim) aex_of_ahfa_by_aim_get((ahfa), (aim))
 @<Widely aligned AHFA state elements@> =
 AIM* t_items;
 @ @<Int aligned AHFA state elements@> =
-guint t_item_count;
+gint t_item_count;
 @ This function assumes that the caller knows that the AHFA item
 is in the AHFA state.
 @<Private function prototypes@> =
@@ -4047,7 +4051,6 @@ and a completion.
 AHFA state 0 is, however, {\bf never}
 a predicted AHFA state.
 @d AHFA_is_Predicted(ahfa) ((ahfa)->t_is_predict)
-@d LV_AHFA_is_Predicted(ahfa) AHFA_is_Predicted(ahfa)
 @d EIM_is_Predicted(eim) AHFA_is_Predicted(AHFA_of_EIM(eim))
 @<Bit aligned AHFA elements@> =
 guint t_is_predict:1;
@@ -4075,7 +4078,7 @@ STOLEN_DQUEUE_DATA_FREE(g->t_AHFA);
 
 @ Most of the data is on the obstack, and will be freed with that.
 @<Free AHFA state@> = {
-  TRANS *ahfa_transitions = LV_TRANSs_of_AHFA (ahfa_state);
+  TRANS *ahfa_transitions = TRANSs_of_AHFA (ahfa_state);
   if (ahfa_transitions)
     g_free (TRANSs_of_AHFA (ahfa_state));
 }
@@ -4097,9 +4100,7 @@ const struct marpa_g *g, AHFAID AHFA_state_id);
     
 @*0 Postdot Symbols.
 @d Postdot_SYM_Count_of_AHFA(state) ((state)->t_postdot_sym_count)
-@d LV_Postdot_SYM_Count_of_AHFA(state) Postdot_SYM_Count_of_AHFA(state) 
 @d Postdot_SYMID_Ary_of_AHFA(state) ((state)->t_postdot_symid_ary)
-@d LV_Postdot_SYMID_Ary_of_AHFA(state) Postdot_SYMID_Ary_of_AHFA(state)
 @<Widely aligned AHFA state elements@> = Marpa_Symbol_ID* t_postdot_symid_ary;
 @ @<Int aligned AHFA state elements@> = guint t_postdot_sym_count;
 
@@ -4127,20 +4128,24 @@ gint marpa_g_AHFA_state_item_count(struct marpa_g* g, Marpa_AHFA_State_ID AHFA_s
 @ @<Public function prototypes@> =
 Marpa_AHFA_Item_ID marpa_g_AHFA_state_item(struct marpa_g* g,
      Marpa_AHFA_State_ID AHFA_state_id,
-	guint item_ix);
+	gint item_ix);
 @ @d AIMID_of_AHFA_by_AEX(g, ahfa, aex)
    ((ahfa)->t_items[aex] - (g)->t_AHFA_items)
 @<Function definitions@> =
 Marpa_AHFA_Item_ID marpa_g_AHFA_state_item(struct marpa_g* g,
      AHFAID AHFA_state_id,
-	guint item_ix) {
+	gint item_ix) {
     AHFA state;
     @<Return |-2| on failure@>@/
     @<Fail if grammar not precomputed@>@/
     @<Fail if grammar |AHFA_state_id| is invalid@>@/
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
+    if (item_ix < 0) {
+        MARPA_ERROR("symbol lhs index negative");
+	return failure_indicator;
+    }
     if (item_ix >= state->t_item_count) {
-	g->t_error = "invalid state item ix";
+	MARPA_ERROR("invalid state item ix");
 	return failure_indicator;
     }
     return AIMID_of_AHFA_by_AEX(g, state, item_ix);
@@ -4227,7 +4232,6 @@ The value of the Leo completion symbol is used to
 determine if an Earley item
 with this AHFA state is eligible to be a Leo completion.
 @d Leo_LHS_ID_of_AHFA(state) ((state)->t_leo_lhs_sym)
-@d LV_Leo_LHS_ID_of_AHFA(state) Leo_LHS_ID_of_AHFA(state)
 @d AHFA_is_Leo_Completion(state) (Leo_LHS_ID_of_AHFA(state) >= 0)
 @ @<Int aligned AHFA state elements@> = SYMID t_leo_lhs_sym;
 @ @<Public function prototypes@> =
@@ -4267,22 +4271,25 @@ static gint AHFA_state_cmp(
     gconstpointer ap,
     gconstpointer bp)
 {
-    guint i;
     AIM* items_a;
     AIM* items_b;
     const AHFA state_a = (AHFA)ap;
     const AHFA state_b = (AHFA)bp;
-    guint length = state_a->t_item_count;
-    gint subkey = length - state_b->t_item_count;
-    if (subkey) return subkey;
-    if (length != state_b->t_item_count) return FALSE;
-    items_a = state_a->t_items;
-    items_b = state_b->t_items;
-    for (i = 0; i < length; i++) {
-    subkey = Sort_Key_of_AIM (items_a[i]) - Sort_Key_of_AIM (items_b[i]);
-   if (subkey) return subkey;
-}
-return 0;
+    const gint length_a = state_a->t_item_count;
+    const gint length_b = state_b->t_item_count;
+    gint major_key = length_a - length_b;
+    if (major_key) return major_key;
+    {
+      gint i, minor_key;
+      items_a = state_a->t_items;
+      items_b = state_b->t_items;
+      for (i = 0; i < length_a; i++)
+	{
+	  minor_key = Sort_Key_of_AIM (items_a[i]) - Sort_Key_of_AIM (items_b[i]);
+	  if (minor_key) return minor_key;
+	}
+    }
+    return 0;
 }
 
 @*0 AHFA State Mutators.
@@ -4476,14 +4483,14 @@ g_tree_destroy(duplicates);
   p_initial_state->t_items = item_list;
   p_initial_state->t_item_count = 1;
   p_initial_state->t_key.t_id = 0;
-  LV_AHFA_is_Predicted (p_initial_state) = 0;
-  LV_Leo_LHS_ID_of_AHFA (p_initial_state) = -1;
-  LV_TRANSs_of_AHFA (p_initial_state) = transitions_new (g);
-  LV_Postdot_SYM_Count_of_AHFA (p_initial_state) = 1;
-  postdot_symbol_ids = LV_Postdot_SYMID_Ary_of_AHFA (p_initial_state) =
+  AHFA_is_Predicted (p_initial_state) = 0;
+  Leo_LHS_ID_of_AHFA (p_initial_state) = -1;
+  TRANSs_of_AHFA (p_initial_state) = transitions_new (g);
+  Postdot_SYM_Count_of_AHFA (p_initial_state) = 1;
+  postdot_symbol_ids = Postdot_SYMID_Ary_of_AHFA (p_initial_state) =
     obstack_alloc (&g->t_obs, sizeof (SYMID));
   *postdot_symbol_ids = Postdot_SYMID_of_AIM (start_item);
-  LV_Complete_SYM_Count_of_AHFA (p_initial_state) = 0;
+  Complete_SYM_Count_of_AHFA (p_initial_state) = 0;
   p_initial_state->t_has_completed_start_rule = 0;
   p_initial_state->t_empty_transition =
     create_predicted_AHFA_state (g,
@@ -4545,20 +4552,20 @@ are either AHFA state 0, or 1-item discovered AHFA states.
 	obstack_alloc (&g->t_obs, sizeof (AIM));
     new_state_item_list[0] = single_item_p;
     p_new_state->t_item_count = 1;
-    LV_AHFA_is_Predicted(p_new_state) = 0;
+    AHFA_is_Predicted(p_new_state) = 0;
     if (AIM_has_Completed_Start_Rule(single_item_p)) {
 	p_new_state->t_has_completed_start_rule = 1;
     } else {
 	p_new_state->t_has_completed_start_rule = 0;
     }
-    LV_Leo_LHS_ID_of_AHFA(p_new_state) = -1;
+    Leo_LHS_ID_of_AHFA(p_new_state) = -1;
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE (states, AHFA_Object);
-    LV_TRANSs_of_AHFA(p_new_state) = transitions_new(g);
+    TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     transition_add (&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
     postdot = Postdot_SYMID_of_AIM(single_item_p);
     if (postdot >= 0)
       {
-	LV_Complete_SYM_Count_of_AHFA(p_new_state) = 0;
+	Complete_SYM_Count_of_AHFA(p_new_state) = 0;
 	p_new_state->t_postdot_sym_count = 1;
 	p_new_state->t_postdot_symid_ary =
 	  obstack_alloc (&g->t_obs, sizeof (SYMID));
@@ -4576,9 +4583,9 @@ are either AHFA state 0, or 1-item discovered AHFA states.
 	SYMID lhs_id = LHS_ID_of_AIM(single_item_p);
 	SYMID* complete_symids = obstack_alloc (&g->t_obs, sizeof (SYMID));
 	*complete_symids = lhs_id;
-	LV_Complete_SYMIDs_of_AHFA(p_new_state) = complete_symids;
+	Complete_SYMIDs_of_AHFA(p_new_state) = complete_symids;
 	completion_count_inc(&ahfa_work_obs, p_new_state, lhs_id);
-	LV_Complete_SYM_Count_of_AHFA(p_new_state) = 1;
+	Complete_SYM_Count_of_AHFA(p_new_state) = 1;
 	p_new_state->t_postdot_sym_count = 0;
 	p_new_state->t_empty_transition = NULL;
 	@<If this state can be a Leo completion,
@@ -4620,7 +4627,7 @@ set the Leo completion symbol to |lhs_id|@> = {
   if (SYMBOL_LHS_RULE_COUNT (SYM_by_ID (predot_symid))
       > 0)
     {
-	LV_Leo_LHS_ID_of_AHFA(p_new_state) = lhs_id;
+	Leo_LHS_ID_of_AHFA(p_new_state) = lhs_id;
     }
 }
 
@@ -4680,10 +4687,10 @@ if (queued_AHFA_state)
   }
     // If we added the new state, finish up its data.
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE(states, AHFA_Object);
-    LV_AHFA_is_Predicted(p_new_state) = 0;
+    AHFA_is_Predicted(p_new_state) = 0;
     p_new_state->t_has_completed_start_rule = 0;
-    LV_Leo_LHS_ID_of_AHFA(p_new_state) =-1;
-    LV_TRANSs_of_AHFA(p_new_state) = transitions_new(g);
+    Leo_LHS_ID_of_AHFA(p_new_state) =-1;
+    TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     @<Calculate complete and postdot symbols for discovered state@>@/
     transition_add(&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
     @<Calculate the predicted rule vector for this state
@@ -4731,14 +4738,14 @@ if ((no_of_postdot_symbols = p_new_state->t_postdot_sym_count =
       }
   }
     if ((no_of_complete_symbols =
-	 LV_Complete_SYM_Count_of_AHFA (p_new_state) = bv_count (complete_v)))
+	 Complete_SYM_Count_of_AHFA (p_new_state) = bv_count (complete_v)))
       {
 	guint min, max, start;
 	SYMID *complete_symids = obstack_alloc (&g->t_obs,
 						no_of_complete_symbols *
 						sizeof (SYMID));
 	SYMID *p_symbol = complete_symids;
-	LV_Complete_SYMIDs_of_AHFA (p_new_state) = complete_symids;
+	Complete_SYMIDs_of_AHFA (p_new_state) = complete_symids;
 	for (start = 0; bv_scan (complete_v, start, &min, &max); start = max + 2)
 	  {
 	    SYMID complete_symbol_id;
@@ -4808,7 +4815,7 @@ if (postdot >= 0)
 The method for building predicted AHFA states is optimized using
 precomputed bit vectors.
 This should be very fast,
-but It is possible to think other methods might
+but it is possible to think other methods might
 be better, at least in some cases.  The bit vectors are $O(s)$ in length, where $s$ is the
 size of the grammar, and so is the time complexity of the method used.
 @ It may be possible to look at a list of
@@ -4907,9 +4914,11 @@ the predictable rules.
 |G_MAXINT| is used for the others, so that they will sort high.
 (|G_MAXINT| is used and not |G_MAXUINT|, because the sort routines
 work with signed values.)
-This first pass fully captures the order, but
-our final result needs to be an unique ID for every ``predictable rule",
-so that it can be used as the index in a bit vector.
+This first pass fully captures the order,
+but in the 
+final result we want the keys to be unique integers
+in a sequence start from 0,
+so that they can be used as the indices of a bit vector.
 @<Populate |sort_key_by_rule_id| with first pass value;
 calculate |no_of_predictable_rules|@> =
 {
@@ -5067,12 +5076,12 @@ p_new_state = DQUEUE_PUSH((*states_p), AHFA_Object);@/
     }
     // The new state was added -- finish up its data
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE((*states_p), AHFA_Object);
-    LV_AHFA_is_Predicted(p_new_state) = 1;
+    AHFA_is_Predicted(p_new_state) = 1;
     p_new_state->t_has_completed_start_rule = 0;
-    LV_Leo_LHS_ID_of_AHFA(p_new_state) = -1;
+    Leo_LHS_ID_of_AHFA(p_new_state) = -1;
     p_new_state->t_empty_transition = NULL;
-    LV_TRANSs_of_AHFA(p_new_state) = transitions_new(g);
-    LV_Complete_SYM_Count_of_AHFA(p_new_state) = 0;
+    TRANSs_of_AHFA(p_new_state) = transitions_new(g);
+    Complete_SYM_Count_of_AHFA(p_new_state) = 0;
     @<Calculate postdot symbols for predicted state@>@/
     return p_new_state;
 }
@@ -5184,7 +5193,6 @@ struct s_transition {
     AEX t_aex[1];
 };
 @ @d TRANSs_of_AHFA(ahfa) ((ahfa)->t_transitions)
-@d LV_TRANSs_of_AHFA(ahfa) TRANSs_of_AHFA(ahfa)
 @<Widely aligned AHFA state elements@> =
     TRANS* t_transitions;
 @ @<Private function prototypes@> =
@@ -5435,7 +5443,6 @@ Marpa_Phase marpa_r_phase(struct marpa_r* r)
 
 @*0 Earley Set Container.
 @d First_ES_of_R(r) ((r)->t_first_earley_set)
-@d LV_First_ES_of_R(r) First_ES_of_R(r)
 @<Widely aligned recognizer elements@> =
 ES t_first_earley_set;
 ES t_latest_earley_set;
@@ -5452,9 +5459,7 @@ r->t_current_earleme = -1;
 
 @*0 Current Earleme.
 @d Latest_ES_of_R(r) ((r)->t_latest_earley_set)
-@d LV_Latest_ES_of_R(r) Latest_ES_of_R(r)
 @d Current_Earleme_of_R(r) ((r)->t_current_earleme)
-@d LV_Current_Earleme_of_R(r) (Current_Earleme_of_R(r))
 @ @<Public function prototypes@> =
 guint marpa_r_current_earleme(struct marpa_r* r);
 @ @<Function definitions@> =
@@ -5478,19 +5483,19 @@ static inline ES current_es_of_r(RECCE r)
 @ @<Initialize recognizer elements@> =
 r->t_earley_item_warning_threshold = MAX(DEFAULT_EIM_WARNING_THRESHOLD, AIM_Count_of_G(g)*2);
 @ @<Public function prototypes@> =
-guint marpa_r_earley_item_warning_threshold(struct marpa_r* r);
+gint marpa_r_earley_item_warning_threshold(struct marpa_r* r);
 @ @<Function definitions@> =
-guint marpa_r_earley_item_warning_threshold(struct marpa_r* r)
+gint marpa_r_earley_item_warning_threshold(struct marpa_r* r)
 { return r->t_earley_item_warning_threshold; }
 
 @ @<Public function prototypes@> =
-gboolean marpa_r_earley_item_warning_threshold_set(struct marpa_r*r, guint threshold);
+gint marpa_r_earley_item_warning_threshold_set(struct marpa_r*r, gint threshold);
 @ Returns |TRUE| on success,
 |FALSE| on failure.
 @<Function definitions@> =
-gboolean marpa_r_earley_item_warning_threshold_set(struct marpa_r*r, guint threshold)
+gint marpa_r_earley_item_warning_threshold_set(struct marpa_r*r, gint threshold)
 {
-    r->t_earley_item_warning_threshold = threshold == 0 ? EIM_FATAL_THRESHOLD : threshold;
+    r->t_earley_item_warning_threshold = threshold <= 0 ? EIM_FATAL_THRESHOLD : threshold;
     return TRUE;
 }
 
@@ -5501,7 +5506,6 @@ Marpa allows variable length tokens,
 so it needs to track how far out tokens might be found.
 No complete or predicted Earley item will be found after the current earleme.
 @d Furthest_Earleme_of_R(r) ((r)->t_furthest_earleme)
-@d LV_Furthest_Earleme_of_R(r) Furthest_Earleme_of_R(r)
 @<Int aligned recognizer elements@> = EARLEME t_furthest_earleme;
 @ @<Initialize recognizer elements@> = r->t_furthest_earleme = 0;
 @ @<Public function prototypes@> =
@@ -5825,7 +5829,6 @@ able to handle.
 @<Public typedefs@> = typedef gint Marpa_Earley_Set_ID;
 @ @<Private typedefs@> = typedef Marpa_Earley_Set_ID ESID;
 @ @d Next_ES_of_ES(set) ((set)->t_next_earley_set)
-@d LV_Next_ES_of_ES(set) Next_ES_of_ES(set)
 @d Postdot_SYM_Count_of_ES(set) ((set)->t_postdot_sym_count)
 @d First_PIM_of_ES_by_SYMID(set, symid) (first_pim_of_es_by_symid((set), (symid)))
 @d PIM_SYM_P_of_ES_by_SYMID(set, symid) (pim_sym_p_find((set), (symid)))
@@ -5892,7 +5895,7 @@ earley_set_new( RECCE r, EARLEME id)
   EIM_Count_of_ES(set) = 0;
   set->t_ordinal = r->t_earley_set_count++;
   EIMs_of_ES(set) = NULL;
-  LV_Next_ES_of_ES(set) = NULL;
+  Next_ES_of_ES(set) = NULL;
   @<Initialize Earley set PSL data@>@/
   return set;
 }
@@ -6401,11 +6404,8 @@ The other elements of the EIX are overhead to
 support the chain of postdot items for
 a postdot symbol.
 @d Next_PIM_of_EIX(eix) ((eix)->t_next)
-@d LV_Next_PIM_of_EIX(eix) Next_PIM_of_EIX(eix)
 @d EIM_of_EIX(eix) ((eix)->t_earley_item)
-@d LV_EIM_of_EIX(eix) EIM_of_EIX(eix)
 @d Postdot_SYMID_of_EIX(eix) ((eix)->t_postdot_symid)
-@d LV_Postdot_SYMID_of_EIX(eix) Postdot_SYMID_of_EIX(eix)
 @<Private incomplete structures@> =
 struct s_earley_ix;
 typedef struct s_earley_ix* EIX;
@@ -6434,19 +6434,12 @@ but one
 with a |NULL| Earley item pointer.
 @d Postdot_SYMID_of_LIM(leo) (Postdot_SYMID_of_EIX(EIX_of_LIM(leo)))
 @d Next_PIM_of_LIM(leo) (Next_PIM_of_EIX(EIX_of_LIM(leo)))
-@d LV_Next_PIM_of_LIM(leo) Next_PIM_of_LIM(leo)
 @d Origin_of_LIM(leo) ((leo)->t_origin)
-@d LV_Origin_of_LIM(leo) Origin_of_LIM(leo)
 @d Top_AHFA_of_LIM(leo) ((leo)->t_top_ahfa)
-@d LV_Top_AHFA_of_LIM(leo) Top_AHFA_of_LIM(leo)
 @d Predecessor_LIM_of_LIM(leo) ((leo)->t_predecessor)
-@d LV_Predecessor_LIM_of_LIM(leo) Predecessor_LIM_of_LIM(leo)
 @d Base_EIM_of_LIM(leo) ((leo)->t_base)
-@d LV_Base_EIM_of_LIM(leo) Base_EIM_of_LIM(leo)
 @d ES_of_LIM(leo) ((leo)->t_set)
-@d LV_ES_of_LIM(leo) ES_of_LIM(leo)
 @d Chain_Length_of_LIM(leo) ((leo)->t_chain_length)
-@d LV_Chain_Length_of_LIM(leo) Chain_Length_of_LIM(leo)
 @d Earleme_of_LIM(lim) Earleme_of_ES(ES_of_LIM(lim))
 @<Private incomplete structures@> =
 struct s_leo_item;
@@ -6590,11 +6583,8 @@ for each Earley set.
 @d LIM_of_PIM(pim) ((LIM)(pim))
 @d EIX_of_PIM(pim) ((EIX)(pim))
 @d Postdot_SYMID_of_PIM(pim) (Postdot_SYMID_of_EIX(EIX_of_PIM(pim)))
-@d LV_Postdot_SYMID_of_PIM(pim) Postdot_SYMID_of_PIM(pim)
 @d EIM_of_PIM(pim) (EIM_of_EIX(EIX_of_PIM(pim)))
-@d LV_EIM_of_PIM(pim) EIM_of_PIM(pim)
 @d Next_PIM_of_PIM(pim) (Next_PIM_of_EIX(EIX_of_PIM(pim)))
-@d LV_Next_PIM_of_PIM(pim) Next_PIM_of_PIM(pim)
 
 @ |PIM_of_LIM| assumes that PIM is in fact a LIM.
 |PIM_is_LIM| is available to check this.
@@ -6785,7 +6775,7 @@ struct marpa_g *g = G_of_R(r);
   return Postdot_SYMID_of_PIM(pim);
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 Marpa_AHFA_State_ID marpa_r_postdot_item_symbol(struct marpa_r *r);
 @ @<Function definitions@> =
 Marpa_AHFA_State_ID marpa_r_postdot_item_symbol(struct marpa_r *r)
@@ -6857,7 +6847,6 @@ assure herself that the space she saves in
 the |ambiguous_source| struct was not simply wasted
 by alignment within structures or during memory allocation.
 @d Next_SRCL_of_SRCL(link) ((link)->t_next)
-@d LV_Next_SRCL_of_SRCL(link) Next_SRCL_of_SRCL(link)
 @ @<Private typedefs@> =
 struct s_source;
 typedef struct s_source* SRC;
@@ -6899,7 +6888,6 @@ union u_source_container {
 @d Predecessor_of_SRC(source) Predecessor_of_Source(*(source))
 @d Predecessor_of_EIM(item) Predecessor_of_Source(Source_of_EIM(item))
 @d Predecessor_of_SRCL(link) Predecessor_of_Source(Source_of_SRCL(link))
-@d LV_Predecessor_of_SRCL(link) Predecessor_of_SRCL(link)
 @d Cause_of_Source(srcd) ((srcd).t_cause.t_completion)
 @d Cause_of_SRC(source) Cause_of_Source(*(source))
 @d Cause_of_EIM(item) Cause_of_Source(Source_of_EIM(item))
@@ -6920,11 +6908,8 @@ union u_source_container {
 
 @
 @d First_Completion_Link_of_EIM(item) ((item)->t_container.t_ambiguous.t_completion)
-@d LV_First_Completion_Link_of_EIM(item) First_Completion_Link_of_EIM(item)
 @d First_Token_Link_of_EIM(item) ((item)->t_container.t_ambiguous.t_token)
-@d LV_First_Token_Link_of_EIM(item) First_Token_Link_of_EIM(item)
 @d First_Leo_SRCL_of_EIM(item) ((item)->t_container.t_ambiguous.t_leo)
-@d LV_First_Leo_SRCL_of_EIM(item) First_Leo_SRCL_of_EIM(item)
 
 @ @<Private function prototypes@> = static inline void
 token_link_add (struct marpa_r *r,
@@ -6955,7 +6940,7 @@ token_link_add (struct marpa_r *r,
   new_link->t_next = First_Token_Link_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   TOK_of_Source(new_link->t_source) = token;
-  LV_First_Token_Link_of_EIM (item) = new_link;
+  First_Token_Link_of_EIM (item) = new_link;
 }
 
 @ @<Private function prototypes@> = static inline void
@@ -7036,7 +7021,7 @@ completion_link_add (struct marpa_r *r,
   new_link->t_next = First_Completion_Link_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
-  LV_First_Completion_Link_of_EIM (item) = new_link;
+  First_Completion_Link_of_EIM (item) = new_link;
 }
 
 @ @<Function definitions@> = static inline
@@ -7063,7 +7048,7 @@ leo_link_add (struct marpa_r *r,
   new_link->t_next = First_Leo_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
-  LV_First_Leo_SRCL_of_EIM(item) = new_link;
+  First_Leo_SRCL_of_EIM(item) = new_link;
 }
 @ @<Private function prototypes@> = static inline void
 leo_link_add (struct marpa_r *r,
@@ -7113,27 +7098,27 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item);
   SRCL new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
-  LV_First_Leo_SRCL_of_EIM (item) = NULL;
-  LV_First_Completion_Link_of_EIM (item) = NULL;
-  LV_First_Token_Link_of_EIM (item) = new_link;
+  First_Leo_SRCL_of_EIM (item) = NULL;
+  First_Completion_Link_of_EIM (item) = NULL;
+  First_Token_Link_of_EIM (item) = new_link;
 }
 
 @ @<Ambiguate completion source@> = {
   SRCL new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
-  LV_First_Leo_SRCL_of_EIM (item) = NULL;
-  LV_First_Completion_Link_of_EIM (item) = new_link;
-  LV_First_Token_Link_of_EIM (item) = NULL;
+  First_Leo_SRCL_of_EIM (item) = NULL;
+  First_Completion_Link_of_EIM (item) = new_link;
+  First_Token_Link_of_EIM (item) = NULL;
 }
 
 @ @<Ambiguate Leo source@> = {
   SRCL new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
-  LV_First_Leo_SRCL_of_EIM (item) = new_link;
-  LV_First_Completion_Link_of_EIM (item) = NULL;
-  LV_First_Token_Link_of_EIM (item) = NULL;
+  First_Leo_SRCL_of_EIM (item) = new_link;
+  First_Completion_Link_of_EIM (item) = NULL;
+  First_Token_Link_of_EIM (item) = NULL;
 }
 
 @*0 Trace Functions.
@@ -7863,15 +7848,15 @@ static inline gint alternative_insert(RECCE r, ALT new_alternative)
     @<Return |FALSE| on failure@>@;
     @<Fail if recognizer not initial@>@;
     Phase_of_R(r) = input_phase;
-    LV_Current_Earleme_of_R(r) = 0;
+    Current_Earleme_of_R(r) = 0;
     if (G_is_Trivial(g)) return TRUE;
     @<Allocate recognizer workareas@>@;
     psar_reset(Dot_PSAR_of_R(r));
     @<Allocate recognizer's bit vectors for symbols@>@;
     @<Initialize Earley item work stacks@>@;
     set0 = earley_set_new(r, 0);
-    LV_Latest_ES_of_R(r) = set0;
-    LV_First_ES_of_R(r) = set0;
+    Latest_ES_of_R(r) = set0;
+    First_ES_of_R(r) = set0;
     state = AHFA_of_G_by_ID(g, 0);
     key.t_origin = set0;
     key.t_state = state;
@@ -8016,7 +8001,7 @@ altered by the attempt.
   TOK token = token_new (r, token_id, value);
   ALT_Object alternative;
   if (Furthest_Earleme_of_R (r) < target_earleme)
-    LV_Furthest_Earleme_of_R (r) = target_earleme;
+    Furthest_Earleme_of_R (r) = target_earleme;
   alternative.t_token = token;
   alternative.t_start_earley_set = current_earley_set;
   alternative.t_end_earleme = target_earleme;
@@ -8122,7 +8107,7 @@ marpa_r_earleme_complete(struct marpa_r* r)
 }
 
 @ @<Initialize |current_earleme|@> = {
-  current_earleme = ++(LV_Current_Earleme_of_R(r));
+  current_earleme = ++(Current_Earleme_of_R(r));
   if (current_earleme > Furthest_Earleme_of_R (r))
     {
 	R_is_Exhausted(r) = 1;
@@ -8135,8 +8120,8 @@ marpa_r_earleme_complete(struct marpa_r* r)
 exist.
 @<Initialize |current_earley_set|@> = {
     current_earley_set = earley_set_new (r, current_earleme);
-    LV_Next_ES_of_ES(Latest_ES_of_R(r)) = current_earley_set;
-    LV_Latest_ES_of_R(r) = current_earley_set;
+    Next_ES_of_ES(Latest_ES_of_R(r)) = current_earley_set;
+    Latest_ES_of_R(r) = current_earley_set;
 }
 
 @ If there are no alternatives for this earleme
@@ -8396,14 +8381,14 @@ At this point there are no Leo items.
 	  Marpa_Symbol_ID symid;
 	  new_pim = obstack_alloc (&r->t_obs, sizeof (EIX_Object));
 	  symid = postdot_symbols[symbol_ix];
-	  LV_Postdot_SYMID_of_PIM(new_pim) = symid;
-	  LV_EIM_of_PIM(new_pim) = earley_item;
+	  Postdot_SYMID_of_PIM(new_pim) = symid;
+	  EIM_of_PIM(new_pim) = earley_item;
 	  if (bv_bit_test(bv_pim_symbols, (guint)symid))
 	      old_pim = pim_workarea[symid];
 	  if (old_pim) {
-	      LV_Next_PIM_of_PIM(new_pim) = old_pim;
+	      Next_PIM_of_PIM(new_pim) = old_pim;
 	  } else {
-	      LV_Next_PIM_of_PIM(new_pim) = NULL;
+	      Next_PIM_of_PIM(new_pim) = NULL;
 	      current_earley_set->t_postdot_sym_count++;
 	  }
 	  pim_workarea[symid] = new_pim;
@@ -8456,14 +8441,14 @@ once it is populated.
     LIM new_lim;
     new_lim = obstack_alloc(&r->t_obs, sizeof(*new_lim));
     Postdot_SYMID_of_LIM(new_lim) = symid;
-    LV_EIM_of_PIM(new_lim) = NULL;
-    LV_Predecessor_LIM_of_LIM(new_lim) = NULL;
-    LV_Origin_of_LIM(new_lim) = NULL;
-    LV_Chain_Length_of_LIM(new_lim) = -1;
-    LV_Top_AHFA_of_LIM(new_lim) = base_to_ahfa;
-    LV_Base_EIM_of_LIM(new_lim) = leo_base;
-    LV_ES_of_LIM(new_lim) = current_earley_set;
-    LV_Next_PIM_of_LIM(new_lim) = this_pim;
+    EIM_of_PIM(new_lim) = NULL;
+    Predecessor_LIM_of_LIM(new_lim) = NULL;
+    Origin_of_LIM(new_lim) = NULL;
+    Chain_Length_of_LIM(new_lim) = -1;
+    Top_AHFA_of_LIM(new_lim) = base_to_ahfa;
+    Base_EIM_of_LIM(new_lim) = leo_base;
+    ES_of_LIM(new_lim) = current_earley_set;
+    Next_PIM_of_LIM(new_lim) = this_pim;
     pim_workarea[symid] = new_lim;
     bv_bit_set(bv_lim_symbols, (guint)symid);
 }
@@ -8689,11 +8674,11 @@ for (lim_chain_ix--; lim_chain_ix >= 0; lim_chain_ix--) {
 }
 
 @ @<Populate |lim_to_process| from |predecessor_lim|@> = {
-LV_Predecessor_LIM_of_LIM(lim_to_process) = predecessor_lim;
-LV_Origin_of_LIM(lim_to_process) = Origin_of_LIM(predecessor_lim);
-LV_Chain_Length_of_LIM(lim_to_process) = 
+Predecessor_LIM_of_LIM(lim_to_process) = predecessor_lim;
+Origin_of_LIM(lim_to_process) = Origin_of_LIM(predecessor_lim);
+Chain_Length_of_LIM(lim_to_process) = 
     Chain_Length_of_LIM(lim_to_process)+1;
-LV_Top_AHFA_of_LIM(lim_to_process) = Top_AHFA_of_LIM(predecessor_lim);
+Top_AHFA_of_LIM(lim_to_process) = Top_AHFA_of_LIM(predecessor_lim);
 }
 
 @ If we have reached this code, either we do not have a predecessor
@@ -8711,8 +8696,8 @@ and the top AHFA to-state was initialized to the AHFA to-state
 of the base EIM.
 @<Populate |lim_to_process| from its base Earley item@> = {
   EIM base_eim = Base_EIM_of_LIM(lim_to_process);
-  LV_Origin_of_LIM (lim_to_process) = Origin_of_EIM (base_eim);
-  LV_Chain_Length_of_LIM(lim_to_process) =  0;
+  Origin_of_LIM (lim_to_process) = Origin_of_EIM (base_eim);
+  Chain_Length_of_LIM(lim_to_process) =  0;
 }
 
 @ @<Copy PIM workarea to postdot item array@> = {
@@ -8873,20 +8858,15 @@ typedef struct s_ur_node_stack* URS;
 typedef struct s_ur_node* UR;
 typedef const struct s_ur_node* UR_Const;
 @
-@
 {\bf To Do}: @^To Do@>
 It may make sense to reuse this stack
 for the alternatives.
 In that case some of these structures
 will need to be changed.
 @d Prev_UR_of_UR(ur) ((ur)->t_prev)
-@d LV_Prev_UR_of_UR(ur) Prev_UR_of_UR(ur)
 @d Next_UR_of_UR(ur) ((ur)->t_next)
-@d LV_Next_UR_of_UR(ur) Next_UR_of_UR(ur)
 @d EIM_of_UR(ur) ((ur)->t_earley_item)
-@d LV_EIM_of_UR(ur) EIM_of_UR(ur)
 @d AEX_of_UR(ur) ((ur)->t_aex)
-@d LV_AEX_of_UR(ur) AEX_of_UR(ur)
 
 @<Private structures@> =
 struct s_ur_node_stack {
@@ -8945,8 +8925,8 @@ static inline UR ur_node_new(URS stack, UR prev);
 static inline UR ur_node_new(URS stack, UR prev) {
     UR new_ur_node;
     new_ur_node = obstack_alloc(&stack->t_obs, sizeof(new_ur_node[0]));
-    LV_Next_UR_of_UR(new_ur_node) = 0;
-    LV_Prev_UR_of_UR(new_ur_node) = prev;
+    Next_UR_of_UR(new_ur_node) = 0;
+    Prev_UR_of_UR(new_ur_node) = prev;
     return new_ur_node;
 }
 
@@ -8958,12 +8938,12 @@ ur_node_push (URS stack, EIM earley_item, AEX aex)
 {
   UR top = stack->t_top;
   UR new_top = Next_UR_of_UR (top);
-  LV_EIM_of_UR (top) = earley_item;
-  LV_AEX_of_UR (top) = aex;
+  EIM_of_UR (top) = earley_item;
+  AEX_of_UR (top) = aex;
   if (!new_top)
     {
       new_top = ur_node_new (stack, top);
-      LV_Next_UR_of_UR (top) = new_top;
+      Next_UR_of_UR (top) = new_top;
     }
   stack->t_top = new_top;
 }
@@ -8990,7 +8970,7 @@ I need to decide where to make it.
 
 @ |predecessor_aim| and |predot|
 are guaranteed to be defined,
-since predictions and the null parse AHFA item are
+since predictions are
 never on the stack.
 @<Populate the PSIA data@>=
 {
@@ -9031,8 +9011,8 @@ never on the stack.
 
 @ The |PSIA| is a container of data that is per Earley-set, per Earley item,
 and per AEX.  Thus, Per-Set-Item-Aex, or PSIA.
-This function ensures that the appropriate |PSIA| boolean is set,
-and returns that boolean's value prior to the call.
+This function ensures that the appropriate |PSIA| boolean is set.
+It returns that boolean's value {\bf prior} to the call.
 @<Private function prototypes@> =
 static inline gint psia_test_and_set(
     struct obstack* obs,
@@ -9089,7 +9069,7 @@ MARPA_ASSERT(ahfa_element_ix < aim_count_of_item)@;
 	if (predecessor_earley_item)
 	  {
 	    if (EIM_is_Predicted(predecessor_earley_item)) {
-		  @<Set boolean in PSIA for initial nulls@>@;
+		Set_boolean_in_PSIA_for_initial_nulls(predecessor_earley_item, predecessor_aim);
 	    } else {
 		const EIM ur_earley_item = predecessor_earley_item;
 		const AEX ur_aex =
@@ -9109,15 +9089,29 @@ MARPA_ASSERT(ahfa_element_ix < aim_count_of_item)@;
 so that I will know to create the chain of or-nodes for them.
 We don't need to stack the prediction, because it can have
 no other descendants.
-@<Set boolean in PSIA for initial nulls@> = {
-    if (Position_of_AIM(predecessor_aim) > 0) {
-	const gint null_count = Null_Count_of_AIM(predecessor_aim);
+@d Set_boolean_in_PSIA_for_initial_nulls(eim, aim) {
+
+MARPA_DEBUG3("%s: setting boolean for initial nulls, eim=%s",
+G_STRLOC, eim_tag(eim));
+MARPA_DEBUG3("%s: setting boolean for initial nulls, aim=%s",
+G_STRLOC, aim_tag(aim));
+
+    if (Position_of_AIM(aim) > 0) {
+	const gint null_count = Null_Count_of_AIM(aim);
+
+MARPA_DEBUG4("%s: setting boolean for initial nulls, eim=%s, null count = %d",
+G_STRLOC, eim_tag(eim), null_count);
+
 	if (null_count) {
-	    AEX predecessor_aex = AEX_of_EIM_by_AIM(predecessor_earley_item,
-		predecessor_aim);
+	    AEX aex = AEX_of_EIM_by_AIM((eim),
+		(aim));
+
+MARPA_DEBUG4("%s: setting boolean for initial nulls, eim=%s, aex=%d",
+G_STRLOC, eim_tag(eim), aex);
+
 	    or_node_estimate += null_count;
 	    psia_test_and_set(&bocage_setup_obs, per_es_data, 
-		predecessor_earley_item, predecessor_aex);
+		(eim), aex);
 	}
     }
 }
@@ -9150,7 +9144,7 @@ no other descendants.
 	  {
 	    if (EIM_is_Predicted (predecessor_earley_item))
 	      {
-		@<Set boolean in PSIA for initial nulls@>@;
+		Set_boolean_in_PSIA_for_initial_nulls(predecessor_earley_item, predecessor_aim);
 	      }
 	    else
 	      {
@@ -9228,8 +9222,7 @@ no other descendants.
       or_node_estimate += 1 + Null_Count_of_AIM(ur_aim+1);
 	if (EIM_is_Predicted (ur_earley_item))
 	  {
-	    const EIM predecessor_earley_item = ur_earley_item;
-	    @<Set boolean in PSIA for initial nulls@>@;
+	    Set_boolean_in_PSIA_for_initial_nulls(ur_earley_item, ur_aim);
 	  } else {
 	      @<Push ur-node if new@>@;
 	  }
@@ -9462,6 +9455,9 @@ AND_Count_of_B(b) = 0;
   AIM ahfa_item = AIM_of_EIM_by_AEX(work_earley_item, work_aex);
   SYMI ahfa_item_symbol_instance;
   OR psia_or_node = NULL;
+MARPA_DEBUG4("%s: adding or-nodes for eim %s, aex=%d",
+    G_STRLOC, eim_tag(work_earley_item), work_aex);
+MARPA_DEBUG3("%s: adding or-nodes for aim=%s", G_STRLOC, aim_tag(ahfa_item));
   ahfa_item_symbol_instance = SYMI_of_AIM(ahfa_item);
   {
 	    PSL or_psl;
@@ -9473,9 +9469,11 @@ AND_Count_of_B(b) = 0;
     }
     /* Replace the dummy or-node with
     the last one added */
-    MARPA_ASSERT (psia_or_node)@;
+    /* The following assertion is now not necessarily true.
+    it is kept for documentation, but eventually should be removed */
+    MARPA_OFF_ASSERT (psia_or_node)@;
     work_nodes_by_aex[work_aex] = psia_or_node;
-    @<Add Leo or-nodes@>@;
+    @<Add Leo or-nodes for |work_earley_item| and |work_aex|@>@;
 }
 
 @*0 Non-Leo Or-Nodes.
@@ -9548,12 +9546,15 @@ and this is the case if |Position_of_OR(or_node) == 0|.
       const gint first_null_symbol_instance =
 	  ahfa_item_symbol_instance < 0 ? symbol_instance_of_rule : ahfa_item_symbol_instance + 1;
       gint i;
+MARPA_DEBUG3("about to add nulling token ORs rule=%d null_count=%d",
+		ID_of_RULE (rule ), null_count);
       for (i = 0; i < null_count; i++)
 	{
 	  const gint symbol_instance = first_null_symbol_instance + i;
 	  OR or_node = PSL_Datum (or_psl, symbol_instance);
-MARPA_OFF_DEBUG3("adding nulling token or-node EIM = %s aex=%d",
-    eim_tag(work_earley_item), work_aex);
+MARPA_DEBUG3("adding nulling token or-node rule=%d i=%d",
+		ID_of_RULE (rule ),
+		( symbol_instance - SYMI_of_RULE(rule)));
 	  if (!or_node || ES_Ord_of_OR (or_node) != work_earley_set_ordinal) {
 		DAND draft_and_node;
 		const gint rhs_ix = symbol_instance - SYMI_of_RULE(rule);
@@ -9564,13 +9565,13 @@ MARPA_OFF_DEBUG3("adding nulling token or-node EIM = %s aex=%d",
 		Origin_Ord_of_OR (or_node) = work_origin_ordinal;
 		ES_Ord_of_OR (or_node) = work_earley_set_ordinal;
 		RULE_of_OR (or_node) = rule;
-MARPA_OFF_DEBUG3("Added rule %p to or-node %p", RULE_of_OR(or_node), or_node);
+MARPA_DEBUG3("Added rule %p to or-node %p", RULE_of_OR(or_node), or_node);
 		Position_of_OR (or_node) = rhs_ix + 1;
 MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 		draft_and_node = DANDs_of_OR (or_node) =
 		  draft_and_node_new (&bocage_setup_obs, predecessor,
 		      cause);
-MARPA_OFF_DEBUG3("or = %p, setting DAND = %p", or_node, DANDs_of_OR(or_node));
+MARPA_DEBUG3("or = %p, setting DAND = %p", or_node, DANDs_of_OR(or_node));
 		Next_DAND_of_DAND (draft_and_node) = NULL;
 	      }
 	      psia_or_node = or_node;
@@ -9579,7 +9580,7 @@ MARPA_OFF_DEBUG3("or = %p, setting DAND = %p", or_node, DANDs_of_OR(or_node));
 }
 
 @*0 Leo Or-Nodes.
-@<Add Leo or-nodes@> = {
+@<Add Leo or-nodes for |work_earley_item| and |work_aex|@> = {
   SRCL source_link = NULL;
   EIM cause_earley_item = NULL;
   LIM leo_predecessor = NULL;
@@ -9635,7 +9636,7 @@ requirements in the process.
     }
 }
 
-@ Get the base data for a Leo item -- it's base Earley item
+@ Get the base data for a Leo item -- its base Earley item
 and the index of the relevant AHFA item.
 @<Private function prototypes@> =
 static inline AEX lim_base_data_get(LIM leo_item, EIM* p_base);
@@ -9756,6 +9757,7 @@ Both draft and final and-nodes contain the predecessor
 and cause.
 Draft and-nodes need to be in a linked list,
 so they have a link to the next and-node.
+@s DAND int
 @<Private incomplete structures@> =
 struct s_draft_and_node;
 typedef struct s_draft_and_node* DAND;
@@ -9804,7 +9806,7 @@ void draft_and_node_add(struct obstack *obs, OR parent, OR predecessor, OR cause
 static inline
 void draft_and_node_add(struct obstack *obs, OR parent, OR predecessor, OR cause)
 {
-    MARPA_ASSERT(Position_of_OR(parent) <= 1 || predecessor)
+    MARPA_OFF_ASSERT(Position_of_OR(parent) <= 1 || predecessor)
     const DAND new = draft_and_node_new(obs, predecessor, cause);
     Next_DAND_of_DAND(new) = DANDs_of_OR(parent);
     DANDs_of_OR(parent) = new;
@@ -9833,7 +9835,7 @@ void draft_and_node_add(struct obstack *obs, OR parent, OR predecessor, OR cause
 }
 
 @ From an or-node, which may be nulling, determine its proper
-predecessor.  Set |or-node| to 0 if there is none.
+predecessor.  Set |or_node| to 0 if there is none.
 @d Move_OR_to_Proper_OR(or_node) {
     while (or_node)  {
 	DAND draft_and_node = DANDs_of_OR(or_node);
@@ -9951,6 +9953,10 @@ predecessor.  Set |or-node| to 0 if there is none.
       const AEX cause_aex = aexes[ix];
       OR dand_cause;
       Set_OR_from_EIM_and_AEX(dand_cause, cause_earley_item, cause_aex);
+MARPA_DEBUG3("%s eim=%s", G_STRLOC, eim_tag(cause_earley_item));
+MARPA_DEBUG3("%s path or=%s", G_STRLOC, or_tag(path_or_node));
+MARPA_DEBUG3("%s dand_predecessor=%s", G_STRLOC, or_tag(dand_predecessor));
+MARPA_DEBUG3("%s dand_cause=%s", G_STRLOC, or_tag(dand_cause));
       draft_and_node_add (&bocage_setup_obs, path_or_node,
 			  dand_predecessor, dand_cause);
     }
@@ -9984,6 +9990,7 @@ predecessor.  Set |or-node| to 0 if there is none.
   const SYMI symbol_instance = SYMI_of_Completed_RULE(previous_path_rule);
   const gint origin_ordinal = Ord_of_ES(ES_of_LIM(path_leo_item));
   Set_OR_from_Ord_and_SYMI(dand_cause, origin_ordinal, symbol_instance);
+MARPA_DEBUG2("lim=%s", lim_tag(path_leo_item));
   draft_and_node_add (&bocage_setup_obs, path_or_node,
 	  dand_predecessor, dand_cause);
 }
@@ -10022,6 +10029,7 @@ predecessor.  Set |or-node| to 0 if there is none.
 {
   OR dand_predecessor;
   @<Set |dand_predecessor|@>@;
+MARPA_DEBUG2("or=%s", or_tag(work_proper_or_node));
   draft_and_node_add (&bocage_setup_obs, work_proper_or_node,
 	  dand_predecessor, (OR)token);
 }
@@ -10087,6 +10095,7 @@ predecessor.  Set |or-node| to 0 if there is none.
       SYMI_of_Completed_RULE(RULE_of_AIM(cause_ahfa_item));
   @<Set |dand_predecessor|@>@;
   Set_OR_from_Ord_and_SYMI(dand_cause, middle_ordinal, cause_symbol_instance);
+MARPA_DEBUG2("completion source, or=%s", or_tag(work_proper_or_node));
   draft_and_node_add (&bocage_setup_obs, work_proper_or_node,
 	  dand_predecessor, dand_cause);
 }
@@ -10176,7 +10185,8 @@ typedef gint Marpa_And_Node_ID;
 @ @<Private typedefs@> =
 typedef Marpa_And_Node_ID ANDID;
 
-@ @<Private incomplete structures@> =
+@ @s AND int
+@<Private incomplete structures@> =
 struct s_and_node;
 typedef struct s_and_node* AND;
 @
@@ -10236,7 +10246,7 @@ typedef struct s_and_node AND_Object;
 
 @*0 Trace Functions.
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_and_node_count(struct marpa_r *r);
 @ @<Function definitions@> =
 gint marpa_b_and_node_count(struct marpa_r *r)
@@ -10275,7 +10285,7 @@ gint marpa_b_and_node_count(struct marpa_r *r)
   and_node = and_nodes + and_node_id;
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_and_node_parent(struct marpa_r *r, int and_node_id);
 @ @<Function definitions@> =
 gint marpa_b_and_node_parent(struct marpa_r *r, int and_node_id)
@@ -10287,7 +10297,7 @@ gint marpa_b_and_node_parent(struct marpa_r *r, int and_node_id)
   return ID_of_OR (OR_of_AND (and_node));
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_and_node_predecessor(struct marpa_r *r, int and_node_id);
 @ @<Function definitions@> =
 gint marpa_b_and_node_predecessor(struct marpa_r *r, int and_node_id)
@@ -10304,7 +10314,7 @@ gint marpa_b_and_node_predecessor(struct marpa_r *r, int and_node_id)
       }
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_and_node_cause(struct marpa_r *r, int and_node_id);
 @ @<Function definitions@> =
 gint marpa_b_and_node_cause(struct marpa_r *r, int and_node_id)
@@ -10321,7 +10331,7 @@ gint marpa_b_and_node_cause(struct marpa_r *r, int and_node_id)
     }
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_and_node_symbol(struct marpa_r *r, int and_node_id);
 @ @<Function definitions@> =
 gint marpa_b_and_node_symbol(struct marpa_r *r, int and_node_id)
@@ -10757,7 +10767,7 @@ MARPA_DEBUG3("%s B_of_R=%p", G_STRLOC, B_of_R(r));
 
 @ Return the ordinal of the current (final) Earley set of
 the or-node.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_b_or_node_set(struct marpa_r *r, int or_node_id);
 @ @<Function definitions@> =
 gint marpa_b_or_node_set(struct marpa_r *r, int or_node_id)
@@ -10769,7 +10779,7 @@ gint marpa_b_or_node_set(struct marpa_r *r, int or_node_id)
   return ES_Ord_of_OR(or_node);
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_or_node_origin(struct marpa_r *r, int or_node_id);
 @ @<Function definitions@> =
 gint marpa_b_or_node_origin(struct marpa_r *r, int or_node_id)
@@ -10781,7 +10791,7 @@ gint marpa_b_or_node_origin(struct marpa_r *r, int or_node_id)
   return Origin_Ord_of_OR(or_node);
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_or_node_rule(struct marpa_r *r, int or_node_id);
 @ @<Function definitions@> =
 gint marpa_b_or_node_rule(struct marpa_r *r, int or_node_id)
@@ -10793,7 +10803,7 @@ gint marpa_b_or_node_rule(struct marpa_r *r, int or_node_id)
   return ID_of_RULE(RULE_of_OR(or_node));
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_or_node_position(struct marpa_r *r, int or_node_id);
 @ @<Function definitions@> =
 gint marpa_b_or_node_position(struct marpa_r *r, int or_node_id)
@@ -10805,7 +10815,7 @@ gint marpa_b_or_node_position(struct marpa_r *r, int or_node_id)
   return Position_of_OR(or_node);
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_or_node_first_and(struct marpa_r *r, int or_node_id);
 @ @<Function definitions@> =
 gint marpa_b_or_node_first_and(struct marpa_r *r, int or_node_id)
@@ -10817,7 +10827,7 @@ gint marpa_b_or_node_first_and(struct marpa_r *r, int or_node_id)
   return First_ANDID_of_OR(or_node);
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_or_node_last_and(struct marpa_r *r, int or_node_id);
 @ @<Function definitions@> =
 gint marpa_b_or_node_last_and(struct marpa_r *r, int or_node_id)
@@ -10830,7 +10840,7 @@ gint marpa_b_or_node_last_and(struct marpa_r *r, int or_node_id)
       + AND_Count_of_OR(or_node) - 1;
 }
 
-@ @<Private function prototypes@> =
+@ @<Public function prototypes@> =
 gint marpa_b_or_node_and_count(struct marpa_r *r, int or_node_id);
 @ @<Function definitions@> =
 gint marpa_b_or_node_and_count(struct marpa_r *r, int or_node_id)
@@ -11196,7 +11206,7 @@ This is the number of |FORK| entries in its stack.
 If there is a serioius error,
 or if the tree is uninitialized, return -2.
 If the tree is exhausted, return -1.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_t_size(struct marpa_r *r);
 @ @<Function definitions@> =
 gint marpa_t_size(struct marpa_r *r)
@@ -11546,7 +11556,7 @@ set |fork|@> = {
 }
 
 @ Return the ID of the or-node for |fork_id|.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_t_fork_or_node(struct marpa_r *r, int fork_id);
 @ @<Function definitions@> =
 gint marpa_t_fork_or_node(struct marpa_r *r, int fork_id)
@@ -11559,7 +11569,7 @@ gint marpa_t_fork_or_node(struct marpa_r *r, int fork_id)
 }
 
 @ Return the current choice for |fork_id|.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_t_fork_choice(struct marpa_r *r, int fork_id);
 @ @<Function definitions@> =
 gint marpa_t_fork_choice(struct marpa_r *r, int fork_id)
@@ -11580,7 +11590,7 @@ If that's an issue, the |fork_id| needs
 to be checked with one of the trace functions
 where -1 is never a valid value ---
 for example, |marpa_t_fork_or_node|.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_t_fork_parent(struct marpa_r *r, int fork_id);
 @ @<Function definitions@> =
 gint marpa_t_fork_parent(struct marpa_r *r, int fork_id)
@@ -11593,7 +11603,7 @@ gint marpa_t_fork_parent(struct marpa_r *r, int fork_id)
 }
 
 @ Return the cause-is-ready bit for |fork_id|.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_t_fork_cause_is_ready(struct marpa_r *r, int fork_id);
 @ @<Function definitions@> =
 gint marpa_t_fork_cause_is_ready(struct marpa_r *r, int fork_id)
@@ -11606,7 +11616,7 @@ gint marpa_t_fork_cause_is_ready(struct marpa_r *r, int fork_id)
 }
 
 @ Return the predecessor-is-ready bit for |fork_id|.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_t_fork_predecessor_is_ready(struct marpa_r *r, int fork_id);
 @ @<Function definitions@> =
 gint marpa_t_fork_predecessor_is_ready(struct marpa_r *r, int fork_id)
@@ -11619,7 +11629,7 @@ gint marpa_t_fork_predecessor_is_ready(struct marpa_r *r, int fork_id)
 }
 
 @ Return the is-cause bit for |fork_id|.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_t_fork_is_cause(struct marpa_r *r, int fork_id);
 @ @<Function definitions@> =
 gint marpa_t_fork_is_cause(struct marpa_r *r, int fork_id)
@@ -11632,7 +11642,7 @@ gint marpa_t_fork_is_cause(struct marpa_r *r, int fork_id)
 }
 
 @ Return the is-predecessor bit for |fork_id|.
-@<Private function prototypes@> =
+@<Public function prototypes@> =
 gint marpa_t_fork_is_predecessor(struct marpa_r *r, int fork_id);
 @ @<Function definitions@> =
 gint marpa_t_fork_is_predecessor(struct marpa_r *r, int fork_id)
@@ -11893,6 +11903,7 @@ Marpa_Fork_ID marpa_v_event(struct marpa_r* r, Marpa_Event* event)
 	}
 	if (token_id >= 0) {
 	    arg_0 = ++arg_n;
+MARPA_DEBUG3("symbol %d at %d", token_id, arg_0);
 	    continue_with_next_fork = 0;
 	}
 	fork_rule = RULE_of_OR(or);
@@ -12809,6 +12820,7 @@ scanned items.
 Since they are predictions, their current Earley set
 and origin are at the same earleme.
 This earleme will be somewhere after the current earleme.
+@s PSAR_Object int
 @<Private structures@> =
 struct s_per_earley_set_arena {
       gint t_psl_length;
@@ -13364,6 +13376,7 @@ PRIVATE_NOT_INLINE gchar* eim_tag(EIM eim);
 PRIVATE_NOT_INLINE gchar *
 eim_tag_safe (gchar * buffer, EIM eim)
 {
+  if (!eim) return "NULL";
   sprintf (buffer, "S%d@@%d-%d",
 	   AHFAID_of_EIM (eim), Origin_Earleme_of_EIM (eim),
 	   Earleme_of_EIM (eim));
@@ -13383,19 +13396,26 @@ A function to print a descriptive tag for
 an Leo item.
 @<Private function prototypes@> =
 #if MARPA_DEBUG
-static inline gchar*
-lim_tag (gchar *buffer, LIM lim);
+PRIVATE_NOT_INLINE gchar* lim_tag_safe (gchar *buffer, LIM lim);
+PRIVATE_NOT_INLINE gchar* lim_tag (LIM lim);
 #endif
 @ This function is passed a buffer to keep it thread-safe.
 be made thread-safe.
 @<Function definitions@> =
 #if MARPA_DEBUG
-static inline gchar*
-lim_tag (gchar *buffer, LIM lim)
+PRIVATE_NOT_INLINE gchar*
+lim_tag_safe (gchar *buffer, LIM lim)
 {
   sprintf (buffer, "L%d@@%d",
 	   Postdot_SYMID_of_LIM (lim), Earleme_of_LIM (lim));
 	return buffer;
+}
+
+static char DEBUG_lim_tag_buffer[1000];
+PRIVATE_NOT_INLINE gchar*
+lim_tag (LIM lim)
+{
+  return lim_tag_safe (DEBUG_lim_tag_buffer, lim);
 }
 #endif
 
@@ -13415,6 +13435,7 @@ PRIVATE_NOT_INLINE const gchar* or_tag(OR or);
 PRIVATE_NOT_INLINE const gchar *
 or_tag_safe (gchar * buffer, OR or)
 {
+  if (!or) return "NULL";
   if (OR_is_Token(or)) return "TOKEN";
   if (Type_of_OR(or) == DUMMY_OR_NODE) return "DUMMY";
   sprintf (buffer, "R%d:%d@@%d-%d",
@@ -13429,6 +13450,41 @@ PRIVATE_NOT_INLINE const gchar*
 or_tag (OR or)
 {
   return or_tag_safe (DEBUG_or_tag_buffer, or);
+}
+#endif
+
+@*0 AHFA Item Tag.
+Functions to print a descriptive tag for
+an AHFA item.
+One is passed a buffer to keep it thread-safe.
+The other uses a global buffer,
+which is not thread-safe, but
+convenient when debugging in a non-threaded environment.
+@<Private function prototypes@> =
+#if MARPA_DEBUG
+PRIVATE_NOT_INLINE const gchar* aim_tag_safe(gchar *buffer, AIM aim);
+PRIVATE_NOT_INLINE const gchar* aim_tag(AIM aim);
+#endif
+@ @<Function definitions@> =
+#if MARPA_DEBUG
+PRIVATE_NOT_INLINE const gchar *
+aim_tag_safe (gchar * buffer, AIM aim)
+{
+  if (!aim) return "NULL";
+  const gint aim_position = Position_of_AIM (aim);
+  if (aim_position >= 0) {
+      sprintf (buffer, "R%d@@%d", RULEID_of_AIM (aim), Position_of_AIM (aim));
+  } else {
+      sprintf (buffer, "R%d@@end", RULEID_of_AIM (aim));
+  }
+  return buffer;
+}
+
+static char DEBUG_aim_tag_buffer[1000];
+PRIVATE_NOT_INLINE const gchar*
+aim_tag (AIM aim)
+{
+  return aim_tag_safe (DEBUG_aim_tag_buffer, aim);
 }
 #endif
 
@@ -13493,13 +13549,13 @@ So I add such a comment.
 @<Private inline functions@>@;
 @<Function definitions@>@;
 
-@*0 |marpa.h| Layout.
+@*0 |marpa.h.in| Layout.
 @q This is a separate section in order to get the @>
 @q license language nearer the top of the files. @>
 @q It's hackish, but in a good cause. @>
-@ The physical structure of the |marpa.h| file
+@ The physical structure of the |marpa.h.in| file
 \tenpoint
-@(marpa.h@> =
+@(marpa.h.in@> =
 @=/*@>@/
 @= * Copyright 2011 Jeffrey Kegler@>@/
 @= * This file is part of Marpa::R2.  Marpa::R2 is free software: you can@>@/
@@ -13523,11 +13579,16 @@ So I add such a comment.
 @= */@>@/
 
 @ \twelvepoint
-@(marpa.h@> =
+@(marpa.h.in@> =
 #ifndef __MARPA_H__
 #define __MARPA_H__ @/
 #include <stdio.h>
 #include <glib.h>
+
+#define MARPA_MAJOR_VERSION @@MARPA_MAJOR_VERSION@@
+#define MARPA_MINOR_VERSION @@MARPA_MINOR_VERSION@@
+#define MARPA_MICRO_VERSION @@MARPA_MICRO_VERSION@@
+
 @<Body of public header file@>
 #endif __MARPA_H__
 

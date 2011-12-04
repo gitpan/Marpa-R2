@@ -20,8 +20,7 @@ use warnings;
 use Fatal qw(open close mkdir chdir);
 use File::Spec 0.82;
 use IPC::Cmd;
-use File::Path;
-use File::Find;
+use English qw( -no_match_vars );
 
 use Config;
 use Module::Build;
@@ -52,25 +51,22 @@ my %recommends =
     qw( PPI HTML::Entities HTML::Parser HTML::PullParser Test::Weaken );
 
 my %pod_files = ();
-File::Find::find(
-    sub {
-        return if not m/[.]pod \z/xms;
-        $pod_files{$File::Find::name} = $File::Find::name;
-    },
-    'pod'
-);
-File::Find::find(
-    sub {
-        return if not m/[.]pod \z/xms;
-        my ( $vol, $dirs, $file ) = File::Spec->splitpath($File::Find::name);
-        my @dirs      = File::Spec->splitdir($dirs);
-        my $dest_dirs = File::Spec->catdir( @dirs[ 1 .. $#dirs ] );
-        my $dest_name = File::Spec->catpath( $vol, $dest_dirs, $file );
-        $pod_files{$File::Find::name} = $dest_name;
-    },
-    'html/pod'
-);
+{
+    local $RS = undef;
+    open my $manifest_fh, q{<}, 'MANIFEST';
+    my @pod_files = split /\n/xms, $manifest_fh->getline();
+    close $manifest_fh;
+    LINE: for my $pod_file (@pod_files) {
+        $pod_file =~ s/ \s* [#] .* \z //xms;
+        next LINE if not $pod_file =~ / [.] pod \z /xms;
+        if ( $pod_file =~ m{ \A pod [/] }xms ) {
+            ( my $destfile = $pod_file ) =~ s{ \A html [/] pod [/] }{lib/Marpa/R2/}xms;
+            $pod_files{$pod_file} = $destfile;
+        }
+    } ## end for my $pod_file (@pod_files)
+}
 $pod_files{'pod/Marpa_R2.pod'} = 'lib/Marpa/R2.pod';
+$pod_files{'html/pod/HTML.pod'} = 'lib/Marpa/R2/HTML.pod';
 
 my %pm_files = ();
 File::Find::find(
@@ -122,7 +118,7 @@ my $build = Marpa::R2::Build_Me->new(
     build_requires     => \%build_requires,
     dynamic_config     => 1,
     extra_compiler_flags =>
-        "$glib_2_0_compiler_flags -I$gperl_h_location -Ilibmarpa/dist",
+        "$glib_2_0_compiler_flags -I$gperl_h_location -Ilibmarpa/build",
     extra_linker_flags => "$glib_2_0_linker_flags",
     PL_files           => {},
     pm_files           => \%pm_files,
