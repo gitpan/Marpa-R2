@@ -23,6 +23,7 @@ use warnings;
 
 use Config;
 use File::Copy;
+use Cwd 'abs_path';
 use IPC::Cmd;
 use Module::Build;
 use Fatal qw(open close chdir chmod utime);
@@ -157,23 +158,26 @@ sub marpa_infer_xs_spec {
 # The following initially copied from Module::Build, to be customized for
 # Marpa.
 sub process_xs {
-    my ( $self, $file ) = @_;
+    my ( $self, $xs_file ) = @_;
 
-    my $spec = marpa_infer_xs_spec( $self, $file );
-
-    # File name, minus the suffix
-    ( my $file_base = $file ) =~ s/\. [^.]+ \z//xms;
+    my $spec = marpa_infer_xs_spec( $self, $xs_file );
 
     # .xs -> .c
     $self->add_to_cleanup( $spec->{c_file} );
 
-    my $marpa_h = File::Spec->catdir( $self->base_dir(), qw(libmarpa build marpa.h));
-    unless (
-        $self->up_to_date( [ 'typemap', 'Build', $marpa_h, $file ], $spec->{c_file} ) )
+    my $marpa_h =
+        File::Spec->catdir( $self->base_dir(), qw(libmarpa install include marpa.h) );
+    my $error_h = File::Spec->catdir( $self->base_dir(), qw(libmarpa install share error.h) );
+    my $error_c = File::Spec->catdir( $self->base_dir(), qw(libmarpa install share error.c) );
+    if (not $self->up_to_date(
+            [ 'typemap', 'Build', $marpa_h, $error_h, $error_c, $xs_file ],
+            $spec->{c_file}
+        )
+        )
     {
-	$self->verbose() and say "compiling $file";
-        $self->compile_xs( $file, outfile => $spec->{c_file} );
-    }
+        $self->verbose() and say "compiling $xs_file";
+        $self->compile_xs( $xs_file, outfile => $spec->{c_file} );
+    } ## end if ( not $self->up_to_date( [ 'typemap', 'Build', $marpa_h...]))
 
     # .c -> .o
     my $v = $self->dist_version;
@@ -220,7 +224,7 @@ sub process_xs {
             {
                 say {*STDERR} "Failed: $ranlib $final_libmarpa_a"
                     or die "say failed: $ERRNO";
-                die 'Cannot run libmarpa configure';
+                die 'Cannot run libmarpa ranlib';
             } ## end if ( not IPC::Cmd::run( command => [ ( split /\s+/xms...)]))
         } ## end if ( $ranlib ne q{:} )
     } ## end if ( not $self->up_to_date( $unfinished_libmarpa_a, ...))
@@ -229,7 +233,7 @@ sub process_xs {
 
     # .xs -> .bs
     $self->add_to_cleanup( $spec->{bs_file} );
-    unless ( $self->up_to_date( $file, $spec->{bs_file} ) ) {
+    unless ( $self->up_to_date( $xs_file, $spec->{bs_file} ) ) {
         require ExtUtils::Mkbootstrap;
         $self->log_info(
             "ExtUtils::Mkbootstrap::Mkbootstrap('$spec->{bs_file}')\n");
@@ -238,7 +242,7 @@ sub process_xs {
         { my $fh = IO::File->new(">> $spec->{bs_file}") }    # create
         my $time = time;
         utime $time, $time, $spec->{bs_file};                # touch
-    } ## end unless ( $self->up_to_date( $file, $spec->{bs_file} ) )
+    } ## end unless ( $self->up_to_date( $xs_file, $spec->{bs_file} ) )
 
     # .o -> .(a|bundle)
     return marpa_link_c( $self, $spec );
@@ -295,8 +299,12 @@ sub do_libmarpa {
         $shell or die q{No Bourne shell available says $Config{sh}};
 ##use critic
 
+    my $install_dir = File::Spec->catdir( $updir, 'install' );
+    $install_dir = abs_path($install_dir);
+    -d $install_dir or mkdir $install_dir;
+
         if (not IPC::Cmd::run(
-                command => [ $shell, $configure_script ],
+                command => [ $shell, $configure_script, "--prefix=$install_dir" ],
                 verbose => 1
             )
             )
@@ -324,8 +332,10 @@ sub do_libmarpa {
         $perm |= oct 200;
         chmod $perm, $configure_script;
     }
-    die 'Making libmarpa: Failure'
+    die 'Making libmarpa: make Failure'
         if not IPC::Cmd::run( command => ['make'], verbose => 1 );
+    die 'Making libmarpa: make Failure'
+        if not IPC::Cmd::run( command => ['make', 'install'], verbose => 1 );
     chdir $cwd;
     return 1;
 

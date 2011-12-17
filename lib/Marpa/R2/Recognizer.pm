@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_009';
+$VERSION        = '0.001_010';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -118,14 +118,12 @@ sub Marpa::R2::Recognizer::new {
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C] =
         Marpa::R2::Internal::R_C->new($grammar_c);
     if ( not defined $recce_c ) {
-        my $error = $grammar_c->error();
-        if ( $error eq 'grammar not precomputed' ) {
+        my $error_code = $grammar_c->error_code() // -1;
+        if ( $error_code == $Marpa::R2::Error::NOT_PRECOMPUTED ) {
             Marpa::R2::exception(
                 'Attempt to parse grammar which is not precomputed');
         }
-        Marpa::R2::exception(
-            qq{Recognizer created failed with unexpected error code: "$error"}
-        );
+        Marpa::R2::exception( $grammar_c->error());
     } ## end if ( not defined $recce_c )
 
     $recce->[Marpa::R2::Internal::Recognizer::WARNINGS]       = 1;
@@ -146,10 +144,8 @@ sub Marpa::R2::Recognizer::new {
 
     if ( not $recce_c->start_input() ) {
         my $error = $recce_c->error();
-        Marpa::R2::exception(
-            qq{Recognizer start of input failed with unexpected error code: "$error"}
-        );
-    } ## end if ( not $recce_c->start_input() )
+        Marpa::R2::exception( 'Recognizer start of input failed: ', $error );
+    }
 
     my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
 

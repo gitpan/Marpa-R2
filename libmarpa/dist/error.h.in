@@ -16,8 +16,20 @@
  */
 /*
  * DO NOT EDIT DIRECTLY
- * This file is written by ctangle
+ * This file is written by texi2proto.pl
  * It is not intended to be modified directly
  */
 
-const char* marpa_check_version (unsigned int required_major, unsigned int required_minor, unsigned int required_micro);
+/*
+ * This file is not part of libmarpa
+ * It exists so that the higher levels,
+ * which can either compile it as a C file,
+ * or read it a a text file.
+ */
+
+struct s_marpa_error_description {
+    Marpa_Error_Code error_code;
+    const char* name;
+    const char* suggested;
+};
+

@@ -1,0 +1,332 @@
+\input texinfo @c -*-texinfo-*- 
+@c %**start of header 
+@setfilename api.info 
+@settitle libmarpa 0.0.0
+@c %**end of header 
+@copying 
+This manual is for libmarpa, version 0.0.0. 
+Copyright @copyright{} 2011 Jeffrey Kegler.
+@quotation 
+Permission is granted to copy, distribute and/or modify this document 
+under the terms of the GNU Free Documentation License, Version 1.2 or 
+any later version published by the Free Software Foundation;
+@end quotation 
+@end copying 
+@titlepage 
+@title libmarpa
+@author Jeffrey Kegler
+@c The following two commands 
+@c start the copyright page. 
+@page 
+@vskip 0pt plus 1filll 
+@insertcopying
+
+Published by Jeffrey Kegler
+@end titlepage 
+@c So the toc is printed at the start. 
+@contents 
+@ifnottex 
+@node Top 
+@top title 
+This manual is for libmarpa, version 0.0.0. 
+@end ifnottex 
+@menu 
+* Grammars:: Grammar Objects
+* Recognizers:: Recognizer Objects
+* Error Handling:: Error Handling
+@end menu 
+@node Grammars
+@chapter Grammars
+@cindex grammars
+
+@deftypefun const char* marpa_check_version @
+    (unsigned int @var{required_major}, @
+    unsigned int @var{required_minor}, @
+    unsigned int @var{required_micro})
+
+Checks that the GLib library in use is compatible with the
+given version. Generally you would pass in the constants
+#GLIB_MAJOR_VERSION, #GLIB_MINOR_VERSION, #GLIB_MICRO_VERSION
+as the three arguments to this function; that produces
+a check that the library in use is compatible with
+the version of GLib the application or module was compiled
+against.
+
+Compatibility is defined by two things: first the version
+of the running library is newer than the version
+@var{required_major}.@var{required_minor}.@var{required_micro}.
+Second
+the running library must be binary compatible with the
+version
+@var{required_major}.@var{required_minor}.@var{required_micro}
+(same major version.)
+
+Return value: %NULL if the GLib library is compatible with the
+  given version, or a string describing the version mismatch.
+  The returned string is owned by GLib and must not be modified
+  or freed.
+
+@end deftypefun
+
+@deftypefun void marpa_g_unref (Marpa_G @var{g})
+@end deftypefun
+
+@deftypefun Marpa_G marpa_g_ref (Marpa_G @var{g})
+@end deftypefun
+
+@node Recognizers
+@chapter Recognizer Objects
+
+@deftypefun Marpa_Error_Code marpa_r_error @
+    (const struct marpa_r* @var{r}, @
+    const char** @var{p_error_string})
+@end deftypefun
+
+@node Error Handling
+@chapter Error Handling
+
+@section Soft and Hard Errors
+
+Soft errors are errors which may be a result of normal processing.
+Soft errors often do not disrupt the flow of processing,
+and applications typically do not treat soft errors
+as fatal errors.
+When a soft error is an interruption of normal processing,
+the disruption is usually recoverable.
+
+Hard errors are errors which are never the result of
+normal processing.
+They almost always disrupt the flow of processing.
+Recovery from a hard error is usually not possible,
+and an application will usually treat a hard error
+as a fatal error.
+
+The difference between hard and soft errors can
+depend, to a certain extent,
+on the application.
+libmarpa has its own idea of what is a hard
+and soft error but,
+whenever possible,
+it does not enforce this on the application.
+An application is also free to treat a soft
+error as a hard error.
+And libmarpa makes
+every attempt to allow an application to
+reinterpret a hard error as a soft error.
+
+@section Methods
+
+@deftypefun Marpa_Error_Code marpa_g_error @
+    ( Marpa_G @var{g}, @
+    const char** @var{p_error_string})
+@end deftypefun
+
+@section Error Codes
+
+@deftypevr Macro int MARPA_ERRCODE_COUNT
+The number of error codes.
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NONE
+No error.
+Suggested message: "No error."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_UNKNOWN
+The cause of the error could not be determined.
+This usually indicates a problem in the error handling
+logic itself.
+This will usually be a hard error.
+Suggested message: "Unknown error."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NO_PARSE
+The application attempted to create a bocage
+from a recognizer without a parse.
+The application will often treat this as
+a soft error.
+Suggested message: "No parse."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_DEVELOPMENT
+The "development" errors is for use during
+libmarpa's development,
+while it is not yet clear how precisely
+to classify every error condition.
+The error string is a
+short 7-bit ASCII error string
+which describes the error.
+Classifying an error as "development"
+is a temporary measure,
+taken until the error can be more
+precisely defined and classed.
+Suggested message: "Development error, see string."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_INTERNAL
+Internal errors are errors which
+"should not happen".
+They could result when the calling program
+overwrites libmarpa's internal data.
+They may also indicate a bug in libmarpa.
+An internal error will usually be a hard error.
+Suggested message: "Internal error."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_EIM_COUNT
+libmarpa allows a maximum number of earley
+items per Earley set.
+This error code indicates that limit was
+exceeded.
+Note that this limit is different from
+the optional earley item
+warning threshold, which can be set
+by the application.
+Exceeding the warning threshold causes
+a libmarpa event, which the application
+is free to treat as a hard or soft error.
+Suggested message: "Maximum number of earley items exceeded."
+
+Most likely, memory will run out for
+other reasons long before this error can
+occur.
+The maximum earley item count for the
+purposes of this error code
+is over a billion.
+As a contrast, a reasonable setting for the
+warning threshold,
+even when exceeding the threshold is
+treated as a fatal error,
+will usually be well under 1000.
+If this error code ever does occur,
+it is almost certainly both a hard and a 
+fatal error.
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_UNPRODUCTIVE_START
+The start symbol is unproductive.
+That means it could never match any possible input,
+not even the null string.
+Presumably, an error in writing the grammar.
+Suggested message: "Unproductive start symbol."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_START_NOT_LHS
+The start symbol is not on the LHS on
+any rule.
+That means it could never match any possible input,
+not even the null string.
+Presumably, an error in writing the grammar.
+Suggested message: "Start symbol not on LHS of any rule."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_COUNTED_NULLABLE
+A "counted" symbol is also a nullable symbol.
+A "counted" symbol is one that appears on the RHS
+of a sequence rule.
+If a symbol is nullable,
+counting occurrences of it,
+which is what sequence rules do for their RHS
+symbols,
+becomes very difficult.
+All sorts of questions of definition and
+problems of implementation arise.
+At a minimum, such a sequence would be wildly
+ambigious.
+
+Sequence rules are simply an optimized shorthand
+for rules that can also be written in ordinary BNF.
+If the equivalent of a sequence of nullables is
+really what your application needs,
+nothing in libmarpa prevents you from specifying
+that sequence
+with ordinary BNF rules.
+Suggested message: "Nullable symbol on RHS of a sequence rule."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_DUPLICATE_RULE
+This error indicates an attempt to add a rule which
+is a duplicate of a rule already in the grammar.
+Two rules are considered duplicates if
+
+@itemize @bullet
+@item
+Both rules have the same left hand symbol.
+@item
+Both rules have the same right hand symbols in the same order.
+@end itemize
+
+This definition applies to sequence rules, as well as to ordinary rules. As a consequence, sequence rules can be considered duplicates even when they have different separators and/or different minimum counts.
+Suggested message: "Duplicate rule."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NULL_RULE_UNMARKED_TERMINALS
+Marpa allows all symbols to be terminals, even those on the LHS,
+and this is the default.
+But when there is an null rule in the grammar,
+having lots of terminals is an efficiency hit.
+For that reason, if a grammar has a null rule,
+libmarpa requires the application to explictly
+indicate which symbols are terminals,
+and will not accept the default.
+
+An application is still able to have as many terminals
+as it wants,
+including terminals on the LHS of rules.
+The only requirement is the the user explicitly
+set those symbols which are terminals.
+Terminals may be explicitly marked on a per-symbol
+basis.
+The application can
+also prevent this error by
+unsetting the LHS terminals flag for a grammar.
+Suggested message: "A grammar with null rules must mark its terminals."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_LHS_IS_TERMINAL
+By default,
+and unlike most parsing algorithms,
+libmarpa allow LHS terminals
+-- symbols on the LHS side of a rule,
+but which may also be terminals.
+This behavior is configurable,
+and if
+the LHS terminals flag for a grammar is unset,
+LHS terminals become illegal,
+and cause this error.
+Suggested message: "There is a LHS terminal in a grammar which has disallowed them."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NO_RULES
+A grammar which has no rules is being used
+in a way that is not allowed.
+Usually the problem is that the user is
+trying to precompute the grammar.
+The precomputations are not defined
+for grammar without rules,
+in large part because it would be useless to do so.
+Suggested message: "This grammar does not have any rules."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_PRECOMPUTED
+An attempt was made to use a precomputed grammar
+in a way that is not allowed.
+After a grammar is precomputed,
+any changes to it that would invalidate
+the precomputation
+is not allowed.
+Almost all changes to a grammar invalidate
+the precomputations.
+Suggested message: "This grammar is precomputed."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NO_START_SYMBOL
+The grammar has no start symbol,
+and an attempt was made to perform an
+operation which requires one.
+For example, no grammar without a start
+symbol can be precomputed.
+Suggested message: "This grammar has no start symbol."
+@end deftypevr
+
+@bye

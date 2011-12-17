@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION @ISA $DEBUG);
-$VERSION        = '0.001_009';
+$VERSION        = '0.001_010';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -78,6 +78,18 @@ sub version_ok {
         if $sub_module_version != $VERSION;
     return;
 } ## end sub version_ok
+
+# Set up the error values
+my @error_names = Marpa::R2::Internal::error_names();
+for ( my $error = 0; $error <= $#error_names; ) {
+    my $current_error = $error;
+    (my $name = $error_names[$error] ) =~ s/\A MARPA_ERR_//xms;
+    no strict 'refs';
+    *{ "Marpa::R2::Error::$name" } = \$current_error;
+    # This shuts up the "used only once" warning
+    my $dummy = eval q{$} . 'Marpa::R2::Error::' . $name;
+    $error++;
+}
 
 my $version_result;
 require Marpa::R2::Internal;
