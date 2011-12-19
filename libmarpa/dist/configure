@@ -870,9 +870,9 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_debug
-with_pic
 enable_shared
 enable_static
+with_pic
 enable_fast_install
 enable_dependency_tracking
 with_gnu_ld
@@ -6840,21 +6840,6 @@ done
 
 # Set options
 
-# Check whether --with-pic was given.
-if test "${with_pic+set}" = set; then :
-  withval=$with_pic; pic_mode="$withval"
-else
-  pic_mode=default
-fi
-
-
-test -z "$pic_mode" && pic_mode=yes
-
-
-
-
-
-
 
 
         enable_dlopen=no
@@ -6919,6 +6904,22 @@ fi
 
 
 
+
+
+
+
+
+
+
+# Check whether --with-pic was given.
+if test "${with_pic+set}" = set; then :
+  withval=$with_pic; pic_mode="$withval"
+else
+  pic_mode=default
+fi
+
+
+test -z "$pic_mode" && pic_mode=default
 
 
 
@@ -7337,11 +7338,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7340: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7341: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7344: \$? = $ac_status" >&5
+   echo "$as_me:7345: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7676,11 +7677,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7679: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7680: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7683: \$? = $ac_status" >&5
+   echo "$as_me:7684: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7781,11 +7782,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7784: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7785: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:7788: \$? = $ac_status" >&5
+   echo "$as_me:7789: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -7836,11 +7837,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7839: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7840: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:7843: \$? = $ac_status" >&5
+   echo "$as_me:7844: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -10203,7 +10204,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 10206 "configure"
+#line 10207 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -10299,7 +10300,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 10302 "configure"
+#line 10303 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12352,9 +12353,9 @@ double_quote_subst='$double_quote_subst'
 delay_variable_subst='$delay_variable_subst'
 macro_version='`$ECHO "X$macro_version" | $Xsed -e "$delay_single_quote_subst"`'
 macro_revision='`$ECHO "X$macro_revision" | $Xsed -e "$delay_single_quote_subst"`'
-pic_mode='`$ECHO "X$pic_mode" | $Xsed -e "$delay_single_quote_subst"`'
 enable_shared='`$ECHO "X$enable_shared" | $Xsed -e "$delay_single_quote_subst"`'
 enable_static='`$ECHO "X$enable_static" | $Xsed -e "$delay_single_quote_subst"`'
+pic_mode='`$ECHO "X$pic_mode" | $Xsed -e "$delay_single_quote_subst"`'
 enable_fast_install='`$ECHO "X$enable_fast_install" | $Xsed -e "$delay_single_quote_subst"`'
 host_alias='`$ECHO "X$host_alias" | $Xsed -e "$delay_single_quote_subst"`'
 host='`$ECHO "X$host" | $Xsed -e "$delay_single_quote_subst"`'
@@ -13348,14 +13349,14 @@ available_tags=""
 macro_version=$macro_version
 macro_revision=$macro_revision
 
-# What type of objects to build.
-pic_mode=$pic_mode
-
 # Whether or not to build shared libraries.
 build_libtool_libs=$enable_shared
 
 # Whether or not to build static libraries.
 build_old_libs=$enable_static
+
+# What type of objects to build.
+pic_mode=$pic_mode
 
 # Whether or not to optimize for fast installation.
 fast_install=$enable_fast_install
