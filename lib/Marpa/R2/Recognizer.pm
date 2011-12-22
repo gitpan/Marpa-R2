@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_011';
+$VERSION        = '0.001_012';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -34,7 +34,8 @@ BEGIN {
 
     :package=Marpa::R2::Internal::Recognizer
 
-    C { A C structure }
+    C { C structure for the recognizer }
+    B_C { C structure for the bocage }
 
     GRAMMAR { the grammar used }
     FINISHED
@@ -59,7 +60,6 @@ BEGIN {
 
     RULE_CLOSURES
     RULE_CONSTANTS
-    TOP_OR_NODE_ID
 
     { This is the end of the list of fields which
     must be reinitialized when evaluation is reset }
@@ -187,15 +187,9 @@ use constant RECOGNIZER_OPTIONS => [
 
 sub Marpa::R2::Recognizer::reset_evaluation {
     my ($recce) = @_;
-    my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
-    my $result  = $recce_c->eval_clear();
-    if ( not defined $result ) {
-        Marpa::R2::exception("eval_clear() failed\n");
-    }
-    $recce->[Marpa::R2::Internal::Recognizer::TOP_OR_NODE_ID] = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::B_C]            = undef;
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES]  = [];
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CONSTANTS] = [];
-
     return;
 } ## end sub Marpa::R2::Recognizer::reset_evaluation
 

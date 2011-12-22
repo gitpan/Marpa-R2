@@ -22,12 +22,57 @@
 
 
 const char* marpa_check_version (unsigned int required_major, unsigned int required_minor, unsigned int required_micro);
-void marpa_g_unref (Marpa_G g);
-Marpa_G marpa_g_ref (Marpa_G g);
-Marpa_R marpa_r_ref (Marpa_R r);
-void marpa_r_unref (Marpa_R r);
+void marpa_g_unref (Marpa_Grammar g);
+Marpa_Grammar marpa_g_ref (Marpa_Grammar g);
+Marpa_Recognizer marpa_r_ref (Marpa_Recognizer r);
+void marpa_r_unref (Marpa_Recognizer r);
 Marpa_Error_Code marpa_r_error (const struct marpa_r* r, const char** p_error_string);
-Marpa_Error_Code marpa_g_error ( Marpa_G g, const char** p_error_string);
+struct marpa_r* marpa_r_new ( struct marpa_g* g );
+Marpa_Phase marpa_r_phase (struct marpa_r* r);
+guint marpa_r_current_earleme (struct marpa_r* r);
+gint marpa_r_earley_item_warning_threshold (struct marpa_r* r);
+gint marpa_r_earley_item_warning_threshold_set (struct marpa_r*r, gint threshold);
+guint marpa_r_furthest_earleme (struct marpa_r* r);
+gint marpa_r_terminals_expected (struct marpa_r* r, GArray* result);
+gboolean marpa_r_is_use_leo (struct marpa_r* r);
+gboolean marpa_r_is_use_leo_set ( struct marpa_r*r, gboolean value);
+gboolean marpa_r_is_exhausted (struct marpa_r* r);
+gint marpa_r_event (const struct marpa_r* r, struct marpa_g_event *public_event, gint ix);
+Marpa_Earley_Set_ID marpa_r_trace_earley_set (struct marpa_r *r);
+Marpa_Earley_Set_ID marpa_r_latest_earley_set (struct marpa_r *r);
+Marpa_Earleme marpa_r_earleme (struct marpa_r* r, Marpa_Earley_Set_ID set_id);
+gint marpa_r_earley_set_size (struct marpa_r *r, Marpa_Earley_Set_ID set_id);
+Marpa_Earleme marpa_r_earley_set_trace (struct marpa_r *r, Marpa_Earley_Set_ID set_id);
+Marpa_AHFA_State_ID marpa_r_earley_item_trace (struct marpa_r *r, Marpa_Earley_Item_ID item_id);
+Marpa_Earley_Set_ID marpa_r_earley_item_origin (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_leo_predecessor_symbol (struct marpa_r *r);
+Marpa_Earley_Set_ID marpa_r_leo_base_origin (struct marpa_r *r);
+Marpa_AHFA_State_ID marpa_r_leo_base_state (struct marpa_r *r);
+Marpa_AHFA_State_ID marpa_r_leo_expansion_ahfa (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_postdot_symbol_trace (struct marpa_r *r, Marpa_Symbol_ID symid);
+Marpa_Symbol_ID marpa_r_first_postdot_item_trace (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_next_postdot_item_trace (struct marpa_r *r);
+Marpa_AHFA_State_ID marpa_r_postdot_item_symbol (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_first_token_link_trace (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_next_token_link_trace (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_first_completion_link_trace (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_next_completion_link_trace (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_first_leo_link_trace (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_next_leo_link_trace (struct marpa_r *r);
+Marpa_AHFA_State_ID marpa_r_source_predecessor_state (struct marpa_r *r);
+Marpa_Symbol_ID marpa_r_source_token (struct marpa_r *r, gpointer *value_p);
+Marpa_Symbol_ID marpa_r_source_leo_transition_symbol (struct marpa_r *r);
+Marpa_Earley_Set_ID marpa_r_source_middle (struct marpa_r* r);
+gboolean marpa_r_start_input (struct marpa_r *r);
+gboolean marpa_r_alternative (struct marpa_r *r, Marpa_Symbol_ID token_id, gpointer value, gint length);
+Marpa_Earleme marpa_r_earleme_complete (struct marpa_r* r);
+Marpa_Bocage marpa_b_new (Marpa_Recognizer r, Marpa_Rule_ID rule_id, Marpa_Earley_Set_ID ordinal_arg);
+Marpa_Bocage marpa_b_ref (Marpa_Bocage b);
+void marpa_b_unref (Marpa_Bocage b);
+Marpa_Grammar marpa_b_g (Marpa_Bocage b);
+gint marpa_o_and_order_set ( Marpa_Recognizer r, Marpa_Or_Node_ID or_node_id, Marpa_And_Node_ID* and_node_ids, gint length);
+Marpa_And_Node_ID marpa_o_and_order_get ( Marpa_Recognizer r, Marpa_Or_Node_ID or_node_id, gint ix);
+Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERROR_COUNT 15
 #define MARPA_ERR_NONE 0
 #define MARPA_ERR_UNKNOWN 1
