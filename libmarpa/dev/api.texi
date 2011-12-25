@@ -286,9 +286,6 @@ Return value: %NULL if the GLib library is compatible with the
 @deftypefun struct marpa_r* marpa_r_new ( struct marpa_g* @var{g} )
 @end deftypefun
 
-@deftypefun Marpa_Phase marpa_r_phase (struct marpa_r* @var{r})
-@end deftypefun
-
 @deftypefun guint marpa_r_current_earleme (struct marpa_r* @var{r})
 @end deftypefun
 
@@ -420,17 +417,33 @@ Return value: %NULL if the GLib library is compatible with the
 @node Order
 @chapter Order objects
 
+@deftypefun Marpa_Order marpa_o_new ( @
+    Marpa_Bocage @var{b})
+@end deftypefun
+
+@deftypefun void marpa_o_unref ( @
+    Marpa_Order @var{o})
+@end deftypefun
+
+@deftypefun Marpa_Order marpa_o_ref ( @
+    Marpa_Order @var{o})
+@end deftypefun
+
+@deftypefun Marpa_Grammar marpa_o_g ( @
+    Marpa_Order @var{o})
+@end deftypefun
+
 @deftypefun gint marpa_o_and_order_set ( @
-    Marpa_Recognizer r, @
-    Marpa_Or_Node_ID or_node_id, @
-    Marpa_And_Node_ID* and_node_ids, @
-    gint length)
+    Marpa_Order @var{o}, @
+    Marpa_Or_Node_ID @var{or_node_id}, @
+    Marpa_And_Node_ID* @var{and_node_ids}, @
+    gint @var{length})
 @end deftypefun
 
 @deftypefun Marpa_And_Node_ID marpa_o_and_order_get ( @
-    Marpa_Recognizer r, @
-    Marpa_Or_Node_ID or_node_id, @
-    gint ix)
+    Marpa_Order @var{o}, @
+    Marpa_Or_Node_ID @var{or_node_id}, @
+    gint @var{ix})
 @end deftypefun
 
 @node Error handling
@@ -683,6 +696,17 @@ That means it could never match any possible input,
 not even the null string.
 Presumably, an error in writing the grammar.
 Suggested message: "Unproductive start symbol."
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_ORDER_FROZEN
+The Marpa order object has been frozen.
+Multiple trees can share a Marpa order object,
+but that order object is @dfn{frozen} after the first tree
+is created from it.
+If a Marpa order object is @dfn{frozen}, it cannot be
+changed.
+Applications can order an bocage in many ways,
+but they must do so by creating multiple order objects.
 @end deftypevr
 
 @bye

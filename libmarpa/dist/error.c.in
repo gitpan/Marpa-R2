@@ -48,7 +48,8 @@ const struct s_marpa_error_description marpa_error_description[] = {
   { 9, "MARPA_ERR_NO_RULES", "This grammar does not have any rules." },
   { 10, "MARPA_ERR_NO_START_SYMBOL", "This grammar has no start symbol." },
   { 11, "MARPA_ERR_NULL_RULE_UNMARKED_TERMINALS", "A grammar with null rules must mark its terminals." },
-  { 12, "MARPA_ERR_PRECOMPUTED", "This grammar is precomputed." },
-  { 13, "MARPA_ERR_START_NOT_LHS", "Start symbol not on LHS of any rule." },
-  { 14, "MARPA_ERR_UNPRODUCTIVE_START", "Unproductive start symbol." },
+  { 12, "MARPA_ERR_ORDER_FROZEN", "Unknown error" },
+  { 13, "MARPA_ERR_PRECOMPUTED", "This grammar is precomputed." },
+  { 14, "MARPA_ERR_START_NOT_LHS", "Start symbol not on LHS of any rule." },
+  { 15, "MARPA_ERR_UNPRODUCTIVE_START", "Unproductive start symbol." },
 };

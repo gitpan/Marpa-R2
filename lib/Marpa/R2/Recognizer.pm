@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_012';
+$VERSION        = '0.001_013';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -36,6 +36,7 @@ BEGIN {
 
     C { C structure for the recognizer }
     B_C { C structure for the bocage }
+    O_C { C structure for the Marpa order object }
 
     GRAMMAR { the grammar used }
     FINISHED
@@ -188,6 +189,7 @@ use constant RECOGNIZER_OPTIONS => [
 sub Marpa::R2::Recognizer::reset_evaluation {
     my ($recce) = @_;
     $recce->[Marpa::R2::Internal::Recognizer::B_C]            = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::O_C]            = undef;
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES]  = [];
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CONSTANTS] = [];
     return;
@@ -240,7 +242,7 @@ sub Marpa::R2::Recognizer::set {
         if ( defined( my $value = $args->{'ranking_method'} ) ) {
 
             # Not allowed once parsing is started
-            if ( $recce_c->parse_count() ) {
+            if ( defined $recce->[Marpa::R2::Internal::Recognizer::B_C]) {
                 Marpa::R2::exception(
                     q{Cannot change ranking method once parsing has started});
             }
@@ -349,7 +351,7 @@ sub Marpa::R2::Recognizer::set {
         if ( defined( my $value = $args->{'end'} ) ) {
 
             # Not allowed once evaluation is started
-            if ( $recce_c->parse_count() ) {
+            if ( defined $recce->[Marpa::R2::Internal::Recognizer::B_C]) {
                 Marpa::R2::exception(
                     q{Cannot reset end once evaluation has started});
             }
@@ -359,9 +361,9 @@ sub Marpa::R2::Recognizer::set {
         if ( defined( my $value = $args->{'closures'} ) ) {
 
             # Not allowed once evaluation is started
-            if ( $recce_c->parse_count() ) {
+            if ( defined $recce->[Marpa::R2::Internal::Recognizer::B_C]) {
                 Marpa::R2::exception(
-                    q{Cannot reset end once evaluation has started});
+                    q{Cannot reset closures once evaluation has started});
             }
             my $closures =
                 $recce->[Marpa::R2::Internal::Recognizer::CLOSURES] = $value;
