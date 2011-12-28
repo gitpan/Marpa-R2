@@ -10804,13 +10804,12 @@ or a stack, so they are destroyed.
 if the bocage iterator has a parse count,
 but no stack,
 it is exhausted.
-@d TREE_is_Initialized(tree) ((tree)->t_parse_count >= 0)
-@d TREE_is_Exhausted(tree) (TREE_is_Initialized(tree)
-    && !FSTACK_IS_INITIALIZED((tree)->t_fork_stack))
-@d VALUE_of_TREE(tree) (&(tree)->t_val)
+@d TREE_is_Exhausted(tree)
+    (!FSTACK_IS_INITIALIZED((tree)->t_fork_stack))
 @d Size_of_TREE(tree) FSTACK_LENGTH((tree)->t_fork_stack)
 @d FORK_of_TREE_by_IX(tree, fork_id)
     FSTACK_INDEX((tree)->t_fork_stack, FORK_Object, fork_id)
+@d O_of_T(t) ((t)->t_order)
 @<Private structures@> =
 @<FORK structure@>@;
 @<VALUE structure@>@;
@@ -10818,88 +10817,186 @@ struct s_tree {
     FSTACK_DECLARE(t_fork_stack, FORK_Object)@;
     FSTACK_DECLARE(t_fork_worklist, gint)@;
     Bit_Vector t_and_node_in_use;
+    Marpa_Order t_order;
+    @<Int aligned tree elements@>@;
     gint t_parse_count;
-    struct s_value t_val;
 };
-typedef struct s_tree TREE_Object;
 
 @ @<Unpack tree objects@> =
-    TREE t = T_of_R(r);
-    ORDER o = O_of_R(r);
+    ORDER o = O_of_T(t);
     @<Unpack order objects@>;
 
 @ @<Private function prototypes@> =
-static inline void tree_exhaust(TREE tree);
+static inline void tree_exhaust(TREE t);
 @ @<Function definitions@> =
-static inline void tree_exhaust(TREE tree)
+static inline void tree_exhaust(TREE t)
 {
-  if (FSTACK_IS_INITIALIZED(tree->t_fork_stack))
+  if (FSTACK_IS_INITIALIZED(t->t_fork_stack))
     {
-      FSTACK_DESTROY(tree->t_fork_stack);
-      FSTACK_SAFE(tree->t_fork_stack);
+      FSTACK_DESTROY(t->t_fork_stack);
+      FSTACK_SAFE(t->t_fork_stack);
     }
-  if (FSTACK_IS_INITIALIZED(tree->t_fork_worklist))
+  if (FSTACK_IS_INITIALIZED(t->t_fork_worklist))
     {
-      FSTACK_DESTROY(tree->t_fork_worklist);
-      FSTACK_SAFE(tree->t_fork_worklist);
+      FSTACK_DESTROY(t->t_fork_worklist);
+      FSTACK_SAFE(t->t_fork_worklist);
     }
-    if (tree->t_and_node_in_use) {
-	  bv_free (tree->t_and_node_in_use);
-	tree->t_and_node_in_use = NULL;
+    if (t->t_and_node_in_use) {
+	  bv_free (t->t_and_node_in_use);
+	t->t_and_node_in_use = NULL;
     }
 }
 
 @ @<Private function prototypes@> =
-static inline void tree_safe(TREE tree);
+static inline void tree_safe(TREE t);
 @ @<Function definitions@> =
-static inline void tree_safe(TREE tree)
+static inline void tree_safe(TREE t)
 {
-    FSTACK_SAFE(tree->t_fork_stack);
-    FSTACK_SAFE(tree->t_fork_worklist);
-    tree->t_and_node_in_use = NULL;
-    tree->t_parse_count = -1;
-    val_safe(VALUE_of_TREE(tree));
+    FSTACK_SAFE(t->t_fork_stack);
+    FSTACK_SAFE(t->t_fork_worklist);
+    t->t_and_node_in_use = NULL;
+    t->t_parse_count = -1;
 }
 
 @ Returns the size of the tree.
 If the bocage iterator is exhausted, returns -1.
 On error, returns -2.
 @<Public function prototypes@> =
-int marpa_t_new(struct marpa_r* r);
+Marpa_Tree marpa_t_new(Marpa_Order o);
 @ @<Function definitions@> =
-int marpa_t_new(struct marpa_r* r)
+Marpa_Tree marpa_t_new(Marpa_Order o)
 {
-    gint first_tree_of_series = 0;
-    @<Return |-2| on failure@>@;
-    ORDER o = O_of_R(r);
+    @<Return |NULL| on failure@>@;
+    TREE t;
     @<Unpack order objects@>@;
-    TREE t = T_of_R(r);
     @<Fail if fatal error@>@;
-    /* |order_ref(o);| here */
+    @<Fail if up-ref of |t|@>@;
+    t = g_slice_new(struct s_tree);
+    O_of_T(t) = o;
+    order_ref(o);
     order_freeze(o);
-    if (TREE_is_Exhausted(t)) {
-       return -1;
+    @<Initialize tree elements@>@;
+    @<Add up-ref of |t|@>@;
+    return t;
+}
+
+@*0 Reference Counting and Destructors.
+@ @<Int aligned tree elements@>= gint ref_count;
+@ @<Initialize tree elements@> =
+{
+    const gint and_count = AND_Count_of_B (b);
+    t->ref_count = 1;
+    t->t_parse_count = 0;
+    t->t_and_node_in_use = bv_create ((guint) and_count);
+    FSTACK_INIT (t->t_fork_stack, FORK_Object, and_count);
+    FSTACK_INIT (t->t_fork_worklist, gint, and_count);
+}
+
+@ Decrement the tree reference count.
+@<Private function prototypes@> =
+static inline void tree_unref (TREE t);
+@ @<Function definitions@> =
+static inline void
+tree_unref (TREE t)
+{
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, t->ref_count);
+  MARPA_ASSERT (t->ref_count > 0)
+  t->ref_count--;
+  if (t->ref_count <= 0)
+    {
+      tree_free(t);
     }
-    val_destroy(VALUE_of_TREE(t));
-    if (!TREE_is_Initialized(t))
+}
+void
+marpa_t_unref (Marpa_Tree t)
+{
+   tree_unref(t);
+}
+
+@ Increment the tree reference count.
+@<Private function prototypes@> =
+static inline TREE tree_ref (TREE t);
+@ @<Function definitions@> =
+static inline TREE
+tree_ref (TREE t)
+{
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, t->ref_count);
+  MARPA_ASSERT(t->ref_count > 0)
+  t->ref_count++;
+  return t;
+}
+Marpa_Tree
+marpa_t_ref (Marpa_Tree t)
+{
+   return tree_ref(t);
+}
+
+@ @<Private function prototypes@> =
+static inline void tree_free(TREE t);
+@ @<Function definitions@> =
+static inline void tree_free(TREE t)
+{
+    order_unref(O_of_T(t));
+    tree_exhaust(t);
+    g_slice_free(struct s_tree, t);
+}
+
+
+@*0 The grammar of the tree.
+@ This function returns the grammar of the tree.
+It never returns an error.
+The grammar is always set when the tree is initialized,
+and is never changed while the tree exists.
+Fatal state is not reported,
+because it is kept in the grammar,
+so that
+either we can return the grammar in spite of
+its fatal state,
+or the problem is so severe than no
+errors can be properly reported.
+@<Function definitions@> =
+Marpa_Grammar marpa_t_g(Marpa_Tree t)
+{
+  @<Unpack tree objects@>@;
+  return g;
+}
+
+@ @<Public function prototypes@> =
+gint marpa_t_next(Marpa_Tree t);
+@ @<Function definitions@> =
+gint marpa_t_next(Marpa_Tree t)
+{
+    @<Return |-2| on failure@>@;
+    gint is_first_tree_attempt = 0;
+    @<Unpack tree objects@>@;
+    @<Fail if fatal error@>@;
+    if (TREE_is_Exhausted (t))
       {
-	first_tree_of_series = 1;
-	@<Initialize the tree iterator; return -1 if fails@>@;
+	return -1;
+      }
+    value_destroy (V_of_R (R_of_B (b)));
+
+    if (t->t_parse_count < 1)
+      {
+       is_first_tree_attempt = 1;
+       @<Initialize the tree iterator@>@;
       }
       while (1) {
-	 const AND ands_of_b = ANDs_of_B(b);
-         if (!first_tree_of_series) {
-	     @<Start a new iteration of the tree@>@;
+        const AND ands_of_b = ANDs_of_B(b);
+	 if (is_first_tree_attempt) {
+	    is_first_tree_attempt = 0;
+	 } else {
+            @<Start a new iteration of the tree@>@;
 	 }
-	 first_tree_of_series = 0;
-	 @<Finish tree if possible@>@;
-     }
-     TREE_IS_FINISHED: ;
+        @<Finish tree if possible@>@;
+        }
+    TREE_IS_FINISHED: ;
     t->t_parse_count++;
-      return FSTACK_LENGTH(t->t_fork_stack);
+    return FSTACK_LENGTH(t->t_fork_stack);
     TREE_IS_EXHAUSTED: ;
-   tree_exhaust(t);
-   return -1;
+    tree_exhaust(t);
+    return -1;
+
 }
 
 @*0 Claiming and Releasing And-nodes.
@@ -10931,23 +11028,19 @@ static inline gint tree_and_node_try(TREE tree, ANDID and_node_id)
     return !bv_bit_test_and_set(tree->t_and_node_in_use, (guint)and_node_id);
 }
 
-@ @<Initialize the tree iterator;
-return -1 if fails@> =
+@ @<Initialize the tree iterator@> =
 {
   ORID top_or_id = Top_ORID_of_B (b);
   OR top_or_node = OR_of_B_by_ID (b, top_or_id);
   FORK fork;
   gint choice;
-  const gint and_count = AND_Count_of_B (b);
-  t->t_parse_count = 0;
-  t->t_and_node_in_use = bv_create ((guint) and_count);
-  FSTACK_INIT (t->t_fork_stack, FORK_Object, and_count);
-  FSTACK_INIT (t->t_fork_worklist, gint, and_count);
   choice = or_node_next_choice (o, t, top_or_node, 0);
   /* Due to skipping, even the top or-node can have no
      valid choices, in which case there is no parse */
+MARPA_DEBUG3("%s %s", G_STRFUNC, G_STRLOC);
   if (choice < 0)
     goto TREE_IS_EXHAUSTED;
+MARPA_DEBUG3("%s %s", G_STRFUNC, G_STRLOC);
   fork = FSTACK_PUSH (t->t_fork_stack);
   OR_of_FORK (fork) = top_or_node;
   Choice_of_FORK (fork) = choice;
@@ -11004,7 +11097,7 @@ Otherwise, the tree is exhausted.
 	}
     }
     {
-	gint stack_length = FSTACK_LENGTH(t->t_fork_stack);
+	gint stack_length = Size_of_T(t);
 	gint i;
 	if (stack_length <= 0) goto TREE_IS_EXHAUSTED;
 	FSTACK_CLEAR(t->t_fork_worklist);
@@ -11079,7 +11172,7 @@ static inline gint or_node_next_choice(ORDER o, TREE tree, OR or_node, gint star
 
 @ @<Add new fork to tree@> =
 {
-   FORKID new_fork_id = FSTACK_LENGTH(t->t_fork_stack);
+   FORKID new_fork_id = Size_of_T(t);
    FORK new_fork = FSTACK_PUSH(t->t_fork_stack);
     *(FSTACK_PUSH(t->t_fork_worklist)) = new_fork_id;
     Parent_of_FORK(new_fork) = *p_work_fork_id;
@@ -11095,38 +11188,12 @@ static inline gint or_node_next_choice(ORDER o, TREE tree, OR or_node, gint star
     }
 }
 
-@ {\bf To Do}: @^To Do@>
-For the moment destroy the tree with the bocage.
-@<Destroy bocage elements, main phase@> =
-{
-    const TREE t = T_of_R(r);
-    tree_destroy(t);
-    tree_safe(t);
-}
-
-@ @<Private function prototypes@> =
-static inline void tree_destroy(TREE tree);
-@ @<Function definitions@> =
-static inline void tree_destroy(TREE tree)
-{
-    tree_exhaust(tree);
-    tree->t_parse_count = -1;
-MARPA_OFF_DEBUG4("%s tree=%p parse_count=%d", G_STRLOC, tree, tree->t_parse_count);
-}
-
 @ @<Public function prototypes@> =
-gint marpa_t_parse_count(struct marpa_r* r);
+gint marpa_t_parse_count(Marpa_Tree t);
 @ @<Function definitions@> =
-gint marpa_t_parse_count(struct marpa_r* r)
+gint marpa_t_parse_count(Marpa_Tree t)
 {
-    TREE tree;
-    @<Return |-2| on failure@>@;
-  GRAMMAR g = G_of_R(r);
-    @<Fail if fatal error@>@;
-    tree = T_of_R(r);
-MARPA_OFF_DEBUG3("%s b=%p", G_STRLOC, b);
-MARPA_OFF_DEBUG4("%s tree=%p parse_count=%d", G_STRLOC, tree, tree->t_parse_count);
-    return tree->t_parse_count;
+    return t->t_parse_count;
 }
 
 @ Return the size of the parse tree.
@@ -11135,25 +11202,19 @@ If there is a serioius error,
 or if the tree is uninitialized, return -2.
 If the tree is exhausted, return -1.
 @<Public function prototypes@> =
-gint marpa_t_size(struct marpa_r *r);
-@ @<Function definitions@> =
-gint marpa_t_size(struct marpa_r *r)
+gint marpa_t_size(Marpa_Tree t);
+@
+@d Size_of_T(t) FSTACK_LENGTH((t)->t_fork_stack)
+@<Function definitions@> =
+gint marpa_t_size(Marpa_Tree t)
 {
   @<Return |-2| on failure@>@;
   @<Unpack tree objects@>@;
   @<Fail if fatal error@>@;
-  if (!b) {
-      R_DEV_ERROR("no bocage");
-      return failure_indicator;
-  }
-  if (!TREE_is_Initialized(t)) {
-      R_DEV_ERROR("tree not initialized");
-      return failure_indicator;
-  }
   if (TREE_is_Exhausted(t)) {
       return -1;
   }
-  return FSTACK_LENGTH(t->t_fork_stack);
+  return Size_of_T(t);
 }
 
 @** Bocage Ordering (O, ORDER) Code.
@@ -11200,9 +11261,7 @@ Marpa_Order marpa_o_new(Marpa_Bocage b)
     @<Unpack bocage objects@>@;
     ORDER o;
       @<Fail if fatal error@>@;
-    @<Fail if up-ref of |o|@>@;
     o = g_slice_new(struct s_order);
-    @<Add up-ref of |o|@>@;
     B_of_O(o) = b;
     bocage_ref(b);
     @<Initialize order elements@>@;
@@ -11285,6 +11344,7 @@ static inline void order_free(ORDER o)
       o->t_and_node_orderings = NULL;
       obstack_free(&OBS_of_O(o), NULL);
   }
+  g_slice_free(struct s_order, o);
 }
 
 @ @<Unpack order objects@> =
@@ -11294,8 +11354,8 @@ static inline void order_free(ORDER o)
 @*0 The grammar of the order.
 @ This function returns the grammar of the order.
 It never returns an error.
-The grammar is always set when the bocage is initialized,
-and is never changed while the bocage exists.
+The grammar is always set when the order is initialized,
+and is never changed while the order exists.
 Fatal state is not reported,
 because it is kept in the grammar,
 so that
@@ -11370,11 +11430,6 @@ gint marpa_o_and_order_set(
   @<Return |-2| on failure@>@;
   @<Unpack order objects@>@;
   @<Fail if fatal error@>@;
-    if (!b)
-      {
-	MARPA_DEV_ERROR ("no bocage");
-	return failure_indicator;
-      }
     if (O_is_Frozen (o))
       {
 	MARPA_ERROR (MARPA_ERR_ORDER_FROZEN);
@@ -11478,10 +11533,6 @@ Marpa_And_Node_ID marpa_o_and_order_get(Marpa_Order o,
     OR or_node;
   @<Return |-2| on failure@>@;
   @<Unpack order objects@>@;
-  if (!b) {
-      MARPA_DEV_ERROR("no bocage");
-      return failure_indicator;
-  }
   @<Fail if fatal error@>@;
     @<Check |or_node_id|; set |or_node|@>@;
   if (ix < 0) {
@@ -11536,24 +11587,16 @@ typedef struct s_fork FORK_Object;
 set |fork|@> = {
   FORK base_fork;
   @<Fail if fatal error@>@;
-  if (!b) {
-      R_DEV_ERROR("no bocage");
-      return failure_indicator;
-  }
-  if (!TREE_is_Initialized(t)) {
-      R_DEV_ERROR("tree not initialized");
-      return failure_indicator;
-  }
   if (TREE_is_Exhausted(t)) {
-      R_DEV_ERROR("bocage iteration exhausted");
+      MARPA_DEV_ERROR("bocage iteration exhausted");
       return failure_indicator;
   }
   base_fork = FSTACK_BASE(t->t_fork_stack, FORK_Object);
   if (fork_id < 0) {
-      R_DEV_ERROR("bad fork id");
+      MARPA_DEV_ERROR("bad fork id");
       return failure_indicator;
   }
-  if (fork_id >= FSTACK_LENGTH(t->t_fork_stack)) {
+  if (fork_id >= Size_of_T(t)) {
       return -1;
   }
   fork = base_fork + fork_id;
@@ -11561,9 +11604,9 @@ set |fork|@> = {
 
 @ Return the ID of the or-node for |fork_id|.
 @<Public function prototypes@> =
-gint marpa_t_fork_or_node(struct marpa_r *r, int fork_id);
+gint marpa_t_fork_or_node(Marpa_Tree t, int fork_id);
 @ @<Function definitions@> =
-gint marpa_t_fork_or_node(struct marpa_r *r, int fork_id)
+gint marpa_t_fork_or_node(Marpa_Tree t, int fork_id)
 {
   FORK fork;
   @<Return |-2| on failure@>@;
@@ -11574,9 +11617,9 @@ gint marpa_t_fork_or_node(struct marpa_r *r, int fork_id)
 
 @ Return the current choice for |fork_id|.
 @<Public function prototypes@> =
-gint marpa_t_fork_choice(struct marpa_r *r, int fork_id);
+gint marpa_t_fork_choice(Marpa_Tree t, int fork_id);
 @ @<Function definitions@> =
-gint marpa_t_fork_choice(struct marpa_r *r, int fork_id)
+gint marpa_t_fork_choice(Marpa_Tree t, int fork_id)
 {
   FORK fork;
   @<Return |-2| on failure@>@;
@@ -11595,9 +11638,9 @@ to be checked with one of the trace functions
 where -1 is never a valid value ---
 for example, |marpa_t_fork_or_node|.
 @<Public function prototypes@> =
-gint marpa_t_fork_parent(struct marpa_r *r, int fork_id);
+gint marpa_t_fork_parent(Marpa_Tree t, int fork_id);
 @ @<Function definitions@> =
-gint marpa_t_fork_parent(struct marpa_r *r, int fork_id)
+gint marpa_t_fork_parent(Marpa_Tree t, int fork_id)
 {
   FORK fork;
   @<Return |-2| on failure@>@;
@@ -11608,9 +11651,9 @@ gint marpa_t_fork_parent(struct marpa_r *r, int fork_id)
 
 @ Return the cause-is-ready bit for |fork_id|.
 @<Public function prototypes@> =
-gint marpa_t_fork_cause_is_ready(struct marpa_r *r, int fork_id);
+gint marpa_t_fork_cause_is_ready(Marpa_Tree t, int fork_id);
 @ @<Function definitions@> =
-gint marpa_t_fork_cause_is_ready(struct marpa_r *r, int fork_id)
+gint marpa_t_fork_cause_is_ready(Marpa_Tree t, int fork_id)
 {
   FORK fork;
   @<Return |-2| on failure@>@;
@@ -11621,9 +11664,9 @@ gint marpa_t_fork_cause_is_ready(struct marpa_r *r, int fork_id)
 
 @ Return the predecessor-is-ready bit for |fork_id|.
 @<Public function prototypes@> =
-gint marpa_t_fork_predecessor_is_ready(struct marpa_r *r, int fork_id);
+gint marpa_t_fork_predecessor_is_ready(Marpa_Tree t, int fork_id);
 @ @<Function definitions@> =
-gint marpa_t_fork_predecessor_is_ready(struct marpa_r *r, int fork_id)
+gint marpa_t_fork_predecessor_is_ready(Marpa_Tree t, int fork_id)
 {
   FORK fork;
   @<Return |-2| on failure@>@;
@@ -11634,9 +11677,9 @@ gint marpa_t_fork_predecessor_is_ready(struct marpa_r *r, int fork_id)
 
 @ Return the is-cause bit for |fork_id|.
 @<Public function prototypes@> =
-gint marpa_t_fork_is_cause(struct marpa_r *r, int fork_id);
+gint marpa_t_fork_is_cause(Marpa_Tree t, int fork_id);
 @ @<Function definitions@> =
-gint marpa_t_fork_is_cause(struct marpa_r *r, int fork_id)
+gint marpa_t_fork_is_cause(Marpa_Tree t, int fork_id)
 {
   FORK fork;
   @<Return |-2| on failure@>@;
@@ -11647,9 +11690,9 @@ gint marpa_t_fork_is_cause(struct marpa_r *r, int fork_id)
 
 @ Return the is-predecessor bit for |fork_id|.
 @<Public function prototypes@> =
-gint marpa_t_fork_is_predecessor(struct marpa_r *r, int fork_id);
+gint marpa_t_fork_is_predecessor(Marpa_Tree t, int fork_id);
 @ @<Function definitions@> =
-gint marpa_t_fork_is_predecessor(struct marpa_r *r, int fork_id)
+gint marpa_t_fork_is_predecessor(Marpa_Tree t, int fork_id)
 {
   FORK fork;
   @<Return |-2| on failure@>@;
@@ -11722,9 +11765,9 @@ struct s_value {
 };
 
 @ @<Private function prototypes@> =
-static inline void val_safe(VALUE val);
+static inline void value_safe(VALUE val);
 @ @<Function definitions@> =
-static inline void val_safe(VALUE val)
+static inline void value_safe(VALUE val)
 {
     DSTACK_SAFE(val->t_virtual_stack);
     VALUE_is_Active(val) = 0;
@@ -11779,33 +11822,36 @@ int marpa_v_new(struct marpa_r* r)
 {
     @<Return |-2| on failure@>@;
     TREE t = T_of_R(r);
-  const ORDER o = O_of_R(r);
-    @<Unpack order objects@>;
+    @<Unpack tree objects@>;
     @<Fail if fatal error@>@;
     if (TREE_is_Exhausted(t)) {
        return -1;
     }
-    if (!TREE_is_Initialized(t))
-      {
-	R_DEV_ERROR ("tree not initialized");
-	return failure_indicator;
-      }
     {
-      VALUE v = VALUE_of_TREE (t);
+      VALUE v = V_of_R(r);
       const gint minimum_stack_size = (8192 / sizeof (gint));
 	const gint initial_stack_size =
 	MAX (Size_of_TREE (t) / 1024, minimum_stack_size);
-      val_destroy (v);
+      value_destroy (v);
       DSTACK_INIT (VStack_of_VALUE (v), gint, initial_stack_size);
       VALUE_is_Active(v) = 1;
     }
     return 1;
 }
 
+@ {\bf To Do}: @^To Do@>
+For the moment destroy the value with the bocage.
+@<Destroy bocage elements, main phase@> =
+{
+    const VALUE v = V_of_R(r);
+    value_destroy(v);
+    value_safe(v);
+}
+
 @ @<Private function prototypes@> =
-static inline void val_destroy(VALUE val);
+static inline void value_destroy(VALUE val);
 @ @<Function definitions@> =
-static inline void val_destroy(VALUE val)
+static inline void value_destroy(VALUE val)
 {
 
   if (DSTACK_IS_INITIALIZED(val->t_virtual_stack))
@@ -11813,14 +11859,13 @@ static inline void val_destroy(VALUE val)
       DSTACK_DESTROY(val->t_virtual_stack);
       DSTACK_SAFE(val->t_virtual_stack);
     }
-    val_safe(val);
+    value_safe(val);
 }
 
 @ @<Unpack value objects@> =
-    ORDER o = O_of_R(r);
     TREE t = T_of_R(r);
-    VALUE v = VALUE_of_TREE(t);
-    @<Unpack order objects@>@;
+    VALUE v = V_of_R(r);
+    @<Unpack tree objects@>@;
 
 @ @<Check |r|, |o|, |v|@> =
 {
@@ -11862,7 +11907,6 @@ Marpa_Fork_ID marpa_v_event(struct marpa_r* r, Marpa_Event* event);
 Marpa_Fork_ID marpa_v_event(struct marpa_r* r, Marpa_Event* event)
 {
     @<Return |-2| on failure@>@;
-    @<Unpack value objects@>@;
     AND and_nodes;
     gint semantic_rule_id = -1;
     gint token_id = -1;
@@ -11871,6 +11915,7 @@ Marpa_Fork_ID marpa_v_event(struct marpa_r* r, Marpa_Event* event)
     gint arg_n = -1;
     FORKID fork_ix;
     gint continue_with_next_fork;
+    @<Unpack value objects@>@;
 
     /* event is not changed in case of hard failure */
     @<Check |r|, |o|, |v|@>@;
@@ -11958,40 +12003,34 @@ MARPA_OFF_DEBUG3("symbol %d at %d", token_id, arg_0);
 @ {\bf To Do}: @^To Do@>
 Code to be removed once the new interface
 is completed.
-@d O_of_R(r) ((r)->t_order)
-@d T_of_R(r) (&(r)->t_tree)
+@d T_of_R(r) ((r)->t_tree)
+@d V_of_R(r) (&(r)->t_value)
 @<Widely aligned recognizer elements@> =
-Marpa_Order t_order;
-struct s_tree t_tree;
+Marpa_Tree t_tree;
+struct s_value t_value;
 @ @<Initialize recognizer elements@> =
-O_of_R(r) = NULL;
-tree_safe(T_of_R(r));
+T_of_R(r) = NULL;
+value_safe(V_of_R(r));
 @ {\bf To Do}: @^To Do@>
 For the moment destroy these objects with the bocage.
 @<Destroy bocage elements, main phase@> =
 {
-    const TREE t = T_of_R(r);
-    @<Delete up-ref of |o|@>@;
-    tree_destroy(t);
-    tree_safe(t);
+    const VALUE v = V_of_R(r);
+    T_of_R(r) = NULL;
+    value_destroy(v);
+    value_safe(v);
 }
 
-@ @<Fail if up-ref of |o|@> =
+@ @<Fail if up-ref of |t|@> =
 {
-    const RECCE r = R_of_B(b);
-    if (O_of_R(r)) {
-	MARPA_DEV_ERROR ("order in use");
+    if (T_of_R(R_of_B(b))) {
+	MARPA_DEV_ERROR ("tree in use");
 	return failure_indicator;
     }
 }
-@ @<Add up-ref of |o|@> =
+@ @<Add up-ref of |t|@> =
 {
-    const RECCE r = R_of_B(b);
-    O_of_R(r) = o;
-}
-@ @<Delete up-ref of |o|@> =
-{
-    O_of_R(r) = NULL;
+    T_of_R(R_of_B(b)) = t;
 }
 
 @ {\bf To Do}: @^To Do@>

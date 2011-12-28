@@ -21,7 +21,7 @@ use strict;
 use integer;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_013';
+$VERSION        = '0.001_014';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -262,18 +262,19 @@ sub Marpa::R2::Recognizer::show_fork {
     my ( $recce, $fork_id, $verbose ) = @_;
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
     my $order = $recce->[Marpa::R2::Internal::Recognizer::O_C];
+    my $tree = $recce->[Marpa::R2::Internal::Recognizer::T_C];
 
-    my $or_node_id = $recce_c->fork_or_node($fork_id);
+    my $or_node_id = $tree->fork_or_node($fork_id);
     return if not defined $or_node_id;
 
     my $text = "o$or_node_id";
-    my $parent = $recce_c->fork_parent($fork_id) // q{-};
+    my $parent = $tree->fork_parent($fork_id) // q{-};
     CHILD_TYPE: {
-        if ( $recce_c->fork_is_cause($fork_id) ) {
+        if ( $tree->fork_is_cause($fork_id) ) {
             $text .= "[c$parent]";
             last CHILD_TYPE;
         }
-        if ( $recce_c->fork_is_predecessor($fork_id) ) {
+        if ( $tree->fork_is_predecessor($fork_id) ) {
             $text .= "[p$parent]";
             last CHILD_TYPE;
         }
@@ -284,13 +285,13 @@ sub Marpa::R2::Recognizer::show_fork {
     $text .= " $or_node_tag";
 
     $text .= ' p';
-    $text .= $recce_c->fork_predecessor_is_ready($fork_id) ? q{=ok} : q{-};
+    $text .= $tree->fork_predecessor_is_ready($fork_id) ? q{=ok} : q{-};
     $text .= ' c';
-    $text .= $recce_c->fork_cause_is_ready($fork_id) ? q{=ok} : q{-};
+    $text .= $tree->fork_cause_is_ready($fork_id) ? q{=ok} : q{-};
     $text .= "\n";
 
     DESCRIBE_CHOICES: {
-        my $this_choice = $recce_c->fork_choice($fork_id);
+        my $this_choice = $tree->fork_choice($fork_id);
         CHOICE: for ( my $choice_ix = 0;; $choice_ix++ ) {
             my $and_node_id =
                 $order->and_node_order_get( $or_node_id, $choice_ix );
@@ -659,6 +660,7 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
     my $recce_c     = $recce->[Marpa::R2::Internal::Recognizer::C];
     my $bocage      = $recce->[Marpa::R2::Internal::Recognizer::B_C];
     my $order      = $recce->[Marpa::R2::Internal::Recognizer::O_C];
+    my $tree      = $recce->[Marpa::R2::Internal::Recognizer::T_C];
     my $null_values = $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES];
     my $grammar     = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $token_values =
@@ -754,8 +756,8 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
             last ADD_TOKEN if not $trace_values;
 
             my $fork_ix    = $recce_c->val_fork();
-            my $or_node_id = $recce_c->fork_or_node($fork_ix);
-            my $choice     = $recce_c->fork_choice($fork_ix);
+            my $or_node_id = $tree->fork_or_node($fork_ix);
+            my $choice     = $tree->fork_choice($fork_ix);
             my $and_node_id =
                 $order->and_node_order_get( $or_node_id, $choice );
             my $token_name;
@@ -778,8 +780,8 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
             last TRACE_OP if not $trace_values;
 
             my $fork_ix    = $recce_c->val_fork();
-            my $or_node_id = $recce_c->fork_or_node($fork_ix);
-            my $choice     = $recce_c->fork_choice($fork_ix);
+            my $or_node_id = $tree->fork_or_node($fork_ix);
+            my $choice     = $tree->fork_choice($fork_ix);
             my $and_node_id =
                 $order->and_node_order_get( $or_node_id, $choice );
             my $trace_rule_id = $bocage->or_node_rule($or_node_id);
@@ -952,17 +954,20 @@ sub Marpa::R2::Recognizer::value {
         "  Recognition done only as far as location $last_completed_earleme\n"
     ) if $furthest_earleme > $last_completed_earleme;
 
-    my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-    if ($bocage) {
+    my $tree = $recce->[Marpa::R2::Internal::Recognizer::T_C];
+    my $tree_result;
+    my $parse_count;
+
+    if ($tree) {
         my $max_parses =
             $recce->[Marpa::R2::Internal::Recognizer::MAX_PARSES];
-        my $parse_count = $recce_c->parse_count();
+        my $parse_count = $tree->parse_count();
         if ( $max_parses and $parse_count > $max_parses ) {
             Marpa::R2::exception(
                 "Maximum parse count ($max_parses) exceeded");
         }
 
-    } ## end if ($bocage)
+    } ## end if ($tree)
     else {
 
         # Perhaps this call should be moved.
@@ -972,7 +977,7 @@ sub Marpa::R2::Recognizer::value {
             Marpa::R2::Internal::Recognizer::set_null_values($recce);
         Marpa::R2::Internal::Recognizer::set_actions($recce);
 
-        $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C] =
+        my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C] =
             Marpa::R2::Internal::B_C->new( $recce_c, -1,
             ( $parse_set_arg // -1 ) );
 
@@ -985,6 +990,9 @@ sub Marpa::R2::Recognizer::value {
             when ('high_rule_only') { do_high_rule_only($recce); }
             when ('rule')           { do_rank_by_rule($recce); }
         }
+
+        $tree = $recce->[Marpa::R2::Internal::Recognizer::T_C] =
+            Marpa::R2::Internal::T_C->new($order);
 
     } ## end else [ if ($bocage) ]
 
@@ -1006,8 +1014,7 @@ sub Marpa::R2::Recognizer::value {
             or Marpa::R2::exception('print to trace handle failed');
     }
 
-    $recce_c->tree_new();
-    return if not defined $recce_c->tree_size();
+    return if not defined $tree->next();
     return Marpa::R2::Internal::Recognizer::evaluate($recce);
 
 } ## end sub Marpa::R2::Recognizer::value

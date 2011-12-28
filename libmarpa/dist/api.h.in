@@ -75,6 +75,9 @@ Marpa_Order marpa_o_ref ( Marpa_Order o);
 Marpa_Grammar marpa_o_g ( Marpa_Order o);
 gint marpa_o_and_order_set ( Marpa_Order o, Marpa_Or_Node_ID or_node_id, Marpa_And_Node_ID* and_node_ids, gint length);
 Marpa_And_Node_ID marpa_o_and_order_get ( Marpa_Order o, Marpa_Or_Node_ID or_node_id, gint ix);
+Marpa_Tree marpa_t_ref (Marpa_Tree t);
+void marpa_t_unref (Marpa_Tree t);
+Marpa_Grammar marpa_t_g (Marpa_Tree o);
 Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERROR_COUNT 16
 #define MARPA_ERR_NONE 0

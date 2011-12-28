@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_013';
+$VERSION        = '0.001_014';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -37,6 +37,7 @@ BEGIN {
     C { C structure for the recognizer }
     B_C { C structure for the bocage }
     O_C { C structure for the Marpa order object }
+    T_C { C structure for the Marpa tree iterator }
 
     GRAMMAR { the grammar used }
     FINISHED
@@ -190,6 +191,7 @@ sub Marpa::R2::Recognizer::reset_evaluation {
     my ($recce) = @_;
     $recce->[Marpa::R2::Internal::Recognizer::B_C]            = undef;
     $recce->[Marpa::R2::Internal::Recognizer::O_C]            = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::T_C]            = undef;
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES]  = [];
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CONSTANTS] = [];
     return;
