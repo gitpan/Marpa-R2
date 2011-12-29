@@ -626,9 +626,9 @@ struct marpa_g* marpa_g_new( void)
 struct marpa_g* marpa_g_new(void);
 
 @*0 Reference Counting and Destructors.
-@ @<Int aligned grammar elements@>= gint ref_count;
+@ @<Int aligned grammar elements@>= gint t_ref_count;
 @ @<Initialize grammar elements@> =
-g->ref_count = 1;
+g->t_ref_count = 1;
 
 @ Decrement the grammar reference count.
 GNU practice seems to be to return |void|,
@@ -643,10 +643,10 @@ void grammar_unref (GRAMMAR g);
 void
 grammar_unref (GRAMMAR g)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, g->ref_count);
-  MARPA_ASSERT (g->ref_count > 0)
-  g->ref_count--;
-  if (g->ref_count <= 0)
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, g->t_ref_count);
+  MARPA_ASSERT (g->t_ref_count > 0)
+  g->t_ref_count--;
+  if (g->t_ref_count <= 0)
     {
       grammar_free(g);
     }
@@ -662,9 +662,9 @@ static inline GRAMMAR grammar_ref (GRAMMAR g);
 static inline GRAMMAR
 grammar_ref (GRAMMAR g)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, g->ref_count);
-  MARPA_ASSERT(g->ref_count > 0)
-  g->ref_count++;
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, g->t_ref_count);
+  MARPA_ASSERT(g->t_ref_count > 0)
+  g->t_ref_count++;
   return g;
 }
 Marpa_Grammar 
@@ -5368,9 +5368,9 @@ Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
 }
 
 @*0 Reference Counting and Destructors.
-@ @<Int aligned recognizer elements@>= gint ref_count;
+@ @<Int aligned recognizer elements@>= gint t_ref_count;
 @ @<Initialize recognizer elements@> =
-r->ref_count = 1;
+r->t_ref_count = 1;
 
 @ Decrement the recognizer reference count.
 @<Private function prototypes@> =
@@ -5379,10 +5379,10 @@ static inline void recce_unref (RECCE r);
 static inline void
 recce_unref (RECCE r)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, r->ref_count);
-  MARPA_ASSERT (r->ref_count > 0)
-  r->ref_count--;
-  if (r->ref_count <= 0)
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, r->t_ref_count);
+  MARPA_ASSERT (r->t_ref_count > 0)
+  r->t_ref_count--;
+  if (r->t_ref_count <= 0)
     {
       recce_free(r);
     }
@@ -5400,9 +5400,9 @@ static inline RECCE recce_ref (RECCE r);
 static inline
 RECCE recce_ref (RECCE r)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, r->ref_count);
-  MARPA_ASSERT(r->ref_count > 0)
-  r->ref_count++;
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, r->t_ref_count);
+  MARPA_ASSERT(r->t_ref_count > 0)
+  r->t_ref_count++;
   return r;
 }
 Marpa_Recognizer
@@ -10598,9 +10598,9 @@ Marpa_Or_Node_ID marpa_b_top_or_node(Marpa_Bocage b)
 }
 
 @*0 Reference Counting and Destructors.
-@ @<Int aligned bocage elements@>= gint ref_count;
+@ @<Int aligned bocage elements@>= gint t_ref_count;
 @ @<Initialize bocage elements@> =
-b->ref_count = 1;
+b->t_ref_count = 1;
 
 @ Decrement the bocage reference count.
 @<Private function prototypes@> =
@@ -10609,10 +10609,10 @@ static inline void bocage_unref (BOCAGE b);
 static inline void
 bocage_unref (BOCAGE b)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, b->ref_count);
-  MARPA_ASSERT (b->ref_count > 0)
-  b->ref_count--;
-  if (b->ref_count <= 0)
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, b->t_ref_count);
+  MARPA_ASSERT (b->t_ref_count > 0)
+  b->t_ref_count--;
+  if (b->t_ref_count <= 0)
     {
       bocage_free(b);
     }
@@ -10630,9 +10630,9 @@ static inline BOCAGE bocage_ref (BOCAGE b);
 static inline BOCAGE
 bocage_ref (BOCAGE b)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, b->ref_count);
-  MARPA_ASSERT(b->ref_count > 0)
-  b->ref_count++;
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, b->t_ref_count);
+  MARPA_ASSERT(b->t_ref_count > 0)
+  b->t_ref_count++;
   return b;
 }
 Marpa_Bocage
@@ -10804,7 +10804,7 @@ or a stack, so they are destroyed.
 if the bocage iterator has a parse count,
 but no stack,
 it is exhausted.
-@d TREE_is_Exhausted(tree)
+@d T_is_Exhausted(tree)
     (!FSTACK_IS_INITIALIZED((tree)->t_fork_stack))
 @d Size_of_TREE(tree) FSTACK_LENGTH((tree)->t_fork_stack)
 @d FORK_of_TREE_by_IX(tree, fork_id)
@@ -10847,17 +10847,6 @@ static inline void tree_exhaust(TREE t)
     }
 }
 
-@ @<Private function prototypes@> =
-static inline void tree_safe(TREE t);
-@ @<Function definitions@> =
-static inline void tree_safe(TREE t)
-{
-    FSTACK_SAFE(t->t_fork_stack);
-    FSTACK_SAFE(t->t_fork_worklist);
-    t->t_and_node_in_use = NULL;
-    t->t_parse_count = -1;
-}
-
 @ Returns the size of the tree.
 If the bocage iterator is exhausted, returns -1.
 On error, returns -2.
@@ -10870,27 +10859,28 @@ Marpa_Tree marpa_t_new(Marpa_Order o)
     TREE t;
     @<Unpack order objects@>@;
     @<Fail if fatal error@>@;
-    @<Fail if up-ref of |t|@>@;
     t = g_slice_new(struct s_tree);
     O_of_T(t) = o;
     order_ref(o);
     order_freeze(o);
     @<Initialize tree elements@>@;
-    @<Add up-ref of |t|@>@;
     return t;
 }
 
-@*0 Reference Counting and Destructors.
-@ @<Int aligned tree elements@>= gint ref_count;
 @ @<Initialize tree elements@> =
 {
     const gint and_count = AND_Count_of_B (b);
-    t->ref_count = 1;
     t->t_parse_count = 0;
     t->t_and_node_in_use = bv_create ((guint) and_count);
     FSTACK_INIT (t->t_fork_stack, FORK_Object, and_count);
     FSTACK_INIT (t->t_fork_worklist, gint, and_count);
 }
+
+@*0 Reference Counting and Destructors.
+@ @<Int aligned tree elements@>=
+    gint t_ref_count;
+@ @<Initialize tree elements@> =
+    t->t_ref_count = 1;
 
 @ Decrement the tree reference count.
 @<Private function prototypes@> =
@@ -10899,10 +10889,10 @@ static inline void tree_unref (TREE t);
 static inline void
 tree_unref (TREE t)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, t->ref_count);
-  MARPA_ASSERT (t->ref_count > 0)
-  t->ref_count--;
-  if (t->ref_count <= 0)
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, t->t_ref_count);
+  MARPA_ASSERT (t->t_ref_count > 0)
+  t->t_ref_count--;
+  if (t->t_ref_count <= 0)
     {
       tree_free(t);
     }
@@ -10920,9 +10910,9 @@ static inline TREE tree_ref (TREE t);
 static inline TREE
 tree_ref (TREE t)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, t->ref_count);
-  MARPA_ASSERT(t->ref_count > 0)
-  t->ref_count++;
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, t->t_ref_count);
+  MARPA_ASSERT(t->t_ref_count > 0)
+  t->t_ref_count++;
   return t;
 }
 Marpa_Tree
@@ -10941,6 +10931,63 @@ static inline void tree_free(TREE t)
     g_slice_free(struct s_tree, t);
 }
 
+@*0 Tree pause counting.
+Trees referenced by an active |VALUE| object
+cannot be moved for the lifetime of that
+|VALUE| object.
+This is enforced by "pausing" the tree.
+Because there may be multiple |VALUE| objects
+for each |TREE| object,
+a pause counter is used.
+@ The |TREE| object's "pause counter
+works much the same as a reference counter.
+And the two are tied together.
+Every time the pause counter is incremented,
+the |TREE| object's reference counter is also
+incremented.
+Similarly,
+every time the pause counter is decremented,
+the |TREE| object's reference counter is also
+decremented.
+For this reason, it is important that every
+tree "pause" be matched with a "tree unpause".
+@ "Pausing" is used because the expected use of
+multiple |VALUE| objects is to evaluation a single
+tree instance in multiple ways ---
+|VALUE| objects are not expected to need to live
+into the next iteration of the |TREE| object.
+If a more complex relationship between |TREE| objects
+and |VALUE| objects becomes desirable, a cloning
+mechanism could be introduced.
+At this point,
+|TREE| objects are iterated directly for efficiency ---
+copying the |TREE| iterator to a tree instance would impose
+an overhead, one which adds absolutely no value
+for most applications.
+@d T_is_Paused(t) ((t)->t_pause_counter > 0)
+@<Int aligned tree elements@> = gint t_pause_counter;
+@ @<Private function prototypes@> =
+static inline void tree_pause (TREE t);
+static inline void tree_unpause (TREE t);
+@ @<Initialize tree elements@> = t->t_pause_counter = 0;
+@ @<Function definitions@> =
+static inline void
+tree_pause (TREE t)
+{
+    MARPA_ASSERT(t->t_pause_counter >= 0);
+    MARPA_ASSERT(t->t_ref_count >= t->t_pause_counter);
+    t->t_pause_counter++;
+    tree_ref(t);
+}
+@ @<Function definitions@> =
+static inline void
+tree_unpause (TREE t)
+{
+    MARPA_ASSERT(t->t_pause_counter > 0);
+    MARPA_ASSERT(t->t_ref_count >= t->t_pause_counter);
+    t->t_pause_counter--;
+    tree_unref(t);
+}
 
 @*0 The grammar of the tree.
 @ This function returns the grammar of the tree.
@@ -10970,11 +11017,14 @@ gint marpa_t_next(Marpa_Tree t)
     gint is_first_tree_attempt = 0;
     @<Unpack tree objects@>@;
     @<Fail if fatal error@>@;
-    if (TREE_is_Exhausted (t))
+    if (T_is_Paused(t)) {
+	  MARPA_DEV_ERROR ("tree is paused");
+	  return failure_indicator;
+    }
+    if (T_is_Exhausted (t))
       {
 	return -1;
       }
-    value_destroy (V_of_R (R_of_B (b)));
 
     if (t->t_parse_count < 1)
       {
@@ -11211,7 +11261,7 @@ gint marpa_t_size(Marpa_Tree t)
   @<Return |-2| on failure@>@;
   @<Unpack tree objects@>@;
   @<Fail if fatal error@>@;
-  if (TREE_is_Exhausted(t)) {
+  if (T_is_Exhausted(t)) {
       return -1;
   }
   return Size_of_T(t);
@@ -11269,9 +11319,9 @@ Marpa_Order marpa_o_new(Marpa_Bocage b)
 }
 
 @*0 Reference Counting and Destructors.
-@ @<Int aligned order elements@>= gint ref_count;
+@ @<Int aligned order elements@>= gint t_ref_count;
 @ @<Initialize order elements@> =
-    o->ref_count = 1;
+    o->t_ref_count = 1;
 
 @ Decrement the order reference count.
 @<Private function prototypes@> =
@@ -11280,10 +11330,10 @@ static inline void order_unref (ORDER o);
 static inline void
 order_unref (ORDER o)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->ref_count);
-  MARPA_ASSERT (o->ref_count > 0)
-  o->ref_count--;
-  if (o->ref_count <= 0)
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->t_ref_count);
+  MARPA_ASSERT (o->t_ref_count > 0)
+  o->t_ref_count--;
+  if (o->t_ref_count <= 0)
     {
       order_free(o);
     }
@@ -11301,9 +11351,9 @@ static inline ORDER order_ref (ORDER o);
 static inline ORDER
 order_ref (ORDER o)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->ref_count);
-  MARPA_ASSERT(o->ref_count > 0)
-  o->ref_count++;
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->t_ref_count);
+  MARPA_ASSERT(o->t_ref_count > 0)
+  o->t_ref_count++;
   return o;
 }
 Marpa_Order
@@ -11587,7 +11637,7 @@ typedef struct s_fork FORK_Object;
 set |fork|@> = {
   FORK base_fork;
   @<Fail if fatal error@>@;
-  if (TREE_is_Exhausted(t)) {
+  if (T_is_Exhausted(t)) {
       MARPA_DEV_ERROR("bocage iteration exhausted");
       return failure_indicator;
   }
@@ -11750,34 +11800,25 @@ of symbols in the
 original (or "virtual") rules.
 This enables libmarpa to make the rewriting of
 the grammar invisible to the semantics.
-@d VALUE_is_Active(val) ((val)->t_active)
-@d VALUE_is_Trace(val) ((val)->t_trace)
-@d FORK_of_VALUE(val) ((val)->t_fork)
-@d TOS_of_VALUE(val) ((val)->t_tos)
-@d VStack_of_VALUE(val) ((val)->t_virtual_stack)
+@d V_is_Active(val) ((val)->t_active)
+@d V_is_Trace(val) ((val)->t_trace)
+@d FORK_of_V(val) ((val)->t_fork)
+@d TOS_of_V(val) ((val)->t_tos)
+@d VStack_of_V(val) ((val)->t_virtual_stack)
+@d T_of_V(v) ((v)->t_tree)
 @<VALUE structure@> =
 struct s_value {
     DSTACK_DECLARE(t_virtual_stack);
     FORKID t_fork;
+    Marpa_Tree t_tree;
+    @<Int aligned value elements@>@;
     gint t_tos;
     guint t_trace:1;
     guint t_active:1;
 };
 
-@ @<Private function prototypes@> =
-static inline void value_safe(VALUE val);
-@ @<Function definitions@> =
-static inline void value_safe(VALUE val)
-{
-    DSTACK_SAFE(val->t_virtual_stack);
-    VALUE_is_Active(val) = 0;
-    VALUE_is_Trace(val) = 0;
-    TOS_of_VALUE(val) = -1;
-    FORK_of_VALUE(val) = -1;
-}
-
 @ @<Public function prototypes@> =
-int marpa_v_new(struct marpa_r* r);
+Marpa_Value marpa_v_new(Marpa_Tree t);
 @ A dynamic stack is used here instead of a fixed
 stack for two reasons.
 First, there are only a few stack moves per call
@@ -11818,93 +11859,145 @@ $\size{|tree|}/1024$ is a fixed fraction
 of the worst case size, so the number of
 stack reallocations is $O(1)$.
 @<Function definitions@> =
-int marpa_v_new(struct marpa_r* r)
+Marpa_Value marpa_v_new(Marpa_Tree t)
 {
-    @<Return |-2| on failure@>@;
-    TREE t = T_of_R(r);
+    @<Return |NULL| on failure@>@;
     @<Unpack tree objects@>;
     @<Fail if fatal error@>@;
-    if (TREE_is_Exhausted(t)) {
-       return -1;
-    }
-    {
-      VALUE v = V_of_R(r);
-      const gint minimum_stack_size = (8192 / sizeof (gint));
+    if (!T_is_Exhausted (t))
+      {
+	VALUE v = g_slice_new (struct s_value);
+	const gint minimum_stack_size = (8192 / sizeof (gint));
 	const gint initial_stack_size =
-	MAX (Size_of_TREE (t) / 1024, minimum_stack_size);
-      value_destroy (v);
-      DSTACK_INIT (VStack_of_VALUE (v), gint, initial_stack_size);
-      VALUE_is_Active(v) = 1;
-    }
-    return 1;
+	  MAX (Size_of_TREE (t) / 1024, minimum_stack_size);
+	DSTACK_INIT (VStack_of_V (v), gint, initial_stack_size);
+	V_is_Active (v) = 1;
+	V_is_Trace (v) = 1;
+	TOS_of_V(v) = -1;
+	FORK_of_V(v) = -1;
+	@<Initialize value elements@>@;
+	tree_pause (t);
+	T_of_V(v) = t;
+	return v;
+      }
+    MARPA_DEV_ERROR("tree is exhausted");
+    return NULL;
 }
 
-@ {\bf To Do}: @^To Do@>
-For the moment destroy the value with the bocage.
-@<Destroy bocage elements, main phase@> =
+@*0 Reference Counting and Destructors.
+@ @<Int aligned value elements@>=
+    int t_ref_count;
+@ @<Initialize value elements@> =
+    v->t_ref_count = 1;
+
+@ Decrement the value reference count.
+@<Private function prototypes@> =
+static inline void value_unref (VALUE v);
+@ @<Function definitions@> =
+static inline void
+value_unref (VALUE v)
 {
-    const VALUE v = V_of_R(r);
-    value_destroy(v);
-    value_safe(v);
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, v->t_ref_count);
+  MARPA_ASSERT (v->t_ref_count > 0)
+  v->t_ref_count--;
+  if (v->t_ref_count <= 0)
+    {
+	value_free(v);
+    }
+}
+void
+marpa_v_unref (Marpa_Value v)
+{
+   value_unref(v);
+}
+
+@ Increment the value reference count.
+@<Private function prototypes@> =
+static inline VALUE value_ref (VALUE v);
+@ @<Function definitions@> =
+static inline VALUE
+value_ref (VALUE v)
+{
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, v->t_ref_count);
+  MARPA_ASSERT(v->t_ref_count > 0)
+  v->t_ref_count++;
+  return v;
+}
+Marpa_Value
+marpa_v_ref (Marpa_Value v)
+{
+   return value_ref(v);
 }
 
 @ @<Private function prototypes@> =
-static inline void value_destroy(VALUE val);
+static inline void value_free(VALUE v);
 @ @<Function definitions@> =
-static inline void value_destroy(VALUE val)
+static inline void value_free(VALUE v)
 {
-
-  if (DSTACK_IS_INITIALIZED(val->t_virtual_stack))
+    tree_unpause(T_of_V(v));
+    if (DSTACK_IS_INITIALIZED(v->t_virtual_stack))
     {
-      DSTACK_DESTROY(val->t_virtual_stack);
-      DSTACK_SAFE(val->t_virtual_stack);
+        DSTACK_DESTROY(v->t_virtual_stack);
     }
-    value_safe(val);
+    g_slice_free(struct s_value, v);
 }
 
 @ @<Unpack value objects@> =
-    TREE t = T_of_R(r);
-    VALUE v = V_of_R(r);
+    TREE t = T_of_V(v);
     @<Unpack tree objects@>@;
 
-@ @<Check |r|, |o|, |v|@> =
+@*0 The grammar of the value object.
+@ This function returns the grammar of the value.
+It never returns an error.
+The grammar is always set when the value is initialized,
+and is never changed while the value exists.
+Fatal state is not reported,
+because it is kept in the grammar,
+so that
+either we can return the grammar in spite of
+its fatal state,
+or the problem is so severe than no
+errors can be properly reported.
+@<Function definitions@> =
+Marpa_Grammar marpa_v_g(Marpa_Value v)
 {
-    @<Fail if fatal error@>@;
-    if (!o) {
-	return failure_indicator;
-    }
-    if (!VALUE_is_Active(v)) {
-	return failure_indicator;
-    }
+  @<Unpack value objects@>@;
+  return g;
 }
 
 @ @<Public function prototypes@> =
-gint marpa_v_trace(struct marpa_r* r, gint flag);
+gint marpa_v_trace(Marpa_Value v, gint flag);
 @ @<Function definitions@> =
-gint marpa_v_trace(struct marpa_r* r, gint flag)
+gint marpa_v_trace(Marpa_Value v, gint flag)
 {
     @<Return |-2| on failure@>@;
     @<Unpack value objects@>@;
-    @<Check |r|, |o|, |v|@>@;
-    VALUE_is_Trace(v) = flag;
+    @<Fail if fatal error@>@;
+    if (!V_is_Active(v)) {
+	return failure_indicator;
+    }
+    V_is_Trace(v) = flag;
     return 1;
 }
 
 @ @<Public function prototypes@> =
-Marpa_Fork_ID marpa_v_fork(struct marpa_r* r);
+Marpa_Fork_ID marpa_v_fork(Marpa_Value v);
 @ @<Function definitions@> =
-Marpa_Fork_ID marpa_v_fork(struct marpa_r* r)
+Marpa_Fork_ID marpa_v_fork(Marpa_Value v)
 {
     @<Return |-2| on failure@>@;
     @<Unpack value objects@>@;
-    @<Check |r|, |o|, |v|@>@;
-    return FORK_of_VALUE(v);
+    @<Fail if fatal error@>@;
+    if (!V_is_Active(v)) {
+	return failure_indicator;
+    }
+    return FORK_of_V(v);
 }
 
 @ @<Public function prototypes@> =
-Marpa_Fork_ID marpa_v_event(struct marpa_r* r, Marpa_Event* event);
+Marpa_Fork_ID marpa_v_event(Marpa_Value v, Marpa_Event* event);
 @ @<Function definitions@> =
-Marpa_Fork_ID marpa_v_event(struct marpa_r* r, Marpa_Event* event)
+Marpa_Fork_ID marpa_v_event(Marpa_Value v, Marpa_Event* event)
 {
     @<Return |-2| on failure@>@;
     AND and_nodes;
@@ -11918,16 +12011,19 @@ Marpa_Fork_ID marpa_v_event(struct marpa_r* r, Marpa_Event* event)
     @<Unpack value objects@>@;
 
     /* event is not changed in case of hard failure */
-    @<Check |r|, |o|, |v|@>@;
+    @<Fail if fatal error@>@;
+    if (!V_is_Active(v)) {
+	return failure_indicator;
+    }
 
     and_nodes = ANDs_of_B(B_of_O(o));
 
-    arg_0 = arg_n = TOS_of_VALUE(v);
-    fork_ix = FORK_of_VALUE(v);
+    arg_0 = arg_n = TOS_of_V(v);
+    fork_ix = FORK_of_V(v);
     if (fork_ix < 0) {
 	fork_ix = Size_of_TREE(t);
     }
-    continue_with_next_fork = !VALUE_is_Trace(v);
+    continue_with_next_fork = !V_is_Trace(v);
 
     while (1) {
 	OR or;
@@ -11954,7 +12050,7 @@ MARPA_OFF_DEBUG3("symbol %d at %d", token_id, arg_0);
 	    gint virtual_rhs = RULE_is_Virtual_RHS(fork_rule);
 	    gint virtual_lhs = RULE_is_Virtual_LHS(fork_rule);
 	    gint real_symbol_count;
-	    const DSTACK virtual_stack = &VStack_of_VALUE(v);
+	    const DSTACK virtual_stack = &VStack_of_V(v);
 	    if (virtual_lhs) {
 	        real_symbol_count = Real_SYM_Count_of_RULE(fork_rule);
 		if (virtual_rhs) {
@@ -11981,7 +12077,7 @@ MARPA_OFF_DEBUG3("symbol %d at %d", token_id, arg_0);
     }
 
     @<Write results to |v| and |event|@>@;
-    return FORK_of_VALUE(v);
+    return FORK_of_V(v);
 
     RETURN_SOFT_ERROR: ;
     @<Write results to |v| and |event|@>@;
@@ -11994,43 +12090,9 @@ MARPA_OFF_DEBUG3("symbol %d at %d", token_id, arg_0);
     SYMID_of_EVE(event) = token_id;
     Value_of_EVE(event) = token_value;
     RULEID_of_EVE(event) = semantic_rule_id;
-    TOS_of_VALUE(v) = Arg0_of_EVE(event) = arg_0;
-    FORK_of_VALUE(v) = fork_ix;
+    TOS_of_V(v) = Arg0_of_EVE(event) = arg_0;
+    FORK_of_V(v) = fork_ix;
     ArgN_of_EVE(event) = arg_n;
-}
-
-@*0 DEPRECATED: Up-hierarchy fields.
-@ {\bf To Do}: @^To Do@>
-Code to be removed once the new interface
-is completed.
-@d T_of_R(r) ((r)->t_tree)
-@d V_of_R(r) (&(r)->t_value)
-@<Widely aligned recognizer elements@> =
-Marpa_Tree t_tree;
-struct s_value t_value;
-@ @<Initialize recognizer elements@> =
-T_of_R(r) = NULL;
-value_safe(V_of_R(r));
-@ {\bf To Do}: @^To Do@>
-For the moment destroy these objects with the bocage.
-@<Destroy bocage elements, main phase@> =
-{
-    const VALUE v = V_of_R(r);
-    T_of_R(r) = NULL;
-    value_destroy(v);
-    value_safe(v);
-}
-
-@ @<Fail if up-ref of |t|@> =
-{
-    if (T_of_R(R_of_B(b))) {
-	MARPA_DEV_ERROR ("tree in use");
-	return failure_indicator;
-    }
-}
-@ @<Add up-ref of |t|@> =
-{
-    T_of_R(R_of_B(b)) = t;
 }
 
 @ {\bf To Do}: @^To Do@>
