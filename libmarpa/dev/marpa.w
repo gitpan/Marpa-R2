@@ -3969,6 +3969,17 @@ struct s_AHFA_state {
 };
 typedef struct s_AHFA_state AHFA_Object;
 
+@*0 Initialization.
+Only a few AHFA items are initialized.
+Most are set dependent on context.
+@<Private function prototypes@> =
+static inline void AHFA_initialize(AHFA ahfa);
+@ @<Function definitions@> =
+static inline void AHFA_initialize(AHFA ahfa)
+{
+    @<Initialize AHFA@>@;
+}
+
 @*0 Complete Symbols Container.
 @ @d Complete_SYMIDs_of_AHFA(state) ((state)->t_complete_symbols)
 @d Complete_SYM_Count_of_AHFA(state) ((state)->t_complete_symbol_count)
@@ -4024,16 +4035,20 @@ static inline AEX aex_of_ahfa_by_aim_get(AHFA ahfa, AIM sought_aim)
 as opposed to whether it contains any predicted 
 AHFA items.
 This makes a difference in AHFA state 0.
-When the null parse is allowed.
-AHFA state 0 will contain an AHFA item
-which is {\bf both} a prediction
-and a completion.
-AHFA state 0 is, however, {\bf never}
-a predicted AHFA state.
+AHFA state 0 is {\bf not} a predicted AHFA state.
 @d AHFA_is_Predicted(ahfa) ((ahfa)->t_is_predict)
 @d EIM_is_Predicted(eim) AHFA_is_Predicted(AHFA_of_EIM(eim))
 @<Bit aligned AHFA elements@> =
 guint t_is_predict:1;
+
+@*0 Is AHFA a potential Leo base?.
+@ This boolean indicates whether the
+AHFA state could be a Leo base.
+@d AHFA_is_Potential_Leo_Base(ahfa) ((ahfa)->t_is_potential_leo_base)
+@d EIM_is_Potential_Leo_Base(eim) AHFA_is_Potential_Leo_Base(AHFA_of_EIM(eim))
+@ @<Bit aligned AHFA elements@> =
+guint t_is_potential_leo_base:1;
+@ @<Initialize AHFA@> = AHFA_is_Potential_Leo_Base(ahfa) = 0;
 
 @ @<Private typedefs@> =
 typedef struct s_AHFA_state* AHFA;
@@ -4214,6 +4229,7 @@ with this AHFA state is eligible to be a Leo completion.
 @d Leo_LHS_ID_of_AHFA(state) ((state)->t_leo_lhs_sym)
 @d AHFA_is_Leo_Completion(state) (Leo_LHS_ID_of_AHFA(state) >= 0)
 @ @<Int aligned AHFA state elements@> = SYMID t_leo_lhs_sym;
+@ @<Initialize AHFA@> = Leo_LHS_ID_of_AHFA(ahfa) = -1;
 @ @<Public function prototypes@> =
 Marpa_Symbol_ID marpa_g_AHFA_state_leo_lhs_symbol(struct marpa_g* g,
 	Marpa_AHFA_State_ID AHFA_state_id);
@@ -4410,17 +4426,21 @@ MARPA_OFF_DEBUG4("Added completion aex at %d for ahfa_id=%d sym=%d",
 @ For every AHFA item which can be a Leo base, and any transition
 (or postdot) symbol that leads to a Leo completion, put the AEX
 into the |TRANS| structure, for memoization.
+The AEX is memoized, instead of the AIM,
+because, in one of the efficiency hacks,
+the AEX will be used as the index of an array.
+You can get the AIM from the AEX, but not vice versa.
 @<Resort the AIMs and populate the Leo base AEXes@> =
 {
   gint ahfa_id;
   for (ahfa_id = 0; ahfa_id < ahfa_count_of_g; ahfa_id++)
     {
-      AHFA ahfa = AHFA_of_G_by_ID(g, ahfa_id);
-      TRANS* const transitions = TRANSs_of_AHFA(ahfa);
-      AIM *aims = AIMs_of_AHFA (ahfa);
-      gint aim_count = AIM_Count_of_AHFA (ahfa);
+      AHFA from_ahfa = AHFA_of_G_by_ID (g, ahfa_id);
+      TRANS *const transitions = TRANSs_of_AHFA (from_ahfa);
+      AIM *aims = AIMs_of_AHFA (from_ahfa);
+      gint aim_count = AIM_Count_of_AHFA (from_ahfa);
       AEX aex;
-      g_qsort_with_data(aims, aim_count, sizeof (AIM*), cmp_by_aimid, NULL);
+      g_qsort_with_data (aims, aim_count, sizeof (AIM *), cmp_by_aimid, NULL);
       for (aex = 0; aex < aim_count; aex++)
 	{
 	  AIM ahfa_item = aims[aex];
@@ -4429,9 +4449,15 @@ into the |TRANS| structure, for memoization.
 	    {
 	      TRANS transition = transitions[postdot];
 	      AHFA to_ahfa = To_AHFA_of_TRANS (transition);
-	      if (!AHFA_is_Leo_Completion (to_ahfa))
-		continue;
-	      Leo_Base_AEX_of_TRANS (transition) = aex;
+	      if (AHFA_is_Leo_Completion (to_ahfa))
+		{
+		  Leo_Base_AEX_of_TRANS (transition) = aex;
+		  AHFA_is_Potential_Leo_Base (from_ahfa) = 1;
+		}
+	      else
+		{
+		  Leo_Base_AEX_of_TRANS (transition) = -1;
+		}
 	    }
 	}
     }
@@ -4460,11 +4486,11 @@ g_tree_destroy(duplicates);
   /* The start item is the initial item for the start rule */
   start_item = g->t_AHFA_items_by_rule[start_rule_id];
   item_list[0] = start_item;
+  AHFA_initialize(p_initial_state);
   p_initial_state->t_items = item_list;
   p_initial_state->t_item_count = 1;
   p_initial_state->t_key.t_id = 0;
   AHFA_is_Predicted (p_initial_state) = 0;
-  Leo_LHS_ID_of_AHFA (p_initial_state) = -1;
   TRANSs_of_AHFA (p_initial_state) = transitions_new (g);
   Postdot_SYM_Count_of_AHFA (p_initial_state) = 1;
   postdot_symbol_ids = Postdot_SYMID_Ary_of_AHFA (p_initial_state) =
@@ -4527,6 +4553,7 @@ are either AHFA state 0, or 1-item discovered AHFA states.
       }
     p_new_state = DQUEUE_PUSH (states, AHFA_Object);
     /* Create a new AHFA state */
+    AHFA_initialize(p_new_state);
     singleton_duplicates[single_item_id] = p_new_state;
     new_state_item_list = p_new_state->t_items =
 	obstack_alloc (&g->t_obs, sizeof (AIM));
@@ -4538,7 +4565,6 @@ are either AHFA state 0, or 1-item discovered AHFA states.
     } else {
 	p_new_state->t_has_completed_start_rule = 0;
     }
-    Leo_LHS_ID_of_AHFA(p_new_state) = -1;
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE (states, AHFA_Object);
     TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     transition_add (&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
@@ -4667,9 +4693,9 @@ if (queued_AHFA_state)
   }
     // If we added the new state, finish up its data.
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE(states, AHFA_Object);
+    AHFA_initialize(p_new_state);
     AHFA_is_Predicted(p_new_state) = 0;
     p_new_state->t_has_completed_start_rule = 0;
-    Leo_LHS_ID_of_AHFA(p_new_state) =-1;
     TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     @<Calculate complete and postdot symbols for discovered state@>@/
     transition_add(&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
@@ -5042,7 +5068,8 @@ item_list_for_new_state = obstack_alloc (&g->t_obs,
 	}
     }
 }
-p_new_state = DQUEUE_PUSH((*states_p), AHFA_Object);@/
+    p_new_state = DQUEUE_PUSH((*states_p), AHFA_Object);
+    AHFA_initialize(p_new_state);
     p_new_state->t_items = item_list_for_new_state;
     p_new_state->t_item_count = no_of_items_in_new_state;
     { AHFA queued_AHFA_state = assign_AHFA_state(p_new_state, duplicates);
@@ -5058,7 +5085,6 @@ p_new_state = DQUEUE_PUSH((*states_p), AHFA_Object);@/
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE((*states_p), AHFA_Object);
     AHFA_is_Predicted(p_new_state) = 1;
     p_new_state->t_has_completed_start_rule = 0;
-    Leo_LHS_ID_of_AHFA(p_new_state) = -1;
     p_new_state->t_empty_transition = NULL;
     TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     Complete_SYM_Count_of_AHFA(p_new_state) = 0;
@@ -5320,21 +5346,142 @@ AHFAID marpa_g_AHFA_state_empty_transition(struct marpa_g* g,
     }
 }
 
-@** Recognizer (RECCE) Code.
+@** Input (I, INPUT) Code.
+|INPUT| is a "hidden" class.
+It is manipulated
+entirely via the Recognizer class ---
+there are no public
+methods for it.
+@ @<Private typedefs@> =
+struct s_input;
+typedef struct s_input* INPUT;
+@ @<Private structures@> =
+struct s_input {
+    @<Widely aligned input elements@>@;
+    @<Int aligned input elements@>@;
+};
+
+@ @<Private function prototypes@> =
+static inline INPUT input_new(GRAMMAR g);
+@ @<Function definitions@> =
+static inline INPUT
+input_new (GRAMMAR g)
+{
+  const gint symbol_count_of_g = SYM_Count_of_G (g);
+  TOK *tokens_by_symid;
+  INPUT input = g_slice_new (struct s_input);
+  @<Initialize input elements@>@;
+  return input;
+}
+
+@*0 Reference Counting and Destructors.
+@ @<Int aligned input elements@>=
+    int t_ref_count;
+@ @<Initialize input elements@> =
+    input->t_ref_count = 1;
+
+@ Decrement the input reference count.
+@<Private function prototypes@> =
+static inline void input_unref (INPUT input);
+@ @<Function definitions@> =
+static inline void
+input_unref (INPUT input)
+{
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, input->t_ref_count);
+  MARPA_ASSERT (input->t_ref_count > 0)
+  input->t_ref_count--;
+  if (input->t_ref_count <= 0)
+    {
+	input_free(input);
+    }
+}
+
+@ Increment the input reference count.
+@<Private function prototypes@> =
+static inline INPUT input_ref (INPUT input);
+@ @<Function definitions@> =
+static inline INPUT
+input_ref (INPUT input)
+{
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, input->t_ref_count);
+  MARPA_ASSERT(input->t_ref_count > 0)
+  input->t_ref_count++;
+  return input;
+}
+
+@ @<Private function prototypes@> =
+static inline void input_free(INPUT input);
+@ @<Function definitions@> =
+static inline void input_free(INPUT input) {
+    @<Destroy input elements@>@;
+    g_slice_free(struct s_input, input);
+}
+
+@*0 Token obstack.
+@ An obstack dedicated to the tokens and an array
+with default tokens for each symbol.
+Currently,
+the default tokens are used to provide
+null values, since all non-tokens are given
+values when read.
+There is a special obstack for the tokens, to
+to separate the token stream from the rest of the recognizer
+data.
+Once the bocage is built, the token data is all that
+it needs, and someday I may want to take advantage of
+this fact by freeing up the rest of recognizer memory.
+@d TOK_Obs_of_I(i)
+    (&(i)->t_token_obs)
+@d TOKs_by_SYMID_of_I(i)
+    ((i)->t_tokens_by_symid)
+@d TOK_by_ID_of_I(i, symbol_id)
+    (TOKs_by_SYMID_of_I(i)[symbol_id])
+@<Widely aligned input elements@> =
+struct obstack t_token_obs;
+TOK *t_tokens_by_symid;
+
+@ @<Initialize input elements@> =
+{
+  gint ix;
+  obstack_init (TOK_Obs_of_I (input));
+  tokens_by_symid =
+    obstack_alloc (TOK_Obs_of_I (input), sizeof (TOK) * symbol_count_of_g);
+  for (ix = 0; ix < symbol_count_of_g; ix++)
+    {
+      tokens_by_symid[ix] = token_new (input, ix, Default_Value_of_G (g));
+    }
+  TOKs_by_SYMID_of_I (input) = tokens_by_symid;
+}
+@ @<Destroy input elements@> =
+{
+    TOK* tokens_by_symid = TOKs_by_SYMID_of_I(input);
+    if (tokens_by_symid) {
+	obstack_free(TOK_Obs_of_I(input), NULL);
+	TOKs_by_SYMID_of_I(input) = NULL;
+    }
+}
+
+@*0 Base objects.
+@ @d G_of_I(i) ((i)->t_grammar)
+@<Widely aligned input elements@> =
+    GRAMMAR t_grammar;
+@ @<Initialize input elements@> =
+{
+    G_of_I(input) = g;
+    grammar_ref(g);
+}
+
+@** Recognizer (R, RECCE) Code.
 @<Public incomplete structures@> =
 struct marpa_r;
 typedef struct marpa_r* Marpa_Recognizer;
 typedef Marpa_Recognizer Marpa_Recce;
 @ @<Private typedefs@> =
 typedef struct marpa_r* RECCE;
-typedef struct marpa_input* INPUT;
-@ @d I_of_R(r) (&(r)->t_input)
+@ @d I_of_R(r) ((r)->t_input)
 @<Recognizer structure@> =
-struct marpa_input {
-    @<Widely aligned input elements@>@;
-};
 struct marpa_r {
-    struct marpa_input t_input;
+    INPUT t_input;
     @<Widely aligned recognizer elements@>@;
     @<Int aligned recognizer elements@>@;
     @<Bit aligned recognizer elements@>@;
@@ -5359,8 +5506,6 @@ Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
 	return failure_indicator;
     }
     r = g_slice_new(struct marpa_r);
-    G_of_R(r) = g;
-    grammar_ref(g);
     symbol_count_of_g = SYM_Count_of_G(g);
     @<Initialize recognizer obstack@>@;
     @<Initialize recognizer elements@>@;
@@ -5429,16 +5574,14 @@ void recce_free(struct marpa_r *r)
 static inline
 void recce_free(struct marpa_r *r);
 
-@*0 The Grammar for the Recognizer.
+@*0 Base Objects.
 Initialized in |marpa_r_new|.
-@d G_of_R(r) (G_of_I(&((r)->t_input)))
+@d G_of_R(r) (G_of_I((r)->t_input))
 @d AHFA_Count_of_R(r) AHFA_Count_of_G(G_of_R(r))
 @<Unpack recognizer objects@> =
-const Marpa_Grammar g = G_of_R(r);
-
-@ @d G_of_I(i) ((i)->t_grammar)
-@<Widely aligned input elements@> =
-    struct marpa_g *t_grammar;
+const INPUT input = I_of_R(r);
+const GRAMMAR g = G_of_I(input);
+@ @<Destroy recognizer elements@> = input_unref(input);
 
 @*0 Input Phase.
 The recognizer always has
@@ -7515,62 +7658,22 @@ struct s_token {
     gpointer t_value;
 };
 
-@ An obstack dedicated to the tokens and an array
-with default tokens for each symbol.
-Currently,
-the default tokens are used to provide
-null values, since all non-tokens are given
-values when read.
-There is a special obstack for the tokens, to
-to separate the token stream from the rest of the recognizer
-data.
-Once the bocage is built, the token data is all that
-it needs, and someday I may want to take advantage of
-this fact by freeing up the rest of recognizer memory.
-@d TOK_Obs_of_I(i)
-    (&(i)->t_token_obs)
-@d TOKs_by_SYMID_of_I(i)
-    ((i)->t_tokens_by_symid)
-@d TOK_by_ID_of_I(i, symbol_id)
-    (TOKs_by_SYMID_of_I(i)[symbol_id])
-@d TOK_Obs_of_R(r) TOK_Obs_of_I(I_of_R(r))
-@d TOKs_by_SYMID_of_R(r) TOKs_by_SYMID_of_I(I_of_R(r))
+@ @d TOK_Obs_of_R(r) TOK_Obs_of_I(I_of_R(r))
 @d TOK_by_ID_of_R(r, symbol_id) TOK_by_ID_of_I(I_of_R(r), (symbol_id))
-@<Widely aligned input elements@> =
-struct obstack t_token_obs;
-TOK *t_tokens_by_symid;
 @ @<Initialize recognizer elements@> =
 {
-  gpointer default_value = Default_Value_of_G(g);
-  gint i;
-  TOK *tokens_by_symid;
-  obstack_init (TOK_Obs_of_R(r));
-  tokens_by_symid =
-    obstack_alloc (TOK_Obs_of_R(r), sizeof (TOK) * symbol_count_of_g);
-  for (i = 0; i < symbol_count_of_g; i++)
-    {
-      tokens_by_symid[i] = token_new (r, i, default_value);
-    }
-  TOKs_by_SYMID_of_R(r) = tokens_by_symid;
-}
-@ @<Destroy recognizer elements@> =
-{
-    TOK* tokens_by_symid = TOKs_by_SYMID_of_R(r);
-    if (tokens_by_symid) {
-	obstack_free(TOK_Obs_of_R(r), NULL);
-	TOKs_by_SYMID_of_R(r) = NULL;
-    }
+  I_of_R(r) = input_new(g);
 }
 
 @ @<Private function prototypes@> =
 static inline
-TOK token_new(struct marpa_r *r, SYMID symbol_id, gpointer value);
+TOK token_new(INPUT input, SYMID symbol_id, gpointer value);
 @ @<Function definitions@> =
 static inline
-TOK token_new(struct marpa_r *r, SYMID symbol_id, gpointer value)
+TOK token_new(INPUT input, SYMID symbol_id, gpointer value)
 {
   TOK token;
-    token = obstack_alloc (TOK_Obs_of_R(r), sizeof(*token));
+    token = obstack_alloc (TOK_Obs_of_I(input), sizeof(*token));
     Type_of_TOK(token) = TOKEN_OR_NODE;
     SYMID_of_TOK(token) = symbol_id;
     Value_of_TOK(token) = value;
@@ -7882,7 +7985,7 @@ The Earley sets and items will not have been
 altered by the attempt.
 @<Insert alternative into stack, failing if token is duplicate@> =
 {
-  TOK token = token_new (r, token_id, value);
+  TOK token = token_new (input, token_id, value);
   ALT_Object alternative;
   if (Furthest_Earleme_of_R (r) < target_earleme)
     Furthest_Earleme_of_R (r) = target_earleme;
@@ -8203,7 +8306,6 @@ static inline void r_update_earley_sets(RECCE r) {
 @** Create the Postdot Items.
 @ This function inserts regular (non-Leo) postdot items into
 the postdot list.
-It is assumed that the caller has ensured this is not a duplicate.
 @<Private function prototypes@> =
 static void
 postdot_items_create (struct marpa_r *r, ES set);
@@ -8215,11 +8317,20 @@ might be a good idea to have
 separate code to handle it,
 in which case both could be inlined.
 @ Leo items are not created for Earley set 0.
-They are always optional, and add little at that point.
-In that way I can avoid dealing with empty productions in
-the Leo logic.
-Empty productions only occur in dealing with the null parse,
-and only in Earley set 0.
+Originally this was to avoid dealing with the null productions
+that might be in Earley set 0.
+These have been eliminated with the special-casing of the
+null parse.
+But Leo items are always optional,
+and may not be worth it for Earley set 0.
+@ @ {\bf To Do}: @^To Do@>
+Another look at the degree and kind
+of memoization here might be in order.
+Would it be useful to memoize the |TRANS| structure
+in the PIM's?
+On the efficiency question,
+this ties in with whether Leo items are calculated
+in the absense of right recursion or not.
 @<Function definitions@> =
 static void
 postdot_items_create (struct marpa_r *r, ES current_earley_set)
@@ -8266,24 +8377,33 @@ At this point there are no Leo items.
 	  EIM_of_PIM(new_pim) = earley_item;
 	  if (bv_bit_test(bv_pim_symbols, (guint)symid))
 	      old_pim = pim_workarea[symid];
-	  if (old_pim) {
-	      Next_PIM_of_PIM(new_pim) = old_pim;
-	  } else {
-	      Next_PIM_of_PIM(new_pim) = NULL;
-	      current_earley_set->t_postdot_sym_count++;
-	  }
+	  Next_PIM_of_PIM(new_pim) = old_pim;
+	  if (!old_pim) current_earley_set->t_postdot_sym_count++;
 	  pim_workarea[symid] = new_pim;
 	  bv_bit_set(bv_pim_symbols, (guint)symid);
 	}
     }
 }
 
+@ {\bf To Do}: @^To Do@>
+Right now Leo items are created even where there is no
+right-recursion.  This follows Leo's original algorithm.
+It might be better to restrict the Leo logic to symbols
+which actually right-recurse,
+eliminating the overhead of tracking the others.
+The tradeoff is that the Leo logic may save some space,
+even in the absense of right recursion.
+It may be a good idea to allow it to be configured,
+with a flag determining whether the Leo logic (if enabled
+at all) is used for all LHS symbols,
+or only where there is right recursion.
+
 @ This code creates the Earley indexes in the PIM workarea.
 The Leo items do not contain predecessors or have the
 predecessor-dependent information set at this point.
 @ The origin and predecessor will be filled in later,
 when the predecessor is known.
-The top AHFA to-state is set to |NULL|,
+The origin is set to |NULL|,
 and that will be used as an indicator that the fields
 of this 
 Leo item have not been fully populated.
@@ -8299,13 +8419,17 @@ Leo item have not been fully populated.
 	{
 	  PIM this_pim = pim_workarea[symid];
 	  if (!Next_PIM_of_PIM (this_pim))
-	    { /* Only create a Leo item if there is more
-	         than one EIX */
+	    {			/* Do not create a Leo item if there is more
+				   than one EIX */
 	      EIM leo_base = EIM_of_PIM (this_pim);
-	      AHFA base_to_ahfa = To_AHFA_of_EIM_by_SYMID (leo_base, symid);
-	      if (AHFA_is_Leo_Completion (base_to_ahfa))
+	      if (EIM_is_Potential_Leo_Base (leo_base))
 		{
-		  @<Create a new, unpopulated, LIM@>@;
+		  AHFA base_to_ahfa =
+		    To_AHFA_of_EIM_by_SYMID (leo_base, symid);
+		  if (AHFA_is_Leo_Completion (base_to_ahfa))
+		    {
+		      @<Create a new, unpopulated, LIM@>@;
+		    }
 		}
 	    }
 	}
@@ -10280,13 +10404,9 @@ struct s_bocage {
 };
 
 @*0 The base objects of the bocage.
-@ {\bf To Do}: @^To Do@>
-Remove |R_of_B| and |t_recce| after interface conversion.
 @ @d I_of_B(b) ((b)->t_input)
-@ @d R_of_B(b) ((b)->t_recce)
 @<Widely aligned bocage elements@> =
     INPUT t_input;
-    RECCE t_recce;
 
 @ @<Unpack bocage objects@> =
     const INPUT input = I_of_B(b);
@@ -10327,15 +10447,13 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
 {
     @<Return |NULL| on failure@>@;
     @<Declare bocage locals@>@;
+    INPUT input;
   @<Fail if fatal error@>@;
   @<Fail if recognizer not started@>@;
     b = g_slice_new(struct s_bocage);
     @<Initialize bocage elements@>@;
-    I_of_B(b) = I_of_R(r);
-
-    /* Remove |R_of_B| and |t_recce| after interface conversion */
-    R_of_B(b) = r;
-    recce_ref(r);
+    input = I_of_B(b) = I_of_R(r);
+    input_ref(input);
 
     if (G_is_Trivial(g)) {
         if (ordinal_arg > 0) goto B_NEW_RETURN_ERROR;
@@ -10359,7 +10477,7 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     obstack_free(&bocage_setup_obs, NULL);
     return b;
     B_NEW_RETURN_ERROR: ;
-    recce_unref(r);
+    input_unref(input);
     if (b) {
 	@<Destroy bocage elements, all phases@>;
     }
@@ -10657,9 +10775,8 @@ void
 bocage_free (BOCAGE b)
 {
     MARPA_DEBUG4("%s %s: Destroying %p", G_STRFUNC, G_STRLOC, b)
-  const RECCE r = R_of_B (b);
   @<Unpack bocage objects@>@;
-  recce_unref (r);
+  input_unref (input);
   if (b)
     {
       @<Destroy bocage elements, all phases@>;
