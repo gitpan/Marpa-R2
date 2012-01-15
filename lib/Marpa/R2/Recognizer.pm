@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_017';
+$VERSION        = '0.001_018';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -61,7 +61,6 @@ BEGIN {
     evaluation is reset }
 
     RULE_CLOSURES
-    RULE_CONSTANTS
 
     { This is the end of the list of fields which
     must be reinitialized when evaluation is reset }
@@ -193,7 +192,6 @@ sub Marpa::R2::Recognizer::reset_evaluation {
     $recce->[Marpa::R2::Internal::Recognizer::O_C]            = undef;
     $recce->[Marpa::R2::Internal::Recognizer::T_C]            = undef;
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES]  = [];
-    $recce->[Marpa::R2::Internal::Recognizer::RULE_CONSTANTS] = [];
     return;
 } ## end sub Marpa::R2::Recognizer::reset_evaluation
 

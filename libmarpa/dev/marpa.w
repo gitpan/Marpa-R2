@@ -526,28 +526,10 @@ To change error codes or public function
 prototypes, look at 
 |api.texi| and the scripts which process it.
 
-@** To Do.
-
-\li Eliminate all memoization and
-references to start symbol,
-start rule, etc., which are not needed for the recognizer.
-Evaluation should allow the user to specify an
-alternative start symbol, and not prefer the
-recognizer's.
-
-\li If I convert Marpa to use Marpa::R2 or Marpa::XS,
-and if I decide to continue to implement the |tokens()| call,
-make sure the ``interactive" flag works.
-
-\li Within libmarpa, eliminate some of the
-tracking of start symbols and rules?
-In particular, to the extent that the
-tracking implements semantics, leave it to
-the higher layers.
-
 @** The Public Header File.
 @*0 Version Constants.
 @<Private global variables@> =
+const guint marpa_variant = MARPA_VARIANT;
 const guint marpa_major_version = MARPA_MAJOR_VERSION;
 const guint marpa_minor_version = MARPA_MINOR_VERSION;
 const guint marpa_micro_version = MARPA_MICRO_VERSION;
@@ -557,11 +539,14 @@ const guint marpa_binary_age = MARPA_BINARY_AGE;
 const gchar *
 marpa_check_version (guint required_major,
                     guint required_minor,
-                    guint required_micro)
+                    guint required_micro,
+		    guint required_variant)
 {
   gint marpa_effective_micro = 100 * MARPA_MINOR_VERSION + MARPA_MICRO_VERSION;
   gint required_effective_micro = 100 * required_minor + required_micro;
 
+  if (required_variant != MARPA_VARIANT)
+    return "libmarpa variant mismatch)";
   if (required_major > MARPA_MAJOR_VERSION)
     return "libmarpa version too old (major mismatch)";
   if (required_major < MARPA_MAJOR_VERSION)
@@ -607,24 +592,25 @@ typedef struct marpa_g* Marpa_Grammar;
 @<Int aligned grammar elements@>@;
 @<Bit aligned grammar elements@>@;
 };
-typedef struct marpa_g GRAMMARD;
 @ @<Private typedefs@> =
 typedef struct marpa_g* GRAMMAR;
-typedef const struct marpa_g* GRAMMAR_Const;
 
 @*0 Constructors.
 @ @<Function definitions@> =
-struct marpa_g* marpa_g_new( void)
-{ struct marpa_g* g = g_slice_new(struct marpa_g);
+Marpa_Grammar marpa_g_new( guint variant )
+{
+    GRAMMAR g;
+    if (variant != MARPA_VARIANT) {
+        return NULL;
+    }
+    g = g_slice_new(struct marpa_g);
     /* Set |t_is_ok| to a bad value, just in case */
     g->t_is_ok = 0;
     @<Initialize grammar elements@>@;
     /* Properly initialized, so set |t_is_ok| to its proper value */
     g->t_is_ok = I_AM_OK;
-   return g; }
-@ @<Public function prototypes@> =
-struct marpa_g* marpa_g_new(void);
-
+   return g;
+}
 @*0 Reference Counting and Destructors.
 @ @<Int aligned grammar elements@>= gint t_ref_count;
 @ @<Initialize grammar elements@> =
@@ -697,8 +683,6 @@ g_array_free(g->t_symbols, TRUE);
 
 @ Symbol count accesors.
 @d SYM_Count_of_G(g) ((g)->t_symbols->len)
-@<Public function prototypes@> =
-gint marpa_g_symbol_count(struct marpa_g* g);
 @ @<Function definitions@> =
 gint marpa_g_symbol_count(struct marpa_g* g) {
     return SYM_Count_of_G(g);
@@ -740,8 +724,6 @@ g_array_free(g->t_rules, TRUE);
 
 @*0 Rule count accessors.
 @ @d RULE_Count_of_G(g) ((g)->t_rules->len)
-@<Public function prototypes@> =
-gint marpa_g_rule_count(struct marpa_g* g);
 @ @<Function definitions@> =
 gint marpa_g_rule_count(struct marpa_g* g) {
     return RULE_Count_of_G(g);
@@ -768,25 +750,29 @@ void rule_add(
 @d RULEID_of_G_is_Valid(g, rule_id)
     ((rule_id) >= 0 && (guint)(rule_id) < (g)->t_rules->len)
 
-@*0 Default Value.
-@d Default_Value_of_G(g) ((g)->t_default_value)
-@<Widely aligned grammar elements@> = gpointer t_default_value;
+@*0 Default token value.
+@d Default_Token_Value_of_G(g) ((g)->t_default_token_value)
+@<Widely aligned grammar elements@> = gpointer t_default_token_value;
 @ @<Initialize grammar elements@> =
-Default_Value_of_G(g) = NULL;
-@ @<Public function prototypes@> =
-gpointer marpa_g_default_value(struct marpa_g* g);
-@ @<Function definitions@> =
-gpointer marpa_g_default_value(struct marpa_g* g)
-{ return Default_Value_of_G(g); }
-@ @<Public function prototypes@> =
-gboolean marpa_g_default_value_set(struct marpa_g*g, gpointer default_value);
-@ @<Function definitions@> =
-gboolean marpa_g_default_value_set(struct marpa_g*g, gpointer default_value)
+Default_Token_Value_of_G(g) = NULL;
+@ This function never fails, but that may change,
+so its interface allows for an error return.
+@<Function definitions@> =
+gint marpa_g_default_token_value(GRAMMAR g, gpointer* value)
 {
-   @<Return |FALSE| on failure@>@;
+   @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    *value = Default_Token_Value_of_G(g);
+    return 1;
+}
+@ @<Function definitions@> =
+gint marpa_g_default_token_value_set(GRAMMAR g, gpointer default_value)
+{
+   @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     @<Fail if grammar is precomputed@>@;
-    Default_Value_of_G(g) = default_value;
-    return TRUE;
+    Default_Token_Value_of_G(g) = default_value;
+    return 1;
 }
 
 @*0 Start Symbol.
@@ -794,23 +780,24 @@ gboolean marpa_g_default_value_set(struct marpa_g*g, gpointer default_value)
 @ @<Initialize grammar elements@> =
 g->t_start_symid = -1;
 @ @<Function definitions@> =
-Marpa_Symbol_ID marpa_g_start_symbol(struct marpa_g* g)
-{ return g->t_start_symid; }
-@ @<Public function prototypes@> =
-Marpa_Symbol_ID marpa_g_start_symbol(struct marpa_g* g);
-@ Returns |TRUE| on success,
-|FALSE| on failure.
-@<Function definitions@> =
-gboolean marpa_g_start_symbol_set(struct marpa_g*g, Marpa_Symbol_ID symid)
+SYMID marpa_g_start_symbol(GRAMMAR g)
 {
-   @<Return |FALSE| on failure@>@;
+   @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar is precomputed@>@;
+    return g->t_start_symid;
+}
+@ Returns the symbol ID on success,
+|-2| on failure.
+@<Function definitions@> =
+SYMID marpa_g_start_symbol_set(GRAMMAR g, SYMID symid)
+{
+   @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     @<Fail if grammar is precomputed@>@;
     @<Fail if grammar |symid| is invalid@>@;
-    g->t_start_symid = symid;
-    return TRUE;
+    return g->t_start_symid = symid;
 }
-@ @<Public function prototypes@> =
-gboolean marpa_g_start_symbol_set(struct marpa_g*g, Marpa_Symbol_ID id);
 
 @*0 Start Rules.
 These are the start rules, after the grammar is augmented.
@@ -865,8 +852,6 @@ are marked useless.
 g->t_max_rule_length = 0;
 
 @*0 Grammar Boolean: Precomputed.
-@ @<Public function prototypes@> =
-gboolean marpa_g_is_precomputed(struct marpa_g* g);
 @ @d G_is_Precomputed(g) ((g)->t_is_precomputed)
 @<Bit aligned grammar elements@> = guint t_is_precomputed:1;
 @ @<Initialize grammar elements@> =
@@ -883,8 +868,6 @@ return G_is_Precomputed(g);
 @<Bit aligned grammar elements@> = guint t_has_loop:1;
 @ @<Initialize grammar elements@> =
 g->t_has_loop = FALSE;
-@ @<Public function prototypes@> =
-gboolean marpa_g_has_loop(struct marpa_g* g);
 @ @<Function definitions@> =
 gboolean marpa_g_has_loop(struct marpa_g* g)
 {
@@ -905,8 +888,6 @@ g->t_is_lhs_terminal_ok = TRUE;
 @<Function definitions@> =
 gboolean marpa_g_is_lhs_terminal_ok(struct marpa_g* g)
 { return g->t_is_lhs_terminal_ok; }
-@ @<Public function prototypes@> =
-gboolean marpa_g_is_lhs_terminal_ok(struct marpa_g* g);
 @ Returns |TRUE| on success,
 |FALSE| on failure.
 @<Function definitions@> =
@@ -920,8 +901,6 @@ struct marpa_g*g, gboolean value)
     g->t_is_lhs_terminal_ok = value;
     return TRUE;
 }
-@ @<Public function prototypes@> =
-gboolean marpa_g_is_lhs_terminal_ok_set( struct marpa_g*g, gboolean value);
 
 @*0 Terminal Boolean Vector.
 A boolean vector, with bits sets if the symbol is a
@@ -955,9 +934,11 @@ with no way of freeing it.
 struct s_g_event;
 typedef struct s_g_event* GEV;
 @ @<Public typedefs@> =
+struct marpa_event;
+typedef struct marpa_event* Marpa_Event;
 typedef gint Marpa_Event_Type;
 @ @<Public structures@> =
-struct marpa_g_event {
+struct marpa_event {
      Marpa_Event_Type t_type;
      gint t_value;
 };
@@ -1012,11 +993,9 @@ void int_event_new(struct marpa_g* g, gint type, gint value)
   top_of_stack->t_value =  value;
 }
 
-@ @<Public function prototypes@> =
-gint marpa_g_event(struct marpa_g *g, struct marpa_g_event *public_event, gint ix);
 @ @<Function definitions@> =
 gint
-marpa_g_event (struct marpa_g *g, struct marpa_g_event *public_event,
+marpa_g_event (Marpa_Grammar g, Marpa_Event public_event,
 	       gint ix)
 {
   @<Return |-2| on failure@>@;
@@ -1160,8 +1139,6 @@ symbol_new (struct marpa_g *g)
   return symbol;
 }
 
-@ @<Public function prototypes@> =
-Marpa_Symbol_ID marpa_g_symbol_new(struct marpa_g *g);
 @ @<Function definitions@> =
 Marpa_Symbol_ID
 marpa_g_symbol_new (struct marpa_g * g)
@@ -1193,9 +1170,6 @@ symbol->t_lhs = g_array_new(FALSE, FALSE, sizeof(Marpa_Rule_ID));
 @ @<Free symbol elements@> =
 g_array_free(symbol->t_lhs, TRUE);
 
-@ @<Public function prototypes@> =
-gint marpa_g_symbol_lhs_count(struct marpa_g* g, Marpa_Symbol_ID symid);
-Marpa_Rule_ID marpa_g_symbol_lhs(struct marpa_g* g, Marpa_Symbol_ID symid, gint ix);
 @ @<Function definitions@> = 
 Marpa_Rule_ID marpa_g_symbol_lhs_count(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
@@ -1244,9 +1218,6 @@ The implementation is a |GArray|.
 symbol->t_rhs = g_array_new(FALSE, FALSE, sizeof(Marpa_Rule_ID));
 @ @<Free symbol elements@> = g_array_free(symbol->t_rhs, TRUE);
 
-@ @<Public function prototypes@> =
-gint marpa_g_symbol_rhs_count(struct marpa_g* g, Marpa_Symbol_ID symid);
-Marpa_Rule_ID marpa_g_symbol_rhs(struct marpa_g* g, Marpa_Symbol_ID symid, gint ix);
 @ @<Function definitions@> = 
 Marpa_Rule_ID marpa_g_symbol_rhs_count(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
@@ -1294,131 +1265,103 @@ must be changed.
 \par
 The internal accessor would be trivial, so there is none.
 @<Function definitions@> =
-gboolean marpa_g_symbol_is_accessible(struct marpa_g* g, Marpa_Symbol_ID id)
-{ return SYM_by_ID(id)->t_is_accessible; }
-@ @<Public function prototypes@> =
-gboolean marpa_g_symbol_is_accessible(struct marpa_g* g, Marpa_Symbol_ID id);
+gboolean marpa_g_symbol_is_accessible(GRAMMAR g, SYMID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar not precomputed@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return SYM_by_ID(symid)->t_is_accessible;
+}
 
 @ Symbol Is Counted Boolean
 @<Bit aligned symbol elements@> = guint t_is_counted:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_counted = FALSE;
-@ The trace accessor returns the Boolean value.
-Right now this function uses a pointer
-to the symbol function.
-If that becomes private,
-the prototype of this function
-must be changed.
-\par
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
-gboolean marpa_g_symbol_is_counted(struct marpa_g* g, Marpa_Symbol_ID id)
-{ return SYM_by_ID(id)->t_is_counted; }
-@ @<Public function prototypes@> =
-gboolean marpa_g_symbol_is_counted(struct marpa_g* g, Marpa_Symbol_ID id);
+@ @<Function definitions@> =
+gboolean marpa_g_symbol_is_counted(GRAMMAR g, SYMID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return SYM_by_ID(symid)->t_is_counted;
+}
 
 @ Symbol Is Nullable Boolean
 @<Bit aligned symbol elements@> = guint t_is_nullable:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_nullable = FALSE;
-@ The trace accessor returns the Boolean value.
-Right now this function uses a pointer
-to the symbol function.
-If that becomes private,
-the prototype of this function
-must be changed.
-\par
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
-gboolean marpa_g_symbol_is_nullable(struct marpa_g* g, Marpa_Symbol_ID id)
-{ return SYM_by_ID(id)->t_is_nullable; }
-@ @<Public function prototypes@> =
-gboolean marpa_g_symbol_is_nullable(struct marpa_g* g, Marpa_Symbol_ID id);
+@ @<Function definitions@> =
+gint marpa_g_symbol_is_nullable(GRAMMAR g, SYMID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return SYM_by_ID(symid)->t_is_nullable;
+}
 
 @ Symbol Is Nulling Boolean
 @d SYM_is_Nulling(sym) ((sym)->t_is_nulling)
 @<Bit aligned symbol elements@> = guint t_is_nulling:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_nulling = FALSE;
-@ The trace accessor returns the Boolean value.
-Right now this function uses a pointer
-to the symbol function.
-If that becomes private,
-the prototype of this function
-must be changed.
-\par
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
-gint marpa_g_symbol_is_nulling(struct marpa_g* g, Marpa_Symbol_ID symid)
-{ @<Return |-2| on failure@>@;
-@<Fail if grammar |symid| is invalid@>@;
-return SYM_is_Nulling(SYM_by_ID(symid)); }
-@ @<Public function prototypes@> =
-gint marpa_g_symbol_is_nulling(struct marpa_g* g, Marpa_Symbol_ID id);
+@ @<Function definitions@> =
+gint marpa_g_symbol_is_nulling(GRAMMAR g, SYMID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return SYM_is_Nulling(SYM_by_ID(symid));
+}
 
 @ Symbol Is Terminal Boolean
 @<Bit aligned symbol elements@> = guint t_is_terminal:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_terminal = FALSE;
-@ The trace accessor returns the Boolean value.
-Right now this function uses a pointer
-to the symbol function.
-If that becomes private,
-the prototype of this function
-must be changed.
-\par
-The internal accessor would be trivial, so there is none.
-@d SYM_is_Terminal(symbol) ((symbol)->t_is_terminal)
+@ @d SYM_is_Terminal(symbol) ((symbol)->t_is_terminal)
 @d SYMID_is_Terminal(id) (SYM_is_Terminal(SYM_by_ID(id)))
 @<Function definitions@> =
-gboolean marpa_g_symbol_is_terminal(struct marpa_g* g, Marpa_Symbol_ID id)
-{ return SYMID_is_Terminal(id); }
-@ @<Public function prototypes@> =
-gboolean marpa_g_symbol_is_terminal(struct marpa_g* g, Marpa_Symbol_ID id);
+gint marpa_g_symbol_is_terminal(GRAMMAR g, SYMID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return SYMID_is_Terminal(symid);
+}
 @ @<Function definitions@> =
-void marpa_g_symbol_is_terminal_set(
-struct marpa_g*g, Marpa_Symbol_ID id, gboolean value)
-{ SYMID_is_Terminal(id) = value; }
-@ @<Public function prototypes@> =
-void marpa_g_symbol_is_terminal_set( struct marpa_g*g, Marpa_Symbol_ID id, gboolean value);
+gint marpa_g_symbol_is_terminal_set(
+GRAMMAR g, SYMID symid, gboolean value)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar is precomputed@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return SYMID_is_Terminal(symid) = value;
+}
 
 @ Symbol Is Productive Boolean
 @<Bit aligned symbol elements@> = guint t_is_productive:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_productive = FALSE;
-@ The trace accessor returns the Boolean value.
-Right now this function uses a pointer
-to the symbol function.
-If that becomes private,
-the prototype of this function
-must be changed.
-\par
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
-gboolean marpa_g_symbol_is_productive(struct marpa_g* g, Marpa_Symbol_ID id)
-{ return SYM_by_ID(id)->t_is_productive; }
-@ @<Public function prototypes@> =
-gboolean marpa_g_symbol_is_productive(struct marpa_g* g, Marpa_Symbol_ID id);
+@ @<Function definitions@> =
+gint marpa_g_symbol_is_productive(GRAMMAR g, SYMID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar not precomputed@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return SYM_by_ID(symid)->t_is_productive;
+}
 
 @ Symbol Is Start Boolean
 @<Bit aligned symbol elements@> = guint t_is_start:1;
 @ @<Initialize symbol elements@> = symbol->t_is_start = FALSE;
-@ Accessor: The trace accessor returns the Boolean value.
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
-static inline
-gint symbol_is_start(SYM symbol)
-{ return symbol->t_is_start; }
-gint marpa_g_symbol_is_start( struct marpa_g*g, Marpa_Symbol_ID symid) 
-{ @<Return |-2| on failure@>@;
-@<Fail if grammar |symid| is invalid@>@;
-   return symbol_is_start(SYM_by_ID(symid));
+@ @<Function definitions@> =
+gint marpa_g_symbol_is_start( GRAMMAR g, SYMID symid) 
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar not precomputed@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+   return SYM_by_ID(symid)->t_is_start;
 }
-@ @<Private function prototypes@> =
-static inline
-gint symbol_is_start(SYM symbol);
-@ @<Public function prototypes@> =
-gint marpa_g_symbol_is_start( struct marpa_g*g, Marpa_Symbol_ID id);
 
 @*0 Symbol aliasing.
 This is the logic for aliasing symbols.
@@ -1457,8 +1400,6 @@ return proper_alias == NULL ? -1 : ID_of_SYM(proper_alias);
 }
 @ @<Private function prototypes@> =
 static inline SYM symbol_proper_alias(SYM symbol);
-@ @<Public function prototypes@> =
-Marpa_Symbol_ID marpa_g_symbol_proper_alias(struct marpa_g* g, Marpa_Symbol_ID symid);
 
 @ Nulling Alias Trace Accessor:
 If this symbol is a proper (non-nullable) symbol
@@ -1484,8 +1425,6 @@ return ID_of_SYM(alias);
 }
 @ @<Private function prototypes@> =
 static inline SYM symbol_null_alias(SYM symbol);
-@ @<Public function prototypes@> =
-Marpa_Symbol_ID marpa_g_symbol_null_alias(struct marpa_g* g, Marpa_Symbol_ID symid);
 
 @ Given a proper nullable symbol as its argument,
 converts the argument into two ``aliases".
@@ -1536,8 +1475,6 @@ If this symbol is a symbol
 with a virtual LHS rule, returns the rule ID.
 If there is no virtual LHS rule, returns |-1|.
 On other failures, returns |-2|.
-@<Public function prototypes@> =
-Marpa_Rule_ID marpa_g_symbol_virtual_lhs_rule(struct marpa_g* g, Marpa_Symbol_ID symid);
 @ @<Function definitions@> =
 Marpa_Rule_ID marpa_g_symbol_virtual_lhs_rule(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
@@ -1597,9 +1534,6 @@ SYMID lhs, SYMID *rhs, gint length)
    return rule;
 }
 
-@ @<Public function prototypes@> =
-Marpa_Rule_ID marpa_g_rule_new(struct marpa_g *g,
-Marpa_Symbol_ID lhs, Marpa_Symbol_ID *rhs, gint length);
 @ @<Function definitions@> =
 Marpa_Rule_ID marpa_g_rule_new(struct marpa_g *g,
 Marpa_Symbol_ID lhs, Marpa_Symbol_ID *rhs, gint length)
@@ -1620,10 +1554,6 @@ Marpa_Symbol_ID lhs, Marpa_Symbol_ID *rhs, gint length)
     return rule_id;
 }
 
-@ @<Public function prototypes@> =
-gint marpa_g_sequence_new(struct marpa_g *g,
-Marpa_Symbol_ID lhs_id, Marpa_Symbol_ID rhs_id, Marpa_Symbol_ID separator_id,
-gint min, gint flags );
 @ @<Function definitions@> =
 gint marpa_g_sequence_new(struct marpa_g *g,
 Marpa_Symbol_ID lhs_id, Marpa_Symbol_ID rhs_id, Marpa_Symbol_ID separator_id,
@@ -1723,7 +1653,7 @@ temp_rhs = g_new(Marpa_Symbol_ID, (3 + (separator_id < 0 ? 1 : 2) * min));
     rule->t_original = original_rule_id;
     rule->t_is_semantic_equivalent = TRUE;
     /* Real symbol count remains at default of 0 */
-    RULE_is_Virtual_RHS (rule) = TRUE;
+    RULE_has_Virtual_RHS (rule) = TRUE;
     int_event_new (g, MARPA_G_EV_NEW_RULE, rule->t_id);
 }
 
@@ -1736,7 +1666,7 @@ temp_rhs = g_new(Marpa_Symbol_ID, (3 + (separator_id < 0 ? 1 : 2) * min));
     if (!rule) { @<Fail with internal grammar error@>@; }
     rule->t_original = original_rule_id;
     rule->t_is_semantic_equivalent = TRUE;
-    RULE_is_Virtual_RHS(rule) = TRUE;
+    RULE_has_Virtual_RHS(rule) = TRUE;
     Real_SYM_Count_of_RULE(rule) = 1;
     int_event_new (g, MARPA_G_EV_NEW_RULE, rule->t_id);
 }
@@ -1754,7 +1684,7 @@ gint rhs_ix, i;
     }
     rule = rule_start(g, internal_lhs_id, temp_rhs, rhs_ix);
     if (!rule) { @<Fail with internal grammar error@>@; }
-    RULE_is_Virtual_LHS(rule) = 1;
+    RULE_has_Virtual_LHS(rule) = 1;
     Real_SYM_Count_of_RULE(rule) = rhs_ix;
     int_event_new (g, MARPA_G_EV_NEW_RULE, rule->t_id);
 }
@@ -1766,8 +1696,8 @@ gint rhs_ix = 0;
     temp_rhs[rhs_ix++] = rhs_id;
     rule = rule_start(g, internal_lhs_id, temp_rhs, rhs_ix);
     if (!rule) { @<Fail with internal grammar error@>@; }
-    RULE_is_Virtual_LHS(rule) = 1;
-    RULE_is_Virtual_RHS(rule) = 1;
+    RULE_has_Virtual_LHS(rule) = 1;
+    RULE_has_Virtual_RHS(rule) = 1;
     Real_SYM_Count_of_RULE(rule) = rhs_ix - 1;
     int_event_new (g, MARPA_G_EV_NEW_RULE, rule->t_id);
 }
@@ -2001,15 +1931,11 @@ Marpa_Symbol_ID marpa_g_rule_lhs(struct marpa_g *g, Marpa_Rule_ID rule_id) {
     @<Return |-2| on failure@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     return rule_lhs_get(RULE_by_ID(g, rule_id)); }
-@ @<Public function prototypes@> =
-Marpa_Symbol_ID marpa_g_rule_lhs(struct marpa_g *g, Marpa_Rule_ID rule_id);
 @ @<Function definitions@> =
 static inline Marpa_Symbol_ID* rule_rhs_get(RULE rule) {
     return rule->t_symbols+1; }
 @ @<Private function prototypes@> =
 static inline Marpa_Symbol_ID* rule_rhs_get(RULE rule);
-@ @<Public function prototypes@> =
-Marpa_Symbol_ID marpa_g_rule_rh_symbol(struct marpa_g *g, Marpa_Rule_ID rule_id, gint ix);
 @ @<Function definitions@> =
 Marpa_Symbol_ID marpa_g_rule_rh_symbol(struct marpa_g *g, Marpa_Rule_ID rule_id, gint ix) {
     RULE rule;
@@ -2029,8 +1955,6 @@ gint marpa_g_rule_length(struct marpa_g *g, Marpa_Rule_ID rule_id) {
     @<Return |-2| on failure@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     return rule_length_get(RULE_by_ID(g, rule_id)); }
-@ @<Public function prototypes@> =
-gint marpa_g_rule_length(struct marpa_g *g, Marpa_Rule_ID rule_id);
 
 @*1 Symbols of the Rule.
 @d LHS_ID_of_RULE(rule) ((rule)->t_symbols[0])
@@ -2059,8 +1983,6 @@ rule->t_is_discard = FALSE;
 @ @<Function definitions@> =
 gboolean marpa_g_rule_is_discard_separation(struct marpa_g* g, Marpa_Rule_ID id)
 { return RULE_by_ID(g, id)->t_is_discard; }
-@ @<Public function prototypes@> =
-gboolean marpa_g_rule_is_discard_separation(struct marpa_g* g, Marpa_Rule_ID id);
 
 @*0 Rule Boolean: Proper Separation.
 In Marpa's terminology,
@@ -2104,8 +2026,6 @@ return rule_is_accessible(g, rule);
 }
 @ @<Private function prototypes@> =
 static inline gint rule_is_accessible(struct marpa_g* g, RULE  rule);
-@ @<Public function prototypes@> =
-gint marpa_g_rule_is_accessible(struct marpa_g* g, Marpa_Rule_ID id);
 
 @*0 Productive Rules.
 @ A rule is productive if every symbol on its RHS is productive.
@@ -2128,8 +2048,6 @@ return rule_is_productive(g, rule);
 }
 @ @<Private function prototypes@> =
 static inline gint rule_is_productive(struct marpa_g* g, RULE  rule);
-@ @<Public function prototypes@> =
-gint marpa_g_rule_is_productive(struct marpa_g* g, Marpa_Rule_ID id);
 
 @*0 Loop Rule.
 @ A rule is a loop rule if it non-trivially
@@ -2148,8 +2066,6 @@ gint marpa_g_rule_is_loop(struct marpa_g* g, Marpa_Rule_ID rule_id)
     @<Return |-2| on failure@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
 return RULE_by_ID(g, rule_id)->t_is_loop; }
-@ @<Public function prototypes@> =
-gint marpa_g_rule_is_loop(struct marpa_g* g, Marpa_Rule_ID rule_id);
 
 @*0 Virtual Loop Rule.
 @ When dealing with rules which result from the CHAF rewrite,
@@ -2169,8 +2085,6 @@ gint marpa_g_rule_is_virtual_loop(struct marpa_g* g, Marpa_Rule_ID rule_id)
     @<Return |-2| on failure@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
 return RULE_by_ID(g, rule_id)->t_is_virtual_loop; }
-@ @<Public function prototypes@> =
-gint marpa_g_rule_is_virtual_loop(struct marpa_g* g, Marpa_Rule_ID rule_id);
 
 @*0 Nulling Rules.
 @ A rule is nulling if every symbol on its RHS is nulling.
@@ -2205,26 +2119,8 @@ gint marpa_g_rule_is_used(struct marpa_g* g, Marpa_Rule_ID rule_id)
     @<Return |-2| on failure@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
 return RULE_is_Used(RULE_by_ID(g, rule_id)); }
-@ @<Public function prototypes@> =
-gint marpa_g_rule_is_used(struct marpa_g* g, Marpa_Rule_ID rule_id);
 
-@*0 Is This a Start Rule?.
-@d RULE_is_Start(rule) ((rule)->t_is_start)
-@<Bit aligned rule elements@> = guint t_is_start:1;
-@ @<Initialize rule elements@> =
-rule->t_is_start = FALSE;
-@ This is the external accessor.
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
-gint marpa_g_rule_is_start(struct marpa_g* g, Marpa_Rule_ID rule_id)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-return RULE_by_ID(g, rule_id)->t_is_start; }
-@ @<Public function prototypes@> =
-gint marpa_g_rule_is_start(struct marpa_g* g, Marpa_Rule_ID rule_id);
-
-@*0 Rule Boolean: Virtual LHS.
+@*0 Rule has virtual LHS?.
 This is for Marpa's ``internal semantics".
 When Marpa rewrites rules, it does so in a way invisible to
 the user's semantics.
@@ -2240,34 +2136,30 @@ Marpa's design criteria.
 It was an especially non-negotiable criteria, because
 almost the only reason for parsing a grammar is to apply the
 semantics specified for the original grammar.
-@d RULE_is_Virtual_LHS(rule) ((rule)->t_is_virtual_lhs)
+@d RULE_has_Virtual_LHS(rule) ((rule)->t_is_virtual_lhs)
 @<Bit aligned rule elements@> = guint t_is_virtual_lhs:1;
 @ @<Initialize rule elements@> =
-RULE_is_Virtual_LHS(rule) = FALSE;
+RULE_has_Virtual_LHS(rule) = FALSE;
 @ The internal accessor would be trivial, so there is none.
 @<Function definitions@> =
 gboolean marpa_g_rule_is_virtual_lhs(struct marpa_g* g, Marpa_Rule_ID rule_id)
 {
 @<Return |-2| on failure@>@;
 @<Fail if grammar |rule_id| is invalid@>@;
-return RULE_is_Virtual_LHS(RULE_by_ID(g, rule_id)); }
-@ @<Public function prototypes@> =
-gboolean marpa_g_rule_is_virtual_lhs(struct marpa_g* g, Marpa_Rule_ID rule_id);
+return RULE_has_Virtual_LHS(RULE_by_ID(g, rule_id)); }
 
-@*0 Rule Boolean: Virtual RHS.
-@d RULE_is_Virtual_RHS(rule) ((rule)->t_is_virtual_rhs)
+@*0 Rule has Virtual RHS?.
+@d RULE_has_Virtual_RHS(rule) ((rule)->t_is_virtual_rhs)
 @<Bit aligned rule elements@> = guint t_is_virtual_rhs:1;
 @ @<Initialize rule elements@> =
-RULE_is_Virtual_RHS(rule) = FALSE;
+RULE_has_Virtual_RHS(rule) = FALSE;
 @ The internal accessor would be trivial, so there is none.
 @<Function definitions@> =
 gboolean marpa_g_rule_is_virtual_rhs(struct marpa_g* g, Marpa_Rule_ID rule_id)
 {
 @<Return |-2| on failure@>@;
 @<Fail if grammar |rule_id| is invalid@>@;
-return RULE_is_Virtual_RHS(RULE_by_ID(g, rule_id)); }
-@ @<Public function prototypes@> =
-gboolean marpa_g_rule_is_virtual_rhs(struct marpa_g* g, Marpa_Rule_ID rule_id);
+return RULE_has_Virtual_RHS(RULE_by_ID(g, rule_id)); }
 
 @*0 Virtual Start Position.
 For a virtual rule,
@@ -2282,8 +2174,6 @@ guint marpa_g_virtual_start(struct marpa_g *g, Marpa_Rule_ID rule_id)
 @<Fail if grammar |rule_id| is invalid@>@;
 return RULE_by_ID(g, rule_id)->t_virtual_start;
 }
-@ @<Public function prototypes@> =
-guint marpa_g_virtual_start(struct marpa_g *g, Marpa_Rule_ID rule_id);
 
 @*0 Virtual End Position.
 For a virtual rule,
@@ -2298,8 +2188,6 @@ guint marpa_g_virtual_end(struct marpa_g *g, Marpa_Rule_ID rule_id)
 @<Fail if grammar |rule_id| is invalid@>@;
 return RULE_by_ID(g, rule_id)->t_virtual_end;
 }
-@ @<Public function prototypes@> =
-guint marpa_g_virtual_end(struct marpa_g *g, Marpa_Rule_ID rule_id);
 
 @*0 Rule Original.
 In many cases, Marpa will rewrite a rule.
@@ -2314,8 +2202,6 @@ Marpa_Rule_ID marpa_g_rule_original(struct marpa_g *g, Marpa_Rule_ID rule_id)
 @<Fail if grammar |rule_id| is invalid@>@;
 return RULE_by_ID(g, rule_id)->t_original;
 }
-@ @<Public function prototypes@> =
-Marpa_Rule_ID marpa_g_rule_original(struct marpa_g *g, Marpa_Rule_ID rule_id);
 
 @*0 Rule Real Symbol Count.
 This is another data element used for the ``internal semantics" --
@@ -2326,14 +2212,80 @@ the rule has a virtual rhs or a virtual lhs.
 @d Real_SYM_Count_of_RULE(rule) ((rule)->t_real_symbol_count)
 @ @<Int aligned rule elements@> = gint t_real_symbol_count;
 @ @<Initialize rule elements@> = Real_SYM_Count_of_RULE(rule) = 0;
-@ @<Public function prototypes@> =
-gint marpa_g_real_symbol_count(struct marpa_g *g, Marpa_Rule_ID rule_id);
 @ @<Function definitions@> =
 gint marpa_g_real_symbol_count(struct marpa_g *g, Marpa_Rule_ID rule_id)
 {
 @<Return |-2| on failure@>@;
 @<Fail if grammar |rule_id| is invalid@>@;
 return Real_SYM_Count_of_RULE(RULE_by_ID(g, rule_id));
+}
+
+@*0 Rule has semantics?.
+This value describes the rule's semantics.
+Most of the semantics are left up to the higher
+layers, but there are two cases where Marpa
+can help optimize.
+The first is the case where the application
+does not care -- that is, the semantics
+is arbitrary.
+The second case is where the application wants
+the value of a rule to be the value of its
+first child, which under the current implementation
+is a stack no-op.
+@d RULE_is_Ask_Me(rule) ((rule)->t_is_ask_me)
+@<Int aligned rule elements@> = guint t_is_ask_me:1;
+@ @<Initialize rule elements@> =
+    RULE_is_Ask_Me(rule) = FALSE;
+@ @<Function definitions@> =
+gboolean marpa_g_rule_is_ask_me(Marpa_Grammar g, Marpa_Rule_ID rule_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar |rule_id| is invalid@>@;
+    return RULE_is_Ask_Me(RULE_by_ID(g, rule_id));
+}
+@ The application can specify the zero-based
+number of a child as the semantics of a rule.
+Marpa will implement that internally if it can,
+otherwise it will return the rule in an evaluation
+step to the higher layer.
+If the child number is -2, the application
+wants to implement the semantics itself.
+If the child number is -1, the value desired
+is arbitrary ---
+Marpa guarantees it can implement that.
+In the current implementation,
+if the child number is specified as zero,
+Marpa can implement that as a stack no-op,
+and will do so,
+but may not in some future implementation.
+The result of any other value is a failure.
+@<Function definitions@> =
+gint marpa_g_rule_whatever_set(
+    Marpa_Grammar g, Marpa_Rule_ID rule_id)
+{
+    RULE rule;
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar |rule_id| is invalid@>@;
+    rule = RULE_by_ID(g, rule_id);
+    return RULE_is_Ask_Me(rule) = 0;
+}
+gint marpa_g_rule_ask_me_set(
+    Marpa_Grammar g, Marpa_Rule_ID rule_id)
+{
+    RULE rule;
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar |rule_id| is invalid@>@;
+    rule = RULE_by_ID(g, rule_id);
+    return RULE_is_Ask_Me(rule) = 1;
+}
+gint marpa_g_rule_first_child_set(
+    Marpa_Grammar g, Marpa_Rule_ID rule_id)
+{
+    RULE rule;
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar |rule_id| is invalid@>@;
+    rule = RULE_by_ID(g, rule_id);
+    return RULE_is_Ask_Me(rule) = 0;
 }
 
 @*0 Semantic Equivalents.
@@ -2349,8 +2301,6 @@ It is this ``original rule" that |semantic_equivalent()| returns.
 @ If this rule is the semantic equivalent of another rule,
 this external accessor returns the ``original rule".
 Otherwise it returns -1.
-@<Public function prototypes@> =
-Marpa_Rule_ID marpa_g_rule_semantic_equivalent(struct marpa_g* g, Marpa_Rule_ID id);
 @ @<Function definitions@> =
 Marpa_Rule_ID
 marpa_g_rule_semantic_equivalent (struct marpa_g *g, Marpa_Rule_ID rule_id)
@@ -2359,7 +2309,7 @@ marpa_g_rule_semantic_equivalent (struct marpa_g *g, Marpa_Rule_ID rule_id)
 @<Return |-2| on failure@>@;
 @<Fail if grammar |rule_id| is invalid@>@;
   rule = RULE_by_ID (g, rule_id);
-  if (RULE_is_Virtual_LHS(rule)) return -1;
+  if (RULE_has_Virtual_LHS(rule)) return -1;
   if (rule->t_is_semantic_equivalent) return rule->t_original;
   return rule_id;
 }
@@ -2440,8 +2390,6 @@ gint marpa_g_precompute(struct marpa_g* g)
     }
      return G_EVENT_COUNT(g);
 }
-@ @<Public function prototypes@> =
-gint marpa_g_precompute(struct marpa_g* g);
 
 @** The Grammar Census.
 
@@ -3204,9 +3152,9 @@ rule structure, and performing the call back.
   const gint is_virtual_lhs = (piece_start > 0);
   RULE_is_Used (chaf_rule) = 1;
   chaf_rule->t_original = rule_id;
-  RULE_is_Virtual_LHS (chaf_rule) = is_virtual_lhs;
+  RULE_has_Virtual_LHS (chaf_rule) = is_virtual_lhs;
   chaf_rule->t_is_semantic_equivalent = !is_virtual_lhs;
-  RULE_is_Virtual_RHS (chaf_rule) =
+  RULE_has_Virtual_RHS (chaf_rule) =
     Length_of_RULE (chaf_rule) > real_symbol_count;
   chaf_rule->t_virtual_start = piece_start;
   chaf_rule->t_virtual_end = piece_start + real_symbol_count - 1;
@@ -3266,8 +3214,7 @@ old_start->t_is_start = 0;
   proper_new_start->t_is_productive = TRUE;
   proper_new_start->t_is_start = TRUE;
   new_start_rule = rule_start (g, proper_new_start_id, &ID_of_SYM(old_start), 1);
-  new_start_rule->t_is_start = 1;
-  RULE_is_Virtual_LHS(new_start_rule) = 1;
+  RULE_has_Virtual_LHS(new_start_rule) = 1;
   Real_SYM_Count_of_RULE(new_start_rule) = 1;
   RULE_is_Used(new_start_rule) = 1;
   g->t_proper_start_rule = new_start_rule;
@@ -3298,8 +3245,7 @@ if there is one.  Otherwise it is a new, nulling, symbol.
     }
   nulling_new_start->t_is_start = TRUE;
   new_start_rule = rule_start (g, nulling_new_start_id, 0, 0);
-  new_start_rule->t_is_start = 1;
-  RULE_is_Virtual_LHS(new_start_rule) = 1;
+  RULE_has_Virtual_LHS(new_start_rule) = 1;
   Real_SYM_Count_of_RULE(new_start_rule) = 1;
   RULE_is_Used(new_start_rule) = FALSE;
   g->t_null_start_rule = new_start_rule;
@@ -3428,7 +3374,7 @@ for (rule_id = 0; rule_id < (Marpa_Rule_ID)no_of_rules; rule_id++) {
     loop_rule_count++;
     rule = RULE_by_ID(g, rule_id);
     rule->t_is_loop = TRUE;
-    rule->t_is_virtual_loop = rule->t_virtual_start < 0 || !RULE_is_Virtual_RHS(rule);
+    rule->t_is_virtual_loop = rule->t_virtual_start < 0 || !RULE_has_Virtual_RHS(rule);
 } }
 
 @** The Aycock-Horspool Finite Automata.
@@ -3587,12 +3533,12 @@ if (g->t_AHFA_items_by_rule) { g_free(g->t_AHFA_items_by_rule); };
 @ Check that AHFA item ID is in valid range.
 @<Function definitions@> =
 static inline gboolean item_is_valid(
-GRAMMAR_Const g, AIMID item_id) {
+GRAMMAR g, AIMID item_id) {
 return item_id < (AIMID)AIM_Count_of_G(g) && item_id >= 0;
 }
 @ @<Private function prototypes@> =
 static inline gboolean item_is_valid(
-GRAMMAR_Const g, AIMID item_id);
+GRAMMAR g, AIMID item_id);
 
 @*0 Rule.
 @d RULE_of_AIM(item) ((item)->t_rule)
@@ -3611,8 +3557,6 @@ gint t_position;
 |-1| if the item is a completion.
 @d Postdot_SYMID_of_AIM(item) ((item)->t_postdot)
 @d AIM_is_Completion(aim) (Postdot_SYMID_of_AIM(aim) < 0)
-@d AIM_has_Completed_Start_Rule(aim)
-    (AIM_is_Completion(aim) && RULE_is_Start(RULE_of_AIM(aim)))
 @<Int aligned AHFA item elements@> = Marpa_Symbol_ID t_postdot;
 
 @*0 Leading Nulls.
@@ -3632,8 +3576,6 @@ gint marpa_g_AHFA_item_count(struct marpa_g* g) {
     @<Fail if grammar not precomputed@>@/
     return AIM_Count_of_G(g);
 }
-@ @<Public function prototypes@> =
-gint marpa_g_AHFA_item_count(struct marpa_g* g);
 
 @ @<Function definitions@> =
 Marpa_Rule_ID marpa_g_AHFA_item_rule(struct marpa_g* g,
@@ -3643,12 +3585,8 @@ Marpa_Rule_ID marpa_g_AHFA_item_rule(struct marpa_g* g,
     @<Fail if grammar |item_id| is invalid@>@/
     return RULE_of_AIM(AIM_by_ID(item_id))->t_id;
 }
-@ @<Public function prototypes@> =
-Marpa_Rule_ID marpa_g_AHFA_item_rule(struct marpa_g* g, Marpa_AHFA_Item_ID item_id);
 
 @ |-1| is the value for completions, so |-2| is the failure indicator.
-@<Public function prototypes@> =
-gint marpa_g_AHFA_item_position(struct marpa_g* g, Marpa_AHFA_Item_ID item_id);
 @ @<Function definitions@> =
 gint marpa_g_AHFA_item_position(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
@@ -3659,8 +3597,6 @@ gint marpa_g_AHFA_item_position(struct marpa_g* g,
 }
 
 @ |-1| is the value for completions, so |-2| is the failure indicator.
-@<Public function prototypes@> =
-Marpa_Symbol_ID marpa_g_AHFA_item_postdot(struct marpa_g* g, Marpa_AHFA_Item_ID item_id);
 @ @<Function definitions@> =
 Marpa_Symbol_ID marpa_g_AHFA_item_postdot(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
@@ -3670,8 +3606,6 @@ Marpa_Symbol_ID marpa_g_AHFA_item_postdot(struct marpa_g* g,
     return Postdot_SYMID_of_AIM(AIM_by_ID(item_id));
 }
 
-@ @<Public function prototypes@> =
-gint marpa_g_AHFA_item_sort_key(struct marpa_g* g, Marpa_AHFA_Item_ID item_id);
 @ @<Function definitions@> =
 gint marpa_g_AHFA_item_sort_key(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
@@ -3953,7 +3887,6 @@ The total is ${s \over 2} + {s \over 2} + s = 2s$.
 Typically, the number of AHFA states should be less than this estimate.
 
 @d AHFA_of_G_by_ID(g, id) ((g)->t_AHFA+(id))
-@d AHFA_has_Completed_Start_Rule(ahfa) ((ahfa)->t_has_completed_start_rule)
 @<Private incomplete structures@> = struct s_AHFA_state;
 @ @<Private structures@> =
 struct s_AHFA_state_key {
@@ -3964,7 +3897,6 @@ struct s_AHFA_state {
     struct s_AHFA_state* t_empty_transition;
     @<Widely aligned AHFA state elements@>@;
     @<Int aligned AHFA state elements@>@;
-    guint t_has_completed_start_rule:1;
     @<Bit aligned AHFA elements@>@;
 };
 typedef struct s_AHFA_state AHFA_Object;
@@ -4104,8 +4036,6 @@ const struct marpa_g *g, AHFAID AHFA_state_id);
 gint marpa_g_AHFA_state_count(struct marpa_g* g) {
     return AHFA_Count_of_G(g);
 }
-@ @<Public function prototypes@> =
-gint marpa_g_AHFA_state_count(struct marpa_g* g);
 
 @ @<Function definitions@> =
 gint
@@ -4117,13 +4047,7 @@ marpa_g_AHFA_state_item_count(struct marpa_g* g, AHFAID AHFA_state_id)
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
     return state->t_item_count;
 }
-@ @<Public function prototypes@> =
-gint marpa_g_AHFA_state_item_count(struct marpa_g* g, Marpa_AHFA_State_ID AHFA_state_id);
 
-@ @<Public function prototypes@> =
-Marpa_AHFA_Item_ID marpa_g_AHFA_state_item(struct marpa_g* g,
-     Marpa_AHFA_State_ID AHFA_state_id,
-	gint item_ix);
 @ @d AIMID_of_AHFA_by_AEX(g, ahfa, aex)
    ((ahfa)->t_items[aex] - (g)->t_AHFA_items)
 @<Function definitions@> =
@@ -4156,68 +4080,6 @@ gint marpa_g_AHFA_state_is_predict(struct marpa_g* g,
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
     return AHFA_is_Predicted(state);
 }
-@ @<Public function prototypes@> =
-gint marpa_g_AHFA_state_is_predict(struct marpa_g* g,
-	Marpa_AHFA_State_ID AHFA_state_id);
-
-@*0 Completed Start Rule.
-This external acccessor returns the rule ID of
-the completed start rule of an AHFA state.
-Most often there is none, in which case
-|-1| is returned.
-For other failures, |-2| is returned.
-@ @<Public function prototypes@> =
-Marpa_Rule_ID marpa_g_AHFA_completed_start_rule(struct marpa_g* g,
-	Marpa_AHFA_State_ID AHFA_state_id);
-@ I know that the completed start rule is this AHFA state is
-unique, via the following theorem.
-\Theorem/ No AHFA state contains more than one completed start rule.
-\Proof/: As proved elsewhere in this document,
-an AHFA state with a completed start rule is either AHFA state 0
-or a 1-item discovered AHFA state.
-Clearly the AHFA item which is the completed start rule is 
-unique in a 1-item AHFA state.
-From its construction we know that
-AHFA state 0 contains at most two rules:
-a predicted non-null start rule
-and a predicted null start rule.
-A predicted non-null rule is not a completed rule.
-Therefore only the predicted null start rule
-can be a completed start rule in AHFA state 0.
-\QED/.
-@
-{\bf To Do}: @^To Do@>
-This function can probably be eliminated after conversion
-is complete, along with the flag for whether a rule is a start rule
-and the flag for tracking whether an AHFA has a completed start rule.
-
-@<Function definitions@> =
-Marpa_Rule_ID marpa_g_AHFA_completed_start_rule(struct marpa_g* g,
-	Marpa_AHFA_State_ID AHFA_state_id) {
-    const gint no_completed_start_rule = -1;
-    @<Return |-2| on failure@>@;
-    AHFA state;
-    @<Fail if grammar not precomputed@>@;
-    @<Fail if grammar |AHFA_state_id| is invalid@>@;
-    state = AHFA_of_G_by_ID (g, AHFA_state_id);
-    if (AHFA_has_Completed_Start_Rule(state)) {
-	const gint ahfa_item_count = state->t_item_count;
-	const AIM* ahfa_items = state->t_items;
-	gint ahfa_ix;
-	for (ahfa_ix = 0; ahfa_ix < ahfa_item_count; ahfa_ix++)
-	  {
-	    const AIM ahfa_item = ahfa_items[ahfa_ix];
-	    if (AIM_is_Completion (ahfa_item))
-	      {
-		const RULE rule = RULE_of_AIM (ahfa_item);
-		if (RULE_is_Start (rule))
-		  return ID_of_RULE (rule);
-	      }
-	  }
-      @<Fail with internal grammar error@>@;
-  }
-  return no_completed_start_rule;
-}
 
 @*0 Leo LHS Symbol.
 The Leo LHS symbol is the LHS of the AHFA state's rule,
@@ -4230,9 +4092,6 @@ with this AHFA state is eligible to be a Leo completion.
 @d AHFA_is_Leo_Completion(state) (Leo_LHS_ID_of_AHFA(state) >= 0)
 @ @<Int aligned AHFA state elements@> = SYMID t_leo_lhs_sym;
 @ @<Initialize AHFA@> = Leo_LHS_ID_of_AHFA(ahfa) = -1;
-@ @<Public function prototypes@> =
-Marpa_Symbol_ID marpa_g_AHFA_state_leo_lhs_symbol(struct marpa_g* g,
-	Marpa_AHFA_State_ID AHFA_state_id);
 @ @<Function definitions@> =
 Marpa_Symbol_ID marpa_g_AHFA_state_leo_lhs_symbol(struct marpa_g* g,
 	Marpa_AHFA_State_ID AHFA_state_id) {
@@ -4497,7 +4356,6 @@ g_tree_destroy(duplicates);
     obstack_alloc (&g->t_obs, sizeof (SYMID));
   *postdot_symbol_ids = Postdot_SYMID_of_AIM (start_item);
   Complete_SYM_Count_of_AHFA (p_initial_state) = 0;
-  p_initial_state->t_has_completed_start_rule = 0;
   p_initial_state->t_empty_transition =
     create_predicted_AHFA_state (g,
 				 matrix_row (prediction_matrix,
@@ -4560,11 +4418,6 @@ are either AHFA state 0, or 1-item discovered AHFA states.
     new_state_item_list[0] = single_item_p;
     p_new_state->t_item_count = 1;
     AHFA_is_Predicted(p_new_state) = 0;
-    if (AIM_has_Completed_Start_Rule(single_item_p)) {
-	p_new_state->t_has_completed_start_rule = 1;
-    } else {
-	p_new_state->t_has_completed_start_rule = 0;
-    }
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE (states, AHFA_Object);
     TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     transition_add (&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
@@ -4695,7 +4548,6 @@ if (queued_AHFA_state)
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE(states, AHFA_Object);
     AHFA_initialize(p_new_state);
     AHFA_is_Predicted(p_new_state) = 0;
-    p_new_state->t_has_completed_start_rule = 0;
     TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     @<Calculate complete and postdot symbols for discovered state@>@/
     transition_add(&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
@@ -5084,7 +4936,6 @@ item_list_for_new_state = obstack_alloc (&g->t_obs,
     // The new state was added -- finish up its data
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE((*states_p), AHFA_Object);
     AHFA_is_Predicted(p_new_state) = 1;
-    p_new_state->t_has_completed_start_rule = 0;
     p_new_state->t_empty_transition = NULL;
     TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     Complete_SYM_Count_of_AHFA(p_new_state) = 0;
@@ -5278,10 +5129,6 @@ void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, SYMID symid)
 }
 
 @*0 Trace Functions.
-@<Public function prototypes@> =
-gint marpa_g_AHFA_state_transitions(struct marpa_g* g,
-    Marpa_AHFA_State_ID AHFA_state_id,
-    GArray *result);
 @ @<Function definitions@> =
 gint marpa_g_AHFA_state_transitions(struct marpa_g* g,
     Marpa_AHFA_State_ID AHFA_state_id,
@@ -5312,10 +5159,6 @@ gint marpa_g_AHFA_state_transitions(struct marpa_g* g,
 @** Empty Transition Code.
 @d Empty_Transition_of_AHFA(state) ((state)->t_empty_transition)
 @*0 Trace Functions.
-@<Public function prototypes@> =
-@ @<Public function prototypes@> =
-Marpa_AHFA_State_ID marpa_g_AHFA_state_empty_transition(struct marpa_g* g,
-     Marpa_AHFA_State_ID AHFA_state_id);
 @ In the external accessor,
 -1 is a valid return value, indicating no empty transition.
 @<Function definitions@> =
@@ -5448,7 +5291,7 @@ TOK *t_tokens_by_symid;
     obstack_alloc (TOK_Obs_of_I (input), sizeof (TOK) * symbol_count_of_g);
   for (ix = 0; ix < symbol_count_of_g; ix++)
     {
-      tokens_by_symid[ix] = token_new (input, ix, Default_Value_of_G (g));
+      tokens_by_symid[ix] = token_new (input, ix, Default_Token_Value_of_G (g));
     }
   TOKs_by_SYMID_of_I (input) = tokens_by_symid;
 }
@@ -5487,8 +5330,6 @@ struct marpa_r {
     @<Bit aligned recognizer elements@>@;
 };
 
-@ @<Public function prototypes@> =
-struct marpa_r* marpa_r_new( struct marpa_g* g );
 @ The grammar must not be deallocated for the life of the
 recognizer.
 In the event of an error creating the recognizer,
@@ -5664,11 +5505,7 @@ It is used in building the list of postdot items,
 and when building the Leo items.
 It is sized to hold one |gpointer| for
 every symbol.
-@
-{\bf To Do}: @^To Do@>
-It may be possible to free this space when the recognition phase
-is finished.
-@<Widely aligned recognizer elements@> = gpointer* t_sym_workarea;
+@ @<Widely aligned recognizer elements@> = gpointer* t_sym_workarea;
 @ @<Initialize recognizer elements@> = r->t_sym_workarea = NULL;
 @ @<Allocate symbol workarea@> =
     r->t_sym_workarea = g_malloc(sym_workarea_size);
@@ -5679,11 +5516,7 @@ phase for each Earley set.
 when building the Leo items.
 It is sized to hold two |gpointer|'s for
 every symbol.
-@
-{\bf To Do}: @^To Do@>
-It may be possible to free this space when the recognition phase
-is finished.
-@<Widely aligned recognizer elements@> = gpointer* t_workarea2;
+@ @<Widely aligned recognizer elements@> = gpointer* t_workarea2;
 @ @<Initialize recognizer elements@> = r->t_workarea2 = NULL;
 @ @<Allocate recognizer workareas@> =
 {
@@ -5700,11 +5533,7 @@ They are used in the completion
 phase for each Earley set,
 to keep track of the new postdot items and
 Leo items.
-@
-{\bf To Do}: @^To Do@>
-It may be possible to free this space when the recognition phase
-is finished.
-@<Widely aligned recognizer elements@> =
+@ @<Widely aligned recognizer elements@> =
 Bit_Vector t_bv_sym;
 Bit_Vector t_bv_sym2;
 Bit_Vector t_bv_sym3;
@@ -5842,18 +5671,15 @@ gint marpa_r_is_use_leo(struct marpa_r* r)
     @<Fail if fatal error@>@;
     return r->t_use_leo_flag ? 1 : 0;
 }
-@ Returns |TRUE| on success,
-|FALSE| on failure.
-@<Function definitions@> =
-gboolean marpa_r_is_use_leo_set(
+@ @<Function definitions@> =
+gint marpa_r_is_use_leo_set(
 struct marpa_r*r, gboolean value)
 {
    @<Unpack recognizer objects@>@;
-   @<Return |FALSE| on failure@>@/
+   @<Return |-2| on failure@>@/
     @<Fail if fatal error@>@;
     @<Fail if recognizer started@>@;
-    r->t_use_leo_flag = value;
-    return TRUE;
+    return r->t_use_leo_flag = value;
 }
 
 @*1 Is The Parser Exhausted?.
@@ -5897,7 +5723,7 @@ resized and which will have the same lifetime as the recognizer.
 @*0 Recognizer error accessor.
 @ A convenience wrapper for the grammar error strings.
 @<Function definitions@> =
-Marpa_Error_Code marpa_r_error(const struct marpa_r* r, const char** p_error_string)
+Marpa_Error_Code marpa_r_error(Marpa_Recognizer r, const char** p_error_string)
 {
     @<Unpack recognizer objects@>@;
   return marpa_g_error (g, p_error_string);
@@ -5906,7 +5732,7 @@ Marpa_Error_Code marpa_r_error(const struct marpa_r* r, const char** p_error_str
 @*0 Recognizer event accessor.
 @ A convenience wrapper for the grammar error strings.
 @<Function definitions@> =
-gint marpa_r_event(const struct marpa_r* r, struct marpa_g_event *public_event, gint ix)
+gint marpa_r_event(Marpa_Recognizer r, Marpa_Event public_event, gint ix)
 {
     @<Unpack recognizer objects@>@;
   return marpa_g_event (g, public_event, ix);
@@ -7824,7 +7650,7 @@ static inline gint alternative_insert(RECCE r, ALT new_alternative)
 }
 
 @** Starting Recognizer Input.
-@<Function definitions@> = gboolean marpa_r_start_input(struct marpa_r *r)
+@<Function definitions@> = gint marpa_r_start_input(struct marpa_r *r)
 {
     ES set0;
     EIM item;
@@ -7832,7 +7658,7 @@ static inline gint alternative_insert(RECCE r, ALT new_alternative)
     AHFA state;
   @<Unpack recognizer objects@>@;
     const gint symbol_count_of_g = SYM_Count_of_G(g);
-    @<Return |FALSE| on failure@>@;
+    @<Return |-2| on failure@>@;
     @<Fail if recognizer started@>@;
     Current_Earleme_of_R(r) = 0;
     if (G_is_Trivial(g)) {
@@ -10901,6 +10727,331 @@ gint marpa_b_or_node_and_count(Marpa_Bocage b, int or_node_id)
   return AND_Count_of_OR(or_node);
 }
 
+@** Bocage Ordering (O, ORDER) Code.
+@<Public incomplete structures@> =
+struct s_order;
+typedef struct s_order* Marpa_Order;
+@ @<Public incomplete structures@> =
+typedef Marpa_Order ORDER;
+@
+|t_obs| is
+an obstack with the lifetime of the Marpa order object.
+|t_and_node_orderings| is used as the "safe boolean"
+for the obstack.  They have the same lifetime, so
+that it is safe to destroy the obstack if
+and only if
+|t_and_node_orderings| is non-null.
+@d OBS_of_O(order) ((order)->t_obs)
+@d O_is_Frozen(o) ((o)->t_is_frozen)
+@<Private structures@> =
+struct s_order {
+    struct obstack t_obs;
+    Bit_Vector t_and_node_in_use;
+    ANDID** t_and_node_orderings;
+    @<Widely aligned order elements@>@;
+    @<Int aligned order elements@>@;
+    guint t_is_frozen:1;
+};
+@ @<Initialize order elements@> =
+{
+    o->t_and_node_in_use = NULL;
+    o->t_and_node_orderings = NULL;
+    o->t_is_frozen = 0;
+}
+
+@*0 The base objects of the bocage.
+@ @d B_of_O(b) ((b)->t_bocage)
+@<Widely aligned order elements@> =
+    BOCAGE t_bocage;
+
+@ @<Function definitions@> =
+Marpa_Order marpa_o_new(Marpa_Bocage b)
+{
+    @<Return |NULL| on failure@>@;
+    @<Unpack bocage objects@>@;
+    ORDER o;
+      @<Fail if fatal error@>@;
+    o = g_slice_new(struct s_order);
+    B_of_O(o) = b;
+    bocage_ref(b);
+    @<Initialize order elements@>@;
+    return o;
+}
+
+@*0 Reference Counting and Destructors.
+@ @<Int aligned order elements@>= gint t_ref_count;
+@ @<Initialize order elements@> =
+    o->t_ref_count = 1;
+
+@ Decrement the order reference count.
+@<Private function prototypes@> =
+static inline void order_unref (ORDER o);
+@ @<Function definitions@> =
+static inline void
+order_unref (ORDER o)
+{
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->t_ref_count);
+  MARPA_ASSERT (o->t_ref_count > 0)
+  o->t_ref_count--;
+  if (o->t_ref_count <= 0)
+    {
+      order_free(o);
+    }
+}
+void
+marpa_o_unref (Marpa_Order o)
+{
+   order_unref(o);
+}
+
+@ Increment the order reference count.
+@<Private function prototypes@> =
+static inline ORDER order_ref (ORDER o);
+@ @<Function definitions@> =
+static inline ORDER
+order_ref (ORDER o)
+{
+  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->t_ref_count);
+  MARPA_ASSERT(o->t_ref_count > 0)
+  o->t_ref_count++;
+  return o;
+}
+Marpa_Order
+marpa_o_ref (Marpa_Order o)
+{
+   return order_ref(o);
+}
+
+@ @<Private function prototypes@> =
+static inline void order_strip(ORDER o);
+@ @<Function definitions@> =
+static inline void order_strip(ORDER o)
+{
+  if (o->t_and_node_in_use)
+    {
+      bv_free (o->t_and_node_in_use);
+	o->t_and_node_in_use = NULL;
+    }
+}
+@ @<Private function prototypes@> =
+static inline void order_freeze(ORDER o);
+@ @<Function definitions@> =
+static inline void order_freeze(ORDER o)
+{
+  order_strip(o);
+  O_is_Frozen(o) = 0;
+}
+@ @<Private function prototypes@> =
+static inline void order_free(ORDER o);
+@ @<Function definitions@> =
+static inline void order_free(ORDER o)
+{
+    MARPA_DEBUG4("%s %s: Destroying %p", G_STRFUNC, G_STRLOC, o)
+  @<Unpack order objects@>@;
+  bocage_unref(b);
+  order_strip(o);
+  if (o->t_and_node_orderings) {
+      o->t_and_node_orderings = NULL;
+      obstack_free(&OBS_of_O(o), NULL);
+  }
+  g_slice_free(struct s_order, o);
+}
+
+@ @<Unpack order objects@> =
+    const BOCAGE b = B_of_O(o);
+    @<Unpack bocage objects@>@;
+
+@*0 The grammar of the order.
+@ This function returns the grammar of the order.
+It never returns an error.
+The grammar is always set when the order is initialized,
+and is never changed while the order exists.
+Fatal state is not reported,
+because it is kept in the grammar,
+so that
+either we can return the grammar in spite of
+its fatal state,
+or the problem is so severe than no
+errors can be properly reported.
+@<Function definitions@> =
+Marpa_Grammar marpa_o_g(Marpa_Order o)
+{
+  @<Unpack order objects@>@;
+  return g;
+}
+
+@*0 Set the Order of And-nodes.
+This function
+sets the order in which the and-nodes of an
+or-node are used.
+It is an error if an and-node ID is not the 
+immediate child of the specified or-node,
+or if the and-node is specified twice,
+or if an ordering has already been specified for
+the or-node.
+@ For a given bocage,
+this function may not be used to order
+the same or-node more than once.
+In other words, after you have once specified an order
+for the and-nodes within an or-node,
+you cannot change it.
+Some applications might find this inconvenient,
+and will have to resort to their own buffering
+to prevent multiple changes.
+But most applications won't care, and
+will benefit from the faster memory allocation
+this restriction allows.
+
+@ Using a bit vector for
+the index of an and-node within an or-node,
+instead of the and-node ID, would seem to allow
+an space efficiency: the size of the bit vector
+could be reduced to the maximum number of descendents
+of any or-node.
+But in fact, improvements from this approach are elusive.
+
+In the worst cases, these counts are the same, or
+almost the same.
+Any attempt to economize on space seems to always
+be counter-productive in terms of speed.
+And since
+allocating a bit vector for the worst case does
+not increase the memory high water mark,
+it would seems to be the most reasonable tradeoff.
+
+This in turn suggests there is no advantage is using
+a within-or-node index to index the bit vector,
+instead of using the and-node id to index the bit vector.
+Using the and-node ID does have the advantage that the bit
+vector does not need to be cleared for each or-node.
+@ The first position in each |and_node_orderings| array is not
+actually an |ANDID|, but a count.
+A purist might insist this needs to be reflected in a structure,
+but to my mind doing this portably makes the code more obscure,
+not less.
+@<Function definitions@> =
+gint marpa_o_and_order_set(
+    Marpa_Order o,
+    Marpa_Or_Node_ID or_node_id,
+    Marpa_And_Node_ID* and_node_ids,
+    gint length)
+{
+    OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack order objects@>@;
+  @<Fail if fatal error@>@;
+    if (O_is_Frozen (o))
+      {
+	MARPA_ERROR (MARPA_ERR_ORDER_FROZEN);
+	return failure_indicator;
+      }
+    @<Check |or_node_id|; set |or_node|@>@;
+    {
+      ANDID** and_node_orderings;
+      Bit_Vector and_node_in_use;
+      struct obstack *obs;
+      ANDID first_and_node_id;
+      ANDID and_count_of_or;
+	and_node_orderings = o->t_and_node_orderings;
+	and_node_in_use = o->t_and_node_in_use;
+	obs = &OBS_of_O(o);
+	if (!and_node_orderings)
+	  {
+	    gint and_id;
+	    const gint and_count_of_r = AND_Count_of_B (b);
+	    obstack_init(obs);
+	    o->t_and_node_orderings =
+	      and_node_orderings =
+	      obstack_alloc (obs, sizeof (ANDID *) * and_count_of_r);
+	    for (and_id = 0; and_id < and_count_of_r; and_id++)
+	      {
+		and_node_orderings[and_id] = (ANDID *) NULL;
+	      }
+	     o->t_and_node_in_use =
+	     and_node_in_use = bv_create ((guint)and_count_of_r);
+	  }
+	  first_and_node_id = First_ANDID_of_OR(or_node);
+	  and_count_of_or = AND_Count_of_OR(or_node);
+	    {
+	      gint and_ix;
+	      for (and_ix = 0; and_ix < length; and_ix++)
+		{
+		  ANDID and_node_id = and_node_ids[and_ix];
+		  if (and_node_id < first_and_node_id ||
+			  and_node_id - first_and_node_id >= and_count_of_or) {
+		      MARPA_DEV_ERROR ("and node not in or node");
+		      return failure_indicator;
+		    }
+		  if (bv_bit_test (and_node_in_use, (guint)and_node_id))
+		    {
+		      MARPA_DEV_ERROR ("dup and node");
+		      return failure_indicator;
+		    }
+		  bv_bit_set (and_node_in_use, (guint)and_node_id);
+		}
+	    }
+	    if (and_node_orderings[or_node_id]) {
+		      MARPA_DEV_ERROR ("or node already ordered");
+		      return failure_indicator;
+	    }
+	    {
+	      ANDID *orderings = obstack_alloc (obs, sizeof (ANDID) * (length + 1));
+	      gint i;
+	      and_node_orderings[or_node_id] = orderings;
+	      *orderings++ = length;
+	      for (i = 0; i < length; i++)
+		{
+		  *orderings++ = and_node_ids[i];
+		}
+	    }
+    }
+  return 1;
+}
+
+@*0 Get an And-node by Order within its Or-Node.
+@ @<Private function prototypes@> =
+static inline ANDID and_order_get(ORDER o, OR or_node, gint ix);
+@ @<Function definitions@> =
+static inline ANDID and_order_get(ORDER o, OR or_node, gint ix)
+{
+  @<Unpack order objects@>@;
+  ANDID **and_node_orderings;
+  if (ix >= AND_Count_of_OR (or_node))
+    {
+      return -1;
+    }
+  and_node_orderings = o->t_and_node_orderings;
+  if (and_node_orderings)
+    {
+      ORID or_node_id = ID_of_OR(or_node);
+      ANDID *ordering = and_node_orderings[or_node_id];
+      if (ordering)
+	{
+	  gint length = ordering[0];
+	  if (ix >= length)
+	    return -1;
+	  return ordering[1 + ix];
+	}
+    }
+  return First_ANDID_of_OR(or_node) + ix;
+}
+
+@ @<Function definitions@> =
+Marpa_And_Node_ID marpa_o_and_order_get(Marpa_Order o,
+    Marpa_Or_Node_ID or_node_id, gint ix)
+{
+    OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack order objects@>@;
+  @<Fail if fatal error@>@;
+    @<Check |or_node_id|; set |or_node|@>@;
+  if (ix < 0) {
+      MARPA_DEV_ERROR("negative and ix");
+      return failure_indicator;
+  }
+    return and_order_get(o, or_node, ix);
+}
+
 @** Parse Tree (T, TREE) Code.
 Within Marpa,
 when it makes sense in context,
@@ -11387,331 +11538,6 @@ gint marpa_t_size(Marpa_Tree t)
   return Size_of_T(t);
 }
 
-@** Bocage Ordering (O, ORDER) Code.
-@<Public incomplete structures@> =
-struct s_order;
-typedef struct s_order* Marpa_Order;
-@ @<Public incomplete structures@> =
-typedef Marpa_Order ORDER;
-@
-|t_obs| is
-an obstack with the lifetime of the Marpa order object.
-|t_and_node_orderings| is used as the "safe boolean"
-for the obstack.  They have the same lifetime, so
-that it is safe to destroy the obstack if
-and only if
-|t_and_node_orderings| is non-null.
-@d OBS_of_O(order) ((order)->t_obs)
-@d O_is_Frozen(o) ((o)->t_is_frozen)
-@<Private structures@> =
-struct s_order {
-    struct obstack t_obs;
-    Bit_Vector t_and_node_in_use;
-    ANDID** t_and_node_orderings;
-    @<Widely aligned order elements@>@;
-    @<Int aligned order elements@>@;
-    guint t_is_frozen:1;
-};
-@ @<Initialize order elements@> =
-{
-    o->t_and_node_in_use = NULL;
-    o->t_and_node_orderings = NULL;
-    o->t_is_frozen = 0;
-}
-
-@*0 The base objects of the bocage.
-@ @d B_of_O(b) ((b)->t_bocage)
-@<Widely aligned order elements@> =
-    BOCAGE t_bocage;
-
-@ @<Function definitions@> =
-Marpa_Order marpa_o_new(Marpa_Bocage b)
-{
-    @<Return |NULL| on failure@>@;
-    @<Unpack bocage objects@>@;
-    ORDER o;
-      @<Fail if fatal error@>@;
-    o = g_slice_new(struct s_order);
-    B_of_O(o) = b;
-    bocage_ref(b);
-    @<Initialize order elements@>@;
-    return o;
-}
-
-@*0 Reference Counting and Destructors.
-@ @<Int aligned order elements@>= gint t_ref_count;
-@ @<Initialize order elements@> =
-    o->t_ref_count = 1;
-
-@ Decrement the order reference count.
-@<Private function prototypes@> =
-static inline void order_unref (ORDER o);
-@ @<Function definitions@> =
-static inline void
-order_unref (ORDER o)
-{
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->t_ref_count);
-  MARPA_ASSERT (o->t_ref_count > 0)
-  o->t_ref_count--;
-  if (o->t_ref_count <= 0)
-    {
-      order_free(o);
-    }
-}
-void
-marpa_o_unref (Marpa_Order o)
-{
-   order_unref(o);
-}
-
-@ Increment the order reference count.
-@<Private function prototypes@> =
-static inline ORDER order_ref (ORDER o);
-@ @<Function definitions@> =
-static inline ORDER
-order_ref (ORDER o)
-{
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->t_ref_count);
-  MARPA_ASSERT(o->t_ref_count > 0)
-  o->t_ref_count++;
-  return o;
-}
-Marpa_Order
-marpa_o_ref (Marpa_Order o)
-{
-   return order_ref(o);
-}
-
-@ @<Private function prototypes@> =
-static inline void order_strip(ORDER o);
-@ @<Function definitions@> =
-static inline void order_strip(ORDER o)
-{
-  if (o->t_and_node_in_use)
-    {
-      bv_free (o->t_and_node_in_use);
-	o->t_and_node_in_use = NULL;
-    }
-}
-@ @<Private function prototypes@> =
-static inline void order_freeze(ORDER o);
-@ @<Function definitions@> =
-static inline void order_freeze(ORDER o)
-{
-  order_strip(o);
-  O_is_Frozen(o) = 0;
-}
-@ @<Private function prototypes@> =
-static inline void order_free(ORDER o);
-@ @<Function definitions@> =
-static inline void order_free(ORDER o)
-{
-    MARPA_DEBUG4("%s %s: Destroying %p", G_STRFUNC, G_STRLOC, o)
-  @<Unpack order objects@>@;
-  bocage_unref(b);
-  order_strip(o);
-  if (o->t_and_node_orderings) {
-      o->t_and_node_orderings = NULL;
-      obstack_free(&OBS_of_O(o), NULL);
-  }
-  g_slice_free(struct s_order, o);
-}
-
-@ @<Unpack order objects@> =
-    const BOCAGE b = B_of_O(o);
-    @<Unpack bocage objects@>@;
-
-@*0 The grammar of the order.
-@ This function returns the grammar of the order.
-It never returns an error.
-The grammar is always set when the order is initialized,
-and is never changed while the order exists.
-Fatal state is not reported,
-because it is kept in the grammar,
-so that
-either we can return the grammar in spite of
-its fatal state,
-or the problem is so severe than no
-errors can be properly reported.
-@<Function definitions@> =
-Marpa_Grammar marpa_o_g(Marpa_Order o)
-{
-  @<Unpack order objects@>@;
-  return g;
-}
-
-@*0 Set the Order of And-nodes.
-This function
-sets the order in which the and-nodes of an
-or-node are used.
-It is an error if an and-node ID is not the 
-immediate child of the specified or-node,
-or if the and-node is specified twice,
-or if an ordering has already been specified for
-the or-node.
-@ For a given bocage,
-this function may not be used to order
-the same or-node more than once.
-In other words, after you have once specified an order
-for the and-nodes within an or-node,
-you cannot change it.
-Some applications might find this inconvenient,
-and will have to resort to their own buffering
-to prevent multiple changes.
-But most applications won't care, and
-will benefit from the faster memory allocation
-this restriction allows.
-
-@ Using a bit vector for
-the index of an and-node within an or-node,
-instead of the and-node ID, would seem to allow
-an space efficiency: the size of the bit vector
-could be reduced to the maximum number of descendents
-of any or-node.
-But in fact, improvements from this approach are elusive.
-
-In the worst cases, these counts are the same, or
-almost the same.
-Any attempt to economize on space seems to always
-be counter-productive in terms of speed.
-And since
-allocating a bit vector for the worst case does
-not increase the memory high water mark,
-it would seems to be the most reasonable tradeoff.
-
-This in turn suggests there is no advantage is using
-a within-or-node index to index the bit vector,
-instead of using the and-node id to index the bit vector.
-Using the and-node ID does have the advantage that the bit
-vector does not need to be cleared for each or-node.
-@ The first position in each |and_node_orderings| array is not
-actually an |ANDID|, but a count.
-A purist might insist this needs to be reflected in a structure,
-but to my mind doing this portably makes the code more obscure,
-not less.
-@<Function definitions@> =
-gint marpa_o_and_order_set(
-    Marpa_Order o,
-    Marpa_Or_Node_ID or_node_id,
-    Marpa_And_Node_ID* and_node_ids,
-    gint length)
-{
-    OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack order objects@>@;
-  @<Fail if fatal error@>@;
-    if (O_is_Frozen (o))
-      {
-	MARPA_ERROR (MARPA_ERR_ORDER_FROZEN);
-	return failure_indicator;
-      }
-    @<Check |or_node_id|; set |or_node|@>@;
-    {
-      ANDID** and_node_orderings;
-      Bit_Vector and_node_in_use;
-      struct obstack *obs;
-      ANDID first_and_node_id;
-      ANDID and_count_of_or;
-	and_node_orderings = o->t_and_node_orderings;
-	and_node_in_use = o->t_and_node_in_use;
-	obs = &OBS_of_O(o);
-	if (!and_node_orderings)
-	  {
-	    gint and_id;
-	    const gint and_count_of_r = AND_Count_of_B (b);
-	    obstack_init(obs);
-	    o->t_and_node_orderings =
-	      and_node_orderings =
-	      obstack_alloc (obs, sizeof (ANDID *) * and_count_of_r);
-	    for (and_id = 0; and_id < and_count_of_r; and_id++)
-	      {
-		and_node_orderings[and_id] = (ANDID *) NULL;
-	      }
-	     o->t_and_node_in_use =
-	     and_node_in_use = bv_create ((guint)and_count_of_r);
-	  }
-	  first_and_node_id = First_ANDID_of_OR(or_node);
-	  and_count_of_or = AND_Count_of_OR(or_node);
-	    {
-	      gint and_ix;
-	      for (and_ix = 0; and_ix < length; and_ix++)
-		{
-		  ANDID and_node_id = and_node_ids[and_ix];
-		  if (and_node_id < first_and_node_id ||
-			  and_node_id - first_and_node_id >= and_count_of_or) {
-		      MARPA_DEV_ERROR ("and node not in or node");
-		      return failure_indicator;
-		    }
-		  if (bv_bit_test (and_node_in_use, (guint)and_node_id))
-		    {
-		      MARPA_DEV_ERROR ("dup and node");
-		      return failure_indicator;
-		    }
-		  bv_bit_set (and_node_in_use, (guint)and_node_id);
-		}
-	    }
-	    if (and_node_orderings[or_node_id]) {
-		      MARPA_DEV_ERROR ("or node already ordered");
-		      return failure_indicator;
-	    }
-	    {
-	      ANDID *orderings = obstack_alloc (obs, sizeof (ANDID) * (length + 1));
-	      gint i;
-	      and_node_orderings[or_node_id] = orderings;
-	      *orderings++ = length;
-	      for (i = 0; i < length; i++)
-		{
-		  *orderings++ = and_node_ids[i];
-		}
-	    }
-    }
-  return 1;
-}
-
-@*0 Get an And-node by Order within its Or-Node.
-@ @<Private function prototypes@> =
-static inline ANDID and_order_get(ORDER o, OR or_node, gint ix);
-@ @<Function definitions@> =
-static inline ANDID and_order_get(ORDER o, OR or_node, gint ix)
-{
-  @<Unpack order objects@>@;
-  ANDID **and_node_orderings;
-  if (ix >= AND_Count_of_OR (or_node))
-    {
-      return -1;
-    }
-  and_node_orderings = o->t_and_node_orderings;
-  if (and_node_orderings)
-    {
-      ORID or_node_id = ID_of_OR(or_node);
-      ANDID *ordering = and_node_orderings[or_node_id];
-      if (ordering)
-	{
-	  gint length = ordering[0];
-	  if (ix >= length)
-	    return -1;
-	  return ordering[1 + ix];
-	}
-    }
-  return First_ANDID_of_OR(or_node) + ix;
-}
-
-@ @<Function definitions@> =
-Marpa_And_Node_ID marpa_o_and_order_get(Marpa_Order o,
-    Marpa_Or_Node_ID or_node_id, gint ix)
-{
-    OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack order objects@>@;
-  @<Fail if fatal error@>@;
-    @<Check |or_node_id|; set |or_node|@>@;
-  if (ix < 0) {
-      MARPA_DEV_ERROR("negative and ix");
-      return failure_indicator;
-  }
-    return and_order_get(o, or_node, ix);
-}
-
 @** Nook (NOOK) Code.
 In Marpa, a nook is any node of a parse tree.
 The usual term is "node",
@@ -11893,18 +11719,20 @@ typedef Marpa_Step *STEP;
 @ This code helps
 compute a value for
 a parse tree.
-I say "helps" because evaluating a parse tree
+I say ``helps" because evaluating a parse tree
 involves semantics, and libmarpa has only
 limited knowledge of the semantics.
-This code is really just routines to assist
-the higher level in tracking the evaluation stack.
+This code is really just to assist
+the higher level in keeping an evaluation stack.
 \par
-The main reason for this code is to hide libmarpa's
+The main reason to have evaluation logic
+in libmarpa at all
+is to hide libmarpa's
 internal rewrites from the semantics.
 If it were not for that, it would probably be
 just as easy to provide a parse tree to the
 higher level and let them decide how to
-evaluation it.
+evaluate it.
 @<Public incomplete structures@> =
 struct s_value;
 typedef struct s_value* Marpa_Value;
@@ -11952,8 +11780,9 @@ in other places.
 @ Second, the fixed stack, to accomodate the worst
 case, would have to be many times larger than
 what will usually be needed.
-I calculate the 
-worst case for virtual stack size, as follows.
+My current best bound on the
+worst case for virtual stack size is as follows.
+\par
 The virtual stack only grows once for each virtual
 rules.
 To be virtual, a rule must divide into a least two
@@ -12017,7 +11846,7 @@ static inline void
 value_unref (VALUE v)
 {
   MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, v->t_ref_count);
-  MARPA_ASSERT (v->t_ref_count > 0)
+  MARPA_ASSERT (v->t_ref_count > 0)@;
   v->t_ref_count--;
   if (v->t_ref_count <= 0)
     {
@@ -12120,13 +11949,9 @@ Marpa_Nook_ID marpa_v_step(Marpa_Value v, Marpa_Step* step)
 {
     @<Return |-2| on failure@>@;
     AND and_nodes;
-    gint semantic_rule_id = -1;
-    gint token_id = -1;
-    gpointer token_value = NULL;
+    NOOKID nook_ix;
     gint arg_0 = -1;
     gint arg_n = -1;
-    NOOKID nook_ix;
-    gint continue_with_next_nook;
     @<Unpack value objects@>@;
 
     /* step is not changed in case of hard failure */
@@ -12142,13 +11967,14 @@ Marpa_Nook_ID marpa_v_step(Marpa_Value v, Marpa_Step* step)
     if (nook_ix < 0) {
 	nook_ix = Size_of_TREE(t);
     }
-    continue_with_next_nook = !V_is_Trace(v);
 
-    while (1) {
+    while (nook_ix >= 1) {
 	OR or;
 	RULE nook_rule;
+	gint semantic_rule_id = -1;
+	gint token_id = -1;
+	gpointer token_value = NULL;
 	nook_ix--;
-	if (nook_ix < 0) goto RETURN_SOFT_ERROR;
 	{
 	    ANDID and_node_id;
 	    AND and_node;
@@ -12161,13 +11987,11 @@ Marpa_Nook_ID marpa_v_step(Marpa_Value v, Marpa_Step* step)
 	}
 	if (token_id >= 0) {
 	    arg_0 = ++arg_n;
-MARPA_OFF_DEBUG3("symbol %d at %d", token_id, arg_0);
-	    continue_with_next_nook = 0;
 	}
 	nook_rule = RULE_of_OR(or);
 	if (Position_of_OR(or) == Length_of_RULE(nook_rule)) {
-	    gint virtual_rhs = RULE_is_Virtual_RHS(nook_rule);
-	    gint virtual_lhs = RULE_is_Virtual_LHS(nook_rule);
+	    gint virtual_rhs = RULE_has_Virtual_RHS(nook_rule);
+	    gint virtual_lhs = RULE_has_Virtual_LHS(nook_rule);
 	    gint real_symbol_count;
 	    const DSTACK virtual_stack = &VStack_of_V(v);
 	    if (virtual_lhs) {
@@ -12177,7 +12001,7 @@ MARPA_OFF_DEBUG3("symbol %d at %d", token_id, arg_0);
 		} else {
 		    *DSTACK_PUSH(*virtual_stack, gint) = real_symbol_count;
 		}
-		goto NEXT_NOOK;
+		goto RETURN_VALUE_IF_APPROPRIATE;
 	    }
 	    if (virtual_rhs) {
 	        real_symbol_count = Real_SYM_Count_of_RULE(nook_rule);
@@ -12189,17 +12013,20 @@ MARPA_OFF_DEBUG3("symbol %d at %d", token_id, arg_0);
 	    semantic_rule_id =
 	      nook_rule->t_is_semantic_equivalent ?
 		  nook_rule->t_original : ID_of_RULE(nook_rule);
-	    continue_with_next_nook = 0;
 	}
-	NEXT_NOOK: ;
-	if (!continue_with_next_nook) break;
+	if (semantic_rule_id >= 0
+		&& !RULE_is_Ask_Me(RULE_by_ID(g, semantic_rule_id))) {
+	    semantic_rule_id = -1;
+	    arg_n = arg_0;
+	}
+	RETURN_VALUE_IF_APPROPRIATE: ;
+	if ( semantic_rule_id >= 0 || token_id >= 0 || V_is_Trace(v)) {
+	    @<Write results to |v| and |step|@>@;
+	    return NOOK_of_V(v);
+	}
     }
 
-    @<Write results to |v| and |step|@>@;
-    return NOOK_of_V(v);
-
-    RETURN_SOFT_ERROR: ;
-    @<Write results to |v| and |step|@>@;
+    V_is_Active(v) = 0;
     return -1;
 
 }
@@ -12213,9 +12040,6 @@ MARPA_OFF_DEBUG3("symbol %d at %d", token_id, arg_0);
     NOOK_of_V(v) = nook_ix;
     ArgN_of_STEP(step) = arg_n;
 }
-
-@ {\bf To Do}: @^To Do@>
-Remove all the "no bocage" messages.
 
 @** Boolean Vectors.
 Marpa's boolean vectors are adapted from
@@ -12950,7 +12774,7 @@ to help the ``thief" container
 deallocate the data it now has ``stolen".
 @d STOLEN_DSTACK_DATA_FREE(data) ((data) && (g_free(data), 1))
 @d DSTACK_DESTROY(this) STOLEN_DSTACK_DATA_FREE(this.t_base)
-
+@s DSTACK int
 @<Private incomplete structures@> =
 struct s_dstack;
 typedef struct s_dstack* DSTACK;
@@ -13369,9 +13193,8 @@ to be set in the scope in which it is used.
 All failures treated in this section are general failures,
 so that |-1| is not used as a return value.
 
-@ Routines with nothing else to return often use |FALSE| as the failure indicator.
-@<Return |FALSE| on failure@> = const gboolean failure_indicator = FALSE;
-@ Routines returning pointers often use |NULL| as the failure indicator.
+@ Routines returning pointers typically use |NULL| as
+the general failure indicator.
 @<Return |NULL| on failure@> = const gpointer failure_indicator = NULL;
 @ Routines returning integer value use |-2| as the
 general failure indicator.

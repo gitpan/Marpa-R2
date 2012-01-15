@@ -208,16 +208,13 @@ sub process_xs {
     File::Path::mkpath( $spec->{archdir}, 0, ( oct 777 ) )
         if not -d $spec->{archdir};
 
-    # finalize libmarpa.a
-    my $libmarpa_libs_dir =
-        File::Spec->catdir( $self->base_dir(), qw(libmarpa build .libs) );
-
-    for my $object (qw(libmarpa_la-marpa.o libmarpa_la-marpa_obs.o)) {
-	my $from_object =
-	    File::Spec->catfile( $libmarpa_libs_dir, $object );
-	my $to_object = File::Spec->catfile( $xs_dir, $object );
-	$self->copy_if_modified(from => $from_object, to => $to_object);
-	push @{ $self->{properties}->{objects} }, $to_object;
+    {
+        # finalize libmarpa.a
+        my $libmarpa_libs_dir =
+            File::Spec->catdir( $self->base_dir(), qw(libmarpa build .libs) );
+        my $libmarpa_archive =
+            File::Spec->catfile( $libmarpa_libs_dir, 'libmarpa.a' );
+        push @{ $self->{properties}->{objects} }, $libmarpa_archive;
     }
 
     # .xs -> .bs
@@ -271,11 +268,13 @@ sub do_libmarpa {
     my $self         = shift;
     my $cwd          = $self->cwd();
     my $base_dir     = $self->base_dir();
+
     my $build_dir = File::Spec->catdir( $base_dir, qw(libmarpa build) );
     -d $build_dir or mkdir $build_dir;
     chdir $build_dir;
     my $updir = File::Spec->updir();
-    my $configure_script = File::Spec->catfile( $updir, 'dist', 'configure' );
+    my $configure_script =
+        File::Spec->catfile( $updir, 'dist', 'configure' );
     if ( not -r 'stamp-h1' ) {
 
         if ( $self->verbose() ) {
@@ -288,7 +287,7 @@ sub do_libmarpa {
         $shell or die q{No Bourne shell available says $Config{sh}};
 ##use critic
 
-        my @configure_command_args = ();
+        my @configure_command_args = ('--disable-static');
         if ( defined $self->args('marpa_debug') ) {
             push @configure_command_args, "CFLAGS=-DMARPA_DEBUG";
         }
