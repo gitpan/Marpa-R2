@@ -1,4 +1,4 @@
-# Copyright 2011 Jeffrey Kegler
+# Copyright 2012 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_018';
+$VERSION        = '0.001_019';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -984,14 +984,14 @@ sub Marpa::R2::Recognizer::earleme_complete {
     my $event_count = $recce_c->earleme_complete();
     EVENT: for my $event_ix ( 0 .. $event_count - 1 ) {
         my ($event_type, $value) = $recce_c->event($event_ix);
-        next EVENT if $event_type eq 'exhausted';
-        if ( $event_type eq 'earley item count' ) {
+        next EVENT if $event_type eq 'MARPA_EVENT_EXHAUSTED';
+        if ( $event_type eq 'MARPA_EVENT_EARLEY_ITEM_THRESHOLD' ) {
             say {
                 $recce->[Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE] }
                 "Earley item count ($value) exceeds warning threshold"
                 or die "say: $ERRNO";
             next EVENT;
-        } ## end if ( $event_type eq 'earley item count' )
+        } ## end if ( $event_type eq 'MARPA_EVENT_EARLEY_ITEM_THRESHOLD')
         Marpa::R2::exception(
             qq{Unknown earleme completion event; type="$event_type"});
     } ## end for my $event_ix ( 0 .. $event_count - 1 )

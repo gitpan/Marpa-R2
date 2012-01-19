@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Copyright 2011 Jeffrey Kegler
+# Copyright 2012 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -27,7 +27,7 @@ use Module::Build;
 use ExtUtils::PkgConfig;
 use Glib::Install::Files;
 
-use lib File::Spec->catdir('config');
+use lib File::Spec->catdir('inc');
 use Marpa::R2::Build_Me;
 use Marpa::R2::Config;
 
@@ -121,7 +121,7 @@ my $build = Marpa::R2::Build_Me->new(
     build_requires     => \%build_requires,
     dynamic_config     => 1,
     extra_compiler_flags =>
-        ( "$glib_2_0_compiler_flags -I$gperl_h_location -Ixs/include " ),
+        ( "$glib_2_0_compiler_flags -I$gperl_h_location " ),
     extra_linker_flags => "$glib_2_0_linker_flags",
     PL_files           => {},
     pm_files           => \%pm_files,
@@ -135,7 +135,7 @@ my $build = Marpa::R2::Build_Me->new(
             { repository => 'git://github.com/jeffreykegler/Marpa-R2.git', },
         no_index => {
             directory => [
-                qw( pperl config inc tool t html devlib libmarpa author.t
+                qw( pperl tool html libmarpa author.t
                     html/etc html/sandbox html/script html/t
                     )
             ],

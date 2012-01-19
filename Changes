@@ -1,4 +1,4 @@
-# Copyright 2011 Jeffrey Kegler
+# Copyright 2012 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -15,6 +15,7 @@
 
 Revision history for Marpa::R2
 
+0.001_019 Thu Jan 19 08:40:41 PST 2012
 0.001_018 Sat Jan 14 21:33:30 PST 2012
 0.001_017 Fri Jan  6 20:51:24 PST 2012
 0.001_016 Mon Jan  2 11:47:24 PST 2012

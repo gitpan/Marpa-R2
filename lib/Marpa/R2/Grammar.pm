@@ -1,4 +1,4 @@
-# Copyright 2011 Jeffrey Kegler
+# Copyright 2012 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_018';
+$VERSION        = '0.001_019';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -535,15 +535,21 @@ sub Marpa::R2::Grammar::precompute {
             );
         }
         if ( $error_code == $Marpa::R2::Error::COUNTED_NULLABLE ) {
+            my @counted_nullables = ();
+            my $event_ix          = 0;
+            EVENT: while ( my ( $event_type, $value ) =
+                $grammar_c->event( $event_ix++ ) )
+            {
+                last EVENT if not defined $event_type;
+                if ( $event_type eq 'MARPA_EVENT_COUNTED_NULLABLE') {
+                    push @counted_nullables, $grammar->symbol_name($value);
+                }
+            } ## end while ( my ( $event_type, $value ) = $grammar_c->event(...))
             my @counted_nullable_messages = map {
                       q{Nullable symbol "}
-                    . $grammar->symbol_name($_)
+                    . $_
                     . qq{" is on rhs of counted rule\n}
-                }
-                grep {
-                        $grammar_c->symbol_is_counted($_)
-                    and $grammar_c->symbol_is_nullable($_)
-                } ( 0 .. $#{$symbols} );
+            } @counted_nullables;
             Marpa::R2::exception( @counted_nullable_messages,
                 'Counted nullables confuse Marpa -- please rewrite the grammar'
             );
@@ -595,7 +601,7 @@ sub Marpa::R2::Grammar::precompute {
         $grammar->[Marpa::R2::Internal::Grammar::INFINITE_ACTION];
     EVENT: for my $event_ix ( 0 .. $event_count - 1 ) {
         my ( $event_type, $value ) = $grammar_c->event($event_ix);
-        if ( $event_type eq 'loop rules' ) {
+        if ( $event_type eq 'MARPA_EVENT_LOOP_RULES' ) {
             next EVENT if $infinite_action eq 'quiet';
             my @rule_seen;
             RULE: for my $rule_id ( 0 .. $#{$rules} ) {
@@ -611,7 +617,7 @@ sub Marpa::R2::Grammar::precompute {
             Marpa::R2::exception('Cycles in grammar, fatal error')
                 if $infinite_action eq 'fatal';
             next EVENT;
-        } ## end if ( $event_type eq 'loop rules' )
+        } ## end if ( $event_type eq 'MARPA_EVENT_LOOP_RULES' )
         Marpa::R2::exception(
             qq{Unknown earleme completion event; type="$event_type"});
     } ## end for my $event_ix ( 0 .. $event_count - 1 )
@@ -1665,24 +1671,15 @@ sub add_user_rule {
     } ## end if ( not defined $event_count )
     for my $event_ix ( 0 .. $event_count - 1 ) {
         my ( $event_type, $value ) = $grammar_c->event($event_ix);
-        if ( $event_type eq 'new symbol' ) {
+        if ( $event_type eq 'MARPA_EVENT_NEW_SYMBOL' ) {
             my $name = $sequence_symbol_name_base;
-            if ( $grammar_c->symbol_is_nulling($value) ) {
-                if ($sequence_null_symbol_count) {
-                    $name .= '[' . $sequence_null_symbol_count . '][]';
-                }
-                shadow_symbol( $grammar, $value, $name );
-                $sequence_null_symbol_count++;
-            } ## end if ( $grammar_c->symbol_is_nulling($value) )
-            else {
-                if ($sequence_symbol_count) {
-                    $name .= '[' . $sequence_symbol_count . ']';
-                }
-                shadow_symbol( $grammar, $value, $name );
-                $sequence_symbol_count++;
-            } ## end else [ if ( $grammar_c->symbol_is_nulling($value) ) ]
-        } ## end if ( $event_type eq 'new symbol' )
-        if ( $event_type eq 'new rule' ) {
+            if ($sequence_symbol_count) {
+                $name .= '[' . $sequence_symbol_count . ']';
+            }
+            shadow_symbol( $grammar, $value, $name );
+            $sequence_symbol_count++;
+        } ## end if ( $event_type eq 'MARPA_EVENT_NEW_SYMBOL' )
+        if ( $event_type eq 'MARPA_EVENT_NEW_RULE' ) {
             push @sequence_rule_ids, $value;
         }
     } ## end for my $event_ix ( 0 .. $event_count - 1 )

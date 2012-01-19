@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Jeffrey Kegler
+ * Copyright 2012 Jeffrey Kegler
  * This file is part of Marpa::R2.  Marpa::R2 is free software: you can
  * redistribute it and/or modify it under the terms of the GNU Lesser
  * General Public License as published by the Free Software Foundation,
@@ -76,27 +76,18 @@ static const char order_c_class_name[] = "Marpa::R2::Internal::O_C";
 static const char tree_c_class_name[] = "Marpa::R2::Internal::T_C";
 static const char value_c_class_name[] = "Marpa::R2::Internal::V_C";
 
-static const char *
-event_type_to_string (Marpa_Event_Type type)
-{
-  switch (type)
-    {
-    case MARPA_G_EV_EXHAUSTED:
-      return "exhausted";
-    case MARPA_G_EV_EARLEY_ITEM_THRESHOLD:
-      return "earley item count";
-    case MARPA_G_EV_LOOP_RULES:
-      return "loop rules";
-    case MARPA_G_EV_NEW_SYMBOL:
-      return "new symbol";
-    case MARPA_G_EV_NEW_RULE:
-      return "new rule";
-    }
-  return NULL;
-}
+#include "codes.h"
+#include "codes.c"
 
-#include "error.h"
-#include "error.c"
+static const char *
+event_type_to_string (Marpa_Event_Type event_code)
+{
+  const char *event_name = NULL;
+  if (event_code >= 0 && event_code < MARPA_ERROR_COUNT) {
+      event_name = marpa_event_description[event_code].name;
+  }
+  return event_name;
+}
 
 /* This routine is for the handling exceptions
    from libmarpa.  It is used when in the general
@@ -258,12 +249,11 @@ PREINIT:
     const char *version_error;
 PPCODE:
     version_error =
-	marpa_check_version(MARPA_MAJOR_VERSION, MARPA_MINOR_VERSION, MARPA_MICRO_VERSION,
-	   MARPA_VARIANT);
+	marpa_check_version(MARPA_MAJOR_VERSION, MARPA_MINOR_VERSION, MARPA_MICRO_VERSION);
     if (version_error) {
 	  croak ("Problem in Marpa::R2->new(): %s", version_error);
     }
-    g = marpa_g_new(MARPA_VARIANT);
+    g = marpa_g_new( MARPA_MAJOR_VERSION, MARPA_MINOR_VERSION, MARPA_MICRO_VERSION);
     Newx( g_wrapper, 1, G_Wrapper );
     g_wrapper->g = g;
     g_wrapper->message_buffer = NULL;
@@ -379,6 +369,10 @@ PPCODE:
   struct marpa_event event;
   const char *result_string = NULL;
   Marpa_Event_Type result = marpa_g_event (g, &event, ix);
+  if (result == -1)
+  {
+      XSRETURN_UNDEF;
+  }
   if (result < 0)
     {
       croak ("Problem in g->event(): %s", xs_g_error (g_wrapper));
@@ -1024,23 +1018,44 @@ PPCODE:
 }
 
 Marpa_Rule_ID
-real_symbol_count( g, rule_id )
-    Grammar *g;
+real_symbol_count( g_wrapper, rule_id )
+    G_Wrapper *g_wrapper;
     Marpa_Rule_ID rule_id;
-CODE:
-    RETVAL = marpa_g_real_symbol_count(g, rule_id);
-OUTPUT:
-    RETVAL
+PPCODE:
+{
+  Marpa_Grammar g = g_wrapper->g;
+    gint result = marpa_g_real_symbol_count(g, rule_id);
+  if (result <= -2)
+    {
+      croak ("Problem in g->rule_original(%d): %s", rule_id,
+	     xs_g_error (g_wrapper));
+    }
+  if (result == -1)
+    {
+      XSRETURN_UNDEF;
+    }
+  XPUSHs (sv_2mortal (newSViv (result)));
+}
 
 Marpa_Rule_ID
-rule_original( g, rule_id )
-    Grammar *g;
+rule_original( g_wrapper, rule_id )
+    G_Wrapper *g_wrapper;
     Marpa_Rule_ID rule_id;
-CODE:
-    RETVAL = marpa_g_rule_original(g, rule_id);
-    if (RETVAL < 0) { XSRETURN_UNDEF; }
-OUTPUT:
-    RETVAL
+PPCODE:
+{
+  Marpa_Grammar g = g_wrapper->g;
+    gint result = marpa_g_rule_original(g, rule_id);
+  if (result <= -2)
+    {
+      croak ("Problem in g->rule_original(%d): %s", rule_id,
+	     xs_g_error (g_wrapper));
+    }
+  if (result == -1)
+    {
+      XSRETURN_UNDEF;
+    }
+  XPUSHs (sv_2mortal (newSViv (result)));
+}
 
 void
 rule_ask_me_set( g_wrapper, rule_id )
@@ -1048,7 +1063,7 @@ rule_ask_me_set( g_wrapper, rule_id )
     Marpa_Rule_ID rule_id;
 PPCODE:
 {
-  struct marpa_g *g = g_wrapper->g;
+  Marpa_Grammar g = g_wrapper->g;
   gint result = marpa_g_rule_ask_me_set (g, rule_id);
   if (result <= -2)
     {

@@ -1,4 +1,4 @@
-# Copyright 2011 Jeffrey Kegler
+# Copyright 2012 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -20,7 +20,23 @@ PDFTEX = pdftex
 CWEAVE = cweave
 CTANGLE = ctangle
 
-SOURCES = cwebmac.tex marpa.w copyright_page_license.w
+MARPA_PDF_SOURCES = cwebmac.tex marpa.w copyright_page_license.w
+
+CONFIGURE_FILES = \
+    ../stage/Makefile.am \
+    ../stage/configure.ac
+
+STAGE_FILES = \
+    $(CONFIGURE_FILES) \
+    ../stage/api.texi \
+    ../stage/codes.c \
+    ../stage/codes.h \
+    ../stage/marpa.c \
+    ../stage/marpa.h \
+    ../stage/marpa_api.h \
+    ../stage/marpa_obs.c \
+    ../stage/marpa_obs.h \
+    ../stage/private.h
 
 .SUFFIXES: .dvi .tex .w .pdf
 
@@ -48,41 +64,64 @@ SOURCES = cwebmac.tex marpa.w copyright_page_license.w
 	 pdftex ) pdftex $* ;; \
 	esac
 
-all: marpa.pdf marpa.c marpa.h.in api.h.in error.h.in error.c.in docs
+all: marpa.pdf sources
 
-docs: api.pdf api/index.html
+sources: marpa.c marpa.h marpa_api.h codes.h codes.c
 
-api/index.html: api.texi
-	makeinfo --html api.texi
+marpa.h marpa.c: copyright_page_license.w marpa.w
+	$(CTANGLE) marpa.w
 
-api.pdf: api.texi
-	texi2dvi --pdf api.texi
+codes.c codes.h marpa_api.h: api.texi texi2code.pl
+	perl texi2code.pl marpa_api.h codes.h codes.c < api.texi
 
-marpa.c marpa.h.in: copyright_page_license.w marpa.w
-
-error.c.in error.h.in api.h.in: api.texi texi2code.pl
-	perl texi2code.pl api.h.in error.h.in error.c.in < api.texi
+private.h: marpa.w w2private_h.pl
+	perl w2private_h.pl private.h < marpa.w
 
 marpa.pdf: marpa.tex cwebmac.tex
 
-../build_dist/marpa.tar.gz: marpa.c \
-    marpa.h.in api.h.in error.c.in error.h.in \
-    ../build_dist/Makefile
-	cp marpa.c api.h.in error.h.in error.c.in marpa.h.in ../stage_dist
-	cd ../build_dist && make dist
-	version=`cat ../build_dist/VERSION`; \
-	    cd ../build_dist \
-	    && mv marpa-$$version.tar.gz marpa.tar.gz
+../stage/configure.ac: dist/configure.ac
+	cp $? $@
 
-../build_dist/Makefile: ../stage_dist/configure ../stage_dist/Makefile.in
-	cd ../build_dist && ../stage_dist/configure
+../stage/Makefile.am: dist/Makefile.am
+	cp $? $@
 
-../VERSION: ../build_dist/VERSION ../build_dist/marpa.tar.gz
-	cp ../build_dist/VERSION ../VERSION
-	version=`cat ../VERSION`; \
-	    cd ..  \
-	    && tar -xvzf build_dist/marpa.tar.gz \
-	    && rm -rf dist \
-	    && mv marpa-$$version dist
+../stage/api.texi: api.texi
+	cp $? $@
 
-install: ../VERSION
+../stage/codes.c: codes.c
+	cp $? $@
+
+../stage/codes.h: codes.h
+	cp $? $@
+
+../stage/marpa.c: marpa.c
+	cp $? $@
+
+../stage/marpa.h: marpa.h
+	cp $? $@
+
+../stage/marpa_api.h: marpa_api.h
+	cp $? $@
+
+../stage/marpa_obs.c: marpa_obs.c
+	cp $? $@
+
+../stage/marpa_obs.h: marpa_obs.h
+	cp $? $@
+
+../stage/private.h: private.h
+	cp $? $@
+
+../stage/configure: $(CONFIGURE_FILES)
+	test -d ../stage/m4 || mkdir ../stage/m4
+	cd ../stage && autoreconf -iv
+
+../stage/Makefile: ../stage/configure
+	cd ../stage && ../stage/configure
+
+../stage/api.pdf: ../stage/Makefile ../stage/api.texi
+	cd ../stage && make pdf
+
+install: $(STAGE_FILES) ../stage/configure
+
+docs: marpa.pdf ../stage/api.pdf
