@@ -22,6 +22,8 @@ CTANGLE = ctangle
 
 MARPA_PDF_SOURCES = cwebmac.tex marpa.w copyright_page_license.w
 
+.PHONY: install stage_dirs
+
 CONFIGURE_FILES = \
     ../stage/Makefile.am \
     ../stage/configure.ac
@@ -112,7 +114,11 @@ marpa.pdf: marpa.tex cwebmac.tex
 ../stage/private.h: private.h
 	cp $? $@
 
-../stage/configure: $(CONFIGURE_FILES)
+stage_dirs:
+	test -d ../stage || mkdir ../stage
+	test -d ../stage/m4 || mkdir ../stage/m4
+
+../stage/configure: stage_dirs $(CONFIGURE_FILES)
 	test -d ../stage/m4 || mkdir ../stage/m4
 	cd ../stage && autoreconf -iv
 
@@ -122,6 +128,9 @@ marpa.pdf: marpa.tex cwebmac.tex
 ../stage/api.pdf: ../stage/Makefile ../stage/api.texi
 	cd ../stage && make pdf
 
-install: $(STAGE_FILES) ../stage/configure
+../stage/api.html/index.html: ../stage/Makefile ../stage/api.texi
+	cd ../stage && make html
 
-docs: marpa.pdf ../stage/api.pdf
+install: stage_dirs $(STAGE_FILES) ../stage/configure
+
+docs: marpa.pdf ../stage/api.pdf ../stage/api.html/index.html

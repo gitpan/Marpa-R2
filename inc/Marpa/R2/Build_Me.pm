@@ -24,7 +24,7 @@ use warnings;
 use Config;
 use ExtUtils::Manifest;
 use File::Copy;
-use Cwd 'abs_path';
+use Cwd;
 use IPC::Cmd;
 use Module::Build;
 use Fatal qw(open close chdir chmod utime);
@@ -258,23 +258,8 @@ sub do_libmarpa {
     my $cwd          = $self->cwd();
     my $base_dir     = $self->base_dir();
 
-    # read MANIFEST before chdir
-    my $manifest_hash = ExtUtils::Manifest::maniread();
     my $build_dir = File::Spec->catdir( $base_dir, qw(libmarpa build) );
-    my $stage_dir = File::Spec->catdir( $base_dir, qw(libmarpa stage) );
     -d $build_dir or mkdir $build_dir;
-    if ( defined $self->args('from_stage') ) {
-        chdir $stage_dir;
-        BUILD_FILE: for my $build_file ( keys %{$manifest_hash} ) {
-
-            # names in MANIFEST are always UNIX-style
-            $build_file =~ s{ \A libmarpa / build / }{}xms or next BUILD_FILE;
-            my $localized_file =
-                File::Spec->catfile( split m{/}xms, $build_file );
-            $self->copy_if_modified( $localized_file, $build_dir );
-        } ## end for my $build_file ( keys %{$manifest_hash} )
-    } ## end if ( defined $self->args('from_stage') )
-    chdir $cwd;
     chdir $build_dir;
 
     my $configure_script = 'configure';
@@ -339,6 +324,7 @@ sub ACTION_manifest {
 
 sub make_writeable {
     my $file = shift;
+    die qq{"$file" in "}, getcwd(), qq{" does not exist} if ! -e $file;
     my $current_mode =  (stat $file)[2];
     die qq{mode not defined for $file} if not defined $current_mode;
     chmod $current_mode | (oct 200), $file;

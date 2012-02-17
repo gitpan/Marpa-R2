@@ -1,5 +1,5 @@
 \input texinfo @c -*-texinfo-*- 
-@c %**start of header 
+@c %**start of header
 @setfilename api.info 
 @settitle libmarpa @value{VERSION}
 @c %**end of header 
@@ -30,38 +30,127 @@ Published @value{UPDATED} by Jeffrey Kegler
 @c So the toc is printed at the start. 
 @contents 
 @ifnottex 
-@node Top 
-@top title 
+@node Top, How to read this document, (dir), (dir)
+@top libmarpa: The Marpa low-level library
 
 This manual is for libmarpa, version @value{VERSION}. 
 
 @end ifnottex 
-@menu 
-* How to read this document:: How to read this document
-* About libmarpa:: About libmarpa
-* Concepts:: libmarpa Concepts
-* Version checking:: Checking the libmarpa version
-* Grammars:: Grammars
-* Events:: Events
-* Recognizers:: Recognizers
-* Bocage:: Bocage objects
-* Order:: Order objects
-* Tree:: Parse Trees
-* Value:: Value objects
-* Error handling:: Error handling
-@end menu 
+@menu
+* How to read this document::   
+* About libmarpa::              What is libmarpa?
+* Time objects::                
+* The architecture of Marpa::   
+* Threads::                     
+* Numbered objects::            
+* Semantics::                   
+* Version checking::            Checking the libmarpa version.
+* Grammars::                    Grammar time objects
+* Events::                      libmarpa Events
+* Recognizers::                 Recognizers.
+* Bocage::                      Bocage objects.
+* Order::                       Order objects.
+* Tree::                        Parse Trees.
+* Value::                       Value objects.
+* Error handling::              
 
-@node How to read this document
+@detailmenu
+ --- The Detailed Node Listing ---
+
+How to read this document
+
+* What is this document::       What is this document?
+* Prerequisites::               Prerequisites.
+* Which chapters to read first::  Which chapters to read first.
+* Parsing theory::              Parsing theory.
+
+Time objects
+
+* The sequence of time objects::  
+* Base grammars::               
+* The lifetime of time objects::  
+
+The architecture of Marpa
+
+* Architecture - Grammar::      
+* Recognition versus parsing::  
+* Why so many time objects::    
+
+Grammars
+
+* Precomputation::              
+
+Numbered objects
+
+* Numbered object implementation::  
+
+Semantics
+
+* Token values::                
+
+Grammars
+
+* Grammar constructor::         Creating a new grammar.
+* Grammar reference counting::  Tracking the reference count of the grammar.
+* Symbols::                     
+* Terminals::                   Terminal symbols.
+* Rules::                       
+* Grammar precomputation::      Precomputing the Grammar.
+* Symbol internals::            Methods that deal with symbol internals.
+* Rule internals::              
+* Grammar internals::           Methods that deal with grammar internals.
+
+Events
+
+* Event accessor::              Event accessor.
+* Event codes::                 Event codes.
+
+Recognizer objects
+
+* Recognizer constructor::      Creating a new recognizer.
+* Recognizer reference counting::  Keeping the reference count of a recognizer.
+* Recognizer life::             Taking a recognizer through its life cycle.
+* Recognizer internals::        Meddling with the recognizer internals.
+
+Bocage objects
+
+* Bocage reference counting::   
+* Bocage internals::            Bocage internals.
+
+Orderings
+
+* Ordering constructor::        
+* Ordering reference counting::  
+* Ordering internals::          
+
+Tree iterators
+
+* Tree constructor::            
+* Tree reference counting::     
+* Tree iteration::              
+* Tree internals::              Internals.
+
+Value objects
+
+* Valuator constructor::        
+* Valuator reference counting::  
+* Valuator stepping::           
+* Valuator tracing::            
+
+@end detailmenu
+@end menu
+
+@node How to read this document, About libmarpa, Top, Top
 @chapter How to read this document
 
-@menu 
-* What is this document::What is this document?
-* Prerequisites::Prerequisites
-* Which chapters to read first::Which chapters to read first
-* Parsing theory::Parsing theory
+@menu
+* What is this document::       What is this document?
+* Prerequisites::               Prerequisites.
+* Which chapters to read first::  Which chapters to read first.
+* Parsing theory::              Parsing theory.
 @end menu 
 
-@node What is this document
+@node What is this document, Prerequisites, How to read this document, How to read this document
 @section What is this document?
 
 This document is intended as a reference manual
@@ -72,7 +161,7 @@ the technical knowledge required to appreciate its
 contents or, for that matter,
 even the C language itself.
 
-@node Prerequisites
+@node Prerequisites, Which chapters to read first, What is this document, How to read this document
 @section Prerequisites
 
 This document is very far from self-contained.
@@ -94,7 +183,7 @@ The reader knows some parsing theory.
 @xref{Parsing theory}.
 @end itemize
 
-@node Which chapters to read first
+@node Which chapters to read first, Parsing theory, Prerequisites, How to read this document
 @section Which chapters to read first
 
 Early chapters of this document lay out concepts,
@@ -110,7 +199,7 @@ in the order,
 and to the extent,
 of his interest.
 
-@node Parsing theory
+@node Parsing theory,  , Which chapters to read first, How to read this document
 @section Parsing theory
 
 This document also assumes an acquaintance
@@ -157,7 +246,7 @@ one of the packages that extend
 regular expressions,
 he should have no trouble with BNF.
 
-@node About libmarpa
+@node About libmarpa, Time objects, How to read this document, Top
 @chapter About libmarpa
 This is the reference manual for libmarpa.
 Libmarpa implements the Marpa parsing algorithm.
@@ -284,14 +373,350 @@ to catch them at runtime or
 failing all else,
 to successfully debug the logic.
 
-@node Concepts
-@chapter libmarpa Concepts
+@node Time objects, The architecture of Marpa, About libmarpa, Top
+@chapter Time objects
 
-@menu 
-* Token values:: Token values
-@end menu 
+Libmarpa's most important objects are time objects.
+Grammars and recognizers are examples of time objects.
+Time objects are so called for two related reasons.
+First, they relate to a "time" in the progress of a parse.
+Second, each time object has a lifetime and is reference counted.
 
-@node Token values
+Libmarpa's major objects are called "time" objects instead
+of phase objects,
+because phases are exclusive and non-simultaneous
+-- when one phase ends, another begins.
+Time objects are often in use simultaneously.
+For example, infancy, adolescent and adulthood are phases in
+our lives.
+Work and play are different times.
+
+The time objects are, in sequence:
+@itemize 
+@item Grammars.
+@item Recognizers.
+@item Bocages.
+@item Orderings.
+@item Trees.
+@item Valuators.
+@end itemize 
+
+@menu
+* The sequence of time objects::  
+* Base grammars::               
+* The lifetime of time objects::  
+@end menu
+
+@node The sequence of time objects, Base grammars, Time objects, Time objects
+@section The sequence of time objects
+
+Above I said "in sequence".
+While time objects do not correspond to phases,
+they do have a well-defined sequence.
+Except for grammars,
+all time objects are created from another time
+object.
+A recognizer cannot be created without a precomputed grammar;
+a bocage cannot be created without a recognizer;
+and so on.
+
+@node Base grammars, The lifetime of time objects, The sequence of time objects, Time objects
+@section Every time object has a base grammar
+
+When one time object is used to create a second
+time object,
+the first time object is the @dfn{parent object}
+and the second time object is the @dfn{child object}.
+For example, when a bocage is created from a
+recognizer,
+the recognizer is the parent object,
+and the bocage is the child object.
+
+Grammars have no parent object.
+Every other time object has exactly one parent object.
+Valuation objects have no child objects.
+All other time objects can have any number of children,
+from zero up to a number determined by the memory limits
+or the architecture.
+
+Every time object has a @dfn{base grammar}.
+A grammar object is its own base grammar.
+The base grammar of a recognizer is the grammar
+that it was created with.
+The base grammar of any other time object is the base
+grammar of its parent object.
+For example,
+the base grammar of a bocage is the base
+grammar of the recognizer that it was created
+with.
+
+@node The lifetime of time objects,  , Base grammars, Time objects
+@section The lifetime of time objects
+
+Time objects are reference-counted.
+Every time object is created with a reference count of 1.
+Whenever one time object is created from another,
+the parent time object has its reference count incremented
+by 1.
+
+Every time object has a method which decrements its
+reference count by 1.
+Time objects do not have explicit destructors.
+When the reference count of a time object reaches
+0, that time object is destroyed.
+
+In ordinary circumstances, all an application has to
+do is keep in mind that it "owns" the time objects
+it has created, and that it must call to method
+to "unreference" that object when it is finished.
+
+In some applications, multiple parts of it
+may need to share ownership of an object.
+For such situations,
+every time object has a method to increment
+the reference count.
+
+@node The architecture of Marpa, Threads, Time objects, Top
+@chapter The architecture of Marpa
+
+@menu
+* Architecture - Grammar::      
+* Recognition versus parsing::  
+* Why so many time objects::    
+@end menu
+
+@node Architecture - Grammar, Recognition versus parsing, The architecture of Marpa, The architecture of Marpa
+@section Grammars
+
+As per parsing theory,
+before an input can be parsed,
+a grammar must be defined.
+Traditionally,
+A grammar consists of a set of terminal symbols,
+a set of non-terminal symbols,
+a set of rules,
+and a distinguished start symbol.
+
+A terminal symbol is symbol which
+may appear in the input.
+The rules have a single symbol
+on their left hand side (LHS),
+and a right hand side which consists of zero or more
+symbols.
+RHS symbols can be either terminals or non-terminals.
+Traditionally,
+all LHS symbols, as well as
+the start symbol, must be non-terminals.
+
+Marpa's grammars differ from the traditional ones
+in that there is no necessary distinction between
+terminals and non-terminals.
+In Marpa,
+a terminal may be the start symbols,
+and may appear on the LHS of a rule.
+By default, all symbols are terminals.
+
+Marpa's idea
+in losing the sharp division between terminals
+and non-terminals is that the distinction,
+while helpful for proving theorems,
+is not essential in practice.
+If LHS symbols 
+appear in the input they, in effect,
+"short circuiting" the rules in which they occur.
+This may
+be helpful in debugging, or have other applications.
+
+However,
+it also can be useful, 
+for checking input validity as well as for efficiency,
+to follow tradition and distingush
+non-terminals from terminals.
+Marpa allows the user to mark each symbol
+as a terminal or a non-terminal.
+Symbols marked as non-terminals will not be allowed as input.
+The user also has the option of banning terminals from
+the LHS of rules.
+Marpa allows a
+user who prefers the tradition distinction
+to restore it, partially or completely.
+
+@menu
+* Precomputation::              
+@end menu
+
+@node Precomputation,  , Architecture - Grammar, Architecture - Grammar
+@subsection Precomputation
+
+Before a recognizer can be created from a grammar,
+it must be precomputed.
+Internally, precomputation is what the term
+suggests --
+the precomputation of a large number
+of facts about the grammar that allow
+the recognizer to proceed very efficiently.
+
+Whether or not to precompute is another case
+of the common choice between lazy and eager evaluation.
+It is Marpa's strategy to make very aggressive use of
+precomputation at grammar time.
+
+Precomputation "freezes" a grammar.
+New symbols, rules and sequences cannot be added
+to a precomputed grammar
+are disallowed,
+as are most other changes.
+
+@node Recognition versus parsing, Why so many time objects, Architecture - Grammar, The architecture of Marpa
+@section Recognition versus parsing
+
+Even in the academic literature,
+parsing is used in many senses,
+Some algorithms,
+distinguish between between determining whether
+a given string matches the grammar,
+and finding the structure of the recognized string
+according to the grammar.
+Earley's algorithm was one such algorithm.
+Marpa is another.
+
+Determining whether a string matches a grammar is called
+@dfn{recognition}.
+Finding the structure of the recognized string according
+to the grammar is
+@dfn{parsing} in a very strict sense of the term.
+Strictly speaking,
+Earley's algorithm was a recognizer,
+and not a parser.
+Marpa contains both a recognizer
+and a parser in the strict sense.
+Marpa's recognizer is implemented by its recognizer time objects.
+Marpa's parser in the strict sense
+is implemented by its bocage class and the classes
+which follow the bocage in the time object sequence.
+
+@node Why so many time objects,  , Recognition versus parsing, The architecture of Marpa
+@section Why so many time objects?
+
+Readers accustomed to other appraoches to parsing,
+particular those in fashion at this writing,
+may wonder on the number of time objects
+in the Marpa architecture.
+Several of Marpa's time objects (bocages,
+orderings and trees) are required
+because Marpa allows,
+and offers powerful tools for dealing with,
+ambigious grammars.
+
+It may seem, then, that users of unambiguous grammars,
+are paying a considerable price in time effiency
+for the ability to parse
+ambiguous ones.
+This is not the case.
+In the trivial case, the cost of the orderings
+object is a single, very brief, subroutine call.
+
+Bocage objects come at minimal cost,
+because the same pass which creates the bocage
+also deals with other issues which are of major
+significance even for unambiguous parses.
+The same pass which creates the bocage
+enables Marpa to do both left-
+and right-recursion in linear time.
+
+Tree objects come at mininal cost to unambiguous grammars,
+because the same pass that allows iteration through multiple
+parse trees does the tree traversal, so that the valuation time object
+has very litle to do -- it just steps through the sequence.
+
+But what about the many passes over the data this requires?
+Marpa is an aggressively multi-pass algorithm.
+Marpa achieves its efficiency,
+not in spite of making multiple
+passes over the data, but because of it.
+Marpa is @math{O(n)} for LR-regular grammars,
+both in theory and in implementation,
+because Marpa regularly substitutes
+two fast @math{O(n)} passes for a single
+@math{O(n log n)} pass.
+
+@node Threads, Numbered objects, The architecture of Marpa, Top
+@chapter Threads
+
+Libmarpa is thread-safe, with a restriction.
+No attempt is make to lock a parent object
+which it is used by child time object.
+In particular,
+every time object with the same base grammar shares data
+from that grammar.
+This means that, for every base grammar,
+its time objects can be used safely in at most one thread.
+
+Libmarpa uses no global data.
+As long as libmarpa time objects which have
+the same base grammar are not
+used in two different threads,
+libmarpa is thread-safe.
+
+Libmarpa makes heavy use of GNU's glib,
+but Glib is thread-safe internally,
+and libmarpa's use of Glib structures is thread-safe
+if the above mentioned restriction is obeyed.
+Except for Glib,
+libmarpa makes little use of outside libraries,
+and always in a thread-safe fashion.
+
+@node Numbered objects, Semantics, Threads, Top
+@chapter Numbered objects
+
+In addition to its major, "time" objects, libmarpa also has
+numbered objects
+Examples of numbered objects are rules and symbols.
+Numbered objects do not have lifetimes of their own.
+Every numbered object belongs to a timed object,
+and is destroyed with it.
+
+@menu
+* Numbered object implementation::  
+@end menu
+
+@node Numbered object implementation,  , Numbered objects, Numbered objects
+@section Implementation
+
+Numbered objects are implemented as integers, and not as
+pointers.
+Pointers cannot easily be checked for validity.
+Integers on the other hand, especially if they are assigned
+in sequence, are easy to check safely and portably.
+It is easy to safely check an integer for validity.
+
+There are efficiency tradeoffs between pointers and
+integers but these go both ways.
+Pointers can be faster, but integers can be used
+as indexes into more than one data structure.
+Which is actually faster depends on the design,
+and since integers allow for a more flexible design,
+careful programming can make them a win,
+possibly a very big one.
+
+The author decided to settle on integers from the
+outset, and to design libmnarpa taking full
+advantage of that choice.
+In many or most cases, that would make integers
+more efficient.
+In the cases where pointers were faster, it would
+not be by much --
+a small price to pay for
+safe, portable validity checking.
+
+@node Semantics, Version checking, Numbered objects, Top
+@chapter Semantics
+
+@menu
+* Token values::                
+@end menu
+
+@node Token values,  , Semantics, Semantics
 @section Token values
 
 Token values are @code{gpointer}'s.
@@ -335,7 +760,7 @@ issues advanced by this author.
 It is in the UNIX and Perl traditions to
 avoid imposing choices on the user.
 
-@node Version checking
+@node Version checking, Grammars, Semantics, Top
 @chapter Checking the libmarpa version
 @cindex version checking
 
@@ -385,22 +810,23 @@ Return value: %NULL if the Marpa library is compatible with the
 
 @end deftypefun
 
-@node Grammars
+@node Grammars, Events, Version checking, Top
 @chapter Grammars
 @cindex grammars
 
-@menu 
-* Grammar constructor:: Creating a new grammar
-* Grammar reference counting:: Tracking the reference count of the grammar
-* Symbols:: Symbols
-* Terminals:: Terminal symbols
-* Grammar precomputation::Precomputing the Grammar
-* Rules:: Rules
-* Symbol internals:: Methods that deal with symbol internals
-* Grammar internals:: Methods that deal with grammar internals
+@menu
+* Grammar constructor::         Creating a new grammar.
+* Grammar reference counting::  Tracking the reference count of the grammar.
+* Symbols::                     
+* Terminals::                   Terminal symbols.
+* Rules::                       
+* Grammar precomputation::      Precomputing the Grammar.
+* Symbol internals::            Methods that deal with symbol internals.
+* Rule internals::              
+* Grammar internals::           Methods that deal with grammar internals.
 @end menu 
 
-@node Grammar constructor
+@node Grammar constructor, Grammar reference counting, Grammars, Grammars
 @section Creating a new grammar
 @cindex grammar constructor
 
@@ -429,7 +855,7 @@ On failure, @code{NULL}.
 
 @end deftypefun
 
-@node Grammar reference counting
+@node Grammar reference counting, Symbols, Grammar constructor, Grammars
 @section Tracking the reference count of the grammar
 @cindex grammar destructor
 @cindex grammar reference
@@ -461,7 +887,7 @@ Return value:
 On success, the grammar object it was called with;
 @code{NULL} on failure.
 
-@node Symbols
+@node Symbols, Terminals, Grammar reference counting, Grammars
 @section Symbols
 
 @deftypefun Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar @var{g})
@@ -505,7 +931,7 @@ otherwise the ID of the new start symbol.
 @deftypefun gint marpa_g_symbol_count (Marpa_Grammar @var{g})
 @end deftypefun
 
-@node Terminals
+@node Terminals, Rules, Symbols, Grammars
 @section Methods that deal with terminal symbols
 
 @deftypefun gint marpa_g_default_token_value ( @
@@ -556,20 +982,24 @@ Return value: -2 if there was an error;
  gint @var{value})
 @end deftypefun
 
-@node Grammar precomputation
-@section Precomputing the Grammar
-
-@deftypefun gint marpa_g_precompute (Marpa_Grammar @var{g})
+@deftypefun gint marpa_g_symbol_is_accessible (Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun gint marpa_g_symbol_is_counted (Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun gint marpa_g_symbol_is_nullable (Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun gint marpa_g_symbol_is_nulling (Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun gint marpa_g_symbol_is_productive (Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
 @end deftypefun
 
-@deftypefun gint marpa_g_is_precomputed (Marpa_Grammar @var{g})
-@end deftypefun
-
-@deftypefun gint marpa_g_has_loop (Marpa_Grammar @var{g})
-@end deftypefun
-
-@node Rules
-@section Methods that deal with rules
+@node Rules, Grammar precomputation, Terminals, Grammars
+@section Rules
 
 @deftypefun gint marpa_g_rule_count (Marpa_Grammar @var{g})
 @end deftypefun
@@ -597,33 +1027,7 @@ Return value: -2 if there was an error;
 @deftypefun gint marpa_g_rule_is_loop (Marpa_Grammar @var{g}, @
     Marpa_Rule_ID @var{rule_id})
 @end deftypefun
-@deftypefun gint marpa_g_rule_is_virtual_loop (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun gint marpa_g_rule_is_used (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun gint marpa_g_rule_is_virtual_lhs (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun gint marpa_g_rule_is_virtual_rhs (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun guint marpa_g_virtual_start (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun guint marpa_g_virtual_end (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun Marpa_Rule_ID marpa_g_rule_original (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun gint marpa_g_real_symbol_count (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun Marpa_Rule_ID marpa_g_rule_semantic_equivalent (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
+
 @deftypefun Marpa_Symbol_ID marpa_g_rule_lhs ( @
     Marpa_Grammar @var{g}, @
     Marpa_Rule_ID @var{rule_id})
@@ -694,7 +1098,19 @@ Return value: -2 if there was an error.
 
 @end deftypefun
 
-@node Symbol internals
+@node Grammar precomputation, Symbol internals, Rules, Grammars
+@section Precomputing the Grammar
+
+@deftypefun gint marpa_g_precompute (Marpa_Grammar @var{g})
+@end deftypefun
+
+@deftypefun gint marpa_g_is_precomputed (Marpa_Grammar @var{g})
+@end deftypefun
+
+@deftypefun gint marpa_g_has_loop (Marpa_Grammar @var{g})
+@end deftypefun
+
+@node Symbol internals, Rule internals, Grammar precomputation, Grammars
 @section Methods that deal with symbol internals
 
 @deftypefun gint marpa_g_symbol_is_start ( Marpa_Grammar @var{g}, @
@@ -749,21 +1165,6 @@ Return value: -2 if the grammar is not precomputed or
     Marpa_Symbol_ID @var{symid}, @
  gint @var{ix})
 @end deftypefun
-@deftypefun gint marpa_g_symbol_is_accessible (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun gint marpa_g_symbol_is_counted (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun gint marpa_g_symbol_is_nullable (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun gint marpa_g_symbol_is_nulling (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun gint marpa_g_symbol_is_productive (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
 @deftypefun Marpa_Symbol_ID marpa_g_symbol_proper_alias (Marpa_Grammar @var{g}, @
     Marpa_Symbol_ID @var{symid})
 @end deftypefun
@@ -774,7 +1175,38 @@ Return value: -2 if the grammar is not precomputed or
     Marpa_Symbol_ID @var{symid})
 @end deftypefun
 
-@node Grammar internals
+@node Rule internals, Grammar internals, Symbol internals, Grammars
+@section Rule internals
+
+@deftypefun gint marpa_g_rule_is_virtual_loop (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun gint marpa_g_rule_is_used (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun gint marpa_g_rule_is_virtual_lhs (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun gint marpa_g_rule_is_virtual_rhs (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun guint marpa_g_virtual_start (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun guint marpa_g_virtual_end (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun Marpa_Rule_ID marpa_g_rule_original (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun gint marpa_g_real_symbol_count (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun Marpa_Rule_ID marpa_g_rule_semantic_equivalent (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+
+@node Grammar internals,  , Rule internals, Grammars
 @section Methods that deal with grammar internals
 
 The methods in this section are accessors for libmarpa's
@@ -821,15 +1253,15 @@ These methods will not be of interest to most users.
      Marpa_AHFA_Item_ID @var{AHFA_item_id})
 @end deftypefun
 
-@node Events
+@node Events, Recognizers, Grammars, Top
 @chapter Events
 
 @menu
-* Event accessor::Event accessor
-* Event codes::Event codes
+* Event accessor::              Event accessor.
+* Event codes::                 Event codes.
 @end menu
 
-@node Event accessor
+@node Event accessor, Event codes, Events, Events
 @section Accessing events
 
 @deftypefun gint marpa_g_event (Marpa_Grammar @var{g}, @
@@ -837,7 +1269,7 @@ These methods will not be of interest to most users.
 	       gint @var{ix})
 @end deftypefun
 
-@node Event codes
+@node Event codes,  , Event accessor, Events
 @section Event codes
 
 @deftypevr Macro int MARPA_EVENT_NONE
@@ -868,23 +1300,23 @@ Suggested message: "New rule."
 Suggested message: "Grammar has a counted nullable."
 @end deftypevr
 
-@node Recognizers
+@node Recognizers, Bocage, Events, Top
 @chapter Recognizer objects
 
-@menu 
-* Recognizer constructor:: Creating a new recognizer
-* Recognizer reference counting:: Keeping the reference count of a recognizer
-* Recognizer life:: Taking a recognizer through its life cycle
-* Recognizer internals:: Meddling with the recognizer internals
+@menu
+* Recognizer constructor::      Creating a new recognizer.
+* Recognizer reference counting::  Keeping the reference count of a recognizer.
+* Recognizer life::             Taking a recognizer through its life cycle.
+* Recognizer internals::        Meddling with the recognizer internals.
 @end menu 
 
-@node Recognizer constructor
+@node Recognizer constructor, Recognizer reference counting, Recognizers, Recognizers
 @section Creating a new recognizer
 
 @deftypefun Marpa_Recognizer marpa_r_new ( Marpa_Grammar @var{g} )
 @end deftypefun
 
-@node Recognizer reference counting
+@node Recognizer reference counting, Recognizer life, Recognizer constructor, Recognizers
 @section Keeping the reference count of a recognizer
 
 @deftypefun Marpa_Recognizer marpa_r_ref (Marpa_Recognizer @var{r})
@@ -893,7 +1325,7 @@ Suggested message: "Grammar has a counted nullable."
 @deftypefun void marpa_r_unref (Marpa_Recognizer @var{r})
 @end deftypefun
 
-@node Recognizer life
+@node Recognizer life, Recognizer internals, Recognizer reference counting, Recognizers
 @section Taking a recognizer through its life cycle
 
 @deftypefun gint marpa_r_start_input (Marpa_Recognizer @var{r})
@@ -955,18 +1387,14 @@ On other problems, it returns -2.
     gint @var{ix})
 @end deftypefun
 
+@node Recognizer internals,  , Recognizer life, Recognizers
+@section Meddling with the recognizer internals
+
 @deftypefun Marpa_Earley_Set_ID marpa_r_trace_earley_set (Marpa_Recognizer @var{r})
 @end deftypefun
 
 @deftypefun Marpa_Earley_Set_ID marpa_r_latest_earley_set (Marpa_Recognizer @var{r})
 @end deftypefun
-
-@deftypefun Marpa_Earleme marpa_r_earleme (Marpa_Recognizer r, Marpa_Earley_Set_ID @var{set_id})
-@end deftypefun
-
-
-@node Recognizer internals
-@section Meddling with the recognizer internals
 
 @deftypefun gint marpa_r_earley_set_size (Marpa_Recognizer r, Marpa_Earley_Set_ID @var{set_id})
 @end deftypefun
@@ -1034,11 +1462,12 @@ On other problems, it returns -2.
 @deftypefun Marpa_Earley_Set_ID marpa_r_source_middle (Marpa_Recognizer @var{r})
 @end deftypefun
 
-@node Bocage
+@node Bocage, Order, Recognizers, Top
 @chapter Bocage objects
 
 @menu
-* Bocage internals::Bocage internals
+* Bocage reference counting::   
+* Bocage internals::            Bocage internals.
 @end menu
 
 @deftypefun Marpa_Bocage marpa_b_new (Marpa_Recognizer @var{r}, @
@@ -1046,16 +1475,18 @@ On other problems, it returns -2.
     Marpa_Earley_Set_ID @var{ordinal_arg})
 @end deftypefun
 
+@deftypefun Marpa_Grammar marpa_b_g (Marpa_Bocage @var{b})
+@end deftypefun
+
+@node Bocage reference counting, Bocage internals, Bocage, Bocage
+@section  Reference counting
 @deftypefun Marpa_Bocage marpa_b_ref (Marpa_Bocage @var{b})
 @end deftypefun
 
 @deftypefun void marpa_b_unref (Marpa_Bocage @var{b})
 @end deftypefun
 
-@deftypefun Marpa_Grammar marpa_b_g (Marpa_Bocage @var{b})
-@end deftypefun
-
-@node Bocage internals
+@node Bocage internals,  , Bocage reference counting, Bocage
 @section Internals
 
 @deftypefun gint marpa_b_and_node_count ( @
@@ -1148,12 +1579,28 @@ the or-node.
     Marpa_Or_Node_ID @var{or_node_id})
 @end deftypefun
 
-@node Order
-@chapter Order objects
+@node Order, Tree, Bocage, Top
+@chapter Orderings
+
+@menu
+* Ordering constructor::        
+* Ordering reference counting::  
+* Ordering internals::          
+@end menu
+
+@node Ordering constructor, Ordering reference counting, Order, Order
+@section Creating an ordering
 
 @deftypefun Marpa_Order marpa_o_new ( @
     Marpa_Bocage @var{b})
 @end deftypefun
+
+@deftypefun Marpa_Grammar marpa_o_g ( @
+    Marpa_Order @var{o})
+@end deftypefun
+
+@node Ordering reference counting, Ordering internals, Ordering constructor, Order
+@section Reference counting
 
 @deftypefun void marpa_o_unref ( @
     Marpa_Order @var{o})
@@ -1163,9 +1610,8 @@ the or-node.
     Marpa_Order @var{o})
 @end deftypefun
 
-@deftypefun Marpa_Grammar marpa_o_g ( @
-    Marpa_Order @var{o})
-@end deftypefun
+@node Ordering internals,  , Ordering reference counting, Order
+@section Internals
 
 @deftypefun gint marpa_o_and_order_set ( @
     Marpa_Order @var{o}, @
@@ -1180,8 +1626,8 @@ the or-node.
     gint @var{ix})
 @end deftypefun
 
-@node Tree
-@chapter Tree time objects
+@node Tree, Value, Order, Top
+@chapter Tree iterators
 
 Within Marpa,
 when it makes sense in context,
@@ -1189,8 +1635,14 @@ when it makes sense in context,
 Marpa's parse trees are also bocage iterators.
 
 @menu
-* Tree internals::Internals
+* Tree constructor::            
+* Tree reference counting::     
+* Tree iteration::              
+* Tree internals::              Internals.
 @end menu
+
+@node Tree constructor, Tree reference counting, Tree, Tree
+@section Creating a new tree iterator
 
 @deftypefun Marpa_Tree marpa_t_new (Marpa_Order @var{o})
 @end deftypefun
@@ -1211,11 +1663,17 @@ errors can be properly reported.
 
 @end deftypefun
 
+@node Tree reference counting, Tree iteration, Tree constructor, Tree
+@section Reference counting
+
 @deftypefun Marpa_Tree marpa_t_ref (Marpa_Tree @var{t})
 @end deftypefun
 
 @deftypefun void marpa_t_unref (Marpa_Tree @var{t})
 @end deftypefun
+
+@node Tree iteration, Tree internals, Tree reference counting, Tree
+@section Iterating through the trees
 
 @deftypefun gint marpa_t_next ( @
 	Marpa_Tree @var{t})
@@ -1225,7 +1683,7 @@ errors can be properly reported.
 	Marpa_Tree @var{t})
 @end deftypefun
 
-@node Tree internals
+@node Tree internals,  , Tree iteration, Tree
 @section Internals
 
 In Marpa, a nook is any node of a parse tree.
@@ -1309,20 +1767,33 @@ Return the is-cause bit for @var{nook_id}.
 Return the is-predecessor bit for @var{nook_id}.
 @end deftypefun
 
-@node Value
+@node Value, Error handling, Tree, Top
 @chapter Value objects
+
+@menu
+* Valuator constructor::        
+* Valuator reference counting::  
+* Valuator stepping::           
+* Valuator tracing::            
+@end menu
+
+@node Valuator constructor, Valuator reference counting, Value, Value
+@section Creating a new valuator
 
 @deftypefun Marpa_Value marpa_v_new ( @
     Marpa_Tree @var{t})
 @end deftypefun
 
+@deftypefun Marpa_Grammar marpa_v_g (Marpa_Value @var{v})
+@end deftypefun
+
 @deftypefun void marpa_v_unref (Marpa_Value @var{v})
 @end deftypefun
 
-@deftypefun Marpa_Value marpa_v_ref (Marpa_Value @var{v})
-@end deftypefun
+@node Valuator reference counting, Valuator stepping, Valuator constructor, Value
+@section Reference counting
 
-@deftypefun Marpa_Grammar marpa_v_g (Marpa_Value @var{v})
+@deftypefun Marpa_Value marpa_v_ref (Marpa_Value @var{v})
 
 Returns the grammar of the value.
 It never returns an error.
@@ -1338,10 +1809,16 @@ errors can be properly reported.
 
 @end deftypefun
 
+@node Valuator stepping, Valuator tracing, Valuator reference counting, Value
+@section Stepping throught the valuator
+
 @deftypefun Marpa_Nook_ID marpa_v_step ( @
     Marpa_Value @var{v}, @
     Marpa_Step* @var{step})
 @end deftypefun
+
+@node Valuator tracing,  , Valuator stepping, Value
+@section Tracing the valuator
 
 @deftypefun gint marpa_v_trace ( @
     Marpa_Value @var{v}, @
@@ -1352,7 +1829,7 @@ errors can be properly reported.
     Marpa_Value @var{v})
 @end deftypefun
 
-@node Error handling
+@node Error handling,  , Value, Top
 @chapter Error handling
 
 @section Soft and hard errors

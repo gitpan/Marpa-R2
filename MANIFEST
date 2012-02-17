@@ -46,6 +46,7 @@ etc/.gitignore
 etc/Makefile
 etc/check_license.pl
 etc/check_links.pl
+etc/copy_from_stage
 html/.gitignore
 html/etc/.gitignore
 html/etc/drafts/Implementation.pod
@@ -74,7 +75,9 @@ html/t/test.html
 html/tool/lib/Marpa/R2/HTML/Test/Util.pm
 inc/Marpa/R2/Build_Me.pm
 inc/Marpa/R2/Config.pm
+inc/Marpa/R2/Display.pm
 inc/Marpa/R2/License.pm
+inc/Marpa/R2/Test.pm
 inc/drafts/undocumented.list
 lib/Marpa/.gitignore
 lib/Marpa/R2.pm
@@ -113,7 +116,6 @@ libmarpa/build/mdate-sh
 libmarpa/build/missing
 libmarpa/build/private.h
 libmarpa/build/texinfo.tex
-libmarpa/build/version.texi
 libmarpa/dev/.gitignore
 libmarpa/dev/Makefile
 libmarpa/dev/README
@@ -141,10 +143,8 @@ libmarpa/test/dev/configure.ac
 libmarpa/test/dev/testleak.c
 libmarpa/theory/.gitignore
 libmarpa/theory/Makefile
-libmarpa/theory/README
-libmarpa/theory/ah2002_notes.lyx
-libmarpa/theory/ah_to_leo.lyx
-libmarpa/theory/proof.lyx
+libmarpa/theory/ah2002_notes.ltx
+libmarpa/theory/recce.ltx
 pod/Advanced/Bibliography.pod
 pod/Advanced/Models.pod
 pod/Debug.pod
@@ -207,9 +207,6 @@ t/timeflies.t
 t/trace_rules.t
 t/use.t
 t/wall.t
-t/weaken.t
-tool/lib/Marpa/R2/Display.pm
-tool/lib/Marpa/R2/Test.pm
 typemap
 xs/.gitignore
 xs/R2.xs
