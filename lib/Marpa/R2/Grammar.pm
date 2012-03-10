@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_021';
+$VERSION        = '0.001_022';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -249,7 +249,6 @@ sub Marpa::R2::Grammar::new {
 
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C] =
         Marpa::R2::Internal::G_C->new($grammar);
-    $grammar_c->default_value_set(-1);
 
     $grammar->set(@arg_hashes);
 

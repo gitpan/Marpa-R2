@@ -14,13 +14,20 @@
 \newcommand{\todo}[1]{\par{\large\bf Todo: #1}\par}
 \newcommand{\mymathop}[1]{\mathop{\texttt{#1}}}
 
+% For a type name, when it occurs in text
+\newcommand{\type}[1]{\ensuremath{#1}}
+
+\newcommand{\defined}{\underset{\text{def}}{\equiv}}
 \newcommand{\dfn}[1]{{\bf #1}}
 \newcommand{\sep}{\,\mid\,}
 \newcommand{\mydot}{\raisebox{.05em}{$\,\bullet\,$}}
 \newcommand{\cat}{\,.\,}
 \newcommand{\size}[1]{\ensuremath{\left | {#1} \right |}}
+\newcommand{\bigsize}[1]{\ensuremath{\bigl| {#1} \bigr|}}
 \newcommand{\order}[1]{\ensuremath{{\mathcal O}(#1)}}
 \newcommand{\Oc}{\order{1}}
+\newcommand{\On}{\order{\var{n}}}
+\newcommand{\inference}[2]{\genfrac{}{}{1pt}{}{#1}{#2}}
 
 % I use hyphens in variable names,
 % so I need to ensure that subtraction is
@@ -39,6 +46,8 @@
         {\Rightarrow\!}\:$}}}
 
 \newcommand{\set}[1]{{\left\lbrace #1 \right\rbrace} }
+\newcommand{\bigset}[1]{{\bigl\lbrace #1 \bigr\rbrace} }
+\newcommand{\Bigset}[1]{{\Bigl\lbrace #1 \Bigr\rbrace} }
 \newcommand{\ah}[1]{#1_{AH}}
 \newcommand{\Vah}[1]{\ensuremath{\var{#1}_{AH}}}
 \newcommand{\bool}[1]{\var{#1}_{BOOL}}
@@ -75,10 +84,10 @@
 \newcommand{\Marpa}{\ensuremath{\alg{Marpa}}}
 
 \newcommand{\Vfa}{\var{fa}}
-\newcommand{\Vg}{\var{g}}
-\newcommand{\Vw}{\var{w}}
-\newcommand{\CVw}[1]{\ensuremath{\sym{\Vw[\var{#1}]}}}
-\newcommand{\CEw}[1]{\ensuremath{\sym{\Vw[#1]}}}
+\newcommand{\Cg}{\var{g}}
+\newcommand{\Cw}{\var{w}}
+\newcommand{\CVw}[1]{\ensuremath{\sym{\Cw[\var{#1}]}}}
+\newcommand{\CEw}[1]{\ensuremath{\sym{\Cw[#1]}}}
 \newcommand{\Vrules}{\var{rules}}
 \newcommand{\GOTO}{\mymathop{GOTO}}
 \newcommand{\Next}[1]{\mymathop{Next}(#1)}
@@ -87,8 +96,9 @@
 \newcommand{\Penult}[1]{\mymathop{Penult}(#1)}
 \newcommand{\myL}[1]{\mymathop{L}(#1)}
 \newcommand\Etable[1]{\ensuremath{\mymathop{table}[#1]}}
+\newcommand\bigEtable[1]{\ensuremath{\mymathop{table}\bigl[#1\bigr]}}
 \newcommand\Rtable[1]{\ensuremath{\mymathop{table}[#1]}}
-\newcommand\Rtablesize[1]{\ensuremath{\left |\mymathop{table}[#1]\right |}}
+\newcommand\Rtablesize[1]{\ensuremath{\bigl| \mymathop{table}[#1] \bigr|}}
 \newcommand\Vtable[1]{\Etable{\var{#1}}}
 \newcommand\EEtable[2]{\ensuremath{\mymathop{table}[#1,#2]}}
 \newcommand\EVtable[2]{\EEtable{#1}{\var{#2}}}
@@ -107,6 +117,7 @@
 \newtheorem{observation}[theorem]{Observation}
 
 \hyphenation{oper-and oper-ands}
+\hyphenation{look-ahead}
 
 \begin{document}
 
@@ -132,11 +143,12 @@ Marpa is
 a practical and fully implemented
 algorithm for the recognition,
 parsing and evaluation of context-free grammars.
-Marpa's recognizer merges the improvements
-to Earley's 1970 algorithm found in
-Leo's 1991
-and in Aycock and Horspool's 2002 papers.
-New with Marpa is that
+The Marpa recognizer is the first
+to unite the improvements
+to Earley's algorithm found in
+Joop Leo's 1991 paper
+to those in Aycock and Horspool's 2002 paper.
+Also new with Marpa is that
 full knowledge of the state of the parse,
 including the list of acceptable tokens,
 is available when tokens are scanned.
@@ -173,7 +185,7 @@ all context-free grammars.
 Time bounds are the best of Leo\cite{Leo1991}
 and Earley\cite{Earley1970}.
 The Leo bound,
-\Oc{} for LR-regular,
+\On{} for LR-regular grammars,
 is especially relevant to
 Marpa's goal of being a practical parser:
 If a grammar is in a class of grammar currently in practical use,
@@ -191,7 +203,7 @@ being scanned.
 
 Marpa allows the lexer to check its list
 of acceptable tokens before a token is scanned.
-But because rejection of tokens is easily and 
+Because rejection of tokens is easily and 
 efficiently recoverable,
 the lexer is also free to take an event-driven
 approach.
@@ -233,9 +245,9 @@ grammar rewrites.
 Sections \ref{s:earley} and \ref{s:earley-ops}
 introduce Earley's algorithm.
 Section \ref{s:leo} describes Leo's modification
-to Earley's algorithm;
-and Section \ref{s:AHFA} describes the modifications
-suggested by Aycock and Horspool.
+to Earley's algorithm.
+Section \ref{s:AHFA} describes the modifications
+proposed by Aycock and Horspool.
 Section \ref{s:pseudocode} presents the pseudocode
 for Marpa's recognizer.
 Section
@@ -249,8 +261,8 @@ contain a proof of Marpa's correctness,
 while Section \ref{s:complexity} contains
 its complexity results.
 Finally,
-section \ref{s:generalization} generalizes
-the definitions of grammar and input.
+section \ref{s:input}
+generalizes Marpa's input model.
 
 \section{Preliminaries}
 \label{s:preliminaries}
@@ -266,14 +278,13 @@ $\var{X}_T$ & The variable \var{X} of type $T$ \\
 $\var{set-one}_\set{T}$ & The variable \var{set-one} of type set of $T$ \\
 $SYM$ & The type for a symbol \\
 \Vsym{a} & The variable \var{a} of type $SYM$ \\
-\Vsymset{set-two} & The set of symbols \var{set-two} \\
+\Vsymset{set-two} & The variable \var{set-two}, a set of symbols \\
 \end{tabular}
 \end{center}
 Subscripts may be omitted when the type
 is obvious from the context.
 The notation for
 constants is the same as that for variables.
-
 Multi-character variable names will be common,
 and operations will never be implicit.
 \begin{center}
@@ -284,34 +295,38 @@ Subtraction & $\var{symbol-count} \subtract \var{terminal-count}$ \\
 \end{tabular}
 \end{center}
 
-Where \Vsymset{abced} is a set of symbols,
-let $\var{abced}^\ast$ be the set of all strings
-(type $STR$) formed
+Let \Vsymset{vocab} be a non-empty set of symbols,
+and let $\var{vocab}^\ast$ be the set of all strings
+(type \type{STR}) formed
 from those symbols.
-(Note that sentential forms are of type $STR$.)
-Let $\var{abced}^+$ be the subset of $\var{abced}^\ast$ that
-contains all of its elements that are not of zero length.
+Note that sentential forms are of type \type{STR}.
+Where \Vstr{s} is a string,
+let \size{\Vstr{s}} be its length, counted in symbols.
+Let $\var{abced}^+$ be
+\begin{equation*}
+\bigl\{ \Vstr{x}
+\bigm| \var{x} \in \Vsymset{vocab} \land \Vsize{\Vstr{x}} > 0
+\bigr\}
+\end{equation*}
 
-For the purposes of this \doc{} consider,
+In this \doc{} we use,
 without loss of generality,
-a grammar \Vg,
-and a set of symbols, \Vsymset{alphabet}.
-Call the language of \var{g}, $\myL{\Vg}$,
-where $\myL{\Vg} \in \var{alphabet}^\ast$.
-Divide \Vsymset{alphabet} into two disjoint sets,
-\Vsymset{lh} and \Vsymset{term}.
+the grammar \Cg,
+where \Cg{} is the 3-tuple
+\begin{equation*}
+    (\Vsymset{vocab}, \var{rules}, \Vsym{accept}).
+\end{equation*}
+Call the language of \var{g}, $\myL{\Cg}$,
+where $\myL{\Cg} \in \var{vocab}^\ast$.
 
-For rewriting this \doc{} uses,
-without loss of generality,
-the set of duples, \Vruleset{rules}.
-The type $RULE$ will be
-a duple
+\Vruleset{rules} is a set of rules (type \type{RULE}),
+where a rule is a duple
 of the form $[\Vsym{lhs} \de \Vstr{rhs}]$,
-where
-\begin{gather*}
-\Vsym{lhs} \in \var{term} \\
-\Vstr{rhs} \in \var{alphabet}^+
-\end{gather*}
+such that
+\begin{equation*}
+\Vsym{lhs} \in \var{vocab} \quad \text{and}
+\quad \Vstr{rhs} \in \var{vocab}^+.
+\end{equation*}
 \Vsym{lhs} is referred to as the left hand side (LHS)
 of \Vrule{r}.
 \Vstr{rhs} is referred to as the right hand side (RHS)
@@ -319,42 +334,34 @@ of \Vrule{r}.
 This definition follows \cite{AH2002},
 which departs from tradition by disallowing an empty RHS.
 
-The grammar \Vg{} is the 4-tuple
-\begin{equation*}
-    (\Vsymset{alphabet}, \Vsymset{term}, \var{rules}, \Vsym{accept})
-\end{equation*}
-where \Vsymset{term} is the
-set of terminal symbols,
-\begin{equation*}
-    \Vsymset{term} \subset \Vsymset{alphabet},
-\end{equation*}
-and \Vsym{accept} a dedicated acceptance symbol.
-The set of potential LHS symbols, \Vsymset{lh} is
-$\var{alphabet} \setminus \var{term}$.
+\Vsym{accept} is a dedicated acceptance symbol.
 Without loss of generality,
 it is assumed that
-\begin{equation*}
-\Vsym{accept} \in \Vsymset{lh},
-\end{equation*}
-and that there is a dedicated acceptance rule,
+that there is a dedicated acceptance rule,
 \begin{equation*}
 \Vrule{accept} = [ \Vsym{accept} \de \Vsym{start} ],
 \end{equation*}
 such that for every rule,
 \begin{equation*}
-\Vrule{x} = [ \Vsym{lhs} \de \Vsymset{rhs} ]
+\Vrule{x} = [ \Vsym{lhs} \de \Vsymset{rhs} ],
 \end{equation*}
 we have both of
 \begin{gather*}
-\Vsym{accept} = \Vsym{lhs} \implies \Vrule{x} = \Vrule{accept} \\
-\Vsym{accept} \notin \Vsymset{rhs}
+\Vsym{accept} = \Vsym{lhs} \implies \Vrule{x} = \Vrule{accept} \quad \text{and} \\
+\Vsym{accept} \notin \Vsymset{rhs}.
 \end{gather*}
 
-Let the input to parse be \Vw, $\Vw \in \var{alphabet}^\ast$.
-Locations in the input will be of type LOC.
+The definition of \Cg{} does not sharply distinguish terminals
+from non-terminals.
+\Marpa{}'s implementations allow terminals to be the LHS
+of rules,
+and every symbol except \Vsym{accept} can be a terminal.
+
+Let the input to
+the parse be \Cw{} such that $\Cw \in \var{vocab}^\ast$.
+Locations in the input will be of type \type{LOC}.
 Let \Vsize{w} be the length of the input, counted in symbols.
-Let \CVw{i},
-$\CVw{i} \in \Vsymset{term}$ be character \var{i}
+Let \CVw{i} be character \var{i}
 of the input,
 $0 \le \Vloc{i} < \Vsize{w}$.
 
@@ -366,28 +373,28 @@ as described in~\cite{Leo1991}.
 \AH{} will refer to the Aycock and Horspool's revision
 of \Earley{}
 as described in~\cite{AH2002}.
+\Marpa{} will refer to the parser described in
+this \doc{}.
 Where $\alg{Recce}$ is a recognizer,
-$\myL{\alg{Recce},\Vg}$ will be the language accepted by $\alg{Recce}$
-when parsing \Vg.
+$\myL{\alg{Recce},\Cg}$ will be the language accepted by $\alg{Recce}$
+when parsing \Cg.
 
 \section{Rewriting the grammar}
 \label{s:rewrite}
 
 We have already noted
-that no rules of \Vg{}
+that no rules of \Cg{}
 have a zero-length RHS.
 Further, no rule can be nullable
 and all symbols must be either nulling or non-nullable --
 no symbol can be a proper nullable.
 These restrictions follow Aycock and Horspool\cite{AH2002}.
 The elimination of empty rules and proper nullables
-is done by rewriting the grammar and,
-as shown in \cite{AH2002},
-is without loss of generality.
-\cite{AH2002} also discusses the evaluation issues
-associated with its rewrites.
+is done by rewriting the grammar.
+\cite{AH2002} shows how to do this
+without loss of generality.
 
-Aycock and Horspool allowed
+\cite{AH2002} allowed
 a single empty start rule
 to deal with null parses.
 Marpa eliminates the need for empty rules in its grammars
@@ -403,11 +410,12 @@ simply and efficiently at evaluation time.
 As one example,
 when a rewrite involves the introduction of new rule,
 semantics for the new rule can be defined to pass its operands
-up to a parent rule as a list,
-and the semantics of the pre-existing parent rule can
-be ``wrapped'' so that they reassemble these lists
+up to a parent rule as a list.
+Where needed, the original semantics
+of a pre-existing parent rule can
+be ``wrapped'' to reassemble these lists
 into operands that are properly formed
-for the original semantics.
+for that original semantics.
 
 As implemented,
 the Marpa parser allows users to associate
@@ -428,7 +436,7 @@ From the user's point of view,
 the ``free-form'' of his grammar is the
 one being used for the parse,
 and the one to which 
-the semantics are applied.
+his semantics are applied.
 
 \section{Earley's algorithm}
 \label{s:earley}
@@ -436,57 +444,52 @@ the semantics are applied.
 Let $\Vrule{r} \in \Vrules$
 be a rule,
 and $\Vsize{r}$ the length of its RHS.
-A dotted rule (type $DR$) is a duple, $[\Vrule{r}, \var{pos}]$,
-where $0 < \var{pos} < \size{\Vrule{r}}$.
-The position indicates the extent to which
+A dotted rule (type \type{DR}) is a duple, $[\Vrule{r}, \var{pos}]$,
+where $0 \le \var{pos} \le \size{\Vrule{r}}$.
+The position, \var{pos}, indicates the extent to which
 the rule has been recognized,
-and is represented with a raised dot,
+and is represented with a large raised dot,
 so that if
 \begin{equation*}
-[\Vsym{A} \de \Vsym{X} . \Vsym{Y} . \Vsym{Z}]
+[\Vsym{A} \de \Vsym{X} \cat \Vsym{Y} \cat \Vsym{Z}]
 \end{equation*}
 is a rule,
 \begin{equation*}
-[\Vsym{A} \de \var{X} . \var{Y} \mydot \var{Z}]
+[\Vsym{A} \de \var{X} \cat \var{Y} \mydot \var{Z}]
 \end{equation*}
 is the dotted rule with the dot at
 $\var{pos} = 2$,
 between \Vsym{Y} and \Vsym{Z}.
 
-For a \Vdr{x} such that
+If we let \Vdr{x} be a dotted rule, such that
 \begin{equation*}
-\Vdr{x} = [\Vsym{A} \de \Vstr{alpha} \mydot \Vsym{next} \Vstr{beta}],
-\end{equation*}
-we have
-\begin{align*}
-\Postdot{\Vdr{x}} & = \Vsym{next} \quad \text{and} \\
-\Next{\Vdr{d}} & =
-    [ \Vsym{A} \de \Vstr{alpha} \cat \Vsym{next} \mydot \Vstr{beta} ].
-\end{align*}
-If \Vdr{x} is such that
-\begin{equation*}
-\Vdr{x} = [\Vsym{A} \de \Vstr{alpha} \mydot],
+\Vdr{x} = [\Vsym{A} \de \Vstr{pre} \cat \Vsym{next} \cat \Vstr{post}],
 \end{equation*}
 then
-$\Postdot{\Vdr{x}} = \Next{\Vdr{x}} = \Lambda$.
-If for \Vdr{x} in the above,
-\begin{equation*}
-\Postdot{\Vdr{x}} \ne \Lambda \wedge \Vstr{beta} \destar \epsilon
-\end{equation*}
-then
-$\Penult{\Vdr{x}} = \Vsym{next}$.
-Otherwise,
-$\Penult{\Vdr{x}} = \Lambda$.
-
-In the following observations,
-if
-\begin{equation*}
-    \Vdr{d} = [ \Vsym{L} \de \Vstr{alpha} \mydot \Vsym{t} \cat \Vstr{beta} ]
-\end{equation*}
-then
-\begin{equation*}
-\end{equation*}
-be 
+%
+\begin{gather*}
+%
+\Postdot{\Vdr{x}} \defined
+\begin{cases}
+\Vsym{next}, \quad \text{if $\var{x} = [\var{A} \de \var{pre} \mydot \var{next} \cat \var{post}]$} \\
+\Lambda, \quad \text{if $\var{x} = [\var{A} \de \var{pre} \cat \var{next} \cat \var{post} \mydot]$}
+\end{cases} \\
+%
+\Next{\Vdr{x}} \defined
+\begin{cases}
+[\var{A} \de \var{pre} \cat \var{next} \mydot \var{post}],  \\
+\qquad \text{if $\Postdot{\Vdr{x}} = \var{next}$} \\
+\text{$\Lambda$, otherwise}
+\end{cases} \\
+%
+\Penult{\Vdr{x}} \defined
+\begin{cases}
+\Vsym{next}, \quad
+\text{if $\Postdot{\Vdr{x}} = \var{next}$} \\
+\qquad \text{and $\Vstr{post} \destar \epsilon$} \\
+\text{$\Lambda$, otherwise}
+\end{cases}
+\end{gather*}
 
 The \dfn{initial dotted rule} is
 \begin{equation*}
@@ -494,7 +497,8 @@ The \dfn{initial dotted rule} is
 \end{equation*}
 A \dfn{predicted dotted rule} is a dotted rule,
 other than the initial dotted rule,
-with a dot position of zero.
+with a dot position of zero,
+for example,
 \begin{equation*}
 \Vdr{predicted} = [\Vsym{A} \de \mydot \Vstr{alpha} ].
 \end{equation*}
@@ -503,15 +507,16 @@ is the initial dotted rule,
 or a dotted rule
 with a dot position greater than zero.
 A \dfn{completed dotted rule} is a dotted rule with its dot
-position after the end of its RHS.
+position after the end of its RHS,
+for example,
 \begin{equation*}
 \Vdr{completed} = [\Vsym{A} \de \Vstr{alpha} \mydot ].
 \end{equation*}
 Predicted, confirmed and completed dotted rules
-and also called, respectively,
+are also called, respectively,
 \dfn{predictions}, \dfn{confirmations} and \dfn{completions}.
 
-A traditional Earley item (type $EIMT$) is a duple
+A traditional Earley item (type \type{EIMT}) is a duple
 \[
     [\Vdr{dotted-rule}, \Vorig{x}]
 \]
@@ -519,38 +524,23 @@ of dotted rule and origin.
 (The origin is the location where recognition of the rule
 started.
 It is sometimes called the ``parent''.)
-For convenience, the type $ORIG$ will be a synonym
-for $LOC$, indicating that the variable designates
+For convenience, the type \type{ORIG} will be a synonym
+for \type{LOC}, indicating that the variable designates
 the origin element of an Earley item.
-Earley sets are sets in the strict
-sense -- duplicate Earley items are not added.
 
-\begin{sloppypar}
-An traditional Earley parser builds a table of Earley sets,
-\EVtable{\Earley}{i},
-$0 \le \Vloc{i} \le \size{\Vw}$.
-Each set is the closure of the 
-initialization, scanning, reduction and prediction
-operations.
-These four operations
-are called in this \doc{} the {\bf basic
-Earley operations}.
-\end{sloppypar}
-
-The sets are built in order from 0 to $\size{\Vw}$.
-Recall that \Vrule{accept} was $[ \Vsym{accept} \de \Vsym{start} ]$
-Define \Vdr{accept} to be $[ \Vsym{accept} \de \Vsym{start} \mydot ]$.
-The input \Vw{} is accepted if and only if
+An Earley parser builds a table of Earley sets,
 \begin{equation*}
-[\Vdr{accept}, 0] \in \Etable{\Vsize{\Vw}}
+\EVtable{\Earley}{i},
+\quad \text{where} \quad
+0 \le \Vloc{i} \le \size{\Cw}.
 \end{equation*}
-
 At points,
 we will need to compare the Earley sets
 produced by the different recognizers.
-Earley sets are of type $ES$, although
+Earley sets are of type \type{ES}, although
 the type is often omitted to avoid clutter.
-\EVtable{\alg{Recce}}{i} will be Earley set \Vloc{i}
+\EVtable{\alg{Recce}}{i} will be
+the Earley set at \Vloc{i}
 in the table of Earley sets of
 the \alg{Recce} recognizer.
 For example,
@@ -565,149 +555,181 @@ $\size{\Ees{\var{working}}}$ is the number of Earley items
 in \Ees{\var{working}}.
 
 \Rtablesize{\alg{Recce}} is the total number
-of Earley items in all Earley sets for \alg{Recce}.
+of Earley items in all Earley sets for \alg{Recce},
 \begin{equation*}
 \Rtablesize{\alg{Recce}} =
-     \sum\limits_{\Vloc{i}=0}^{\size{\Vw}}
-	{\size{\EVtable{\alg{Recce}}{i}}}
+     \sum\limits_{\Vloc{i}=0}^{\size{\Cw}}
+	{\bigsize{\EVtable{\alg{Recce}}{i}}}.
 \end{equation*}
 For example,
 \Rtablesize{\Marpa} is the total number
 of Earley items in all the Earley sets of
 a \Marpa{} parse.
 
+Recall that
+\begin{equation*}
+\Vrule{accept} \defined [ \Vsym{accept} \de \Vsym{start} ].
+\end{equation*}
+Let
+\begin{equation*}
+\Vdr{accept} \defined [ \Vsym{accept} \de \Vsym{start} \mydot ].
+\end{equation*}
+The input \Cw{} is accepted if and only if
+\begin{equation*}
+[\Vdr{accept}, 0] \in \bigEtable{\Vsize{\Cw}}
+\end{equation*}
+
 \section{Operations of the Earley algorithm}
 \label{s:earley-ops}
 
-In the following,
-\Vloc{c} is the current Earley set.
+In this section,
+each Earley operation is shown in the form of
+an inference rule,
+the conclusion of which
+is the set of the Earley items
+which is that operation's \dfn{result}.
+The Earley sets correspond to parse locations,
+and for any Earley operation there is a
+current parse location and
+therefore a current Earley set.
+In this section,
+the current Earley set will be \Vloc{current}.
+
+Each location starts with an empty Earley set.
+For the purposes of this description of
+\Earley{}, the order of the 
+Earley operations
+when building an
+Earley set is non-deterministic.
+After each Earley operation is performed,
+its result is unioned with the
+current Earley set.
+When no more Earley items
+can be added, the Earley set is
+complete.
+The Earley sets are built in
+order from 0 to \Vsize{w}.
 
 \subsection{Initialization}
 \label{d:initial}
-The {\bf initialization} basic Earley operation only takes
+\begin{equation*}
+\inference{
+   \Vloc{current} = 0
+}{
+    \Bigset{\bigl[ [ \Vsym{accept} \de \mydot \Vsym{start} ], 0 \bigr]}
+}
+\end{equation*}
+Earley {\bf initialization} has no operands
+and only takes
 place in Earley set 0.
-Earley set 0 is initialized to
-\begin{gather*}
-\set{ [ \Vdr{initial}, 0 ] }, \\
-\Vdr{initial} = [\Vsym{accept} \de \mydot \Vsym{start} ]
-\end{gather*}
 
 \subsection{Scanning}
 \label{d:scan}
-\begin{sloppypar}
-A {\bf scanning} basic Earley operation takes place
-in all Earley sets other than Earley set 0
-for each pair $[\Veimt{predecessor}, \Vsym{token}]$,
-where we have all of
-\begin{itemize}
-\item[(i)] $\var{token} = \CEw{\Eloc{(\var{c} \subtract 1)}}$
-\item[(ii)] $\Veimt{predecessor} \in \Etable{\Eloc{(\var{c} \subtract 1)}}$
-\item[(iii)] $\Veimt{predecessor} = [ \Vdr{before}, \Vorig{predecessor} ]$
-\item[(iv)] $\Postdot{\Vdr{before}} = \Vsym{token}$
-\end{itemize}
-A scanning operation
-adds \Veimt{result} to Earley set \Vloc{c},
-where
 \begin{equation*}
-\Veimt{result} = [ \Next{\Vdr{before}}, \Vorig{predecessor} ]
+\inference{
+    \begin{array}{c}
+	\Vloc{current} > 0 \\
+	\var{token} = \CEw{\var{current} \subtract 1}
+	\\[3pt]
+	\Veimt{predecessor} \in \Etable{\var{current} \subtract 1} \\
+	\Veimt{predecessor} = [ \Vdr{before}, \Vorig{predecessor} ] \\
+	\Postdot{\Vdr{before}} = \Vsym{token}
+    \end{array}
+}{
+    \bigset{ [ \Next{\Vdr{before}}, \Vorig{predecessor} ] }
+}
 \end{equation*}
-\Veimt{predecessor} is called the predecessor of the scanning operation
-and \Veimt{result} is called its result.
-The token, \Vsym{token}, is also called the transition symbol
+\Veimt{predecessor}
+and \Vsym{token} are the operands of an Earley scan.
+\Veimt{predecessor} is called the predecessor of the scanning operation.
+The token, \Vsym{token}, is the transition symbol
 of the scanning operation.
-\end{sloppypar}
 
 \subsection{Reduction}
 \label{d:reduction}
-An {\bf Earley reduction} basic operation is attempted
-in every Earley set
-for every pair $[\Veimt{predecessor}, \Vsym{lhs}]$,
-where there exists a \Veimt{component} such that
-we have all of
-\begin{itemize}
-\item[(i)] $\Veimt{component} \in \Vtable{c}$
-\item[(ii)] $\Veimt{component} = [ \Vdr{complete}, \Vorig{component} ]$
-\item[(iii)] $\Vdr{complete} = [ \Vsym{lhs} \de \Vstr{rhs} \mydot ]$
-\item[(iv)] $\Veimt{predecessor} \in \Etable{\Vorig{component}}$
-\item[(v)] $\Veimt{predecessor} = [ \Vdr{before}, \Vorig{predecessor} ]$
-\item[(vi)] $\Postdot{\Vdr{before}} = \Vsym{lhs}$
-\end{itemize}
-A reduction operation
-adds \Veimt{result} to Earley set \Vloc{c},
-where
 \begin{equation*}
-\Veimt{result} = [ \Next{\Vdr{before}}, \Vorig{predecessor} ]
+\inference{
+    \begin{array}{c}
+    \Veimt{component} = \bigl[
+     [ \Vsym{lhs} \de \Vstr{rhs} \mydot ] 
+    , \Vorig{component} \bigr] \\
+    \Veimt{component} \in \Vtable{current} \\[3pt]
+    \Veimt{predecessor} = [ \Vdr{before}, \Vorig{predecessor} ] \\
+    \Veimt{predecessor} \in \Etable{\Vorig{component}} \\
+    \Postdot{\Vdr{before}} = \Vsym{lhs} \\
+    \end{array}
+}{
+    \bigset{ [ \Next{\Vdr{before}}, \Vorig{predecessor} ] }
+}
 \end{equation*}
-\Veimt{component} is called the component of the reduction operation.\footnote{
+
+\begin{sloppypar}
+\Veimt{component} is called
+the component of the reduction operation.\footnote{
 The term ``component'' comes from Irons \cite{Irons}.
 }
-\Veimt{predecessor} is called the predecessor of the reduction operation
-and \Veimt{result} is called its result.
+\Veimt{predecessor} is the predecessor
+of the reduction operation.
 \Vsym{lhs} is the transition symbol
 of the reduction operation.
+\end{sloppypar}
+
+\Veimt{predecessor} and
+\Veimt{component} are the operands of the reduction
+operation.
+In some contexts, it is convenient to treat the transition
+symbol
+as an operand,
+so that the operands
+are \Veimt{predecessor} and \Vsym{lhs}.
 
 \subsection{Prediction}
 \label{d:prediction}
-Let $\mymathop{Predict}(\Vdr{d})$
-be the set of dotted rules
 \begin{equation*}
-\set{ [ \Vsym{L} \de \mydot \Vstr{rh} ]}
+\inference{
+    \begin{array}{c}
+	\Veimt{predecessor} = [ \Vdr{predecessor}, \Vorig{predecessor} ] \\
+	\Veimt{predecessor} \in \Vtable{current}
+    \end{array}
+}{
+    \bigl\{
+	    [ \Vdr{d}, \var{current} ]
+    \bigm|
+	    \Vdr{d} \in \Predict{\Vdr{predecessor}}
+    \bigr\}
+}
 \end{equation*}
-of which all of the following are true
-\begin{gather*}
-[ \Vsym{L} \de \Vstr{rh} ] \in \Vrules \\
-\Vsym{P} = \Postdot{\Vdr{d}} \\
-\Vsym{P} \destar \Vsym{L} \cat \Vstr{alpha}
-\end{gather*}
-A {\bf prediction} basic Earley operation is attempted
-in every Earley set
-for every \Veimt{predecessor}
-\begin{itemize}
-\item[(i)] $\Veimt{predecessor} \in \Vtable{c}$
-\item[(ii)] $\Veimt{predecessor} = [ \Vdr{predecessor}, \Vorig{predecessor} ]$
-\end{itemize}
-The prediction operation
-adds the members of \Veimtset{results}
-to Earley set \Vloc{c},
-where
-\begin{multline*}
-\Veimtset{results} = \{ [ \Vdr{prediction}, \Vloc{c} ] : \\
-	\Vdr{prediction} \in \Predict{\Vdr{predecessor}} \}
-\end{multline*}
-\Veimt{predecessor} is called the predecessor of the prediction operation.
-and the members of \Veimtset{results} are its results.
+where $\mymathop{Predict}(\Vdr{d})$
+is the set of dotted rules
+\begin{equation*}
+\left\{
+\Bigl[ \Vsym{L} \de \mydot \Vstr{rh} \Bigr] \middle|
+    \begin{array}{l}
+    [ \Vsym{L} \de \Vstr{rh} ] \in \Vrules \, \land \\
+     \Vsym{P} = \Postdot{\Vdr{d}} \, \land \\
+     \Vsym{P} \destar \Vsym{L} \cat \Vstr{alpha}
+    \end{array}
+\right\}
+\end{equation*}
+A prediction operation can add several Earley items
+to Earley set \Vloc{current}.
+\Veimt{predecessor} is called the predecessor of the prediction operation,
+and is its only operand.
 
 \subsection{Causation}
-The \dfn{causation} of an operation
-is the set of its operands.
-Operands may be tokens (as in the case of scans and reductions)
-or Earley items (as in every case except initialization).
-An operand of an operation are also called a \dfn{cause}
-of that operation.
-Specifically,
-a \dfn{cause} of an Earley operation is
-\begin{itemize}
-\item the predecessor Earley item of a scanning, reduction
-or prediction operation; or
-\item the component Earley item of a reduction operation; or
-\item the transition symbol of a scanning or
-reduction operation.
-\end{itemize}
-
-The cause of an operation is also called
-the \dfn{cause} of all the Earley items which are the
-results of that operation.
-An Earley item which is result of an scanning or reduction operation
-is called the \dfn{successor} of that operation's predecessor.
+An operand of an operation is also called a \dfn{cause}
+of that operation,
+and the set of operands for an Earley operation
+is its \dfn{causation}.
 
 \section{The Leo algorithm}
 \label{s:leo}
 
 In \cite{Leo1991}, Joop Leo presented a method for
-dealing with right recursion in \order{n} time.
+dealing with right recursion in \On{} time.
 Leo shows that,
 with his modification, Earley's algorithm
-is \order{n} for all LR-regular grammars.
+is \On{} for all LR-regular grammars.
 (LR-regular is LR where lookahead
 is infinite length, but restricted to
 distinguishing between regular expressions.)
@@ -723,10 +745,10 @@ Earley set, using what Leo called
 In this \doc{} Leo's ``transitive items''
 will be called Leo items.
 Leo items in the form that Marpa uses
-will be type $LIM$.
+will be type \type{LIM}.
 ``Traditional'' Leo items,
-that is, those in the form used in Leo's paper\cite{Leo1991},
-will be type $LIMT$.
+that is, those of the form used in Leo's paper\cite{Leo1991},
+will be type \type{LIMT}.
 
 In each Earley set, there is at most one Leo item per symbol.
 A traditional Leo item (LIMT) is the triple
@@ -747,67 +769,86 @@ Leo items only memoize unambiguous (or
 deterministic) sequences,
 so that the top of the sequence can represent
 the entire sequence --
-the only role the other EIMT's in the sequence would
-play in a parse is to derive the top EIMT.
+the only role the other EIMT's in the sequence
+play in the parse is to derive the top EIMT.
 We will call these memoized sequences, Leo sequences.
 
 Each Leo sequence, if fully expanded,
-would contain \order{n} items,
+would contain \On{} items,
 where \var{n} is the length of the sequence.
 In \Earley, each such sequence would be expanded in every
 Earley set which is the origin of an EIMT included in the
 sequence, and the total number of EIMT's would be
-\order{n^2}.
+\order{\var{n}^2}.
 
 With Leo memoization, a single EIMT stands in for the sequence.
 There are \Oc{} Leo items per Earley set,
 so the cost of the sequence is \Oc{} per Earley set,
-or \order{n} for the entire sequence.
+or \On{} for the entire sequence.
 If, at evaluation time,
 it is desirable to expand the Leo sequence,
 only those items actually involved in the parse
 need to be expanded.
 All the EIMT's of a potential right-recursion 
 will be in one Earley set and the number of EIMT's
-will be \order{n},
+will be \On{},
 so that even including expansion of the Leo sequence
 for evaluation, the time and space complexity of
-the sequence remains \order{n}.
+the sequence remains \On{}.
 
 Implementing Leo memoization requires
-adding another basic operation.
-In addition to the basic operations of \Earley,
-\Leo{} includes Leo reduction.
-In every Earley set after the first,
-for every symbol \Vsym{lhs},
-traditional \Earley{} reduction looks for pairs
-$[\Veimt{pred}, \Vsym{lhs}]$
-such that,
-where \Vorig{component} is the origin
-of the reduction's component operand,
-we have both of
-\begin{gather*}
-    \Veimt{pred} \in \EVtable{\Earley}{\Vorig{component}} \\
-    \Penult{\var{pred}} = \Vsym{lhs}
-\end{gather*}
+adding Leo reduction as a new basic operation,
+adding a new premise to the Earley reduction
+operation,
+and extending the Earley sets to include LIMT's.
+In this \doc,
+where an Earley set is one of the domains of a relation,
+the other domains will be restricted to either
+Leo items or Earley items,
+and which is intended will be clear from
+the context.
 
-Instead, \Leo{} first looks for a LIMT such that,
-for some \Vdr{top}, \Vorig{top},
-we have both of
-\begin{gather*}
-    \Vlimt{pred} \in \EVtable{\Earley}{\Vorig{component}} \\
-    \Vlimt{pred} = [ \Vdr{top}, \Vsym{lhs}, \Vorig{top} ]
-\end{gather*}
-If such an LIMT exists,
-there is a Leo reduction for \Vsym{lhs} from
-Earley set \Vorig{component}.
-If there is a Leo reduction,
-$[ \Vdr{top}, \Vorig{top} ]$ is added to
-the current Earley set,
-and reduction on \Vsym{lhs} from Earley set \Vorig{component}
-is not attempted.
-If there is no Leo reduction,
-the standard reduction of \Earley{} is attempted.
+\subsection{Leo reduction}
+
+\begin{equation*}
+\inference{
+    \begin{array}{c}
+    \Veimt{component} = \bigl[
+     [ \Vsym{lhs} \de \Vstr{rhs} \mydot ] 
+    , \Vorig{component} \bigr] \\
+    \Veimt{component} \in \Vtable{current} \\[3pt]
+	\Vlimt{predecessor} \in \Etable{\Vorig{component}} \\
+	\Vlimt{predecessor} = [ \Vdr{top}, \Vsym{lhs}, \Vorig{top} ]
+    \end{array}
+}{
+    \bigset{ [ \Vdr{top}, \Vorig{top} ] }
+}
+\end{equation*}
+The new Leo reduction operation resembles the Earley reduction
+operation, except that it looks for an LIMT,
+instead of a predecessor EIMT.
+\Vlimt{predecessor} and
+\Veimt{component} are the operands of the Leo reduction
+operation.
+\Vsym{lhs} is the transition symbol
+of the Leo reduction.
+As with Earley reduction,
+it may be convenient to treat the transition
+symbol as an operand,
+so that the operands
+are \Vlimt{predecessor} and \Vsym{lhs}.
+
+Earley reduction still applies, with an additional premise:
+\begin{multline*}
+\forall \Vlimt{x} \in \Etable{\Vorig{component}} \\
+	(\Vlimt{x} = [ \Vdr{x}, \Vsym{x}, \Vorig{x} ] \implies \Vsym{x} \ne \Vsym{lhs})
+\end{multline*}
+The additional premise
+prevents Earley reduction from being applied
+where there is an LIMT with \Vsym{lhs} as its transition symbol.
+This reflects the fact that, in \Leo{},
+Leo reduction replaces Earley reduction if and only when
+it is applicable.
 
 \section{The Aycock-Horspool finite automaton}
 \label{s:AHFA}
@@ -818,20 +859,18 @@ In this \doc{} a
 as described by Aycock and Horspool\cite{AH2002},
 will be called an Aycock-Horspool Finite Automaton,
 or AHFA.
-A full description of how to derive an AHFA in theory
-can be found in \cite{AH2002},
-and examples of how to derive it in practice
-can be found in the code for Marpa\cite{Marpa-R2,Marpa-XS}.
-Here I will summarize those ideas behind AHFA's
+This section will
+summarize the ideas
+from \cite{AH2002}
 that are central to Marpa.
 
 Aycock and Horspool based their AHFA's
 on a few observations.
 \begin{itemize}
 \item
-In practice, groups of Earley items sharing the same origin,
+In practice, Earley items sharing the same origin,
 but having different dotted rules,
-often appear in the same Earley set.
+often appear together in the same Earley set.
 \item
 There is in the literature a method
 for associating groups of dotted rules that often appear together
@@ -850,13 +889,14 @@ at grouping dotted rules which often occur together
 into a single DFA state.
 \end{itemize}
 
-AHFA states are sets of dotted rules.
-Aycock and Horspool realized that by changing Earley items
-to track AHFA states, instead of individual dotted rules,
+AHFA states are, in effect,
+a shorthand
+for groups of dotted rules that occur together frequently.
+Aycock and Horspool realized that,
+by changing Earley items to track AHFA states
+instead of individual dotted rules,
 the size of Earley sets could be reduced,
 and Earley's algorithm made faster in practice.
-AHFA states are a shorthand that Earley items
-can use for groups of dotted rules that occur together frequently.
 
 As a reminder,
 the original Earley items (EIMT's)
@@ -867,15 +907,18 @@ An Aycock-Horspool Earley item is a duple
 [\Vah{y}, \Vorig{y}],
 \end{equation*}
 where $\Vah{y}$ is an AHFA state.
-Marpa's Earley items are Aycock-Horspool Earley items.
-A Marpa Earley item has type $EIM$,
+
+\Marpa{} uses
+Earley items of the form
+created by Aycock and Horspool.
+A Marpa Earley item has type \type{EIM},
 and a Marpa Earley item is often referred to as an EIM.
 
 \begin{sloppypar}
 Aycock and Horspool did not consider
 Leo's modifications,
-but Marpa incorporates them,
-and changes its Leo items to use AHFA states.
+but \Marpa{} incorporates them,
+and \Marpa{} also changes its Leo items to use AHFA states.
 Marpa's Leo items (LIM's) are triples
 of the form
 \begin{equation*}
@@ -884,15 +927,14 @@ of the form
 where \Vsym{transition} and \Vorig{top}
 are as in the traditional Leo items,
 and \Vah{top} is an AHFA state.
-A Marpa Leo item has type $LIM$.
+A Marpa Leo item has type \type{LIM}.
 \end{sloppypar}
 
-\cite{AH2002} defines AHFA states (type $AH$) as sets
-of dotted rules.
-They also define a partial transition function for
+\cite{AH2002} also defines
+a partial transition function for
 pairs of AHFA state and symbol,
 \begin{equation*}
-\GOTO: \Vfa, (\epsilon \cup \var{alphabet}) \mapsto \Vfa.
+\GOTO: \Vfa, (\epsilon \cup \var{vocab}) \mapsto \Vfa.
 \end{equation*}
 $\GOTO(\Vah{from}, \epsilon)$ is a
 \dfn{null transition}.
@@ -909,38 +951,27 @@ An AHFA is not a partition of the dotted
 rules --
 a single dotted rule can occur
 in more than one AHFA state.
-This does not happen frequently,
-but it happens often enough,
-even in practical grammars,
-that the Marpa implementation has to provide for it.
-
-What does not seem to occur in practice
-is that
-the size of a \Marpa{} Earley set grows larger
-than that of one of Earley's original sets.
-It seems the AHFA is always a win,
-at least for practical grammars.
-
-\begin{sloppypar}
 In combining
 the improvements of Leo~\cite{Leo1991} and
 Aycock and Horspool\cite{AH2002},
 the following theorem is crucial.
+
 \begin{theorem}\label{t:leo-singleton}
 If the AHFA state of
 a Marpa Earley item (EIM) is the result of a
 Leo reduction,
 then its AHFA state contains only one dotted rule.
 \end{theorem}
-\end{sloppypar}
 
 \begin{proof}
-Since the Earley item is the result of a Leo reduction,
-we know that its AHFA state contains a completed rule.
+Since the Earley item is the result of a Leo reduction
+we know, from the definition of a Leo reduction,
+that its AHFA state contains a completed rule.
 Call that completed rule, \Vdr{complete}.
 Let \Vrule{c} be the rule of \Vdr{complete},
 and \var{cp} its dot position.
-$\var{cp} > 0$ because completions are never
+$\var{cp} > 0$ because, in \Marpa{}
+grammars, completions are never
 predictions.
 
 Suppose, for a reduction to absurdity,
@@ -983,21 +1014,18 @@ Since they are in the same AHFA state,
 by the AHFA construction,
 that transition must have been
 over the same transition symbol.
-\Leo{} requires,
-for each predecessor Earley set and transition symbol,
-that a Leo transition be from a single rule.
-The assumption for the reductio is that \Vdr{complete}
-and \Vdr{other} are in the same Leo reduction state,
-which requires their last transition to have been
-over the same symbol and from the same Earley set.
-To obey the Leo uniqueness requirement,
-we must have $\Vrule{c} = \Vrule{o}$.
+\Leo{} reduction is required to be unique,
+and a Leo item is not created
+for a transition symbol,
+unless that symbol is the transition symbol of
+exactly one dotted rule in that Earley set.
 The assumption for the outer reductio
 is that both \Vdr{complete} and \Vdr{other}
 share an AHFA state in a Leo reduction EIM,
 so they must obey the Leo uniqueness requirement.
-Therefore
-$\Vrule{c} = \Vrule{o}$, which contradicts
+To obey the Leo uniqueness requirement,
+we must have $\Vrule{c} = \Vrule{o}$,
+which contradicts
 the assumption for the second inner reductio.
 
 By the two inner reductio's,
@@ -1020,21 +1048,21 @@ Alongside the pseudocode of this section
 are observations about its space and time complexity.
 In what follows,
 we will charge all time and space resources
-to attempts to add Earley items.
-We will show that
-each addition of an Earley item to the
-Earley table takes amortized \Oc{} time and space.
-We will also show
-that each attempt to add a duplicate Earley item
-takes amortized \Oc{} time.
+to Earley items,
+or to attempts to add Earley items.
+We will show that,
+to each Earley item actually added,
+or to each attempt to add a duplicate Earley item,
+we can charge amortized \Oc{} time and space.
 In Section \ref{s:complexity},
 we will characterize
 the order of magnitude of the actual Earley items
-and of the attempts to add Earley items,
+and of attempts to add Earley items,
 and their relationship to each other.
 
-At points, it will not be convenient to speak of
-charging a resource immediately
+At points, it will not be immediately
+convenient to speak of
+charging a resource
 to an Earley item
 or to an attempt to add a duplicate
 Earley item.
@@ -1046,13 +1074,14 @@ we speak of charging time and space
 \end{itemize}
 
 We can charge time and space to the parse itself,
-as long as the time and space charged is \Oc.
+as long as the total time and space charged is \Oc.
 Afterwards, this resource can be re-charged to
 the initial Earley item, which is present in all parses.
-Soft and hard failures always uses worst-case \Oc{} resource,
-and are always charged to the parse.
+Soft and hard failures use
+worst-case \Oc{} resource,
+and are charged to the parse.
 
-We will charge resources to the Earley set,
+We can charge resources to the Earley set,
 as long as the time or space is \Oc.
 Afterwards,
 the resource charged to the Earley set can be
@@ -1060,7 +1089,7 @@ re-charged to an arbitrary member of the Earley set,
 for example, the first.
 If an Earley set is empty,
 the parse must fail,
-and the time is charged to the parse.
+and the time can be charged to the parse.
 
 When discussing each procedure, we will state whether
 the time and space we are charging is inclusive, exclusive
@@ -1082,16 +1111,16 @@ a procedure's direct or indirect caller.
 \State \Comment At this point, $\Etable{\var{x}}$ is complete, for $0 \le \var{x} < \var{i}$
 \State \Call{Scan pass}{$\var{i}, \var{w}[\var{i} \subtract 1]$}
 \If{$\size{\Etable{\var{i}}} = 0$}
-\State reject \Vw{} and return
+\State reject \Cw{} and return
 \EndIf
 \State \Call{Reduction pass}{\var{i}}
 \EndFor
 \For{every $[\Vah{x}, 0] \in \Etable{\Vsize{w}}$}
 \If{$\Vdr{accept} \in \Vah{x}$}
-\State accept \Vw{} and return
+\State accept \Cw{} and return
 \EndIf
 \EndFor
-\State reject \Vw{}
+\State reject \Cw{}
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
@@ -1099,8 +1128,11 @@ a procedure's direct or indirect caller.
 \subsection{Top-level code}
 
 Exclusive time and space for the loop over the Earley sets
-is charged to the Earley sets,
-and overhead is charged to the parse.
+is charged to the Earley sets.
+Inclusive time and space for the final loop to
+check for \Vdr{accept} is charged to
+the Earley items at location \size{\Cw}.
+Overhead is charged to the parse.
 All these resource charges are obviously \Oc.
 
 \subsection{Ruby Slippers parsing}
@@ -1138,6 +1170,7 @@ and can be charged to the parse.
 \caption{Marpa Scan pass}
 \begin{algorithmic}[1]
 \Procedure{Scan pass}{$\Vloc{i},\Vsym{a}$}
+\State Note: Each pass through this loop is an EIM attempt
 \For{each $\Veim{predecessor} \in \var{transitions}((\var{i} \subtract 1),\var{a})$}
 \State $[\Vah{from}, \Vloc{origin}] \gets \Veim{predecessor}$
 \State $\Vah{to} \gets \GOTO(\Vah{from}, \Vsym{a})$
@@ -1167,7 +1200,8 @@ the lookup is always in the previous Earley set,
 which can easily be tracked in \Oc{} space
 and retrieved in \Oc{} time.
 Inclusive time and space can be charged to the
-Earley item attempts.
+\Veim{predecessor}.
+Overhead is charged to the Earley set at \Vloc{i}.
 \end{sloppypar}
 
 \begin{algorithm}[h]
@@ -1198,7 +1232,7 @@ set and adding new items at the end.
 
 Exclusive time is clearly \Oc{}
 and may be charged to each \Veim{work}.
-Overhead may be charged to the Earley set.
+Overhead may be charged to the Earley set at \Vloc{i}.
 
 \begin{algorithm}[h]
 \caption{Memoize transitions}
@@ -1226,26 +1260,25 @@ added to Earley set \Vloc{i}.
 This can be done in
 a single pass over Earley set \Vloc{i},
 in \Oc{} time per EIM.
-The time and space required are charged to the
+The inclusive time and space are charged to the
 Earley items being examined.
-Any loop overhead may be charged to the Earley set.
+Overhead is charged to the Earley set at \Vloc{i}.
 
 In setting up the \var{transitions} table for the current Earley set,
 the Leo items must be created.
-For each Earley set,
-the number of Leo items is at most
+This can be done in \Oc{} time per Earley set,
+since the number of Leo items is at most
 the number of symbols in
-\Vsymset{alphabet}.
-Since the maximum number of Leo items is a constant
-depending on \Vg{},
-their space and time may be charged to the Earley set.
+\Vsymset{vocab},
+which is a constant depending on \Cg{}.
 
 \begin{algorithm}[h]
 \caption{Reduce one LHS symbol}
 \begin{algorithmic}[1]
 \Procedure{Reduce one LHS}{\Vloc{i}, \Vloc{origin}, \Vsym{lhs}}
-\State \Comment \var{pim} is a ``postdot item'', either a LIM or an EIM
+\State Note: Each pass through this loop is an EIM attempt
 \For{each $\var{pim} \in \var{transitions}(\Vloc{origin},\Vsym{lhs})$}
+\State \Comment \var{pim} is a ``postdot item'', either a LIM or an EIM
 \If{\var{pim} is a LIM, \Vlim{pim}}
 \State Perform a \Call{Leo reduction operation}{}
 \State \hspace\algorithmicindent for operands \Vloc{i}, \Vlim{pim}
@@ -1259,12 +1292,14 @@ their space and time may be charged to the Earley set.
 \end{algorithm}
 
 \subsection{Reduce one LHS}
+\label{p:reduce-one-lhs}
 
-Inclusive time is charged to the EIM attempt.
-We see that
-$\var{transitions}(\Vloc{origin},\Vsym{lhs})$
-can be done in \Oc{} time
-if we note
+To show that
+\begin{equation*}
+\var{transitions}(\Vloc{origin},\Vsym{lhs})
+\end{equation*}
+can be done in \Oc{} time,
+we note
 that the number of symbols is a constant
 and assume that \Vloc{origin} is implemented
 as a link back to the Earley set,
@@ -1275,6 +1310,11 @@ carry a link
 back to its origin.
 As implemented, Marpa's
 Earley items have such links.
+
+Inclusive time
+for the loop over the EIM attempts
+is charged to each EIM attempt.
+Overhead is caller-included.
 
 \begin{algorithm}[h]
 \caption{Earley reduction operation}
@@ -1292,8 +1332,10 @@ Earley items have such links.
 
 \begin{sloppypar}
 Exclusive time and space is clearly \Oc.
-Inclusive time and space is charged to the
-calling procedure.
+\call{Earley reduction operation}{} is always
+called as part of an EIM attempt,
+and inclusive time and space is charged to the EIM
+attempt.
 \end{sloppypar}
 
 \begin{algorithm}[h]
@@ -1311,8 +1353,10 @@ calling procedure.
 \label{p:leo-op}
 
 Exclusive time and space is clearly \Oc.
-Inclusive time and space is charged to the
-calling procedure.
+\call{Leo reduction operation}{} is always
+called as part of an EIM attempt,
+and inclusive time and space is charged to the EIM
+attempt.
 
 \begin{algorithm}[h]
 \caption{Add EIM pair}\label{a:pair}
@@ -1368,6 +1412,20 @@ and in this \doc{} they will be called ``per-Earley set lists'',
 or PSL's.
 PSL's are the subject of the next section.
 
+The resource used by \call{Add EIM Pair}{}
+is always caller-included.
+The time and space for an EIM attempt
+is always charged against \Veim{confirmed},
+including the time and space used
+to add or to attempt to add \Veim{predicted}.
+This means that no time or space is ever charged
+to a predicted Earley item.
+At most one attempt to add a \Veim{predicted} will 
+be made per attempt to add a \Veim{confirmed},
+so that the total resource charged
+to each \Veim{confirmed}
+remains \Oc.
+
 \subsection{Per-set lists}
 
 \begin{sloppypar}
@@ -1381,7 +1439,7 @@ The maximum number of Earley items that must be tracked
 in each PSL is
 the number of AHFA states,
 \Vsize{\Vfa},
-which is a constant depending on \Vg.
+which is a constant depending on \Cg.
 \end{sloppypar}
 
 It would take more than \Oc{} time
@@ -1424,6 +1482,48 @@ As implemented,
 Marpa uses PSL's to check if EIM's are new,
 and for several other purposes.
 
+\subsection{Complexity summary}
+
+For convenience, we collect and summarize here
+some of the observations of this section.
+
+\begin{observation}
+The time and space charged to an Earley item
+which is actually added to the Earley sets
+is \Oc.
+\end{observation}
+
+\begin{observation}
+The time charged to an attempt
+to add a duplicate Earley item to the Earley sets
+is \Oc.
+\end{observation}
+
+For evaluation purposes, \Marpa{} adds a link to
+each EIM that records each attempt to
+add that EIM,
+whether originally or as a duplicate.
+Traditionally, complexity results treat parsers
+as recognizers, and such costs are ignored.
+This will be an issue when the space complexity
+for unambiguous grammars is considered.
+
+\begin{observation}
+The space charged to an attempt
+to add a duplicate Earley item to the Earley sets
+is \Oc if links are included,
+zero otherwise.
+\end{observation}
+
+As noted in Section \ref{p:add-eim-pair},
+the time and space used by predicted Earley items
+and attempts to add them is charged elsewhere.
+
+\begin{observation}
+No space or time is charged to predicted Earley items,
+or to attempts to add predicted Earley items.
+\end{observation}
+
 \section{Preliminaries to the theoretical results}
 \label{s:proof-preliminaries}
 
@@ -1447,12 +1547,12 @@ if we assume that a history
 of the rewrite is kept,
 and that the rewrite is reversed
 after the parse.
-Clearly, whether a grammar \Vg{} accepts
-an input \Vw{}
+Clearly, whether a grammar \Cg{} accepts
+an input \Cw{}
 will not depend on the nulling symbols in its rules.
 
 In its implementation,
-\Marpa's does not directly rewrite the grammar
+\Marpa{} does not directly rewrite the grammar
 to eliminate nulling symbols.
 But nulling symbols are ignored in
 creating the AHFA states,
@@ -1481,7 +1581,6 @@ $\Veimt{x} = [\Vdr{x}, \Vorig{x}]$
 if and only if the Marpa Earley item is a
 $\Veim{y} = [\Vah{y}, \Vorig{x}]$
 such that $\Vdr{x} \in \Vah{y}$.
-This relation is reflexive:
 A traditional Earley item, \Veimt{x}, corresponds to a
 Marpa Earley item, \Veim{y}, if and only if
 \Veim{y} corresponds to \Veimt{x}.
@@ -1515,78 +1614,78 @@ there is a corresponding Earley item in
 \end{sloppypar}
 
 \begin{definition}
-We say that
-a Marpa Earley set is \dfn{correct}
+A Marpa Earley set is \dfn{correct}
 if and only that Marpa Earley set is complete
 and consistent.
 \end{definition}
 
 \subsection{About AHFA states}
 
-Several facts about AHFA's from \cite{AH2002}
+Several facts from \cite{AH2002}
 will be heavily used in the following proofs.
 For convenience, they are restated here.
 
 \begin{observation}
 \label{o:confirmed-AHFA-consistent}
-AHFA confirmation is consistent.
-That is, if all of the following are true
+AHFA confirmation is consistent.  That is,
+for all \Vah{from}, \Vsym{t}, \Vah{to}, \Vdr{to} where
 \begin{gather*}
-    \Postdot{\Vdr{from}} \ne \Lambda \\
-    \Postdot{\Vdr{from}} = \Vsym{t} \\
-    \GOTO(\Vah{from}, \Vsym{t}) = \Vah{to} \\
-    \Vdr{to} \in \Vah{to}
+\GOTO(\Vah{from}, \Vsym{t}) = \Vah{to} \quad \text{and} \\
+\Vdr{to} \in \Vah{to},
 \end{gather*}
-then there exists \Vdr{from} such that
-\begin{equation*}
-    \Next{\Vdr{from}} = \Vdr{to}
-    \land \Vdr{from} \in \Vah{from}
-\end{equation*}
+there exists \Vdr{from} such that
+\begin{gather*}
+    \Vdr{from} \in \Vah{from} \quad \text{and} \\
+    \Vsym{t} = \Postdot{\Vdr{from}} \quad \text{and} \\
+    \Next{\Vdr{from}} = \Vdr{to}.
+\end{gather*}
 \end{observation}
 
 \begin{observation}
 \label{o:confirmed-AHFA-complete}
-AHFA confirmation is complete.
-That is, if all of the following are true
+AHFA confirmation is complete.  That is,
+for all \Vah{from}, \Vsym{t}, \Vah{to}, \Vdr{from} where
 \begin{gather*}
-    \Postdot{\Vdr{from}} \ne \Lambda \\
-    \Postdot{\Vdr{from}} = \Vsym{t} \\
-    \GOTO(\Vah{from}, \Vsym{t}) = \Vah{to} \\
-    \Vdr{from} \in \Vah{from}
+\GOTO(\Vah{from}, \Vsym{t}) = \Vah{to} \quad \text{and} \\
+\Vdr{from} \in \Vah{from} \quad \text{and} \\
+\Postdot{\Vdr{from}} = \Vsym{t},
 \end{gather*}
-then for all \Vdr{to}
-\begin{equation*}
-    \Next{\Vdr{from}} = \Vdr{to} \implies \Vdr{to} \in \Vah{to}
-\end{equation*}
+there exists \Vdr{to} such that
+\begin{gather*}
+\Next{\Vdr{from}} = \Vdr{to} \quad \text{and} \\
+\Vdr{to} \in \Vah{to}.
+\end{gather*}
 \end{observation}
 
+\begin{sloppypar}
 \begin{observation}
 \label{o:predicted-AHFA-consistent}
-AHFA prediction is consistent.
-That is, if
-\begin{equation*}
-    \GOTO(\Vah{from}, \epsilon) = \Vah{to}
-    \land \Vdr{to} \in \Vah{to}
-\end{equation*}
-then there exists \Vdr{from} such that
-\begin{equation*}
-    \Vdr{to} \in \Predict{\Vdr{from}}
-    \land \Vdr{from} \in \Vah{from}
-\end{equation*}
+AHFA prediction is consistent.  That is,
+for all \Vah{from}, \Vah{to}, \Vdr{to} where
+\begin{gather*}
+\GOTO(\Vah{from}, \epsilon) = \Vah{to} \quad \text{and} \\
+\Vdr{to} \in \Vah{to},
+\end{gather*}
+there exists \Vdr{from} such that
+\begin{gather*}
+    \Vdr{from} \in \Vah{from} \quad \text{and} \\
+    \Vdr{to} \in \Predict{\Vdr{from}}.
+\end{gather*}
 \end{observation}
+\end{sloppypar}
 
 \begin{observation}
 \label{o:predicted-AHFA-complete}
-AHFA prediction is complete.
-That is, if
+AHFA prediction is complete.  That is,
+for all \Vah{from}, \Vah{to}, \Vdr{from}, \Vdr{to}, if
+\begin{gather*}
+\GOTO(\Vah{from}, \epsilon) = \Vah{to} \quad \text{and} \\
+\Vdr{from} \in \Vah{from} \quad \text{and} \\
+\Vdr{to} \in \Predict{\Vdr{from}},
+\end{gather*}
+then
 \begin{equation*}
-    \GOTO(\Vah{from}, \epsilon) = \Vah{to}
-    \land \Vdr{from} \in \Vah{from}
-\end{equation*}
-then for all \Vdr{to}
-\begin{equation*}
-    \Vdr{to} \in \Predict{\Vdr{from}}
-    \implies \Vdr{to} \in \Vah{to}
+\Vdr{to} \in \Vah{to}.
 \end{equation*}
 \end{observation}
 
@@ -1601,8 +1700,9 @@ Marpa's Earley sets are correct.
 
 \begin{sloppypar}
 The proof 
-is by induction on the Earley sets.
-The induction hypothesis is that all Earley sets
+is by double induction.
+The outer induction is on the Earley sets.
+The outer induction hypothesis is that all Earley sets
 \EVtable{\Marpa}{i},
 $0 \le \Vloc{i} \le \Vloc{n}$,
 are complete and consistent,
@@ -1640,7 +1740,7 @@ that the predecessor EIM is correct
 by the outer induction hypothesis,
 and that the token is correct
 by the definitions in the preliminaries.
-We know from Section \ref{p:scan-op},
+We know, from Section \ref{p:scan-op},
 that at most two EIM's will be added.
 We now examine them in detail.
 
@@ -1655,6 +1755,7 @@ If we do nothing,
 since \EVtable{\Marpa}{i} is consistent by the inner
 induction hypothesis,
 it remains consistent, trivially.
+
 Otherwise, let
 $\Veim{confirmed} = [\Vah{confirmed}, \Vloc{i}]$.
 We see that \Veim{confirmed} is consistent with respect
@@ -1683,7 +1784,7 @@ Otherwise, let
 \begin{equation*}
 \Veim{predicted} = [\Vah{predicted}, \Vloc{i}].
 \end{equation*}
-We see that \Veim{predicted} is consistent with respect to
+We see that \Veim{predicted} is consistent with respect
 to \EVtable{\Leo}{i},
 by the definition of Earley prediction (Section~\ref{d:prediction}) and
 Observation ~\ref{o:predicted-AHFA-consistent}.
@@ -1693,7 +1794,7 @@ since \EVtable{\Marpa}{i} is consistent by the inner induction,
 \Veim{predicted} is added.
 \end{sloppypar}
 
-\subsubsection{Reduction consistency without Leo}
+\subsubsection{Earley reduction is consistent}
 \label{s:reduction-consistent}
 
 \begin{sloppypar}
@@ -1734,7 +1835,7 @@ Section \ref{s:scan-consistent}.
 \EVtable{\Marpa}{i} remains consistent,
 whether or not a \Veim{predicted} is added.
 
-\subsubsection{Leo reduction consistency}
+\subsubsection{Leo reduction is consistent}
 \label{s:leo-consistent}
 
 \begin{sloppypar}
@@ -1770,8 +1871,8 @@ that, as the result of the Leo reduction,
 \end{equation*}
 to \EVtable{\Marpa}{j}.
 The consistency of \Veim{leo} follows from the definition
-of EIM consistency,
-and the consistency of
+of EIM consistency.
+The consistency of
 \EVtable{\Marpa}{i},
 once \Veim{leo} is added,
 follows by the invariance
@@ -1792,7 +1893,7 @@ It was the purpose of the inner induction to show
 that consistency of \EVtable{\Marpa}{i} is invariant
 under Marpa's operations.
 
-\subsubsection{Marpa Earley set completeness}
+\subsubsection{The inner induction for completeness}
 
 It remains to show that,
 when Marpa's operations are run as described
@@ -1810,21 +1911,22 @@ For every operation which \Leo{} would perform,
 we show that
 \Marpa{} performs an operation which
 produces a corresponding Earley item.
-Here are our cases for the operations of \Leo{}:
-\begin{itemize}
-\item traditional \Earley{} scanning operations;
-\item traditional \Earley{} reductions;
-\item Leo reductions;
-\item traditional \Earley{} predictions;
-\end{itemize}
+Our cases for the operations of \Leo{} are
+Earley scanning operations;
+Earley reductions;
+Leo reductions;
+and Earley predictions.
 
-\subsubsection{Scanning completeness}
+\subsubsection{Scanning is complete}
 \label{s:scan-complete}
 
 \begin{sloppypar}
 For scanning, the Marpa pseudocode shows
-that, a scan is attempted for every
-pair \Veim{predecessor}, \Vsym{token},
+that a scan is attempted for every
+pair
+\begin{equation*}
+[\Veim{predecessor}, \Vsym{token}],
+\end{equation*}
 where \Veim{predecessor} is an EIM in the previous
 Earley set,
 and \Vsym{token} is the token scanned at \Vloc{i}.
@@ -1860,7 +1962,7 @@ an Earley item for
 every prediction that results from
 a scanned Earley item in \EVtable{\Leo}{i}.
 
-\subsubsection{Earley reduction completeness}
+\subsubsection{Earley reduction is complete}
 \label{s:reduction-complete}
 
 We now examine Earley reduction,
@@ -1939,20 +2041,21 @@ with the Earley reduction operation (Section \ref{d:reduction})
 and using
 Observations~\ref{o:confirmed-AHFA-complete}
 and \ref{o:predicted-AHFA-complete},
-we see that a reduced Earley item of
+we see that a Earley reduction result of
 generation $\var{n}+1$
 will be added to
-\EVtable{\Marpa}{i} corresponding to every reduced Earley item
+\EVtable{\Marpa}{i} corresponding to every Earley reduction result
 of \EVtable{\Leo}{i},
 as well as one corresponding
 to every prediction that results from
-a reduced Earley item
+an Earley reduction result
 of generation $\var{n}+1$ in \EVtable{\Leo}{i}.
 This shows the case of reduction completeness.
 
-\subsubsection{Leo reduction completeness}
+\subsubsection{Leo reduction is complete}
 \label{s:leo-complete}
 
+\begin{sloppypar}
 We now show completeness for Marpa's reduction operation,
 in the case where there is a Leo reduction.
 In Section \ref{s:leo-consistent},
@@ -1965,8 +2068,9 @@ Since \Vdr{top} is a completed rule,
 there are no predictions.
 This shows the case immediately,
 by the definition of completeness.
+\end{sloppypar}
 
-\subsubsection{Prediction completeness}
+\subsubsection{Prediction is complete}
 \label{s:prediction-complete}
 
 \begin{sloppypar}
@@ -2003,7 +2107,7 @@ and the theorem.
 
 We are now is a position to show that Marpa is correct.
 \begin{theorem}
-$\myL{\Marpa,\Vg} = \myL{\Vg}$
+$\myL{\Marpa,\Cg} = \myL{\Cg}$
 \end{theorem}
 
 \begin{proof}
@@ -2021,11 +2125,11 @@ From the acceptance criteria in the \Leo{} definitions
 and the \Marpa{} pseudocode,
 it follows that
 \begin{equation*}
-\myL{\Marpa,\Vg} = \myL{\Leo,\Vg}.
+\myL{\Marpa,\Cg} = \myL{\Leo,\Cg}.
 \end{equation*}
 By Theorem 4.1 in \cite{Leo1991}, we know that
 \begin{equation*}
-\myL{\Leo,\Vg} = \myL{\Vg}.
+\myL{\Leo,\Cg} = \myL{\Cg}.
 \end{equation*}
 The theorem follows from
 the previous two equalities.
@@ -2034,7 +2138,8 @@ the previous two equalities.
 \section{Marpa recognizer complexity}
 \label{s:complexity}
 
-\subsection{Nulling symbols}
+\subsection{Complexity of each Earley item}
+
 For the complexity proofs,
 we consider only Marpa grammars without nulling
 symbols.
@@ -2047,31 +2152,74 @@ the rewrite and its reversal can be done
 in amortized \Oc{} time and space
 per Earley item.
 
-One way to show the required bound is
-to charge
-the time and space involved in rewriting Earley
-items with nulling symbols directly to
-the Earley item to which they are rewritten
-and from which they can be restored.
-Since
-the number of occurrences of nulling symbols in any rule
-or in any AHFA state is a constant depending on the grammar,
-the time and space involved are also constant,
-and our bound follows.
-
-\subsection{Complexity of each Earley item}
-
-\begin{theorem}\label{t:O1-per-eim}
-All time in \Marpa{} can be allocated
-to the Earley items,
-and in such a way that each attempt to
-add an Earley item
+\begin{lemma}\label{l:nulling-rewrite}
+All time and space required
+to rewrite the grammar to eliminate nulling
+symbols, and to restore those rules afterwards
+in the Earley sets,
+can be allocated
+to the Earley items
+in such a way that each Earley item
 requires \Oc{} time and space.
-\end{theorem}
+\end{lemma}
 
 \begin{proof}
-The theorem follows from the observations
-in Section \ref{s:pseudocode}.
+The time and space used in the rewrite is a constant
+which depends on the grammar,
+and is charged to the parse.
+The reversal of the rewrite can be
+done in a loop over the Earley items,
+which will have time and space costs
+per Earley item,
+plus a fixed overhead.
+The fixed overhead is \Oc{}
+and is charged to the parse.
+The time and space per Earley item
+is \Oc{}
+because the number of
+rules into which another rule must be rewritten,
+and therefore the number of Earley items
+into which another Earley item must be rewritten,
+is a constant which depends
+on the grammar.
+\end{proof}
+
+\begin{theorem}\label{t:O1-time-per-eim}
+All time in \Marpa{} can be allocated
+to the Earley items,
+in such a way that each Earley item,
+and each attempt to
+add a duplicate Earley item,
+requires \Oc{} time.
+\end{theorem}
+
+\begin{theorem}\label{t:O1-space-per-eim}
+All space in \Marpa{} can be allocated
+to the Earley items,
+in such a way that each Earley item
+requires \Oc{} space and,
+if links are not considered,
+each attempt to add a duplicate
+Earley item adds no additional space.
+\end{theorem}
+
+\begin{theorem}\label{t:O1-links-per-eim}
+If links are considered,
+all space in \Marpa{} can be allocated
+to the Earley items
+in such a way that each Earley item
+and each attempt to
+add a duplicate Earley item
+requires \Oc{} space.
+\end{theorem}
+
+\begin{proof}[Proof of Theorems
+\ref{t:O1-time-per-eim},
+\ref{t:O1-space-per-eim},
+and \ref{t:O1-links-per-eim}]
+These theorems follows from the observations
+in Section \ref{s:pseudocode}
+and from Lemma \ref{l:nulling-rewrite}.
 \end{proof}
 
 \subsection{Duplicate dotted rules}
@@ -2164,16 +2312,19 @@ That in turn would mean that
 the grammar is ambiguous,
 contrary to assumption.
 
-In \Marpa, there is an slight complication,
-because of which we must prove a result which is weaker,
-but still sufficient to produce the same complexity results.
-In \Marpa, a dotted rule can occur in more than one AHFA
+In \Marpa, there is an slight complication.
+A dotted rule can occur in more than one AHFA
 state.
 Because of that,
-it is possible that two attempts to add an EIM
-will have identical causation,
+it is possible that two of \Marpa's
+operations to add an EIM
+will represent identical Earley causations,
 and therefore will be
 consistent with an unambiguous grammar.
+Dealing with this complication requires us
+to prove a result which is weaker than that of \cite{Earley1970},
+but that is
+still sufficient to produce the same complexity results.
 
 We now restate our argument more formally.
 Let \var{initial-tries} be the number of attempts to add the initial item to
@@ -2181,7 +2332,7 @@ the Earley sets.
 For Earley set 0, it is clear from the pseudocode
 that there will be no attempts to add duplicate EIM's:
 \begin{equation*}
-\var{initial-tries} = \size{\Vtable{0}}
+\var{initial-tries} = \bigsize{\Vtable{0}}
 \end{equation*}
 
 Let \var{leo-tries} be the number of attempted Leo reductions in
@@ -2191,25 +2342,29 @@ we note that by its definition,
 duplicate attempts at Leo reduction cannot occur.
 Let \var{max-AHFA} be the maximum number of 
 dotted rules in any AHFA state.
-Clearly there will be at most one Leo reduction for
+From the pseudo-code of Sections \ref{p:reduce-one-lhs}
+and \ref{p:leo-op},
+we know there will be at most one Leo reduction for
 each each dotted rule in the current Earley set,
 \Vloc{j}.
 \begin{equation*}
-\var{leo-tries} \le \var{max-AHFA} \times \size{\Vtable{j}}
+\var{leo-tries} \le \var{max-AHFA} \times \bigsize{\Vtable{j}}
 \end{equation*}
 
 Let \var{scan-tries} be the number of attempted Leo reductions in
 Earley set \Vloc{j}.
 Marpa attempts a scan operation,
 in the worst case,
-once for every EIM in the Earley set \Eloc{(\var{j} \subtract 1)}.
+once for every EIM in the Earley set
+at $\Vloc{j} \subtract 1$.
 Therefore, the number of attempts
 to add scans
-must be less than equal to \size{\Vtable{j-1}},
+must be less than equal to \bigsize{\Etable{\var{j} \subtract 1}},
 the number
-of actual Earley items at \Eloc{(\var{j} \subtract 1)}.
+of actual Earley items at 
+$\Vloc{j} \subtract 1$.
 \begin{equation*}
-\var{scan-tries} \le \size{\Vtable{j-1}}
+\var{scan-tries} \le \bigsize{\Etable{\var{j} \subtract 1}}
 \end{equation*}
 
 Let \var{predict-tries} be the number of attempted predictions in
@@ -2226,7 +2381,7 @@ in the scan and reduction operations.
 \end{equation*}
 
 The final and most complicated case is Earley reduction.
-\Marpa{} attempts to add a reduced EIM
+\Marpa{} attempts to add an Earley reduction result
 once for every each pair
 \begin{equation*}
 [\Veim{predecessor}, \Vsym{lhs}],
@@ -2238,10 +2393,10 @@ and \Veim{predecessor} is an EIM
 in the Earley set which is origin of the component EIM.
 The number of possibilities for \Vsym{lhs}
 is less than or equal to
-$\var{max-AHFA} \times \size{\Vtable{j}}$,
+$\var{max-AHFA} \times \bigsize{\Vtable{j}}$,
 where \var{max-AHFA} is the maximum number of completed rules in
 an AHFA state,
-and $\size{\Vtable{j}}$ is the number of Earley items
+and $\bigsize{\Vtable{j}}$ is the number of Earley items
 in the Earley set being built.
 
 Here the memoization of $\mymathop{transitions}$
@@ -2254,11 +2409,11 @@ that matches the transition symbol.
 Call this number \Vsize{matching}.
 The number of reduction attempts will be less than
 \begin{equation*}
-\var{max-AHFA} \times \Vsize{matching} \times \size{\Vtable{j}}
+\var{max-AHFA} \times \Vsize{matching} \times \bigsize{\Vtable{j}}
 \end{equation*}
 
 Since by assumption
-\Vg{} is unambiguous,
+\Cg{} is unambiguous,
 we know that all attempts to add duplicate
 EIM's will be for predecessors
 which have the same dotted rule.
@@ -2270,10 +2425,10 @@ As a worst case, assume that a dotted rule
 appears in every AHFA state.
 Then $\var{matching} \le \size{\Vfa}$,
 where \Vsize{\Vfa} is the number of AHFA states,
-a constant that depends on \Vg.
+a constant that depends on \Cg.
 From the foregoing, we know that 
 \begin{equation*}
-\var{reduction-tries} \le \var{max-AHFA} \times \size{\Vfa} \times \size{\Vtable{j}}
+\var{reduction-tries} \le \var{max-AHFA} \times \size{\Vfa} \times \bigsize{\Vtable{j}}
 \end{equation*}
 
 \begin{sloppypar}
@@ -2288,13 +2443,127 @@ and then adding
 \var{initial-tries},
 is tedious.
 But since \var{max-AHFA} and \size{\Vfa} are both constants
-which depend only on \Vg,
+which depend only on \Cg,
 it is clear that there is a constant \var{c}
 such that
 \begin{equation*}
 \var{tries} \le \var{c} \times \Rtablesize{\Marpa}
 \end{equation*}
-where \var{c} is a constant which depends on \Vg.\qedhere
+where \var{c} is a constant which depends on \Cg.\qedhere
+\end{sloppypar}
+\end{proof}
+
+\begin{theorem}\label{t:es-count}
+For a context-free grammar,
+and a parse location \Vloc{i},
+\begin{equation*}
+\bigsize{\EVtable{\Marpa}{i}} = \order{\var{i}}.
+\end{equation*}
+
+\begin{proof}
+In this context \Vloc{i} is to be treated
+as an integer, the ordinal of Earley set \Vloc{i}.
+EIM's have the form $[\Vah{x}, \Vorig{x}]$.
+\Vorig{x} is the origin of the EIM,
+which in Marpa cannot be after the current
+Earley set \Vloc{i},
+so that
+\begin{equation*}
+0 \le \Vorig{x} \le \Vloc{i}.
+\end{equation*}
+The possibilities for \Vah{x} are finite,
+since the number of AHFA states is a constant,
+$\size{\Vfa}$,
+which depends on \Cg.
+Since duplicate EIM's are never added to an Earley set,
+the maximum size of Earley set \Vloc{i} is therefore
+\begin{equation*}
+\Vloc{i} \times \size{\Vfa} = \order{\var{i}}.\qedhere
+\end{equation*}
+\end{proof}
+
+\end{theorem}
+\begin{theorem}\label{t:eim-count}
+For a context-free grammar,
+\begin{equation*}
+\Rtablesize{\Marpa} = \order{\var{n}^2}.
+\end{equation*}
+\end{theorem}
+
+\begin{proof}
+By Theorem \ref{t:es-count},
+the size of the Earley set at \Vloc{i} 
+is $\order{\var{i}}$.
+Summing over the length of the input,
+$\Vsize{\Cw} = \var{n}$,
+the number of EIM's in all of \Marpa's Earley sets
+is
+\begin{equation*}
+\sum\limits_{\Vloc{i}=0}^{\var{n}}{\order{\var{i}}}
+= \order{\var{n}^2}.\qedhere
+\end{equation*}
+\end{proof}
+
+\begin{theorem}\label{t:ambiguous-tries}
+For an context-free grammar,
+the number of attempts to add
+Earley items will be less than or equal to
+\begin{equation*}
+\var{c} \times \size{\Cw}^3
+\end{equation*}
+where \var{c} is a constant.
+\end{theorem}
+
+\begin{proof}
+Reexamining the proof of Theorem \ref{t:tries-O-eims},
+we see that the only bound which required
+the assumption that \Cg{} was unambiguous
+was \var{reduction-tries},
+the count of the number of attempts to
+add Earley reductions.
+Let \var{other-tries}
+be attempts to add EIM's other than
+as the result of Earley reductions.
+By Theorem \ref{t:eim-count},
+\begin{equation*}
+\Rtablesize{\Marpa} = \order{\size{\Cw}^2},
+\end{equation*}
+and by Theorem \ref{t:tries-O-eims},
+\begin{equation*}
+\var{other-tries} \le \var{c} \times \Rtablesize{\Marpa},
+\end{equation*}
+so that
+$\var{other-tries} = \order{\size{\Cw}^2} = \order{\var{n}^2}$.
+
+\begin{sloppypar}
+Reconsidering \var{reduction-tries}
+for the case of ambiguous grammars,
+we see that in the worst case the memoization of 
+$\mymathop{transitions}(\Vloc{i}, \Vsym{lhs})$
+accomplishes nothing,
+because every item in
+Earley set \Vloc{i} is returned,
+and
+the number of attempts to add EIM reductions
+at location \Vloc{j} becomes
+\begin{equation*}
+\bigsize{\EVtable{\Marpa}{i}}
+\times \bigsize{\EVtable{\Marpa}{j}}
+\end{equation*}
+Worst case $\var{i} \simeq \var{j}$,
+so that by Theorem \ref{t:es-count},
+\begin{equation*}
+\bigsize{\EVtable{\Marpa}{i}}
+\times \bigsize{\EVtable{\Marpa}{j}} = \order{\var{j}^2}
+\end{equation*}
+Adding \var{other-tries}
+and summing over the Earley sets,
+we have
+\begin{equation*}
+\order{\var{n}^2} +
+\! \sum\limits_{\Vloc{j}=0}^{n}{\order{\var{j}^2}} = \order{\var{n}^3}.
+\qedhere
+\end{equation*}
 \end{sloppypar}
 \end{proof}
 
@@ -2302,26 +2571,26 @@ where \var{c} is a constant which depends on \Vg.\qedhere
 We are now in a position to show
 specific time and space complexity results.
 For these we follow the tradition by
-expressing \Vsize{\Vw},
+expressing \Vsize{\Cw},
 the length of the input,
 as \var{n}.
 
 \begin{theorem}
 For every LR-regular grammar,
-\Marpa{} runs in $\order{n}$ time and space.
+\Marpa{} runs in $\On{}$ time and space.
 \end{theorem}
 
 \begin{proof}
 By Theorem 4.6 in \cite[p. 173]{Leo1991},
 the number of traditional Earley items produced by
-\Leo{} when parsing input \Vw{} with an LR-regular grammar \Vg{} is
+\Leo{} when parsing input \Cw{} with an LR-regular grammar \Cg{} is
 \begin{equation*}
-\order{\Vsize{\Vw}} = \order{\var{n}}.
+\order{\Vsize{\Cw}} = \order{\var{n}}.
 \end{equation*}
 By Theorem \ref{t:marpa-O-leo},
 the number of EIM's \Marpa{} will require for the same parse
 is, worst case, $\var{c} \times \order{\var{n}}$,
-where \var{c} is a constant which depends on \Vg.
+where \var{c} is a constant which depends on \Cg.
 LR-regular grammar are unambiguous, so that
 by Theorem \ref{t:tries-O-eims},
 the number of attempts that \Marpa{} will make to add
@@ -2329,9 +2598,10 @@ EIM's is on the order of
 \begin{equation*}
     \var{d} \times \var{c} \times \order{\var{n}}
 \end{equation*}
-where \var{d} is a constant which depends on \Vg.
+where \var{d} is a constant which depends on \Cg.
 Therefore,
-by Theorem \ref{t:O1-per-eim},
+by Theorems \ref{t:O1-time-per-eim}
+and \ref{t:O1-links-per-eim},
 the time and space complexity of \Marpa{} for LR-regular
 grammars is
 \begin{equation*}
@@ -2346,134 +2616,79 @@ For every unambiguous grammar,
 \end{theorem}
 
 \begin{proof}
-EIM's have the form $[\Vah{x}, \Vorig{x}]$.
-\Vorig{x} is the origin of the EIM,
-which in Marpa cannot be after the current
-Earley set \Vloc{i},
-so that
-\begin{equation*}
-0 \le \Vorig{x} \le \Vloc{i}.
-\end{equation*}
-The possibilities for \Vah{x} are finite,
-since the number of AHFA states is a constant,
-$\size{\Vfa}$,
-which depends on \Vg.
-Since duplicate EIM's are never added to an Earley set,
-the maximum size of Earley set \Vloc{i} is therefore
-\begin{equation*}
-\Vloc{i} \times \size{\Vfa},
-\end{equation*}
-where in this context \Vloc{i} is to be treated
-as an integer, the ordinal of Earley set \Vloc{i}.
-Summing over the length of the input,
-$\Vsize{\Vw} = \var{n}$,
-the number of EIM's in all of \Marpa's Earley sets
-is \order{\var{n}^2}.
-By assumption, \Vg{} is unambiguous, so that
+By assumption, \Cg{} is unambiguous, so that
 by Theorem \ref{t:tries-O-eims},
+and Theorem \ref{t:eim-count},
 the number of attempts that \Marpa{} will make to add
 EIM's is
 \begin{equation*}
 \var{c} \times \order{\var{n}^2},
 \end{equation*}
-where \var{c} is a constant which depends on \Vg.
+where \var{c} is a constant which depends on \Cg.
 Therefore,
-by Theorem \ref{t:O1-per-eim},
-the time and space complexity of \Marpa{} for LR-regular
-grammars is \order{\var{n}^2}.
+by Theorems \ref{t:O1-time-per-eim}
+and \ref{t:O1-links-per-eim},
+the time and space complexity of \Marpa{}
+for unambiguous grammars is \order{\var{n}^2}.
+\end{proof}
+
+\begin{sloppypar}
+\begin{theorem}
+For any context-free grammar,
+\Marpa{} runs in $\order{\var{n}^3}$ time.
+\end{theorem}
+\end{sloppypar}
+
+\begin{proof}
+By Theorem \ref{t:O1-time-per-eim},
+and Theorem \ref{t:ambiguous-tries}.
 \end{proof}
 
 \begin{theorem}
 For any context-free grammar,
-\Marpa{} runs in $\order{n^3}$ time.
+if \Marpa{} tracks links for
+evaluation purposes,
+it runs in $\order{\var{n}^3}$ space.
+Without links, 
+\Marpa{} runs in
+$\order{\var{n}^2}$ space.
 \end{theorem}
 
 \begin{proof}
-Reexamining the proof of Theorem \ref{t:tries-O-eims},
-we see that the only bound which required
-the assumption that \Vg{} was unambiguous
-was \var{reduction-tries},
-the count of the number of attempts to
-add Earley reductions.
-Let \var{other-tries}
-be attempts to add EIM's other than
-as the result of Earley reductions.
-By Theorem \ref{t:tries-O-eims},
-\begin{equation*}
-\var{other-tries} \le \var{c} \times \Vloc{i}.
-\end{equation*}
-
-\begin{sloppypar}
-Reconsidering \var{reduction-tries}
-for the case of ambiguous grammars,
-we see that in the worst case the memoization of 
-$\mymathop{transitions}(\Vloc{i}, \Vsym{lhs})$
-accomplishes nothing,
-because every item in
-Earley set \Vloc{i} is returned.
-Worst case, the count of EIM's in Earley set \Vloc{i}
-is \order{\var{i}},
-so that the number of attempts to add EIM reductions
-to each Earley set \Vloc{j} is
-on the order of
-\begin{equation*}
-\order{\var{i}} \times \size{\EVtable{\Marpa}{j}}
-= \order{\var{i}} \times \order{\var{j}} = \order{\var{j}^2}
-\end{equation*}
-When \Vg{} can be ambiguous
-the order of magnitude of all attempts to add EIM's
-becomes
-\begin{equation*}
- \sum\limits_{\Vloc{j}=0}^{n}{\order{\var{j}^2}+ \var{c} \times \Vloc{j}} = \order{\var{n}^3}
-\end{equation*}
-Therefore,
-by Theorem \ref{t:O1-per-eim},
-the time complexity of \Marpa{} for context-free
-grammars is \order{\var{n}^3}.\qedhere
-\end{sloppypar}
+The bound including links is
+by Theorem \ref{t:O1-links-per-eim},
+and Theorem \ref{t:ambiguous-tries}.
+The bound without links is
+by Theorem \ref{t:O1-space-per-eim}
+and Theorem \ref{t:eim-count}.
 \end{proof}
 
-\section{Generalizing the grammar}
-\label{s:generalization}
-
-As implemented,
-Marpa generalizes the idea of grammars
-and input streams beyond that so far described
-for \Vg{} and \Vw.
-The differences are
-minor from a theoretical point of view,
-and to avoid cluttering the proofs,
-their discussion was deferred.
-
-\subsection{All symbols are terminals}
-
-Marpa's grammars are in effect 3-tuples:
-\begin{equation*}
-(\Vsymset{alphabet}, \Vrules, \Vsym{start})
-\end{equation*}
-\Vsymset{term} is omitted, because
-Marpa allows a symbol to be both a terminal
-and a LHS.
-This expansion of the grammar definition
-is made without loss of generalization,
-or effect on the results.
-
-The Marpa implementation has options,
-using which the user can 
-have the traditional restrictions
-enforced, in part or in whole.
-For error detection and efficiency,
-many users may prefer this.
-
-\subsection{Alternative input models}
+\section{The Marpa Input Model}
+\label{s:input}
 
 In this \doc{},
 up to this point,
 the traditional input stream model
 has been assumed.
-Marpa's input model is a generalization of
-the traditional input stream model.
-Marpa's input is a set of tokens,
+As implemented,
+Marpa generalizes the idea of 
+input streams beyond the traditional
+model.
+
+As noted, the distinction between
+terminal and non-terminal symbols is
+not central in \Marpa{}.
+In particular,
+Marpa allows a symbol to be both a terminal
+and a LHS.
+Marpa has options that allow
+the user to reinstate
+the traditional restrictions,
+in part or in whole.
+
+Marpa's generalized input model
+replaces the input \Cw{}
+with a set of tokens,
 \var{tokens},
 whose elements are triples of symbol,
 start location and end location:
@@ -2481,10 +2696,10 @@ start location and end location:
     (\Vsym{t}, \Vloc{start}, \var{length})
 \end{equation*}
 such that
-\begin{equation*}
-    \var{length} \ge 1 \wedge \Vloc{start} \ge 0
-\end{equation*}
-The size of the input, \size{\Vw},
+$\var{length} \ge 1$
+and
+$\Vloc{start} \ge 0$.
+The size of the input, \size{\Cw},
 is the maximum over
 \var{tokens} of $\Vloc{start}+\var{length}$.
 
@@ -2504,7 +2719,7 @@ and the start and end location of a token is indicated in earlemes.
 \end{sloppypar}
 
 Like standard parse locations, earlemes start at 0,
-and run up to \size{\Vw}.
+and run up to \size{\Cw}.
 Unlike standard parse locations,
 there is not necessarily a token ``at'' any particular earleme.
 (A token is considered to be ``at an earleme'' if it ends there,
@@ -2521,9 +2736,11 @@ may interweave and overlap freely,
 but gaps are not allowed.
 That is,
 \begin{multline*}
-     \forall \Vloc{i}, 0 \le \var{i} < \size{\Vw}, \\
-     \exists (\Vsym{t}, \Vloc{start}, \var{length}) \in \var{tokens}, \\
-    \var{start} \le \var{i} < \var{start}+\var{length}
+     \forall \Vloc{i}, 0 \le \var{i} < \size{\Cw} \implies \\
+     \bigl(
+	 \exists [\Vsym{t}, \Vloc{start}, \var{length}] \in \var{tokens} \\
+	 \land \, \var{start} \le \var{i} < \var{start}+\var{length}
+     \bigr)
 \end{multline*}
 
 The intent of Marpa's generalized input model is to allow
@@ -2543,45 +2760,42 @@ if we have both of
 \end{align*}
 then we have both of
 \begin{gather*}
-\var{xlength} = \var{ylength} = 1 \\
+\var{xlength} = \var{ylength} = 1 \quad \text{and} \\
      \Vloc{x} = \Vloc{y} \implies \Vsym{x} = \Vsym{y}
 \end{gather*}
 
 The correctness results hold for Marpa input streams,
 but to preserve the time complexity bounds,
 two restrictions must be imposed.
-To state them,
-we first define
-$\mymathop{future}(\var{i})$.
-Let \Vloc{i} be the current Earley set.
-$\mymathop{future}(\var{i})$ is
-a set of parse locations,
-such that
+Let \size{\var{s}} be the cardinality
+of the set \var{s}.
+Define $\mymathop{future}(\Vloc{i})$ as
 \begin{equation*}
-\Vloc{j} \in \mymathop{future}(\var{i})
+\left\lbrace \, \Vloc{j} \, \middle|
+    \begin{array}{l}
+    \exists [\Vsym{t}, \Vloc{start}, \var{length}]
+    \quad \text{such that} \\
+    \qquad (\var{j} = \var{start} + \var{length} \, \land 
+	\var{start} \le \Vloc{i})
+    \end{array}
+\right\rbrace.
 \end{equation*}
-if and only if
-there is a token
-\begin{equation*}
-[\Vsym{t}, \Vloc{start}, \var{length}],
-\end{equation*}
-such that we have both of
+The two restrictions are that,
+for all \Vloc{i}, 
+$0 \le i < \size{\Cw}$,
+we require that
+there be a constant \var{c} such that
 \begin{gather*}
-    \var{j} = \var{start} + \var{length} \\
-    \var{start} \le \Vloc{i}
+    \bigl| \mymathop{future}(\Vloc{i}) \bigr| < \var{c} \quad \text{and} \\
+    \Bigl| \bigl\{
+	[ \Vsym{x}, \Vloc{x}, \var{length} ]
+	\bigm| \Vloc{x} = \Vloc{i}
+    \bigr\} \Bigr| < \var{c}
 \end{gather*}
-
-The two restrictions are then as follows,
-where \var{c} is a constant:
-\begin{itemize}
-\item For all \Vloc{i},
-the cardinality of $\mymathop{future}(\Vloc{i})$
-is less than \var{c}.
-\item The number of tokens which start at any one location
-is less than \var{c}.
-\end{itemize}
-These restrictions on Marpa input streams most
-probably do not restrict their practical use.
+These restrictions
+impose little or no obstacle
+to the practical use
+of Marpa's generalized input model.
 And with them,
 the complexity results for \Marpa{} stand.
 

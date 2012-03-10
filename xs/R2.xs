@@ -89,6 +89,16 @@ event_type_to_string (Marpa_Event_Type event_code)
   return event_name;
 }
 
+static const char *
+value_type_to_string (Marpa_Value_Type value_type)
+{
+  const char *value_type_name = NULL;
+  if (value_type >= 0 && value_type < MARPA_ERROR_COUNT) {
+      value_type_name = marpa_value_type_description[value_type].name;
+  }
+  return value_type_name;
+}
+
 /* This routine is for the handling exceptions
    from libmarpa.  It is used when in the general
    cases, for those exception which are not singled
@@ -110,7 +120,7 @@ libmarpa_exception (int error_code, const char *error_string)
       return g_strdup_printf ("(development) %s",
 			      (error_string ? error_string : "(null)"));
     case MARPA_ERR_INTERNAL:
-      return g_strdup_printf ("Internal error at %s",
+      return g_strdup_printf ("Internal error (%s)",
 			      (error_string ? error_string : "(null)"));
     }
   if (error_code >= 0 && error_code < MARPA_ERROR_COUNT) {
@@ -308,41 +318,6 @@ PPCODE:
 }
 
 void
-default_value_set( g_wrapper, value )
-    G_Wrapper *g_wrapper;
-    int value;
-PPCODE:
-{
-  Marpa_Grammar g = g_wrapper->g;
-  gint result = marpa_g_default_token_value_set (g, GINT_TO_POINTER (value));
-  if (result < 0)
-    {
-      croak ("Problem in g->default_token_value_set(): %s", xs_g_error (g_wrapper));
-    }
-  XSRETURN_YES;
-}
-
-void
-default_value( g_wrapper )
-    G_Wrapper *g_wrapper;
-PPCODE:
-{
-  Marpa_Grammar g = g_wrapper->g;
-  gpointer value;
-  gint result = marpa_g_default_token_value (g, &value);
-  if (result < 0)
-    {
-      croak ("Problem in g->default_token_value(): %s",
-	     xs_g_error (g_wrapper));
-    }
-  if (!value)
-    {
-      XSRETURN_UNDEF;
-    }
-  XPUSHs (sv_2mortal (newSViv (GPOINTER_TO_INT (value))));
-}
-
-void
 is_precomputed( g_wrapper )
     G_Wrapper *g_wrapper;
 PPCODE:
@@ -351,7 +326,7 @@ PPCODE:
   gint result = marpa_g_is_precomputed (g);
   if (result < 0)
     {
-      croak ("Problem in g->default_token_value(): %s",
+      croak ("Problem in g->is_precomputed(): %s",
 	     xs_g_error (g_wrapper));
     }
   if (result)
@@ -2549,11 +2524,13 @@ step( v_wrapper )
 PPCODE:
 {
   const Marpa_Value v = v_wrapper->v;
+  Marpa_Symbol_ID token_id;
+  Marpa_Rule_ID rule_id;
   int status;
+  const char *result_string;
   SV *sv;
-  Marpa_Step step;
-  status = marpa_v_step (v, &step);
-  if (status == -1)
+  status = marpa_v_step (v);
+  if (status == MARPA_VALUE_INACTIVE)
     {
       XSRETURN_UNDEF;
     }
@@ -2561,22 +2538,33 @@ PPCODE:
     {
       croak ("Problem in v->step(): %s", xs_v_error (v_wrapper));
     }
-  if (step.marpa_token_id < 0)
+  result_string = value_type_to_string (status);
+  if (!result_string)
     {
-      XPUSHs (&PL_sv_undef);
-      XPUSHs (&PL_sv_undef);
+      croak ("Problem in r->v_step(): unknown action type %d", status);
     }
-  else
+  XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
+  if (status == MARPA_VALUE_TOKEN)
     {
-      XPUSHs (sv_2mortal (newSViv (step.marpa_token_id)));
-      XPUSHs (sv_2mortal (newSViv (GPOINTER_TO_INT (step.marpa_value))));
+      token_id = marpa_v_semantic_token (v);
+      XPUSHs (sv_2mortal (newSViv (token_id)));
+      XPUSHs (sv_2mortal
+	      (newSViv (GPOINTER_TO_INT (marpa_v_token_value (v)))));
+      XPUSHs (sv_2mortal (newSViv (marpa_v_arg_n (v))));
     }
-  sv =
-    step.marpa_rule_id <
-    0 ? &PL_sv_undef : sv_2mortal (newSViv (step.marpa_rule_id));
-  XPUSHs (sv);
-  XPUSHs (sv_2mortal (newSViv (step.marpa_arg_0)));
-  XPUSHs (sv_2mortal (newSViv (step.marpa_arg_n)));
+  if (status == MARPA_VALUE_NULLING_TOKEN)
+    {
+      token_id = marpa_v_semantic_token (v);
+      XPUSHs (sv_2mortal (newSViv (token_id)));
+      XPUSHs (sv_2mortal (newSViv (marpa_v_arg_n (v))));
+    }
+  if (status == MARPA_VALUE_RULE)
+    {
+      rule_id = marpa_v_semantic_rule (v);
+      XPUSHs (sv_2mortal (newSViv (rule_id)));
+      XPUSHs (sv_2mortal (newSViv (marpa_v_arg_0 (v))));
+      XPUSHs (sv_2mortal (newSViv (marpa_v_arg_n (v))));
+    }
 }
 
 void

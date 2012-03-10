@@ -61,3 +61,12 @@ const struct s_marpa_event_description marpa_event_description[] = {
   { 5, "MARPA_EVENT_NEW_RULE", "New rule." },
   { 6, "MARPA_EVENT_COUNTED_NULLABLE", "Grammar has a counted nullable." },
 };
+const struct s_marpa_value_type_description marpa_value_type_description[] = {
+  { 0, "MARPA_VALUE_INTERNAL1" },
+  { 1, "MARPA_VALUE_RULE" },
+  { 2, "MARPA_VALUE_TOKEN" },
+  { 3, "MARPA_VALUE_NULLING_TOKEN" },
+  { 4, "MARPA_VALUE_TRACE" },
+  { 5, "MARPA_VALUE_INACTIVE" },
+  { 6, "MARPA_VALUE_INTERNAL2" },
+};

@@ -37,4 +37,8 @@ struct s_marpa_event_description {
     const char* name;
     const char* suggested;
 };
+struct s_marpa_value_type_description {
+    Marpa_Value_Type value_type;
+    const char* name;
+};
 

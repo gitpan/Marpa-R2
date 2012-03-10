@@ -646,7 +646,6 @@ PRIVATE
 void
 grammar_unref (GRAMMAR g)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, g->t_ref_count);
   MARPA_ASSERT (g->t_ref_count > 0)
   g->t_ref_count--;
   if (g->t_ref_count <= 0)
@@ -663,7 +662,6 @@ marpa_g_unref (Marpa_Grammar g)
 PRIVATE GRAMMAR
 grammar_ref (GRAMMAR g)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, g->t_ref_count);
   MARPA_ASSERT(g->t_ref_count > 0)
   g->t_ref_count++;
   return g;
@@ -676,7 +674,6 @@ marpa_g_ref (Marpa_Grammar g)
 PRIVATE
 void grammar_free(GRAMMAR g)
 {
-MARPA_DEBUG3("%s: Destroying grammar %p", G_STRLOC, g);
     @<Destroy grammar elements@>@;
     g_slice_free(struct marpa_g, g);
 }
@@ -756,31 +753,6 @@ void rule_add(
 @ Check that rule is in valid range.
 @d RULEID_of_G_is_Valid(g, rule_id)
     ((rule_id) >= 0 && (guint)(rule_id) < (g)->t_rules->len)
-
-@*0 Default token value.
-@d Default_Token_Value_of_G(g) ((g)->t_default_token_value)
-@<Widely aligned grammar elements@> = gpointer t_default_token_value;
-@ @<Initialize grammar elements@> =
-Default_Token_Value_of_G(g) = NULL;
-@ This function never fails, but that may change,
-so its interface allows for an error return.
-@<Function definitions@> =
-gint marpa_g_default_token_value(GRAMMAR g, gpointer* value)
-{
-   @<Return |-2| on failure@>@;
-    @<Fail if fatal error@>@;
-    *value = Default_Token_Value_of_G(g);
-    return 1;
-}
-@ @<Function definitions@> =
-gint marpa_g_default_token_value_set(GRAMMAR g, gpointer default_value)
-{
-   @<Return |-2| on failure@>@;
-    @<Fail if fatal error@>@;
-    @<Fail if grammar is precomputed@>@;
-    Default_Token_Value_of_G(g) = default_value;
-    return 1;
-}
 
 @*0 Start Symbol.
 @<Int aligned grammar elements@> = Marpa_Symbol_ID t_original_start_symid;
@@ -1108,16 +1080,26 @@ typedef gint SYMID;
 struct s_symbol;
 typedef struct s_symbol* SYM;
 typedef const struct s_symbol* SYM_Const;
-@ The initial element is a type gint so that
-symbol structure may be used where or-nodes are
+@ The initial element is a type gint,
+and the next element is the symbol ID,
+(the unique identifier for the symbol),
+so that the
+symbol structure may be used
+where token or-nodes are
 expected.
+@d ID_of_SYM(sym) ((sym)->t_symbol_id)
+
 @<Private structures@> =
 struct s_symbol {
+    gint t_or_node_type;
+    SYMID t_symbol_id;
     @<Widely aligned symbol elements@>@;
-    @<Int aligned symbol elements@>@;
     @<Bit aligned symbol elements@>@;
 };
 typedef struct s_symbol SYM_Object;
+@ @<Initialize symbol elements@> =
+    symbol->t_or_node_type = NULLING_TOKEN_OR_NODE;
+    ID_of_SYM(symbol) = g->t_symbols->len;
 
 @ @<Function definitions@> =
 PRIVATE SYM
@@ -1145,11 +1127,6 @@ PRIVATE void symbol_free(SYM symbol)
 {
     @<Free symbol elements@>@; g_free(symbol);
 }
-
-@ Symbol ID: This is the unique identifier for the symbol.
-@d ID_of_SYM(sym) ((sym)->t_symbol_id)
-@<Int aligned symbol elements@> = SYMID t_symbol_id;
-@ @<Initialize symbol elements@> = ID_of_SYM(symbol) = g->t_symbols->len;
 
 @*0 Symbol LHS rules element.
 This tracks the rules for which this symbol is the LHS.
@@ -5162,6 +5139,7 @@ input_new (GRAMMAR g)
   const gint symbol_count_of_g = SYM_Count_of_G (g);
   TOK *tokens_by_symid;
   INPUT input = g_slice_new (struct s_input);
+  obstack_init (TOK_Obs_of_I (input));
   @<Initialize input elements@>@;
   return input;
 }
@@ -5177,7 +5155,6 @@ input_new (GRAMMAR g)
 PRIVATE void
 input_unref (INPUT input)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, input->t_ref_count);
   MARPA_ASSERT (input->t_ref_count > 0)
   input->t_ref_count--;
   if (input->t_ref_count <= 0)
@@ -5191,16 +5168,19 @@ input_unref (INPUT input)
 PRIVATE INPUT
 input_ref (INPUT input)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, input->t_ref_count);
   MARPA_ASSERT(input->t_ref_count > 0)
   input->t_ref_count++;
   return input;
 }
 
-@ @<Function definitions@> =
+@ The token obstack has exactly the same lifetime as its
+container |input| object,
+so there is no need for a flag to
+guarantee that it is safe to destroy it.
+@<Function definitions@> =
 PRIVATE void input_free(INPUT input)
 {
-    @<Destroy input elements@>@;
+    obstack_free(TOK_Obs_of_I(input), NULL);
     g_slice_free(struct s_input, input);
 }
 
@@ -5219,34 +5199,8 @@ it needs, and someday I may want to take advantage of
 this fact by freeing up the rest of recognizer memory.
 @d TOK_Obs_of_I(i)
     (&(i)->t_token_obs)
-@d TOKs_by_SYMID_of_I(i)
-    ((i)->t_tokens_by_symid)
-@d TOK_by_ID_of_I(i, symbol_id)
-    (TOKs_by_SYMID_of_I(i)[symbol_id])
 @<Widely aligned input elements@> =
 struct obstack t_token_obs;
-TOK *t_tokens_by_symid;
-
-@ @<Initialize input elements@> =
-{
-  gint ix;
-  obstack_init (TOK_Obs_of_I (input));
-  tokens_by_symid =
-    obstack_alloc (TOK_Obs_of_I (input), sizeof (TOK) * symbol_count_of_g);
-  for (ix = 0; ix < symbol_count_of_g; ix++)
-    {
-      tokens_by_symid[ix] = token_new (input, ix, Default_Token_Value_of_G (g));
-    }
-  TOKs_by_SYMID_of_I (input) = tokens_by_symid;
-}
-@ @<Destroy input elements@> =
-{
-    TOK* tokens_by_symid = TOKs_by_SYMID_of_I(input);
-    if (tokens_by_symid) {
-	obstack_free(TOK_Obs_of_I(input), NULL);
-	TOKs_by_SYMID_of_I(input) = NULL;
-    }
-}
 
 @*0 Base objects.
 @ @d G_of_I(i) ((i)->t_grammar)
@@ -5307,7 +5261,6 @@ r->t_ref_count = 1;
 PRIVATE void
 recce_unref (RECCE r)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, r->t_ref_count);
   MARPA_ASSERT (r->t_ref_count > 0)
   r->t_ref_count--;
   if (r->t_ref_count <= 0)
@@ -5326,7 +5279,6 @@ marpa_r_unref (Marpa_Recognizer r)
 PRIVATE
 RECCE recce_ref (RECCE r)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, r->t_ref_count);
   MARPA_ASSERT(r->t_ref_count > 0)
   r->t_ref_count++;
   return r;
@@ -5341,7 +5293,6 @@ marpa_r_ref (Marpa_Recognizer r)
 PRIVATE
 void recce_free(struct marpa_r *r)
 {
-    MARPA_DEBUG4("%s %s: Destroying %p", G_STRFUNC, G_STRLOC, r)
     @<Unpack recognizer objects@>@;
     @<Destroy recognizer elements@>@;
     grammar_unref(g);
@@ -7379,7 +7330,7 @@ struct s_token {
 };
 
 @ @d TOK_Obs_of_R(r) TOK_Obs_of_I(I_of_R(r))
-@d TOK_by_ID_of_R(r, symbol_id) TOK_by_ID_of_I(I_of_R(r), (symbol_id))
+@d TOK_by_SYMID(symbol_id) (SYM_by_ID(symbol_id))
 @ @<Initialize recognizer elements@> =
 {
   I_of_R(r) = input_new(g);
@@ -7391,7 +7342,7 @@ TOK token_new(INPUT input, SYMID symbol_id, gpointer value)
 {
   TOK token;
     token = obstack_alloc (TOK_Obs_of_I(input), sizeof(*token));
-    Type_of_TOK(token) = TOKEN_OR_NODE;
+    Type_of_TOK(token) = VALUED_TOKEN_OR_NODE;
     SYMID_of_TOK(token) = symbol_id;
     Value_of_TOK(token) = value;
   return token;
@@ -9014,11 +8965,20 @@ typedef union u_or_node* OR;
 for final or-nodes.
 @s OR int
 Position is |DUMMY_OR_NODE| for dummy or-nodes,
-|TOKEN_OR_NODE| if the or-node is actually a symbol.
+and less than or equal to |MAX_TOKEN_OR_NODE|
+if the or-node is actually a symbol.
+It is |VALUED_TOKEN_OR_NODE} if the token has
+a value assigned,
+|NULLING_TOKEN_OR_NODE} if the token is nulling,
+and |UNVALUED_TOKEN_OR_NODE} if the token is non-nulling,
+but has no value assigned.
 Position is the dot position.
 @d DUMMY_OR_NODE -1
-@d TOKEN_OR_NODE -2
-@d OR_is_Token(or) (Type_of_OR(or) == TOKEN_OR_NODE)
+@d MAX_TOKEN_OR_NODE -2
+@d VALUED_TOKEN_OR_NODE -2
+@d NULLING_TOKEN_OR_NODE -3
+@d UNVALUED_TOKEN_OR_NODE -4
+@d OR_is_Token(or) (Type_of_OR(or) <= MAX_TOKEN_OR_NODE)
 @d Position_of_OR(or) ((or)->t_final.t_position)
 @d Type_of_OR(or) ((or)->t_final.t_position)
 @d RULE_of_OR(or) ((or)->t_final.t_rule)
@@ -9259,7 +9219,7 @@ MARPA_OFF_DEBUG3("adding nulling token or-node rule=%d i=%d",
 		DAND draft_and_node;
 		const gint rhs_ix = symbol_instance - SYMI_of_RULE(rule);
 		const OR predecessor = rhs_ix ? last_or_node : NULL;
-		const OR cause = (OR)TOK_by_ID_of_R( r, RHS_ID_of_RULE (rule, rhs_ix ) );
+		const OR cause = (OR)TOK_by_SYMID( RHS_ID_of_RULE (rule, rhs_ix ) );
 		@<Set |last_or_node| to a new or-node@>@;
 		or_node = PSL_Datum (or_psl, symbol_instance) = last_or_node ;
 		Origin_Ord_of_OR (or_node) = work_origin_ordinal;
@@ -9404,7 +9364,7 @@ or-nodes follow a completion.
 	  DAND draft_and_node;
 	  const gint rhs_ix = symbol_instance - SYMI_of_RULE(path_rule);
 	    const OR predecessor = rhs_ix ? last_or_node : NULL;
-	  const OR cause = (OR)TOK_by_ID_of_R( r, RHS_ID_of_RULE (path_rule, rhs_ix)) ;
+	  const OR cause = (OR)TOK_by_SYMID( RHS_ID_of_RULE (path_rule, rhs_ix)) ;
 	  MARPA_ASSERT (symbol_instance < Length_of_RULE (path_rule)) @;
 	  MARPA_ASSERT (symbol_instance >= 0) @;
 	  @<Set |last_or_node| to a new or-node@>@;
@@ -10021,24 +9981,28 @@ gint marpa_b_and_node_symbol(Marpa_Bocage b, int and_node_id)
 Marpa_Symbol_ID marpa_b_and_node_token(Marpa_Bocage b,
     Marpa_And_Node_ID and_node_id, gpointer* value_p)
 {
+  TOK token;
   AND and_node;
   @<Return |-2| on failure@>@;
   @<Unpack bocage objects@>@;
     @<Check |and_node_id|; set |and_node|@>@;
-    return and_node_token(and_node, value_p);
-}
-@ @<Function definitions@> =
-PRIVATE SYMID and_node_token(AND and_node, gpointer* value_p)
-{
-  const OR cause_or = Cause_OR_of_AND (and_node);
-  if (OR_is_Token (cause_or))
-    {
-      const TOK token = TOK_of_OR (cause_or);
+    token = and_node_token(and_node);
+    if (token) {
       if (value_p)
 	*value_p = Value_of_TOK (token);
       return SYMID_of_TOK (token);
     }
     return -1;
+}
+@ @<Function definitions@> =
+PRIVATE TOK and_node_token(AND and_node)
+{
+  const OR cause_or = Cause_OR_of_AND (and_node);
+  if (OR_is_Token (cause_or))
+    {
+      return TOK_of_OR (cause_or);
+    }
+    return NULL;
 }
 
 @** Parse Bocage Code (B, BOCAGE).
@@ -10237,8 +10201,7 @@ PRIVATE_NOT_INLINE BOCAGE r_create_null_bocage(RECCE r, BOCAGE b)
   OR_of_AND (and_nodes) = or_node;
   Predecessor_OR_of_AND (and_nodes) = NULL;
   Cause_OR_of_AND (and_nodes) =
-    (OR) TOK_by_ID_of_R (r,
-			 RHS_ID_of_RULE (null_start_rule, rule_length - 1));
+    (OR) TOK_by_SYMID ( RHS_ID_of_RULE (null_start_rule, rule_length - 1));
 
   return b;
 }
@@ -10374,7 +10337,6 @@ b->t_ref_count = 1;
 PRIVATE void
 bocage_unref (BOCAGE b)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, b->t_ref_count);
   MARPA_ASSERT (b->t_ref_count > 0)
   b->t_ref_count--;
   if (b->t_ref_count <= 0)
@@ -10393,7 +10355,6 @@ marpa_b_unref (Marpa_Bocage b)
 PRIVATE BOCAGE
 bocage_ref (BOCAGE b)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, b->t_ref_count);
   MARPA_ASSERT(b->t_ref_count > 0)
   b->t_ref_count++;
   return b;
@@ -10416,7 +10377,6 @@ or was never initialized.
 PRIVATE void
 bocage_free (BOCAGE b)
 {
-    MARPA_DEBUG4("%s %s: Destroying %p", G_STRFUNC, G_STRLOC, b)
   @<Unpack bocage objects@>@;
   input_unref (input);
   if (b)
@@ -10585,7 +10545,6 @@ Marpa_Order marpa_o_new(Marpa_Bocage b)
 PRIVATE void
 order_unref (ORDER o)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->t_ref_count);
   MARPA_ASSERT (o->t_ref_count > 0)
   o->t_ref_count--;
   if (o->t_ref_count <= 0)
@@ -10604,7 +10563,6 @@ marpa_o_unref (Marpa_Order o)
 PRIVATE ORDER
 order_ref (ORDER o)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, o->t_ref_count);
   MARPA_ASSERT(o->t_ref_count > 0)
   o->t_ref_count++;
   return o;
@@ -10633,7 +10591,6 @@ PRIVATE void order_freeze(ORDER o)
 @ @<Function definitions@> =
 PRIVATE void order_free(ORDER o)
 {
-    MARPA_DEBUG4("%s %s: Destroying %p", G_STRFUNC, G_STRLOC, o)
   @<Unpack order objects@>@;
   bocage_unref(b);
   order_strip(o);
@@ -10936,7 +10893,6 @@ Marpa_Tree marpa_t_new(Marpa_Order o)
 PRIVATE void
 tree_unref (TREE t)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, t->t_ref_count);
   MARPA_ASSERT (t->t_ref_count > 0)
   t->t_ref_count--;
   if (t->t_ref_count <= 0)
@@ -10955,7 +10911,6 @@ marpa_t_unref (Marpa_Tree t)
 PRIVATE TREE
 tree_ref (TREE t)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, t->t_ref_count);
   MARPA_ASSERT(t->t_ref_count > 0)
   t->t_ref_count++;
   return t;
@@ -11121,10 +11076,8 @@ PRIVATE gint tree_and_node_try(TREE tree, ANDID and_node_id)
   choice = or_node_next_choice (o, t, top_or_node, 0);
   /* Due to skipping, even the top or-node can have no
      valid choices, in which case there is no parse */
-MARPA_DEBUG3("%s %s", G_STRFUNC, G_STRLOC);
   if (choice < 0)
     goto TREE_IS_EXHAUSTED;
-MARPA_DEBUG3("%s %s", G_STRFUNC, G_STRLOC);
   nook = FSTACK_PUSH (t->t_nook_stack);
   OR_of_NOOK (nook) = top_or_node;
   Choice_of_NOOK (nook) = choice;
@@ -11411,25 +11364,6 @@ gint marpa_t_nook_is_predecessor(Marpa_Tree t, int nook_id)
     return NOOK_is_Predecessor(nook);
 }
 
-@** Step (STEP) Code.
-@
-@d SYMID_of_STEP(step) ((step)->marpa_token_id)
-@d Value_of_STEP(step) ((step)->marpa_value)
-@d RULEID_of_STEP(step) ((step)->marpa_rule_id)
-@d Arg0_of_STEP(step) ((step)->marpa_arg_0)
-@d ArgN_of_STEP(step) ((step)->marpa_arg_n)
-@<Public structures@> =
-struct marpa_step {
-    Marpa_Symbol_ID marpa_token_id;
-    gpointer marpa_value;
-    Marpa_Rule_ID marpa_rule_id;
-    gint marpa_arg_0;
-    gint marpa_arg_n;
-};
-typedef struct marpa_step Marpa_Step;
-@ @<Private typedefs@> =
-typedef Marpa_Step *STEP;
-
 @** Evaluation (V, VALUE) Code.
 @ This code helps
 compute a value for
@@ -11462,22 +11396,53 @@ of symbols in the
 original (or "virtual") rules.
 This enables libmarpa to make the rewriting of
 the grammar invisible to the semantics.
-@d V_is_Active(val) ((val)->t_active)
+@d Next_Value_Type_of_V(val) ((val)->t_next_value_type)
+@d V_is_Active(val) (Next_Value_Type_of_V(val) != MARPA_VALUE_INACTIVE)
 @d V_is_Trace(val) ((val)->t_trace)
 @d NOOK_of_V(val) ((val)->t_nook)
-@d TOS_of_V(val) ((val)->t_tos)
+@d SYMID_of_V(val) ((val)->public.t_semantic_token_id)
+@d RULEID_of_V(val) ((val)->public.t_semantic_rule_id)
+@d Token_Value_of_V(val) ((val)->public.t_token_value)
+@d Token_Type_of_V(val) ((val)->t_token_type)
+@d TOS_of_V(val) ((val)->public.t_tos)
+@d Arg_N_of_V(val) ((val)->public.t_arg_n)
 @d VStack_of_V(val) ((val)->t_virtual_stack)
 @d T_of_V(v) ((v)->t_tree)
-@<VALUE structure@> =
+@<Public structures@> =
+struct marpa_value {
+    Marpa_Symbol_ID t_semantic_token_id;
+    gpointer t_token_value;
+    Marpa_Rule_ID t_semantic_rule_id;
+    gint t_tos;
+    gint t_arg_n;
+};
+@ @<VALUE structure@> =
 struct s_value {
+    struct marpa_value public;
     DSTACK_DECLARE(t_virtual_stack);
     NOOKID t_nook;
     Marpa_Tree t_tree;
     @<Int aligned value elements@>@;
-    gint t_tos;
+    gint t_token_type;
+    gint t_next_value_type;
     guint t_trace:1;
-    guint t_active:1;
 };
+
+@
+The casts are attempts
+to defeat any use of
+these macros as lvalues.
+@<Public defines@> =
+#define marpa_v_semantic_token(v) \
+    (((const struct marpa_value*)v)->t_semantic_token_id)
+#define marpa_v_token_value(v) \
+    (((const struct marpa_value*)v)->t_token_value)
+#define marpa_v_semantic_rule(v) \
+    (((const struct marpa_value*)v)->t_semantic_rule_id)
+#define marpa_v_arg_0(v) \
+    (((const struct marpa_value*)v)->t_tos)
+#define marpa_v_arg_n(v) \
+    (((const struct marpa_value*)v)->t_arg_n)
 
 @ A dynamic stack is used here instead of a fixed
 stack for two reasons.
@@ -11532,7 +11497,7 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
 	const gint initial_stack_size =
 	  MAX (Size_of_TREE (t) / 1024, minimum_stack_size);
 	DSTACK_INIT (VStack_of_V (v), gint, initial_stack_size);
-	V_is_Active (v) = 1;
+	Next_Value_Type_of_V(v) = V_GET_DATA;
 	V_is_Trace (v) = 1;
 	TOS_of_V(v) = -1;
 	NOOK_of_V(v) = -1;
@@ -11556,7 +11521,6 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
 PRIVATE void
 value_unref (VALUE v)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, v->t_ref_count);
   MARPA_ASSERT (v->t_ref_count > 0)@;
   v->t_ref_count--;
   if (v->t_ref_count <= 0)
@@ -11575,7 +11539,6 @@ marpa_v_unref (Marpa_Value v)
 PRIVATE VALUE
 value_ref (VALUE v)
 {
-  MARPA_DEBUG4("%s %s: ref_count=%d", G_STRFUNC, G_STRLOC, v->t_ref_count);
   MARPA_ASSERT(v->t_ref_count > 0)
   v->t_ref_count++;
   return v;
@@ -11634,49 +11597,104 @@ Marpa_Nook_ID marpa_v_nook(Marpa_Value v)
     return NOOK_of_V(v);
 }
 
-@ @<Function definitions@> =
-Marpa_Nook_ID marpa_v_step(Marpa_Value v, Marpa_Step* step)
+@ The value type indicates whether the value
+is for a semantic rule, a semantic token, etc.
+@<Public typedefs@> =
+typedef gint Marpa_Value_Type;
+@ @d V_GET_DATA MARPA_VALUE_INTERNAL1
+
+@<Function definitions@> =
+Marpa_Value_Type marpa_v_step(Marpa_Value v)
 {
     @<Return |-2| on failure@>@;
+
+    while (V_is_Active(v)) {
+	Marpa_Value_Type current_value_type = Next_Value_Type_of_V(v);
+	MARPA_DEBUG3("%s: value type = %d", G_STRLOC, current_value_type);
+	switch (current_value_type)
+	  {
+	  case V_GET_DATA:
+	    @<Perform evaluation steps @>@;
+	    if (!V_is_Active (v)) break;
+	    /* fall through */
+	  case MARPA_VALUE_TOKEN:
+	    {
+	      gint token_type = Token_Type_of_V (v);
+	      if (token_type != DUMMY_OR_NODE)
+		{
+		  Next_Value_Type_of_V (v) = MARPA_VALUE_RULE;
+		  if (token_type == NULLING_TOKEN_OR_NODE)
+		      return MARPA_VALUE_NULLING_TOKEN;
+		   return MARPA_VALUE_TOKEN;
+		 }
+	    }
+	    /* fall through */
+	  case MARPA_VALUE_RULE:
+	    if (RULEID_of_V (v) >= 0)
+	      {
+		Next_Value_Type_of_V(v) = MARPA_VALUE_TRACE;
+		return MARPA_VALUE_RULE;
+	      }
+	    /* fall through */
+	  case MARPA_VALUE_TRACE:
+	    Next_Value_Type_of_V(v) = V_GET_DATA;
+	    if (V_is_Trace (v))
+	      {
+		return MARPA_VALUE_TRACE;
+	      }
+	  }
+      }
+
+    Next_Value_Type_of_V(v) = MARPA_VALUE_INACTIVE;
+    return MARPA_VALUE_INACTIVE;
+}
+
+@ @<Perform evaluation steps@> =
+{
     AND and_nodes;
-    NOOKID nook_ix;
-    gint arg_0 = -1;
-    gint arg_n = -1;
     @<Unpack value objects@>@;
-
-    /* step is not changed in case of hard failure */
     @<Fail if fatal error@>@;
-    if (!V_is_Active(v)) {
-	return failure_indicator;
-    }
-
     and_nodes = ANDs_of_B(B_of_O(o));
 
-    arg_0 = arg_n = TOS_of_V(v);
-    nook_ix = NOOK_of_V(v);
-    if (nook_ix < 0) {
-	nook_ix = Size_of_TREE(t);
+    Arg_N_of_V(v) = TOS_of_V(v);
+    if (NOOK_of_V(v) < 0) {
+	NOOK_of_V(v) = Size_of_TREE(t);
     }
 
-    while (nook_ix >= 1) {
+    while (1) {
 	OR or;
 	RULE nook_rule;
-	gint semantic_rule_id = -1;
-	gint token_id = -1;
-	gpointer token_value = NULL;
-	nook_ix--;
-	{
-	    ANDID and_node_id;
-	    AND and_node;
-	    const NOOK nook = NOOK_of_TREE_by_IX(t, nook_ix);
-	    const gint choice = Choice_of_NOOK(nook);
-	    or = OR_of_NOOK(nook);
-	    and_node_id = and_order_get(o, or, choice);
-	    and_node = and_nodes + and_node_id;
-	    token_id = and_node_token(and_node, &token_value);
+	Token_Value_of_V(v) = NULL;
+	SYMID_of_V(v) = -1;
+	RULEID_of_V(v) = -1;
+	NOOK_of_V(v)--;
+	if (NOOK_of_V(v) < 0) {
+	    Next_Value_Type_of_V(v) = MARPA_VALUE_INACTIVE;
+	    break;
 	}
-	if (token_id >= 0) {
-	    arg_0 = ++arg_n;
+	{
+	  ANDID and_node_id;
+	  AND and_node;
+	  TOK token;
+	  gint token_type;
+	  const NOOK nook = NOOK_of_TREE_by_IX (t, NOOK_of_V (v));
+	  const gint choice = Choice_of_NOOK (nook);
+	  or = OR_of_NOOK (nook);
+	  and_node_id = and_order_get (o, or, choice);
+	  and_node = and_nodes + and_node_id;
+	  token = and_node_token (and_node);
+	  token_type = token ? Type_of_TOK(token) : DUMMY_OR_NODE;
+	    Token_Type_of_V(v) = token_type;
+	  if (token_type != DUMMY_OR_NODE)
+	    {
+	      SYMID_of_V (v) = SYMID_of_TOK (token);
+	      TOS_of_V (v) = ++Arg_N_of_V (v);
+	      Token_Type_of_V (v) = token_type;
+	      if (token_type == VALUED_TOKEN_OR_NODE)
+		{
+		  Token_Value_of_V (v) = Value_of_TOK (token);
+		}
+	    }
 	}
 	nook_rule = RULE_of_OR(or);
 	if (Position_of_OR(or) == Length_of_RULE(nook_rule)) {
@@ -11691,44 +11709,31 @@ Marpa_Nook_ID marpa_v_step(Marpa_Value v, Marpa_Step* step)
 		} else {
 		    *DSTACK_PUSH(*virtual_stack, gint) = real_symbol_count;
 		}
-		goto RETURN_VALUE_IF_APPROPRIATE;
-	    }
-	    if (virtual_rhs) {
-	        real_symbol_count = Real_SYM_Count_of_RULE(nook_rule);
-		real_symbol_count += *DSTACK_POP(*virtual_stack, gint);
 	    } else {
-	        real_symbol_count = Length_of_RULE(nook_rule);
+
+		if (virtual_rhs) {
+		    real_symbol_count = Real_SYM_Count_of_RULE(nook_rule);
+		    real_symbol_count += *DSTACK_POP(*virtual_stack, gint);
+		} else {
+		    real_symbol_count = Length_of_RULE(nook_rule);
+		}
+		{
+		  RULEID original_rule_id =
+		    nook_rule->t_is_semantic_equivalent ?
+		    nook_rule->t_original : ID_of_RULE (nook_rule);
+		  if (RULE_is_Ask_Me (RULE_by_ID (g, original_rule_id)))
+		    {
+		      RULEID_of_V(v) = original_rule_id;
+		      TOS_of_V(v) = Arg_N_of_V(v) - real_symbol_count + 1;
+		    }
+		}
+
 	    }
-	    arg_0 = arg_n - real_symbol_count + 1;
-	    semantic_rule_id =
-	      nook_rule->t_is_semantic_equivalent ?
-		  nook_rule->t_original : ID_of_RULE(nook_rule);
 	}
-	if (semantic_rule_id >= 0
-		&& !RULE_is_Ask_Me(RULE_by_ID(g, semantic_rule_id))) {
-	    semantic_rule_id = -1;
-	    arg_n = arg_0;
-	}
-	RETURN_VALUE_IF_APPROPRIATE: ;
-	if ( semantic_rule_id >= 0 || token_id >= 0 || V_is_Trace(v)) {
-	    @<Write results to |v| and |step|@>@;
-	    return NOOK_of_V(v);
-	}
+	if ( RULEID_of_V(v) >= 0 ) break;
+	if ( Token_Type_of_V(v) != DUMMY_OR_NODE ) break;
+	if ( V_is_Trace(v)) break;
     }
-
-    V_is_Active(v) = 0;
-    return -1;
-
-}
-
-@ @<Write results to |v| and |step|@> =
-{
-    SYMID_of_STEP(step) = token_id;
-    Value_of_STEP(step) = token_value;
-    RULEID_of_STEP(step) = semantic_rule_id;
-    TOS_of_V(v) = Arg0_of_STEP(step) = arg_0;
-    NOOK_of_V(v) = nook_ix;
-    ArgN_of_STEP(step) = arg_n;
 }
 
 @** Boolean Vectors.
@@ -12564,17 +12569,14 @@ psar_init (const PSAR psar, gint length)
 PRIVATE void psar_destroy(const PSAR psar)
 {
     PSL psl = psar->t_first_psl;
-MARPA_OFF_DEBUG3("%s psl=%p", G_STRLOC, psl);
     while (psl)
       {
 	PSL next_psl = psl->t_next;
 	PSL *owner = psl->t_owner;
-MARPA_OFF_DEBUG3("%s owner=%p", G_STRLOC, owner);
 	if (owner)
 	  *owner = NULL;
 	g_slice_free1 (Sizeof_PSL (psar), psl);
 	psl = next_psl;
-MARPA_OFF_DEBUG3("%s psl=%p", G_STRLOC, psl);
       }
 }
 @ @<Function definitions@> =
@@ -12938,6 +12940,7 @@ Not being error-prone
 is important since there are many calls to |r_error|
 in the code.
 @d MARPA_DEV_ERROR(message) (set_error(g, MARPA_ERR_DEVELOPMENT, (message), 0u))
+@d MARPA_INTERNAL_ERROR(message) (set_error(g, MARPA_ERR_INTERNAL, (message), 0u))
 @d MARPA_ERROR(code) (set_error(g, (code), NULL, 0u))
 @d R_DEV_ERROR(message) (r_error(r, MARPA_ERR_DEVELOPMENT, (message), 0u))
 @d R_ERROR(code, message) (r_error(r, (code), (message), 0u))

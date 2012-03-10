@@ -198,7 +198,7 @@ static inline
 DAND draft_and_node_new(struct obstack *obs, OR predecessor, OR cause);
 static inline 
 void draft_and_node_add(struct obstack *obs, OR parent, OR predecessor, OR cause);
-static inline  SYMID and_node_token(AND and_node, gpointer* value_p);
+static inline  TOK and_node_token(AND and_node);
 static inline  void
 bocage_unref (BOCAGE b);
 static inline  BOCAGE

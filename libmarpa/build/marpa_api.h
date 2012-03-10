@@ -29,8 +29,6 @@ Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar g);
 Marpa_Symbol_ID marpa_g_start_symbol_set ( Marpa_Grammar g, Marpa_Symbol_ID id);
 Marpa_Symbol_ID marpa_g_start_symbol (Marpa_Grammar g);
 gint marpa_g_symbol_count (Marpa_Grammar g);
-gint marpa_g_default_token_value ( Marpa_Grammar g, gpointer* value_pointer);
-gint marpa_g_default_token_value_set ( Marpa_Grammar g, gpointer value);
 gint marpa_g_is_lhs_terminal_ok (Marpa_Grammar g);
 gint marpa_g_is_lhs_terminal_ok_set ( Marpa_Grammar g, gint value);
 gint marpa_g_symbol_is_terminal ( Marpa_Grammar g, Marpa_Symbol_ID symid);
@@ -170,7 +168,7 @@ Marpa_Value marpa_v_new ( Marpa_Tree t);
 Marpa_Grammar marpa_v_g (Marpa_Value v);
 void marpa_v_unref (Marpa_Value v);
 Marpa_Value marpa_v_ref (Marpa_Value v);
-Marpa_Nook_ID marpa_v_step ( Marpa_Value v, Marpa_Step* step);
+Marpa_Value_Type marpa_v_step ( Marpa_Value v);
 gint marpa_v_trace ( Marpa_Value v, gint flag);
 Marpa_Nook_ID marpa_v_nook ( Marpa_Value v);
 Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
@@ -199,3 +197,11 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_EVENT_NEW_SYMBOL 4
 #define MARPA_EVENT_NEW_RULE 5
 #define MARPA_EVENT_COUNTED_NULLABLE 6
+#define MARPA_VALUE_TYPE_COUNT 7
+#define MARPA_VALUE_INTERNAL1 0
+#define MARPA_VALUE_RULE 1
+#define MARPA_VALUE_TOKEN 2
+#define MARPA_VALUE_NULLING_TOKEN 3
+#define MARPA_VALUE_TRACE 4
+#define MARPA_VALUE_INACTIVE 5
+#define MARPA_VALUE_INTERNAL2 6
