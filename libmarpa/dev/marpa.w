@@ -1098,7 +1098,7 @@ struct s_symbol {
 };
 typedef struct s_symbol SYM_Object;
 @ @<Initialize symbol elements@> =
-    symbol->t_or_node_type = NULLING_TOKEN_OR_NODE;
+    symbol->t_or_node_type = UNVALUED_TOKEN_OR_NODE;
     ID_of_SYM(symbol) = g->t_symbols->len;
 
 @ @<Function definitions@> =
@@ -1218,6 +1218,36 @@ PRIVATE
 void symbol_rhs_add(SYM symbol, Marpa_Rule_ID rule_id)
 { g_array_append_val(symbol->t_rhs, rule_id); }
 
+@*0 Nulling symbol has semantics?.
+This value describes the semantics
+for a symbol when it is nulling.
+Marpa optimizes for the case
+where the application
+does not care about the value of 
+a symbol -- that is, the semantics
+is arbitrary.
+@d SYM_is_Ask_Me_When_Null(symbol) ((symbol)->t_is_ask_me_when_null)
+@<Bit aligned symbol elements@> = guint t_is_ask_me_when_null:1;
+@ @<Initialize symbol elements@> =
+    SYM_is_Ask_Me_When_Null(symbol) = 0;
+@ @<Function definitions@> =
+gint marpa_g_symbol_is_ask_me_when_null(
+    Marpa_Grammar g,
+    Marpa_Symbol_ID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return SYM_is_Ask_Me_When_Null(SYM_by_ID(symid));
+}
+gint marpa_g_symbol_ask_me_when_null_set(
+    Marpa_Grammar g, Marpa_Symbol_ID symid)
+{
+    SYM symbol;
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    symbol = SYM_by_ID(symid);
+    return SYM_is_Ask_Me_When_Null(symbol) = 1;
+}
 @ Symbol Is Accessible Boolean
 @<Bit aligned symbol elements@> = guint t_is_accessible:1;
 @ @<Initialize symbol elements@> =
@@ -1411,6 +1441,8 @@ SYM symbol_alias_create(GRAMMAR g, SYM symbol)
     symbol->t_alias = alias;
     alias->t_is_nulling_alias = TRUE;
     SYM_is_Nulling(alias) = TRUE;
+    SYM_is_Ask_Me_When_Null(alias)
+	= SYM_is_Ask_Me_When_Null(symbol);
     alias->t_is_nullable = TRUE;
     alias->t_is_productive = TRUE;
     alias->t_is_accessible = symbol->t_is_accessible;
@@ -5136,8 +5168,6 @@ struct s_input {
 PRIVATE INPUT
 input_new (GRAMMAR g)
 {
-  const gint symbol_count_of_g = SYM_Count_of_G (g);
-  TOK *tokens_by_symid;
   INPUT input = g_slice_new (struct s_input);
   obstack_init (TOK_Obs_of_I (input));
   @<Initialize input elements@>@;
@@ -11400,6 +11430,7 @@ the grammar invisible to the semantics.
 @d V_is_Active(val) (Next_Value_Type_of_V(val) != MARPA_VALUE_INACTIVE)
 @d V_is_Trace(val) ((val)->t_trace)
 @d NOOK_of_V(val) ((val)->t_nook)
+@d SYM_of_V(val) ((val)->t_semantic_token)
 @d SYMID_of_V(val) ((val)->public.t_semantic_token_id)
 @d RULEID_of_V(val) ((val)->public.t_semantic_rule_id)
 @d Token_Value_of_V(val) ((val)->public.t_token_value)
@@ -11420,6 +11451,7 @@ struct marpa_value {
 struct s_value {
     struct marpa_value public;
     DSTACK_DECLARE(t_virtual_stack);
+    SYM t_semantic_token;
     NOOKID t_nook;
     Marpa_Tree t_tree;
     @<Int aligned value elements@>@;
@@ -11622,8 +11654,10 @@ Marpa_Value_Type marpa_v_step(Marpa_Value v)
 	      gint token_type = Token_Type_of_V (v);
 	      if (token_type != DUMMY_OR_NODE)
 		{
+		  SYM token = SYM_of_V(v);
+		  SYMID_of_V(v) = ID_of_SYM(token);
 		  Next_Value_Type_of_V (v) = MARPA_VALUE_RULE;
-		  if (token_type == NULLING_TOKEN_OR_NODE)
+		  if (SYM_is_Nulling(token))
 		      return MARPA_VALUE_NULLING_TOKEN;
 		   return MARPA_VALUE_TOKEN;
 		 }
@@ -11665,7 +11699,7 @@ Marpa_Value_Type marpa_v_step(Marpa_Value v)
 	OR or;
 	RULE nook_rule;
 	Token_Value_of_V(v) = NULL;
-	SYMID_of_V(v) = -1;
+	SYM_of_V(v) = NULL;
 	RULEID_of_V(v) = -1;
 	NOOK_of_V(v)--;
 	if (NOOK_of_V(v) < 0) {
@@ -11684,10 +11718,11 @@ Marpa_Value_Type marpa_v_step(Marpa_Value v)
 	  and_node = and_nodes + and_node_id;
 	  token = and_node_token (and_node);
 	  token_type = token ? Type_of_TOK(token) : DUMMY_OR_NODE;
-	    Token_Type_of_V(v) = token_type;
+	  Token_Type_of_V(v) = token_type;
 	  if (token_type != DUMMY_OR_NODE)
 	    {
-	      SYMID_of_V (v) = SYMID_of_TOK (token);
+	      const SYMID token_id = SYMID_of_TOK (token);
+	      SYM_of_V (v) = SYM_by_ID(token_id);
 	      TOS_of_V (v) = ++Arg_N_of_V (v);
 	      Token_Type_of_V (v) = token_type;
 	      if (token_type == VALUED_TOKEN_OR_NODE)

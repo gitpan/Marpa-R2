@@ -1,5 +1,5 @@
-/*1181:*/
-#line 13248 "./marpa.w"
+/*1184:*/
+#line 13283 "./marpa.w"
 
 /*
  * Copyright 2012 Jeffrey Kegler
@@ -23,8 +23,8 @@
  * It is not intended to be modified directly
  */
 
-/*:1181*//*1182:*/
-#line 13272 "./marpa.w"
+/*:1184*//*1185:*/
+#line 13307 "./marpa.w"
 
 #ifndef __MARPA_H__
 #define __MARPA_H__ 
@@ -47,17 +47,17 @@ GLIB_VAR const guint marpa_binary_age;
           && MARPA_MICRO_VERSION >= (micro)))
 
 #define MARPA_CAT(a, b)  a ## b 
-/*207:*/
-#line 1933 "./marpa.w"
+/*210:*/
+#line 1965 "./marpa.w"
 
 #define MARPA_KEEP_SEPARATION  0x1
-/*:207*//*211:*/
-#line 1971 "./marpa.w"
+/*:210*//*214:*/
+#line 2003 "./marpa.w"
 
 #define MARPA_PROPER_SEPARATION  0x2
 
-/*:211*//*1029:*/
-#line 11435 "./marpa.w"
+/*:214*//*1032:*/
+#line 11467 "./marpa.w"
 
 #define marpa_v_semantic_token(v) \
     (((const struct marpa_value*)v)->t_semantic_token_id)
@@ -70,7 +70,7 @@ GLIB_VAR const guint marpa_binary_age;
 #define marpa_v_arg_n(v) \
     (((const struct marpa_value*)v)->t_arg_n)
 
-/*:1029*/
+/*:1032*/
 #line 596 "./marpa.w"
 
 /*38:*/
@@ -78,37 +78,37 @@ GLIB_VAR const guint marpa_binary_age;
 
 struct marpa_g;
 typedef struct marpa_g*Marpa_Grammar;
-/*:38*//*506:*/
-#line 5216 "./marpa.w"
+/*:38*//*509:*/
+#line 5246 "./marpa.w"
 
 struct marpa_r;
 typedef struct marpa_r*Marpa_Recognizer;
 typedef Marpa_Recognizer Marpa_Recce;
-/*:506*//*908:*/
-#line 10012 "./marpa.w"
+/*:509*//*911:*/
+#line 10042 "./marpa.w"
 
 struct s_bocage;
 typedef struct s_bocage*Marpa_Bocage;
-/*:908*//*954:*/
-#line 10488 "./marpa.w"
+/*:911*//*957:*/
+#line 10518 "./marpa.w"
 
 struct s_order;
 typedef struct s_order*Marpa_Order;
-/*:954*//*955:*/
-#line 10491 "./marpa.w"
+/*:957*//*958:*/
+#line 10521 "./marpa.w"
 
 typedef Marpa_Order ORDER;
-/*:955*//*978:*/
-#line 10809 "./marpa.w"
+/*:958*//*981:*/
+#line 10839 "./marpa.w"
 
 struct s_tree;
 typedef struct s_tree*Marpa_Tree;
-/*:978*//*1025:*/
-#line 11385 "./marpa.w"
+/*:981*//*1028:*/
+#line 11415 "./marpa.w"
 
 struct s_value;
 typedef struct s_value*Marpa_Value;
-/*:1025*/
+/*:1028*/
 #line 597 "./marpa.w"
 
 /*95:*/
@@ -125,50 +125,50 @@ typedef gint Marpa_Error_Code;
 #line 1075 "./marpa.w"
 
 typedef gint Marpa_Symbol_ID;
-/*:116*//*168:*/
-#line 1458 "./marpa.w"
+/*:116*//*171:*/
+#line 1490 "./marpa.w"
 
 typedef gint Marpa_Rule_ID;
-/*:168*//*358:*/
-#line 3460 "./marpa.w"
+/*:171*//*361:*/
+#line 3492 "./marpa.w"
 
 typedef gint Marpa_AHFA_Item_ID;
-/*:358*//*397:*/
-#line 3828 "./marpa.w"
+/*:361*//*400:*/
+#line 3860 "./marpa.w"
 
 typedef gint Marpa_AHFA_State_ID;
 
-/*:397*//*577:*/
-#line 5650 "./marpa.w"
+/*:400*//*580:*/
+#line 5680 "./marpa.w"
 typedef gint Marpa_Earleme;
-/*:577*//*579:*/
-#line 5654 "./marpa.w"
+/*:580*//*582:*/
+#line 5684 "./marpa.w"
 typedef gint Marpa_Earley_Set_ID;
-/*:579*//*604:*/
-#line 5859 "./marpa.w"
+/*:582*//*607:*/
+#line 5889 "./marpa.w"
 typedef gint Marpa_Earley_Item_ID;
-/*:604*//*832:*/
-#line 8895 "./marpa.w"
+/*:607*//*835:*/
+#line 8925 "./marpa.w"
 
 typedef gint Marpa_Or_Node_ID;
-/*:832*//*892:*/
-#line 9833 "./marpa.w"
+/*:835*//*895:*/
+#line 9863 "./marpa.w"
 
 typedef gint Marpa_And_Node_ID;
-/*:892*//*1011:*/
-#line 11247 "./marpa.w"
+/*:895*//*1014:*/
+#line 11277 "./marpa.w"
 
 typedef gint Marpa_Nook_ID;
-/*:1011*//*1043:*/
-#line 11602 "./marpa.w"
+/*:1014*//*1046:*/
+#line 11634 "./marpa.w"
 
 typedef gint Marpa_Value_Type;
-/*:1043*//*1164:*/
-#line 13024 "./marpa.w"
+/*:1046*//*1167:*/
+#line 13059 "./marpa.w"
 
 typedef const gchar*Marpa_Message_ID;
 
-/*:1164*/
+/*:1167*/
 #line 598 "./marpa.w"
 
 /*96:*/
@@ -178,8 +178,8 @@ struct marpa_event{
 Marpa_Event_Type t_type;
 gint t_value;
 };
-/*:96*//*1027:*/
-#line 11411 "./marpa.w"
+/*:96*//*1030:*/
+#line 11442 "./marpa.w"
 
 struct marpa_value{
 Marpa_Symbol_ID t_semantic_token_id;
@@ -188,15 +188,15 @@ Marpa_Rule_ID t_semantic_rule_id;
 gint t_tos;
 gint t_arg_n;
 };
-/*:1027*/
+/*:1030*/
 #line 599 "./marpa.w"
 
 
 /*:37*/
-#line 13279 "./marpa.w"
+#line 13314 "./marpa.w"
 
 
 #include "marpa_api.h"
 #endif __MARPA_H__
 
-/*:1182*/
+/*:1185*/

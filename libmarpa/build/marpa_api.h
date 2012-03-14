@@ -56,6 +56,8 @@ gint marpa_g_precompute (Marpa_Grammar g);
 gint marpa_g_is_precomputed (Marpa_Grammar g);
 gint marpa_g_has_loop (Marpa_Grammar g);
 gint marpa_g_symbol_is_start ( Marpa_Grammar g, Marpa_Symbol_ID symid);
+gint marpa_g_symbol_ask_me_when_null_set ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
+gint marpa_g_symbol_is_ask_me_when_null ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
 gint marpa_g_symbol_lhs_count (Marpa_Grammar g, Marpa_Symbol_ID symid);
 Marpa_Rule_ID marpa_g_symbol_lhs (Marpa_Grammar g, Marpa_Symbol_ID symid, gint ix);
 gint marpa_g_symbol_rhs_count (Marpa_Grammar g, Marpa_Symbol_ID symid);
