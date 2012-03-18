@@ -1240,13 +1240,13 @@ gint marpa_g_symbol_is_ask_me_when_null(
     return SYM_is_Ask_Me_When_Null(SYM_by_ID(symid));
 }
 gint marpa_g_symbol_ask_me_when_null_set(
-    Marpa_Grammar g, Marpa_Symbol_ID symid)
+    Marpa_Grammar g, Marpa_Symbol_ID symid, int value)
 {
     SYM symbol;
     @<Return |-2| on failure@>@;
     @<Fail if grammar |symid| is invalid@>@;
     symbol = SYM_by_ID(symid);
-    return SYM_is_Ask_Me_When_Null(symbol) = 1;
+    return SYM_is_Ask_Me_When_Null(symbol) = value ? 1 : 0;
 }
 @ Symbol Is Accessible Boolean
 @<Bit aligned symbol elements@> = guint t_is_accessible:1;
@@ -11430,7 +11430,6 @@ the grammar invisible to the semantics.
 @d V_is_Active(val) (Next_Value_Type_of_V(val) != MARPA_VALUE_INACTIVE)
 @d V_is_Trace(val) ((val)->t_trace)
 @d NOOK_of_V(val) ((val)->t_nook)
-@d SYM_of_V(val) ((val)->t_semantic_token)
 @d SYMID_of_V(val) ((val)->public.t_semantic_token_id)
 @d RULEID_of_V(val) ((val)->public.t_semantic_rule_id)
 @d Token_Value_of_V(val) ((val)->public.t_token_value)
@@ -11438,6 +11437,7 @@ the grammar invisible to the semantics.
 @d TOS_of_V(val) ((val)->public.t_tos)
 @d Arg_N_of_V(val) ((val)->public.t_arg_n)
 @d VStack_of_V(val) ((val)->t_virtual_stack)
+@d Nulling_Ask_BV_of_V(val) ((val)->t_nulling_ask_bv)
 @d T_of_V(v) ((v)->t_tree)
 @<Public structures@> =
 struct marpa_value {
@@ -11451,10 +11451,10 @@ struct marpa_value {
 struct s_value {
     struct marpa_value public;
     DSTACK_DECLARE(t_virtual_stack);
-    SYM t_semantic_token;
     NOOKID t_nook;
     Marpa_Tree t_tree;
     @<Int aligned value elements@>@;
+    Bit_Vector t_nulling_ask_bv;
     gint t_token_type;
     gint t_next_value_type;
     guint t_trace:1;
@@ -11529,6 +11529,7 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
 	const gint initial_stack_size =
 	  MAX (Size_of_TREE (t) / 1024, minimum_stack_size);
 	DSTACK_INIT (VStack_of_V (v), gint, initial_stack_size);
+	@<Initialize nulling "ask me" bit vector@>@;
 	Next_Value_Type_of_V(v) = V_GET_DATA;
 	V_is_Trace (v) = 1;
 	TOS_of_V(v) = -1;
@@ -11540,6 +11541,21 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
       }
     MARPA_DEV_ERROR("tree is exhausted");
     return NULL;
+}
+
+@
+@<Initialize nulling "ask me" bit vector@> =
+{
+    const SYMID symbol_count_of_g = SYM_Count_of_G(g);
+    SYMID ix;
+    Nulling_Ask_BV_of_V(v) = bv_create (symbol_count_of_g);
+    for (ix = 0; ix < symbol_count_of_g; ix++) {
+	const SYM symbol = SYM_by_ID(ix);
+	if (SYM_is_Nulling(symbol) && SYM_is_Ask_Me_When_Null(symbol))
+	{
+	    bv_bit_set(Nulling_Ask_BV_of_V(v), ix);
+	}
+    }
 }
 
 @*0 Reference Counting and Destructors.
@@ -11585,6 +11601,7 @@ marpa_v_ref (Marpa_Value v)
 PRIVATE void value_free(VALUE v)
 {
     tree_unpause(T_of_V(v));
+    bv_free(Nulling_Ask_BV_of_V(v));
     if (DSTACK_IS_INITIALIZED(v->t_virtual_stack))
     {
         DSTACK_DESTROY(v->t_virtual_stack);
@@ -11629,6 +11646,54 @@ Marpa_Nook_ID marpa_v_nook(Marpa_Value v)
     return NOOK_of_V(v);
 }
 
+@*0 Nulling symbol semantics.
+The settings here overrides the value
+set with the grammar.
+@ @<Function definitions@> =
+gint marpa_v_symbol_is_ask_me_when_null(
+    Marpa_Value v,
+    Marpa_Symbol_ID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Unpack value objects@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    return bv_bit_test(Nulling_Ask_BV_of_V(v), symid);
+}
+@ If the symbol has a null alias, the call is interpreted
+as being for that null alias.
+Non-nullables can never have "ask me" set,
+and it is an error to attempt to attempt to do so.
+Note that it is currently
+{\bf not} an error to change setting while the valuation
+is in progress.
+The idea scares me,
+but I cannot think of a reason to ban it,
+so I do not.
+@<Function definitions@> =
+gint marpa_v_symbol_ask_me_when_null_set(
+    Marpa_Value v, Marpa_Symbol_ID symid, int value)
+{
+    SYM symbol;
+    @<Return |-2| on failure@>@;
+    @<Unpack value objects@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |symid| is invalid@>@;
+    symbol = SYM_by_ID(symid);
+    if (!SYM_is_Nulling(symbol)) {
+         symbol = symbol_null_alias(symbol);
+	 if (!symbol && value) {
+	     MARPA_ERROR(MARPA_ERR_SYMBOL_NOT_NULLABLE);
+	 }
+    }
+    if (value) {
+	bv_bit_set(Nulling_Ask_BV_of_V(v), symid);
+    } else {
+	bv_bit_clear(Nulling_Ask_BV_of_V(v), symid);
+    }
+    return value ? 1 : 0;
+}
+
 @ The value type indicates whether the value
 is for a semantic rule, a semantic token, etc.
 @<Public typedefs@> =
@@ -11654,11 +11719,11 @@ Marpa_Value_Type marpa_v_step(Marpa_Value v)
 	      gint token_type = Token_Type_of_V (v);
 	      if (token_type != DUMMY_OR_NODE)
 		{
-		  SYM token = SYM_of_V(v);
-		  SYMID_of_V(v) = ID_of_SYM(token);
 		  Next_Value_Type_of_V (v) = MARPA_VALUE_RULE;
-		  if (SYM_is_Nulling(token))
+		  if (bv_bit_test(Nulling_Ask_BV_of_V(v), SYMID_of_V(v)))
 		      return MARPA_VALUE_NULLING_TOKEN;
+		  /* Any nulling token at this point
+		     will be an "ask me" token */
 		   return MARPA_VALUE_TOKEN;
 		 }
 	    }
@@ -11699,7 +11764,6 @@ Marpa_Value_Type marpa_v_step(Marpa_Value v)
 	OR or;
 	RULE nook_rule;
 	Token_Value_of_V(v) = NULL;
-	SYM_of_V(v) = NULL;
 	RULEID_of_V(v) = -1;
 	NOOK_of_V(v)--;
 	if (NOOK_of_V(v) < 0) {
@@ -11718,16 +11782,22 @@ Marpa_Value_Type marpa_v_step(Marpa_Value v)
 	  and_node = and_nodes + and_node_id;
 	  token = and_node_token (and_node);
 	  token_type = token ? Type_of_TOK(token) : DUMMY_OR_NODE;
-	  Token_Type_of_V(v) = token_type;
+	  Token_Type_of_V (v) = token_type;
 	  if (token_type != DUMMY_OR_NODE)
 	    {
 	      const SYMID token_id = SYMID_of_TOK (token);
-	      SYM_of_V (v) = SYM_by_ID(token_id);
 	      TOS_of_V (v) = ++Arg_N_of_V (v);
-	      Token_Type_of_V (v) = token_type;
 	      if (token_type == VALUED_TOKEN_OR_NODE)
 		{
+		  SYMID_of_V(v) = token_id;
 		  Token_Value_of_V (v) = Value_of_TOK (token);
+		}
+		else if (bv_bit_test(Nulling_Ask_BV_of_V(v), token_id)) {
+		  SYMID_of_V(v) = token_id;
+		} else {
+		  Token_Type_of_V (v) = DUMMY_OR_NODE;
+		  /* |DUMMY_OR_NODE| indicates arbitrary semantics for
+		  this token */
 		}
 	    }
 	}
@@ -13315,85 +13385,6 @@ So I add such a comment.
 
 #include "marpa_api.h"
 #endif __MARPA_H__
-
-@** Proofs.
-
-For |libmarpa|, more than inspection of
-the code is desirable to establish confidence
-that it works as intended.
-For some non-obvious points, proofs are useful
-to increase the level of confidence.
-
-@*0 Leo completion states are AHFA singletons.
-
-@ {\bf Motivation:}
-|libmarpa| combines Joop Leo's enhancements to the
-Earley algorithm with those of Aycock and Horspool.
-While it was clear such a thing would be
-possible, given enough effort, it was {\bf not}
-obvious that the combined algorithm would preserve
-the efficiencies of the algorithms from which it
-was derived.
-
-This proof establishes the key fact to show that,
-in fact, the Leo algorithm is compatible
-with the Aycock and Horspool algorithms.
-The following is an outline,
-which assumes familiarity with the underlying algorithms.
-
-@ {\bf Theorem:} In |libmarpa|,
-all Leo completion states are in their own LR(0) state.
-
-@ {\bf Proof:}
-In |libmarpa|, every
-Leo completion LR(0) item will have a non-nulling symbol,
-by Leo's definitons.
-Therefore, every Leo completion will have a final non-nulling
-symbol.
-Call the Leo completion item's final non-nulling symbol, $S$.
-
-Call the LR(0) DFA state containing the Leo Completion item $C$.
-Call the Leo completion LR(0) item $C1$.
-Suppose, for reduction to absurdity,
-that another LR(0) item is combined with
-the Leo completion LR(0) item in the LR(0) DFA.
-Call this second LR(0) item $C2$.
-
-If so,
-there must be Leo LR(0) DFA state,
-$C_{predecessor}$, where two of the
-LR(0) items, after a transition on symbol $S$,
-produce both $C1$ and $C2$.
-That means that in $C_{predecessor}$,
-there are two LR(0) items with S as the postdot symbol,
-and that these two items are predecessors of $C1$ and $C2$.
-Call them $P1$ and $P2$.
-$P1 \neq P2$, because $C1 \neq C2$ and different LR(0)
-items always have different predecessors.
-
-Therefore $C_{predecessor}$ will contain $P1$ and $P2$,
-two LR(0) items, both
-with $S$ as the postdot symbol.
-But by Leo's definitions, the transition on the postdot
-symbol into a Leo completion state
-must be unique.
-Therefore $C_{predecessor}$ cannot exist.
-This completes the reduction to absurdity,
-and the proof.
-QED.
-
-@ {\bf Theorem:}
-All Leo completion states are in their own AHFA state.
-
-{\bf Proof:}
-By the theorem above, all Leo completion states are in
-their own state in the LR(0) DFA.
-The conversion to an epsilion-DFA will not add any items to this
-state, because the only item in it is a completion item.
-And conversion to a split epsilon-DFA will not add items.
-So the Leo completion item will remain in its own state as
-the AHFA is constructed.
-QED.
 
 @** Index.
 

@@ -1,5 +1,5 @@
-/*1184:*/
-#line 13283 "./marpa.w"
+/*1188:*/
+#line 13353 "./marpa.w"
 
 /*
  * Copyright 2012 Jeffrey Kegler
@@ -23,8 +23,8 @@
  * It is not intended to be modified directly
  */
 
-/*:1184*//*1185:*/
-#line 13307 "./marpa.w"
+/*:1188*//*1189:*/
+#line 13377 "./marpa.w"
 
 #ifndef __MARPA_H__
 #define __MARPA_H__ 
@@ -159,16 +159,16 @@ typedef gint Marpa_And_Node_ID;
 #line 11277 "./marpa.w"
 
 typedef gint Marpa_Nook_ID;
-/*:1014*//*1046:*/
-#line 11634 "./marpa.w"
+/*:1014*//*1050:*/
+#line 11699 "./marpa.w"
 
 typedef gint Marpa_Value_Type;
-/*:1046*//*1167:*/
-#line 13059 "./marpa.w"
+/*:1050*//*1171:*/
+#line 13129 "./marpa.w"
 
 typedef const gchar*Marpa_Message_ID;
 
-/*:1167*/
+/*:1171*/
 #line 598 "./marpa.w"
 
 /*96:*/
@@ -193,10 +193,10 @@ gint t_arg_n;
 
 
 /*:37*/
-#line 13314 "./marpa.w"
+#line 13384 "./marpa.w"
 
 
 #include "marpa_api.h"
 #endif __MARPA_H__
 
-/*:1185*/
+/*:1189*/

@@ -50,7 +50,8 @@ const struct s_marpa_error_description marpa_error_description[] = {
   { 12, "MARPA_ERR_ORDER_FROZEN", "Unknown error" },
   { 13, "MARPA_ERR_PRECOMPUTED", "This grammar is precomputed." },
   { 14, "MARPA_ERR_START_NOT_LHS", "Start symbol not on LHS of any rule." },
-  { 15, "MARPA_ERR_UNPRODUCTIVE_START", "Unproductive start symbol." },
+  { 15, "MARPA_ERR_SYMBOL_NOT_NULLABLE", "Symbol not nullable." },
+  { 16, "MARPA_ERR_UNPRODUCTIVE_START", "Unproductive start symbol." },
 };
 const struct s_marpa_event_description marpa_event_description[] = {
   { 0, "MARPA_EVENT_NONE", "No error." },

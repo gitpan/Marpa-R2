@@ -56,7 +56,7 @@ gint marpa_g_precompute (Marpa_Grammar g);
 gint marpa_g_is_precomputed (Marpa_Grammar g);
 gint marpa_g_has_loop (Marpa_Grammar g);
 gint marpa_g_symbol_is_start ( Marpa_Grammar g, Marpa_Symbol_ID symid);
-gint marpa_g_symbol_ask_me_when_null_set ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
+gint marpa_g_symbol_ask_me_when_null_set ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id, int value);
 gint marpa_g_symbol_is_ask_me_when_null ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
 gint marpa_g_symbol_lhs_count (Marpa_Grammar g, Marpa_Symbol_ID symid);
 Marpa_Rule_ID marpa_g_symbol_lhs (Marpa_Grammar g, Marpa_Symbol_ID symid, gint ix);
@@ -169,12 +169,14 @@ gint marpa_t_nook_is_predecessor ( Marpa_Tree t, Marpa_Nook_ID nook_id );
 Marpa_Value marpa_v_new ( Marpa_Tree t);
 Marpa_Grammar marpa_v_g (Marpa_Value v);
 void marpa_v_unref (Marpa_Value v);
+gint marpa_v_symbol_ask_me_when_null_set( Marpa_Value v, Marpa_Symbol_ID symid, int value);
+gint marpa_v_symbol_is_ask_me_when_null( Marpa_Value v, Marpa_Symbol_ID symid);
 Marpa_Value marpa_v_ref (Marpa_Value v);
 Marpa_Value_Type marpa_v_step ( Marpa_Value v);
 gint marpa_v_trace ( Marpa_Value v, gint flag);
 Marpa_Nook_ID marpa_v_nook ( Marpa_Value v);
 Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
-#define MARPA_ERROR_COUNT 16
+#define MARPA_ERROR_COUNT 17
 #define MARPA_ERR_NONE 0
 #define MARPA_ERR_UNKNOWN 1
 #define MARPA_ERR_INTERNAL 2
@@ -190,7 +192,8 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERR_ORDER_FROZEN 12
 #define MARPA_ERR_PRECOMPUTED 13
 #define MARPA_ERR_START_NOT_LHS 14
-#define MARPA_ERR_UNPRODUCTIVE_START 15
+#define MARPA_ERR_SYMBOL_NOT_NULLABLE 15
+#define MARPA_ERR_UNPRODUCTIVE_START 16
 #define MARPA_EVENT_COUNT 7
 #define MARPA_EVENT_NONE 0
 #define MARPA_EVENT_EXHAUSTED 1

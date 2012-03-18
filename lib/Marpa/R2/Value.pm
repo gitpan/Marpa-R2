@@ -21,7 +21,7 @@ use strict;
 use integer;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_023';
+$VERSION        = '0.001_024';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -346,7 +346,7 @@ sub Marpa::R2::Internal::Recognizer::set_null_values {
         my $null_value = undef;
         if ( $symbol->[Marpa::R2::Internal::Symbol::NULL_VALUE] ) {
             $null_value =
-                ${ $symbol->[Marpa::R2::Internal::Symbol::NULL_VALUE] };
+                $symbol->[Marpa::R2::Internal::Symbol::NULL_VALUE];
         }
         else {
             $null_value = $default_null_value;
@@ -741,6 +741,11 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
     $action_object //= {};
 
     my $value            = Marpa::R2::Internal::V_C->new($tree);
+    for my $token_id ( grep { defined $null_values->[$_] }
+        0 .. $#$null_values )
+    {
+        $value->symbol_ask_me_when_null_set($token_id, 1);
+    }
     my @evaluation_stack = ();
     $value->trace( $trace_values ? 1 : 0 );
 
@@ -770,7 +775,7 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
 
         if ( $value_type eq 'MARPA_VALUE_NULLING_TOKEN' ) {
 		my ( $token_id, $arg_n ) = @value_data;
-                my $value_ref = \$null_values->[$token_id];
+                my $value_ref = $null_values->[$token_id];
                 $evaluation_stack[$arg_n] = $value_ref;
 		trace_token_evaluation($recce, $value, $token_id, $value_ref) if $trace_values;
 		next EVENT;
@@ -783,7 +788,7 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                 my $result;
 
                 my @args =
-                    map { ${$_} } @evaluation_stack[ $arg_0 .. $arg_n ];
+                    map { defined $_ ? ${$_} : $_ } @evaluation_stack[ $arg_0 .. $arg_n ];
                 if ( $grammar_c->rule_is_discard_separation($rule_id) ) {
                     @args =
                         @args[ map { 2 * $_ }
@@ -941,7 +946,7 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
 
     my $top_value = $evaluation_stack[0];
 
-    return $top_value;
+    return $top_value // (\undef);
 
 } ## end sub Marpa::R2::Internal::Recognizer::evaluate
 

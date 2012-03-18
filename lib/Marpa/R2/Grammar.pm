@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_023';
+$VERSION        = '0.001_024';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -393,9 +393,10 @@ sub Marpa::R2::Grammar::set {
             add_user_rules( $grammar, $value );
         } ## end if ( defined( my $value = $args->{'rules'} ) )
 
-        if ( defined( my $value = $args->{'default_null_value'} ) ) {
+        if ( exists $args->{'default_null_value'} ) {
+            my $value = $args->{'default_null_value'};
             $grammar->[Marpa::R2::Internal::Grammar::DEFAULT_NULL_VALUE] =
-                $value;
+                \$value;
         }
 
         if ( defined( my $value = $args->{'actions'} ) ) {

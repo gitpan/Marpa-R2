@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw( $VERSION $STRING_VERSION );
-$VERSION = '0.001_023';
+$VERSION = '0.001_024';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1131,6 +1131,7 @@ sub parse {
             inaccessible_ok => 1,
             unproductive_ok => 1,
             default_action  => 'Marpa::R2::HTML::Internal::default_action',
+	    default_null_value => undef,
         }
     );
     $grammar->precompute();
