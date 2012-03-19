@@ -91,7 +91,7 @@ Marpa_Recognizer marpa_r_new ( Marpa_Grammar g );
 Marpa_Recognizer marpa_r_ref (Marpa_Recognizer r);
 void marpa_r_unref (Marpa_Recognizer r);
 gint marpa_r_start_input (Marpa_Recognizer r);
-gint marpa_r_alternative (Marpa_Recognizer r, Marpa_Symbol_ID token_id, gpointer value, gint length);
+gint marpa_r_alternative (Marpa_Recognizer r, Marpa_Symbol_ID token_id, gpointer* value, gint length);
 Marpa_Earleme marpa_r_earleme_complete (Marpa_Recognizer r);
 Marpa_Error_Code marpa_r_error (Marpa_Recognizer r, const char** p_error_string);
 Marpa_Earleme marpa_r_earleme ( Marpa_Recognizer r, Marpa_Earley_Set_ID set_id);
@@ -176,24 +176,30 @@ Marpa_Value_Type marpa_v_step ( Marpa_Value v);
 gint marpa_v_trace ( Marpa_Value v, gint flag);
 Marpa_Nook_ID marpa_v_nook ( Marpa_Value v);
 Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
-#define MARPA_ERROR_COUNT 17
+#define MARPA_ERROR_COUNT 23
 #define MARPA_ERR_NONE 0
 #define MARPA_ERR_UNKNOWN 1
 #define MARPA_ERR_INTERNAL 2
 #define MARPA_ERR_DEVELOPMENT 3
-#define MARPA_ERR_COUNTED_NULLABLE 4
-#define MARPA_ERR_DUPLICATE_RULE 5
-#define MARPA_ERR_EIM_COUNT 6
-#define MARPA_ERR_LHS_IS_TERMINAL 7
-#define MARPA_ERR_NO_PARSE 8
-#define MARPA_ERR_NO_RULES 9
-#define MARPA_ERR_NO_START_SYMBOL 10
-#define MARPA_ERR_NULL_RULE_UNMARKED_TERMINALS 11
-#define MARPA_ERR_ORDER_FROZEN 12
-#define MARPA_ERR_PRECOMPUTED 13
-#define MARPA_ERR_START_NOT_LHS 14
-#define MARPA_ERR_SYMBOL_NOT_NULLABLE 15
-#define MARPA_ERR_UNPRODUCTIVE_START 16
+#define MARPA_ERR_AMBIGUOUS_IS_INVALID_SOURCE_TYPE 4
+#define MARPA_ERR_COMPLETION_IS_INVALID_SOURCE_TYPE 5
+#define MARPA_ERR_COUNTED_NULLABLE 6
+#define MARPA_ERR_DUPLICATE_RULE 7
+#define MARPA_ERR_EIM_COUNT 8
+#define MARPA_ERR_LEO_IS_INVALID_SOURCE_TYPE 9
+#define MARPA_ERR_LHS_IS_TERMINAL 10
+#define MARPA_ERR_NONE_IS_INVALID_SOURCE_TYPE 11
+#define MARPA_ERR_NO_PARSE 12
+#define MARPA_ERR_NO_RULES 13
+#define MARPA_ERR_NO_START_SYMBOL 14
+#define MARPA_ERR_NULL_RULE_UNMARKED_TERMINALS 15
+#define MARPA_ERR_ORDER_FROZEN 16
+#define MARPA_ERR_PRECOMPUTED 17
+#define MARPA_ERR_START_NOT_LHS 18
+#define MARPA_ERR_SYMBOL_NOT_NULLABLE 19
+#define MARPA_ERR_TOKEN_IS_INVALID_SOURCE_TYPE 20
+#define MARPA_ERR_UNKNOWN_SOURCE_TYPE 21
+#define MARPA_ERR_UNPRODUCTIVE_START 22
 #define MARPA_EVENT_COUNT 7
 #define MARPA_EVENT_NONE 0
 #define MARPA_EVENT_EXHAUSTED 1

@@ -46,7 +46,7 @@ create_predicted_AHFA_state(
      DQUEUE states_p,
      GTree* duplicates
      );
-static  const char* invalid_source_type_message(guint type);
+static  Marpa_Error_Code invalid_source_type_code(guint type);
 static 
 void earley_item_ambiguate (struct marpa_r * r, EIM item);
 static  void
@@ -57,8 +57,6 @@ rhs_closure (GRAMMAR g, Bit_Vector bv);
 static  void transitive_closure(Bit_Matrix matrix);
 static  void
 set_error (struct marpa_g *g, Marpa_Error_Code code, const char* message, guint flags);
-static  void
-r_error (struct marpa_r *r, Marpa_Error_Code code, const char* message, guint flags);
 static inline 
 const gchar* check_alpha_version(
     guint required_major,
@@ -171,7 +169,7 @@ leo_link_add (RECCE r,
 		EIM cause);
 static inline  void trace_source_link_clear(RECCE r);
 static inline 
-TOK token_new(INPUT input, SYMID symbol_id, gpointer value);
+TOK token_new(INPUT input, SYMID symbol_id, gpointer* value);
 static inline  gint
 alternative_insertion_point (RECCE r, ALT new_alternative);
 static inline  gint alternative_cmp(const ALT_Const a, const ALT_Const b);

@@ -1,5 +1,5 @@
 /*1188:*/
-#line 13353 "./marpa.w"
+#line 13355 "./marpa.w"
 
 /*
  * Copyright 2012 Jeffrey Kegler
@@ -24,7 +24,7 @@
  */
 
 /*:1188*//*1189:*/
-#line 13377 "./marpa.w"
+#line 13379 "./marpa.w"
 
 #ifndef __MARPA_H__
 #define __MARPA_H__ 
@@ -57,7 +57,7 @@ GLIB_VAR const guint marpa_binary_age;
 #define MARPA_PROPER_SEPARATION  0x2
 
 /*:214*//*1032:*/
-#line 11467 "./marpa.w"
+#line 11477 "./marpa.w"
 
 #define marpa_v_semantic_token(v) \
     (((const struct marpa_value*)v)->t_semantic_token_id)
@@ -85,26 +85,26 @@ struct marpa_r;
 typedef struct marpa_r*Marpa_Recognizer;
 typedef Marpa_Recognizer Marpa_Recce;
 /*:509*//*911:*/
-#line 10042 "./marpa.w"
+#line 10052 "./marpa.w"
 
 struct s_bocage;
 typedef struct s_bocage*Marpa_Bocage;
 /*:911*//*957:*/
-#line 10518 "./marpa.w"
+#line 10528 "./marpa.w"
 
 struct s_order;
 typedef struct s_order*Marpa_Order;
 /*:957*//*958:*/
-#line 10521 "./marpa.w"
+#line 10531 "./marpa.w"
 
 typedef Marpa_Order ORDER;
 /*:958*//*981:*/
-#line 10839 "./marpa.w"
+#line 10849 "./marpa.w"
 
 struct s_tree;
 typedef struct s_tree*Marpa_Tree;
 /*:981*//*1028:*/
-#line 11415 "./marpa.w"
+#line 11425 "./marpa.w"
 
 struct s_value;
 typedef struct s_value*Marpa_Value;
@@ -148,23 +148,23 @@ typedef gint Marpa_Earley_Set_ID;
 #line 5889 "./marpa.w"
 typedef gint Marpa_Earley_Item_ID;
 /*:607*//*835:*/
-#line 8925 "./marpa.w"
+#line 8935 "./marpa.w"
 
 typedef gint Marpa_Or_Node_ID;
 /*:835*//*895:*/
-#line 9863 "./marpa.w"
+#line 9873 "./marpa.w"
 
 typedef gint Marpa_And_Node_ID;
 /*:895*//*1014:*/
-#line 11277 "./marpa.w"
+#line 11287 "./marpa.w"
 
 typedef gint Marpa_Nook_ID;
 /*:1014*//*1050:*/
-#line 11699 "./marpa.w"
+#line 11709 "./marpa.w"
 
 typedef gint Marpa_Value_Type;
 /*:1050*//*1171:*/
-#line 13129 "./marpa.w"
+#line 13131 "./marpa.w"
 
 typedef const gchar*Marpa_Message_ID;
 
@@ -179,7 +179,7 @@ Marpa_Event_Type t_type;
 gint t_value;
 };
 /*:96*//*1030:*/
-#line 11442 "./marpa.w"
+#line 11452 "./marpa.w"
 
 struct marpa_value{
 Marpa_Symbol_ID t_semantic_token_id;
@@ -193,7 +193,7 @@ gint t_arg_n;
 
 
 /*:37*/
-#line 13384 "./marpa.w"
+#line 13386 "./marpa.w"
 
 
 #include "marpa_api.h"

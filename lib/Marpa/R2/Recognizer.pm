@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_024';
+$VERSION        = '0.001_025';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -926,7 +926,7 @@ sub Marpa::R2::Recognizer::alternative {
         Marpa::R2::exception(qq{alternative(): symbol "$symbol_name" does not exist});
     }
 
-    my $value_ix = 0;
+    my $value_ix = -1;
     if ( defined $value ) {
         $value_ix = scalar @{$token_values};
         push @{$token_values}, $value;
