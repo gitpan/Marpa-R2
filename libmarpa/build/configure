@@ -618,6 +618,7 @@ LIBOBJS
 GLIB_LIBS
 GLIB_CFLAGS
 PKG_CONFIG
+MARPA_DEBUG_FLAG
 WARNING_CFLAGS
 CPP
 OTOOL64
@@ -759,6 +760,7 @@ LDFLAGS
 LIBS
 CPPFLAGS
 CPP
+MARPA_DEBUG_FLAG
 PKG_CONFIG
 GLIB_CFLAGS
 GLIB_LIBS'
@@ -1408,6 +1410,8 @@ Some influential environment variables:
   CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
               you have headers in a nonstandard directory <include dir>
   CPP         C preprocessor
+  MARPA_DEBUG_FLAG
+              Marpa debugging
   PKG_CONFIG  path to pkg-config utility
   GLIB_CFLAGS C compiler flags for GLIB, overriding pkg-config
   GLIB_LIBS   linker flags for GLIB, overriding pkg-config
@@ -12239,6 +12243,11 @@ if test x"$GCC" = xyes; then
 fi
 
 ac_config_commands="$ac_config_commands marpa_config.h"
+
+
+if test x"$MARPA_DEBUG_FLAG" = x; then
+    MARPA_DEBUG_FLAG=
+fi
 
 
 

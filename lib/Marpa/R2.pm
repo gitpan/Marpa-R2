@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION @ISA $DEBUG);
-$VERSION        = '0.001_025';
+$VERSION        = '0.001_026';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -40,9 +40,6 @@ eval {
     XSLoader::load( 'Marpa::R2', $Marpa::R2::STRING_VERSION );
     1;
 } or eval {
-    my $glib_info = ExtUtils::Depends::load('Glib');
-    my @libs = split q{ }, $glib_info->{libs};
-    @DynaLoader::dl_resolve_using = DynaLoader::dl_findfile(@libs);
     require DynaLoader;
 ## no critic(ClassHierarchies::ProhibitExplicitISA)
     push @ISA, 'DynaLoader';
@@ -65,10 +62,10 @@ PACKAGE: for my $package (@Marpa::R2::CARP_NOT) {
 }
 
 if ( not $ENV{'MARPA_AUTHOR_TEST'} ) {
-    Glib::Log->set_handler( 'Marpa', 'debug', ( sub {;} ), undef );
     $Marpa::R2::DEBUG = 0;
 }
 else {
+    Marpa::R2::Internal::debug_level_set(1);
     $Marpa::R2::DEBUG = 1;
 }
 

@@ -23,14 +23,14 @@
 
 static 
 RULE rule_start(GRAMMAR g,
-SYMID lhs, SYMID *rhs, gint length);
+SYMID lhs, SYMID *rhs, int length);
 static  GRAMMAR census(GRAMMAR g);
-static  gint cmp_by_aimid (gconstpointer ap,
+static  int cmp_by_aimid (gconstpointer ap,
 	gconstpointer bp,
 	gpointer user_data  G_GNUC_UNUSED);
-static  gint cmp_by_postdot_and_aimid (gconstpointer ap,
+static  int cmp_by_postdot_and_aimid (gconstpointer ap,
 	gconstpointer bp, gpointer user_data  G_GNUC_UNUSED);
-static  gint AHFA_state_cmp(
+static  int AHFA_state_cmp(
     gconstpointer ap,
     gconstpointer bp);
 static 
@@ -46,7 +46,7 @@ create_predicted_AHFA_state(
      DQUEUE states_p,
      GTree* duplicates
      );
-static  Marpa_Error_Code invalid_source_type_code(guint type);
+static  Marpa_Error_Code invalid_source_type_code(unsigned int type);
 static 
 void earley_item_ambiguate (struct marpa_r * r, EIM item);
 static  void
@@ -56,12 +56,14 @@ static  void
 rhs_closure (GRAMMAR g, Bit_Vector bv);
 static  void transitive_closure(Bit_Matrix matrix);
 static  void
-set_error (struct marpa_g *g, Marpa_Error_Code code, const char* message, guint flags);
+set_error (struct marpa_g *g, Marpa_Error_Code code, const char* message, unsigned int flags);
+static 
+int marpa_default_debug_handler (const char *format, ...);
 static inline 
-const gchar* check_alpha_version(
-    guint required_major,
-		guint required_minor,
-		guint required_micro);
+const char* check_alpha_version(
+    unsigned int required_major,
+		unsigned int required_minor,
+		unsigned int required_micro);
 static inline 
 void
 grammar_unref (GRAMMAR g);
@@ -71,16 +73,16 @@ static inline
 void grammar_free(GRAMMAR g);
 static inline 
 void symbol_add( GRAMMAR g, SYMID symid, SYM symbol);
-static inline  gint symbol_is_valid(GRAMMAR g, SYMID symid);
+static inline  int symbol_is_valid(GRAMMAR g, SYMID symid);
 static inline 
 void rule_add(
     GRAMMAR g,
     RULEID rule_id,
     RULE rule);
 static inline 
-void event_new(struct marpa_g* g, gint type);
+void event_new(struct marpa_g* g, int type);
 static inline 
-void int_event_new(struct marpa_g* g, gint type, gint value);
+void int_event_new(struct marpa_g* g, int type, int value);
 static inline  SYM
 symbol_new (struct marpa_g *g);
 static inline  void symbol_free(SYM symbol);
@@ -95,13 +97,13 @@ SYM symbol_null_alias(SYM symbol);
 static inline 
 SYM symbol_alias_create(GRAMMAR g, SYM symbol);
 static inline 
-gint is_rule_duplicate(GRAMMAR g,
-SYMID lhs_id, SYMID* rhs_ids, gint length);
+int is_rule_duplicate(GRAMMAR g,
+SYMID lhs_id, SYMID* rhs_ids, int length);
 static inline  Marpa_Symbol_ID rule_lhs_get(RULE rule);
 static inline  Marpa_Symbol_ID* rule_rhs_get(RULE rule);
 static inline  gsize rule_length_get(RULE rule);
-static inline  gint rule_is_accessible(struct marpa_g* g, RULE  rule);
-static inline  gint rule_is_productive(struct marpa_g* g, RULE  rule);
+static inline  int rule_is_accessible(struct marpa_g* g, RULE  rule);
+static inline  int rule_is_productive(struct marpa_g* g, RULE  rule);
 static inline  gint
 rule_is_nulling (GRAMMAR g, RULE rule);
 static inline  gint
@@ -113,19 +115,19 @@ static inline
 GRAMMAR g_augment(GRAMMAR g);
 static inline 
 void loop_detect(struct marpa_g* g);
-static inline  gint item_is_valid(
+static inline  int item_is_valid(
 GRAMMAR g, AIMID item_id);
 static inline 
 void create_AHFA_items(GRAMMAR g);
 static inline  void AHFA_initialize(AHFA ahfa);
 static inline  AEX aex_of_ahfa_by_aim_get(AHFA ahfa, AIM sought_aim);
-static inline  gint AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id);
+static inline  int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id);
 static inline  AHFA
 assign_AHFA_state (AHFA sought_state, GTree* duplicates);
 static inline  AHFA to_ahfa_of_transition_get(TRANS transition);
-static inline  gint completion_count_of_transition_get(TRANS transition);
+static inline  int completion_count_of_transition_get(TRANS transition);
 static inline 
-URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, gint aim_ix);
+URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix);
 static inline  TRANS* transitions_new(GRAMMAR g);
 static inline 
 void transition_add(struct obstack *obstack, AHFA from_ahfa, SYMID symid, AHFA to_ahfa);
@@ -169,12 +171,12 @@ leo_link_add (RECCE r,
 		EIM cause);
 static inline  void trace_source_link_clear(RECCE r);
 static inline 
-TOK token_new(INPUT input, SYMID symbol_id, gpointer* value);
+TOK token_new(INPUT input, SYMID symbol_id, int value);
 static inline  gint
 alternative_insertion_point (RECCE r, ALT new_alternative);
-static inline  gint alternative_cmp(const ALT_Const a, const ALT_Const b);
+static inline  int alternative_cmp(const ALT_Const a, const ALT_Const b);
 static inline  ALT alternative_pop(RECCE r, EARLEME earleme);
-static inline  gint alternative_insert(RECCE r, ALT new_alternative);
+static inline  int alternative_insert(RECCE r, ALT new_alternative);
 static inline  void earley_set_update_items(RECCE r, ES set);
 static inline  void r_update_earley_sets(RECCE r);
 static inline  void ur_node_stack_init(URS stack);
@@ -185,7 +187,7 @@ static inline  void
 ur_node_push (URS stack, EIM earley_item, AEX aex);
 static inline  UR
 ur_node_pop (URS stack);
-static inline  gint psia_test_and_set(
+static inline  int psia_test_and_set(
     struct obstack* obs,
     struct s_bocage_setup_per_es* per_es_data,
     EIM earley_item,
@@ -210,7 +212,7 @@ order_ref (ORDER o);
 static inline  void order_strip(ORDER o);
 static inline  void order_freeze(ORDER o);
 static inline  void order_free(ORDER o);
-static inline  ANDID and_order_get(ORDER o, OR or_node, gint ix);
+static inline  ANDID and_order_get(ORDER o, OR or_node, int ix);
 static inline  void tree_exhaust(TREE t);
 static inline  void
 tree_unref (TREE t);
@@ -223,54 +225,54 @@ static inline  void
 tree_unpause (TREE t);
 static inline  void tree_and_node_claim(TREE tree, ANDID and_node_id);
 static inline  void tree_and_node_release(TREE tree, ANDID and_node_id);
-static inline  gint tree_and_node_try(TREE tree, ANDID and_node_id);
-static inline  gint or_node_next_choice(ORDER o, TREE tree, OR or_node, gint start_choice);
+static inline  int tree_and_node_try(TREE tree, ANDID and_node_id);
+static inline  int or_node_next_choice(ORDER o, TREE tree, OR or_node, int start_choice);
 static inline  void
 value_unref (VALUE v);
 static inline  VALUE
 value_ref (VALUE v);
 static inline  void value_free(VALUE v);
-static inline  guint bv_bits_to_size(guint bits);
-static inline  guint bv_bits_to_unused_mask(guint bits);
-static inline  Bit_Vector bv_create(guint bits);
+static inline  unsigned int bv_bits_to_size(unsigned int bits);
+static inline  unsigned int bv_bits_to_unused_mask(unsigned int bits);
+static inline  Bit_Vector bv_create(unsigned int bits);
 static inline  Bit_Vector
-bv_obs_create (struct obstack *obs, guint bits);
+bv_obs_create (struct obstack *obs, unsigned int bits);
 static inline  Bit_Vector bv_shadow(Bit_Vector bv);
 static inline 
 Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from);
 static inline 
 Bit_Vector bv_clone(Bit_Vector bv);
 static inline  void bv_free(Bit_Vector vector);
-static inline  gint bv_bytes(Bit_Vector bv);
+static inline  int bv_bytes(Bit_Vector bv);
 static inline  void bv_fill(Bit_Vector bv);
 static inline  void bv_clear(Bit_Vector bv);
-static inline  void bv_over_clear(Bit_Vector bv, guint bit);
-static inline  void bv_bit_set(Bit_Vector vector, guint bit);
-static inline  void bv_bit_clear(Bit_Vector vector, guint bit);
-static inline  gint bv_bit_test(Bit_Vector vector, guint bit);
+static inline  void bv_over_clear(Bit_Vector bv, unsigned int bit);
+static inline  void bv_bit_set(Bit_Vector vector, unsigned int bit);
+static inline  void bv_bit_clear(Bit_Vector vector, unsigned int bit);
+static inline  int bv_bit_test(Bit_Vector vector, unsigned int bit);
 static inline  gint
-bv_bit_test_and_set (Bit_Vector vector, guint bit);
+bv_bit_test_and_set (Bit_Vector vector, unsigned int bit);
 static inline 
-gint bv_is_empty(Bit_Vector addr);
+int bv_is_empty(Bit_Vector addr);
 static inline  void bv_not(Bit_Vector X, Bit_Vector Y);
 static inline  void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z);
 static inline  void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z);
 static inline  void bv_or_assign(Bit_Vector X, Bit_Vector Y);
 static inline 
-gint bv_scan(Bit_Vector bv, guint start,
-                                    guint* min, guint* max);
-static inline  guint
+int bv_scan(Bit_Vector bv, unsigned int start,
+                                    unsigned int* min, unsigned int* max);
+static inline  unsigned int
 bv_count (Bit_Vector v);
-static inline  Bit_Matrix matrix_create(guint rows, guint columns);
+static inline  Bit_Matrix matrix_create(unsigned int rows, unsigned int columns);
 static inline  void matrix_free(Bit_Matrix matrix);
-static inline  gint matrix_columns(Bit_Matrix matrix);
-static inline  Bit_Vector matrix_row(Bit_Matrix matrix, guint row);
-static inline  void matrix_bit_set(Bit_Matrix matrix, guint row, guint column);
-static inline  void matrix_bit_clear(Bit_Matrix matrix, guint row, guint column);
-static inline  gint matrix_bit_test(Bit_Matrix matrix, guint row, guint column);
+static inline  int matrix_columns(Bit_Matrix matrix);
+static inline  Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
+static inline  void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column);
+static inline  void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int column);
+static inline  int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline  gpointer dstack_resize(struct s_dstack* this, gsize type_bytes);
 static inline  void
-psar_init (const PSAR psar, gint length);
+psar_init (const PSAR psar, int length);
 static inline  void psar_destroy(const PSAR psar);
 static inline  PSL psl_new(const PSAR psar);
 static inline  void psar_reset(const PSAR psar);
