@@ -597,7 +597,6 @@ extern const unsigned int marpa_binary_age;@#
 @<Public typedefs@>@;
 @<Public structures@>@;
 @<Public function prototypes@>@;
-@<Public variables@>@;
 
 @** Grammar (GRAMMAR) Code.
 @<Public incomplete structures@> =
@@ -622,7 +621,7 @@ Marpa_Grammar marpa_g_new (unsigned int required_major,
     /* While alpha, require an exact version match */
     if (check_alpha_version (required_major, required_minor, required_micro))
       return NULL;
-    g = g_slice_new(struct marpa_g);
+    g = marpa_slice_new(struct marpa_g);
     /* Set |t_is_ok| to a bad value, just in case */
     g->t_is_ok = 0;
     @<Initialize grammar elements@>@;
@@ -676,7 +675,7 @@ PRIVATE
 void grammar_free(GRAMMAR g)
 {
     @<Destroy grammar elements@>@;
-    g_slice_free(struct marpa_g, g);
+    marpa_slice_free(struct marpa_g, g);
 }
 
 @*0 The Grammar's Symbol List.
@@ -1106,7 +1105,7 @@ typedef struct s_symbol SYM_Object;
 PRIVATE SYM
 symbol_new (struct marpa_g *g)
 {
-  SYM symbol = g_malloc (sizeof (SYM_Object));
+  SYM symbol = marpa_malloc (sizeof (SYM_Object));
   @<Initialize symbol elements @>@/
   {
     SYMID id = ID_of_SYM(symbol);
@@ -1126,7 +1125,7 @@ marpa_g_symbol_new (struct marpa_g * g)
 @ @<Function definitions@> =
 PRIVATE void symbol_free(SYM symbol)
 {
-    @<Free symbol elements@>@; g_free(symbol);
+    @<Free symbol elements@>@; marpa_free(symbol);
 }
 
 @*0 Symbol LHS rules element.
@@ -1637,8 +1636,8 @@ overallocates.
 Worst case is the minimum rule with a separator, in
 which case it allocates 4 bytes too many.
 @<Allocate the temporary rhs buffer@> =
-temp_rhs = g_new(Marpa_Symbol_ID, (3 + (separator_id < 0 ? 1 : 2) * min));
-@ @<Free the temporary rhs buffer@> = g_free(temp_rhs);
+temp_rhs = marpa_new(Marpa_Symbol_ID, (3 + (separator_id < 0 ? 1 : 2) * min));
+@ @<Free the temporary rhs buffer@> = marpa_free(temp_rhs);
 @ @<Add the top rule for the sequence@> =
 {
     RULE rule;
@@ -1778,7 +1777,7 @@ a core dump is not the right response.
     if (Length_of_RULE(rule) > 0) {
 	gint rh_list_ix;
 	const unsigned int alloc_size = Length_of_RULE(rule)*sizeof( SYMID);
-	Marpa_Symbol_ID *rh_symbol_list = g_slice_alloc(alloc_size);
+	Marpa_Symbol_ID *rh_symbol_list = marpa_slice_alloc(alloc_size);
 	gint rh_symbol_list_length = 1;
 	@<Create |rh_symbol_list|,
 	a duplicate-free list of the right hand side symbols@>@;
@@ -1789,7 +1788,7 @@ a core dump is not the right response.
 		SYM_by_ID(rh_symbol_list[rh_list_ix]),
 		rule->t_id);
        }@;
-       g_slice_free1(alloc_size, rh_symbol_list);
+       marpa_slice_free1(alloc_size, rh_symbol_list);
     }
 
 @ \marpa_sub{Create a duplicate-free list of the right hand side symbols}
@@ -2858,9 +2857,9 @@ for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++) {
 int factor_count;
 int* factor_positions;
 @ @<CHAF rewrite allocations@> =
-factor_positions = g_new(gint, g->t_max_rule_length);
+factor_positions = marpa_new(gint, g->t_max_rule_length);
 @ @<CHAF rewrite deallocations@> =
-g_free(factor_positions);
+marpa_free(factor_positions);
 
 @*0 Divide the Rule into Pieces.
 @<Factor the rule into CHAF rules@> =
@@ -2908,11 +2907,11 @@ In such cases, the RHS is built in the
 Marpa_Symbol_ID* piece_rhs;
 Marpa_Symbol_ID* remaining_rhs;
 @ @<CHAF rewrite allocations@> =
-piece_rhs = g_new(Marpa_Symbol_ID, g->t_max_rule_length);
-remaining_rhs = g_new(Marpa_Symbol_ID, g->t_max_rule_length);
+piece_rhs = marpa_new(Marpa_Symbol_ID, g->t_max_rule_length);
+remaining_rhs = marpa_new(Marpa_Symbol_ID, g->t_max_rule_length);
 @ @<CHAF rewrite deallocations@> =
-g_free(piece_rhs);
-g_free(remaining_rhs);
+marpa_free(piece_rhs);
+marpa_free(remaining_rhs);
 
 @*0 Factor A Non-Final Piece.
 @ As long as I have more than 3 unprocessed factors, I am working on a non-final
@@ -3531,8 +3530,8 @@ I test that |g->t_AHFA_items| is non-zero.
 g->t_AHFA_items = NULL;
 g->t_AHFA_items_by_rule = NULL;
 @ @<Destroy grammar elements@> =
-if (g->t_AHFA_items) { g_free(g->t_AHFA_items); };
-if (g->t_AHFA_items_by_rule) { g_free(g->t_AHFA_items_by_rule); };
+     marpa_free(g->t_AHFA_items);
+     marpa_free(g->t_AHFA_items_by_rule);
 
 @ Check that AHFA item ID is in valid range.
 @<Function definitions@> =
@@ -3631,7 +3630,7 @@ void create_AHFA_items(GRAMMAR g)
     RULEID rule_id;
     unsigned int no_of_items;
     unsigned int no_of_rules = RULE_Count_of_G(g);
-    AIM base_item = g_new(struct s_AHFA_item, Size_of_G(g));
+    AIM base_item = marpa_new(struct s_AHFA_item, Size_of_G(g));
     AIM current_item = base_item;
     unsigned int symbol_instance_of_next_rule = 0;
     for (rule_id = 0; rule_id < (Marpa_Rule_ID)no_of_rules; rule_id++) {
@@ -3644,7 +3643,7 @@ void create_AHFA_items(GRAMMAR g)
     }
     SYMI_Count_of_G(g) = symbol_instance_of_next_rule;
     no_of_items = AIM_Count_of_G(g) = current_item - base_item;
-    g->t_AHFA_items = g_renew(struct s_AHFA_item, base_item, no_of_items);
+    g->t_AHFA_items = marpa_renew(struct s_AHFA_item, base_item, no_of_items);
     @<Set up the items-by-rule list@>@;
     @<Set up the AHFA item ids@>@;
 }
@@ -3692,13 +3691,13 @@ void create_AHFA_items(GRAMMAR g)
 }
 
 @ This is done after creating the AHFA items, because in
-theory the |g_renew| might have moved them.
-This is not likely since the |g_renew| shortened the array,
+theory the |marpa_renew| might have moved them.
+This is not likely since the |marpa_renew| shortened the array,
 but if you are hoping for portability,
 you want to follow the rules.
 @<Set up the items-by-rule list@> =
 {
-  AIM *items_by_rule = g_new (AIM, no_of_rules);
+  AIM *items_by_rule = marpa_new (AIM, no_of_rules);
   AIM items = g->t_AHFA_items;
   /* The highest ID of a rule whose AHFA items have been found */
   Marpa_Rule_ID highest_found_rule_id = -1;
@@ -3771,7 +3770,7 @@ AHFA item as its new, final ID.
 @<Set up the AHFA item ids@> =
 {
   Marpa_AHFA_Item_ID item_id;
-  AIM *sort_array = g_new (struct s_AHFA_item *, no_of_items);
+  AIM *sort_array = marpa_new (struct s_AHFA_item *, no_of_items);
   AIM items = g->t_AHFA_items;
   for (item_id = 0; item_id < (Marpa_AHFA_Item_ID) no_of_items; item_id++)
     {
@@ -3784,7 +3783,7 @@ AHFA item as its new, final ID.
     {
       Sort_Key_of_AIM (sort_array[item_id]) = item_id;
     }
-  g_free (sort_array);
+  marpa_free (sort_array);
 }
 
 @** AHFA State (AHFA) Code.
@@ -3998,9 +3997,7 @@ STOLEN_DQUEUE_DATA_FREE(g->t_AHFA);
 
 @ Most of the data is on the obstack, and will be freed with that.
 @<Free AHFA state@> = {
-  TRANS *ahfa_transitions = TRANSs_of_AHFA (ahfa_state);
-  if (ahfa_transitions)
-    g_free (TRANSs_of_AHFA (ahfa_state));
+    marpa_free (TRANSs_of_AHFA (ahfa_state));
 }
 
 @*0 ID of AHFA State.
@@ -4163,7 +4160,7 @@ void create_AHFA_states(struct marpa_g* g)
    const unsigned int symbol_count_of_g = SYM_Count_of_G(g);
    const unsigned int rule_count_of_g = RULE_Count_of_G(g);
    Bit_Matrix prediction_matrix;
-   RULE* rule_by_sort_key = g_new(RULE, rule_count_of_g);
+   RULE* rule_by_sort_key = marpa_new(RULE, rule_count_of_g);
     GTree* duplicates;
     AHFA* singleton_duplicates;
    DQUEUE_DECLARE(states);
@@ -4181,7 +4178,7 @@ void create_AHFA_states(struct marpa_g* g)
   unsigned int no_of_items_in_grammar = AIM_Count_of_G (g);
   obstack_init(&ahfa_work_obs);
   duplicates = g_tree_new (AHFA_state_cmp);
-  singleton_duplicates = g_new (AHFA, no_of_items_in_grammar);
+  singleton_duplicates = marpa_new (AHFA, no_of_items_in_grammar);
   for (item_id = 0; item_id < no_of_items_in_grammar; item_id++)
     {
       singleton_duplicates[item_id] = NULL;	// All zero bits are not necessarily a NULL pointer
@@ -4310,13 +4307,13 @@ You can get the AIM from the AEX, but not vice versa.
 }
 
 @ @<Free locals for creating AHFA states@> =
-   g_free(rule_by_sort_key);
+   marpa_free(rule_by_sort_key);
    matrix_free(prediction_matrix);
     @<Free duplicates data structures@>@;
      obstack_free(&ahfa_work_obs, NULL);
 
 @ @<Free duplicates data structures@> =
-g_free(singleton_duplicates);
+marpa_free(singleton_duplicates);
 g_tree_destroy(duplicates);
 
 @ @<Construct initial AHFA states@> =
@@ -4730,14 +4727,14 @@ with |S2| on its LHS.
 @<Create the prediction matrix from the symbol-by-symbol matrix@> = {
     AIM* items_by_rule = g->t_AHFA_items_by_rule;
     SYMID from_symid;
-    unsigned int* sort_key_by_rule_id = g_new(unsigned int, rule_count_of_g);
+    unsigned int* sort_key_by_rule_id = marpa_new(unsigned int, rule_count_of_g);
     unsigned int no_of_predictable_rules = 0;
     @<Populate |sort_key_by_rule_id| with first pass value;
 	calculate |no_of_predictable_rules|@>@/
     @<Populate |rule_by_sort_key|@>@/
     @<Populate |sort_key_by_rule_id| with second pass value@>@/
     @<Populate the prediction matrix@>@/
-    g_free(sort_key_by_rule_id);
+    marpa_free(sort_key_by_rule_id);
 }
 
 @ For creating prediction AHFA states, we need to have an ordering of rules
@@ -5054,9 +5051,9 @@ PRIVATE TRANS* transitions_new(GRAMMAR g)
     int symbol_count = SYM_Count_of_G(g);
     int symid = 0;
     TRANS* transitions;
-    transitions = g_malloc(symbol_count * sizeof(transitions[0]));
+    transitions = marpa_malloc(symbol_count * sizeof(transitions[0]));
     while (symid < symbol_count) transitions[symid++] = NULL; /*
-        |g_malloc0| will not work because NULL is not guaranteed
+        |malloc0| will not work because NULL is not guaranteed
 	to be a bitwise zero. */
     return transitions;
 }
@@ -5178,7 +5175,7 @@ struct s_input {
 PRIVATE INPUT
 input_new (GRAMMAR g)
 {
-  INPUT input = g_slice_new (struct s_input);
+  INPUT input = marpa_slice_new (struct s_input);
   obstack_init (TOK_Obs_of_I (input));
   @<Initialize input elements@>@;
   return input;
@@ -5221,7 +5218,7 @@ guarantee that it is safe to destroy it.
 PRIVATE void input_free(INPUT input)
 {
     obstack_free(TOK_Obs_of_I(input), NULL);
-    g_slice_free(struct s_input, input);
+    marpa_slice_free(struct s_input, input);
 }
 
 @*0 Token obstack.
@@ -5284,7 +5281,7 @@ Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
         MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 	return failure_indicator;
     }
-    r = g_slice_new(struct marpa_r);
+    r = marpa_slice_new(struct marpa_r);
     symbol_count_of_g = SYM_Count_of_G(g);
     @<Initialize recognizer obstack@>@;
     @<Initialize recognizer elements@>@;
@@ -5336,11 +5333,11 @@ void recce_free(struct marpa_r *r)
     @<Unpack recognizer objects@>@;
     @<Destroy recognizer elements@>@;
     grammar_unref(g);
-    if (r->t_sym_workarea) g_free(r->t_sym_workarea);
-    if (r->t_workarea2) g_free(r->t_workarea2);
+    marpa_free(r->t_sym_workarea);
+    marpa_free(r->t_workarea2);
     @<Free working bit vectors for symbols@>@;
     @<Destroy recognizer obstack@>@;
-    g_slice_free(struct marpa_r, r);
+    marpa_slice_free(struct marpa_r, r);
 }
 
 @*0 Base Objects.
@@ -5434,7 +5431,7 @@ every symbol.
 @ @<Widely aligned recognizer elements@> = gpointer* t_sym_workarea;
 @ @<Initialize recognizer elements@> = r->t_sym_workarea = NULL;
 @ @<Allocate symbol workarea@> =
-    r->t_sym_workarea = g_malloc(sym_workarea_size);
+    r->t_sym_workarea = marpa_malloc(sym_workarea_size);
 
 @*0 Workarea 2.
 This is used in the completion
@@ -5448,7 +5445,7 @@ every symbol.
 {
   const unsigned int sym_workarea_size = sizeof (gpointer) * symbol_count_of_g;
   @<Allocate symbol workarea@>@;
-  r->t_workarea2 = g_malloc(2u * sym_workarea_size);
+  r->t_workarea2 = marpa_malloc(2u * sym_workarea_size);
 }
 
 @*0 Working Bit Vectors for Symbols.
@@ -5773,8 +5770,7 @@ earley_set_new( RECCE r, EARLEME id)
   ES set;
   for (set = First_ES_of_R (r); set; set = Next_ES_of_ES (set))
     {
-      if (EIMs_of_ES(set))
-	g_free (EIMs_of_ES(set));
+	marpa_free (EIMs_of_ES(set));
     }
 }
 
@@ -7983,11 +7979,7 @@ PRIVATE void earley_set_update_items(RECCE r, ES set)
     EIM* finished_earley_items;
     int working_earley_item_count;
     int i;
-    if (!EIMs_of_ES(set)) {
-        EIMs_of_ES(set) = g_new(EIM, EIM_Count_of_ES(set));
-    } else {
-        EIMs_of_ES(set) = g_renew(EIM, EIMs_of_ES(set), EIM_Count_of_ES(set));
-    }
+    EIMs_of_ES(set) = marpa_renew(EIM, EIMs_of_ES(set), EIM_Count_of_ES(set));
     finished_earley_items = EIMs_of_ES(set);
     working_earley_items = Work_EIMs_of_R(r);
     working_earley_item_count = Work_EIM_Count_of_R(r);
@@ -9103,16 +9095,10 @@ AND_Count_of_B(b) = 0;
 {
   OR* or_nodes = ORs_of_B (b);
   AND and_nodes = ANDs_of_B (b);
-  if (or_nodes)
-    {
-      g_free (or_nodes);
-      ORs_of_B (b) = NULL;
-    }
-  if (and_nodes)
-    {
-      g_free (and_nodes);
-      ANDs_of_B (b) = NULL;
-    }
+  marpa_free (or_nodes);
+  ORs_of_B (b) = NULL;
+  marpa_free (and_nodes);
+  ANDs_of_B (b) = NULL;
 }
 
 @*0 Create the Or-Nodes.
@@ -9122,7 +9108,7 @@ AND_Count_of_B(b) = 0;
   const PSAR or_psar = &or_per_es_arena;
   int work_earley_set_ordinal;
   OR last_or_node = NULL ;
-  ORs_of_B (b) = g_new (OR, or_node_estimate);
+  ORs_of_B (b) = marpa_new (OR, or_node_estimate);
   psar_init (or_psar, SYMI_Count_of_G (g));
   for (work_earley_set_ordinal = 0;
       work_earley_set_ordinal < earley_set_count_of_r;
@@ -9141,7 +9127,7 @@ AND_Count_of_B(b) = 0;
     @<Create the draft and-nodes for |work_earley_set_ordinal|@>@;
   }
   psar_destroy (or_psar);
-  ORs_of_B(b) = g_renew (OR, ORs_of_B(b), OR_Count_of_B(b));
+  ORs_of_B(b) = marpa_renew (OR, ORs_of_B(b), OR_Count_of_B(b));
 }
 
 @ @<Create the or-nodes for |work_earley_set_ordinal|@> =
@@ -9236,7 +9222,7 @@ or arranging to test it.
       MARPA_ASSERT(0);
       or_node_estimate *= 2;
       ORs_of_B (b) = or_nodes_of_b =
-	g_renew (OR, or_nodes_of_b, or_node_estimate);
+	marpa_renew (OR, or_nodes_of_b, or_node_estimate);
     }
   or_nodes_of_b[or_node_id] = last_or_node;
 }
@@ -9919,7 +9905,7 @@ typedef struct s_and_node AND_Object;
   int and_node_id = 0;
   const OR *ors_of_b = ORs_of_B (b);
   const AND ands_of_b = ANDs_of_B (b) =
-    g_new (AND_Object, unique_draft_and_node_count);
+    marpa_new (AND_Object, unique_draft_and_node_count);
   for (or_node_id = 0; or_node_id < or_count_of_b; or_node_id++)
     {
       int and_count_of_parent_or = 0;
@@ -10122,7 +10108,7 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     INPUT input;
   @<Fail if fatal error@>@;
   @<Fail if recognizer not started@>@;
-    b = g_slice_new(struct s_bocage);
+    b = marpa_slice_new(struct s_bocage);
     @<Initialize bocage elements@>@;
     input = I_of_B(b) = I_of_R(r);
     input_ref(input);
@@ -10234,8 +10220,8 @@ PRIVATE_NOT_INLINE BOCAGE r_create_null_bocage(RECCE r, BOCAGE b)
   const GRAMMAR g = G_of_R(r);
   const RULE null_start_rule = g->t_null_start_rule;
   int rule_length = Length_of_RULE (g->t_null_start_rule);
-  OR *or_nodes = ORs_of_B (b) = g_new (OR, 1);
-  AND and_nodes = ANDs_of_B (b) = g_new (AND_Object, 1);
+  OR *or_nodes = ORs_of_B (b) = marpa_new (OR, 1);
+  AND and_nodes = ANDs_of_B (b) = marpa_new (AND_Object, 1);
   OR or_node = or_nodes[0] =
     (OR) obstack_alloc (&OBS_of_B (b), sizeof (OR_Object));
   ORID null_or_node_id = 0;
@@ -10436,7 +10422,7 @@ bocage_free (BOCAGE b)
   if (b)
     {
       @<Destroy bocage elements, all phases@>;
-      g_slice_free (struct s_bocage, b);
+      marpa_slice_free (struct s_bocage, b);
     }
 }
 
@@ -10582,7 +10568,7 @@ Marpa_Order marpa_o_new(Marpa_Bocage b)
     @<Unpack bocage objects@>@;
     ORDER o;
       @<Fail if fatal error@>@;
-    o = g_slice_new(struct s_order);
+    o = marpa_slice_new(struct s_order);
     B_of_O(o) = b;
     bocage_ref(b);
     @<Initialize order elements@>@;
@@ -10652,7 +10638,7 @@ PRIVATE void order_free(ORDER o)
       o->t_and_node_orderings = NULL;
       obstack_free(&OBS_of_O(o), NULL);
   }
-  g_slice_free(struct s_order, o);
+  marpa_slice_free(struct s_order, o);
 }
 
 @ @<Unpack order objects@> =
@@ -10919,7 +10905,7 @@ Marpa_Tree marpa_t_new(Marpa_Order o)
     TREE t;
     @<Unpack order objects@>@;
     @<Fail if fatal error@>@;
-    t = g_slice_new(struct s_tree);
+    t = marpa_slice_new(struct s_tree);
     O_of_T(t) = o;
     order_ref(o);
     order_freeze(o);
@@ -10980,7 +10966,7 @@ PRIVATE void tree_free(TREE t)
 {
     order_unref(O_of_T(t));
     tree_exhaust(t);
-    g_slice_free(struct s_tree, t);
+    marpa_slice_free(struct s_tree, t);
 }
 
 @*0 Tree pause counting.
@@ -11548,7 +11534,7 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
     @<Fail if fatal error@>@;
     if (!T_is_Exhausted (t))
       {
-	VALUE v = g_slice_new (struct s_value);
+	VALUE v = marpa_slice_new (struct s_value);
 	const int minimum_stack_size = (8192 / sizeof (gint));
 	const int initial_stack_size =
 	  MAX (Size_of_TREE (t) / 1024, minimum_stack_size);
@@ -11630,7 +11616,7 @@ PRIVATE void value_free(VALUE v)
     {
         DSTACK_DESTROY(v->t_virtual_stack);
     }
-    g_slice_free(struct s_value, v);
+    marpa_slice_free(struct s_value, v);
 }
 
 @ @<Unpack value objects@> =
@@ -11907,14 +11893,14 @@ PRIVATE unsigned int bv_bits_to_unused_mask(unsigned int bits)
 @ Always start with an all-zero vector.
 Note this code is a bit tricky ---
 the pointer returned is to the data.
-This is offset from the |g_malloc|'d space,
+This is offset from the |malloc|'d space,
 by |bv_hiddenwords|.
 @<Function definitions@> =
 PRIVATE Bit_Vector bv_create(unsigned int bits)
 {
     unsigned int size = bv_bits_to_size(bits);
     unsigned int bytes = (size + bv_hiddenwords) << sizeof(unsigned int);
-    unsigned int* addr = (Bit_Vector) g_malloc0((size_t) bytes);
+    unsigned int* addr = (Bit_Vector) marpa_malloc0((size_t) bytes);
     *addr++ = bits;
     *addr++ = size;
     *addr++ = bv_bits_to_unused_mask(bits);
@@ -11925,7 +11911,7 @@ PRIVATE Bit_Vector bv_create(unsigned int bits)
 @ Always start with an all-zero vector.
 Note this code is a bit tricky ---
 the pointer returned is to the data.
-This is offset from the |g_malloc|'d space,
+This is offset from the |malloc|'d space,
 by |bv_hiddenwords|.
 @<Function definitions@> =
 PRIVATE Bit_Vector
@@ -11957,7 +11943,7 @@ PRIVATE Bit_Vector bv_shadow(Bit_Vector bv)
 @*0 Clone a Boolean Vector.
 Given a boolean vector, creates a new vector which is
 an exact duplicate.
-This call allocates a new vector, which must be |g_free|'d.
+This call allocates a new vector, which must be |free|'d.
 @<Function definitions@> =
 PRIVATE
 Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from)
@@ -11975,7 +11961,7 @@ Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from)
 @*0 Clone a Boolean Vector.
 Given a boolean vector, creates a new vector which is
 an exact duplicate.
-This call allocates a new vector, which must be |g_free|'d.
+This call allocates a new vector, which must be |free|'d.
 @<Function definitions@> =
 PRIVATE
 Bit_Vector bv_clone(Bit_Vector bv)
@@ -11988,7 +11974,7 @@ Bit_Vector bv_clone(Bit_Vector bv)
 PRIVATE void bv_free(Bit_Vector vector)
 {
     vector -= bv_hiddenwords;
-    g_free(vector);
+    marpa_free(vector);
 }
 
 @*0 The Number of Bytes in a Boolean Vector.
@@ -12319,7 +12305,7 @@ typedef Bit_Vector_Word* Bit_Matrix;
 
 @*0 Create a Boolean Matrix.
 @ Here the pointer returned is the actual start of the
-|g_malloc|'d space.
+|malloc|'d space.
 This is {\bf not} the case with vectors, whose pointer is offset for
 the ``hidden words".
 @<Function definitions@> =
@@ -12328,7 +12314,7 @@ PRIVATE Bit_Matrix matrix_create(unsigned int rows, unsigned int columns)
     unsigned int bv_data_words = bv_bits_to_size(columns);
     unsigned int row_bytes = (bv_data_words + bv_hiddenwords) * sizeof(Bit_Vector_Word);
     unsigned int bv_mask = bv_bits_to_unused_mask(columns);
-    Bit_Vector_Word* matrix_addr = g_malloc0((size_t)(row_bytes * rows));
+    Bit_Vector_Word* matrix_addr = marpa_malloc0((size_t)(row_bytes * rows));
     unsigned int row;
     for (row = 0; row < rows; row++) {
 	unsigned int row_start = row*(bv_data_words+bv_hiddenwords);
@@ -12343,7 +12329,7 @@ PRIVATE Bit_Matrix matrix_create(unsigned int rows, unsigned int columns)
 @<Function definitions@> =
 PRIVATE void matrix_free(Bit_Matrix matrix)
 {
-    g_free(matrix);
+    marpa_free(matrix);
 }
 
 @*0 Find the Number of Columns in a Boolean Matrix.
@@ -12472,7 +12458,7 @@ Often a reasonable maximum size is known when they are
 set up, in which case they can be made very fast.
 @d FSTACK_DECLARE(stack, type) struct { int t_count; type* t_base; } stack;
 @d FSTACK_CLEAR(stack) ((stack).t_count = 0)
-@d FSTACK_INIT(stack, type, n) (FSTACK_CLEAR(stack), ((stack).t_base = g_new(type, n)))
+@d FSTACK_INIT(stack, type, n) (FSTACK_CLEAR(stack), ((stack).t_base = marpa_new(type, n)))
 @d FSTACK_SAFE(stack) ((stack).t_base = NULL)
 @d FSTACK_BASE(stack, type) ((type *)(stack).t_base)
 @d FSTACK_INDEX(this, type, ix) (FSTACK_BASE((this), type)+(ix))
@@ -12483,7 +12469,7 @@ set up, in which case they can be made very fast.
 @d FSTACK_PUSH(stack) ((stack).t_base+stack.t_count++)
 @d FSTACK_POP(stack) ((stack).t_count <= 0 ? NULL : (stack).t_base+(--(stack).t_count))
 @d FSTACK_IS_INITIALIZED(stack) ((stack).t_base)
-@d FSTACK_DESTROY(stack) (g_free((stack).t_base))
+@d FSTACK_DESTROY(stack) (marpa_free((stack).t_base))
 
 @*0 Dynamic Stacks.
 |libmarpa| uses stacks and worklists extensively.
@@ -12502,7 +12488,7 @@ next |DSTACK_PUSH|.
 @d DSTACK_DECLARE(this) struct s_dstack this
 @d DSTACK_INIT(this, type, initial_size)
   (((this).t_count = 0),
-  ((this).t_base = g_new(type, ((this).t_capacity = (initial_size)))))
+  ((this).t_base = marpa_new(type, ((this).t_capacity = (initial_size)))))
 
 @ |DSTACK_SAFE| is for cases where the dstack is not
 immediately initialized to a useful value,
@@ -12540,7 +12526,7 @@ resizings unnecessary.
 The |STOLEN_DSTACK_DATA_FREE| macro is intended
 to help the ``thief" container
 deallocate the data it now has ``stolen".
-@d STOLEN_DSTACK_DATA_FREE(data) ((data) && (g_free(data), 1))
+@d STOLEN_DSTACK_DATA_FREE(data) (marpa_free(data))
 @d DSTACK_DESTROY(this) STOLEN_DSTACK_DATA_FREE(this.t_base)
 @s DSTACK int
 @<Private incomplete structures@> =
@@ -12552,7 +12538,7 @@ struct s_dstack { int t_count; int t_capacity; gpointer t_base; };
 PRIVATE gpointer dstack_resize(struct s_dstack* this, gsize type_bytes)
 {
     this->t_capacity *= 2;
-    this->t_base = g_realloc(this->t_base, this->t_capacity*type_bytes);
+    this->t_base = marpa_realloc(this->t_base, this->t_capacity*type_bytes);
     return this->t_base;
 }
 
@@ -12704,7 +12690,7 @@ PRIVATE void psar_destroy(const PSAR psar)
 	PSL *owner = psl->t_owner;
 	if (owner)
 	  *owner = NULL;
-	g_slice_free1 (Sizeof_PSL (psar), psl);
+	marpa_slice_free1 (Sizeof_PSL (psar), psl);
 	psl = next_psl;
       }
 }
@@ -12712,7 +12698,7 @@ PRIVATE void psar_destroy(const PSAR psar)
 PRIVATE PSL psl_new(const PSAR psar)
 {
      int i;
-     PSL new_psl = g_slice_alloc(Sizeof_PSL(psar));
+     PSL new_psl = marpa_slice_alloc(Sizeof_PSL(psar));
      new_psl->t_next = NULL;
      new_psl->t_prev = NULL;
      new_psl->t_owner = NULL;
@@ -12814,36 +12800,37 @@ PRIVATE PSL psl_alloc(const PSAR psar)
     return free_psl;
 }
 
-@** Memory Allocation.
+@** Memory allocation.
 
+@*0 Memory allocation failures.
 @ By default,
 a memory allocation failure
 inside the Marpa library is a fatal error.
-If this is a problem, the application can change
-configure |g_malloc| to use its own allocator
-which does something else on failure.
+At some point I may allow this to be reset.
 What else an application can do is not at all clear,
 which is why the usual practice 
 is to treatment memory allocation errors are
 fatal, irrecoverable problems.
+@<Function definitions@> =
+PRIVATE_NOT_INLINE void
+default_out_of_memory(void)
+{
+    (*marpa_debug_handler)("Out of memory");
+    abort();
+}
+void (*marpa_out_of_memory)(void) = default_out_of_memory;
 
-@ An error
-in memory allocation will be logged
-in the domain that |g_malloc|
-is using, not in the domain being used by Marpa.
+@ @<Global variables@> =
+extern void (*marpa_out_of_memory)(void);
 
-@ |libmarpa| uses |g_malloc|, either directly or indirectly.
-Indirect use of |g_malloc| comes via obstacks and |g_slice|.
-Both of these are more efficient, but both also
-limit the ability to resize memory.
-Obstacks also sharply limit the ability
-to control the lifetime of the memory.
-\par
-It should be noted that the libraries used by |libmarpa| may
-also allocate memory, using their own methods.
-This allocation is often also |g_malloc| based.
-\par
-Obstacks are particularly useful for |libmarpa|.
+@*0 Obstacks.
+|libmarpa| uses the system malloc,
+either directly or indirectly.
+Indirect use comes via obstacks.
+Obstacks are more efficient, but 
+limit the ability to resize memory,
+and to control the lifetime of the memory.
+@ Obstacks are widely used inside |libmarpa|.
 Much of the memory allocated in |libmarpa| is
 \li In individual allocations less than 4K, often considerable less.
 \li Once created, are kept for the entire life of the either the grammar or the recognizer.
@@ -12854,8 +12841,6 @@ Small allocations needed for the lifetime of the grammar
 are allocated on these as the grammar object is built.
 All these allocations are are conveniently and quickly deallocated when
 the grammar's obstack is destroyed along with its parent grammar.
-@d obstack_chunk_alloc g_malloc
-@d obstack_chunk_free g_free
 
 @*0 Why the obstacks are renamed.
 Regretfully, I realized I simply could not simply include the
@@ -12866,7 +12851,7 @@ safe for use by multiple libraries within one thread.
 Since
 the obstack ``error handling" consisted of exactly one
 ``out of memory" message, which Marpa will never use because
-it uses |g_malloc|, this risk comes at no benefit whatsoever.
+it uses |marpa_malloc|, this risk comes at no benefit whatsoever.
 Removing the error handling was far easier than leaving it
 in.
 
@@ -12909,6 +12894,63 @@ but eliminating the unnecessary
 but problematic features.
 Namespace issues could then be dealt with by
 renaming the external functions.
+
+@*0 Memory allocation.
+libmarpa wrappers the standard memory functions
+to provide more convenient behaviors.
+\li The allocators do not return on failed memory allocations.
+\li |marpa_realloc| is equivalent to |marpa_malloc| if called with
+a |NULL| pointer.  (This is the GNU C library behavior.)
+
+@d marpa_free(p) free(p)
+@<Function definitions@> =
+PRIVATE void*
+marpa_malloc(size_t size)
+{
+    void *newmem = malloc(size);
+    if (!newmem) (*marpa_out_of_memory)();
+    return newmem;
+}
+
+@ @<Function definitions@> =
+PRIVATE void*
+marpa_malloc0(size_t size)
+{
+    void *newmem = marpa_malloc(size);
+    memset (newmem, 0, size);
+    return newmem;
+}
+
+@ @<Function definitions@> =
+PRIVATE void*
+marpa_realloc(void* mem, size_t size)
+{
+    void *newmem;
+    if (!mem) return marpa_malloc(size);
+    newmem = realloc(mem, size);
+    if (!newmem) (*marpa_out_of_memory)();
+    return newmem;
+}
+
+@ These do {\bf not} protect against overflow.
+If necessary, the caller must do that.
+@d marpa_new(type, count) ((type *)marpa_malloc(sizeof(type)*(count)))
+@d marpa_renew(type, p, count) ((type *)marpa_realloc((p), sizeof(type)*(count)))
+
+@*0 Slices.
+Some memory allocations are suitable for special "slice"
+allocators, such as the one in the GNU glib.
+These are faster than the system malloc, but do not
+allow resizing, and require that the size of the
+allocation be known when it is freed.
+At present, libmarpa's ``slice allocator'' exists only
+to document these opportunities for optimization --
+it does nothing
+but pass all these calls on to the system malloc.
+@d marpa_slice_alloc(size) marpa_malloc(size)
+@d marpa_slice_new(x) marpa_malloc(sizeof(x))
+@d marpa_slice_free(x, p) marpa_free(p)
+@d marpa_slice_free1(size, p) marpa_free(p)
 
 @** External Failure Reports.
 Most of
@@ -12988,11 +13030,6 @@ if (!item_is_valid(g, item_id)) {
 if (!AHFA_state_id_is_valid(g, AHFA_state_id)) {
     MARPA_DEV_ERROR("invalid AHFA state id");
     return failure_indicator;
-}
-@ @<Fail grammar if elements of |result| are not |sizeof(gint)|@> =
-if (sizeof(gint) != g_array_get_element_size(result)) {
-     MARPA_DEV_ERROR("garray size mismatch");
-     return failure_indicator;
 }
 @ @<Fail with internal grammar error@> = {
     MARPA_DEV_ERROR("internal error");
@@ -13154,9 +13191,6 @@ vice versa.
 @d MARPA_OFF_DEBUG4(a, b, c, d)
 @d MARPA_OFF_DEBUG5(a, b, c, d, e)
 @d MARPA_OFF_ASSERT(expr)
-@<Public variables@> =
-extern int marpa_debug_level;
-extern int (*marpa_debug_handler)(const char*, ...);
 @ Returns int so that it can be portably used
 in a logically-anded expression.
 @<Function definitions@> =
@@ -13176,6 +13210,7 @@ int (*marpa_debug_handler)(const char*, ...)
 
 @
 @<Global variables@> =
+int (*marpa_debug_handler)(const char*, ...);
 int marpa_debug_level = 0;
 
 @ @<Public function prototypes@> =
@@ -13382,6 +13417,7 @@ So I add such a comment.
 #include "config.h"
 #include "marpa.h"
 #include <glib.h>
+#include <stdlib.h>
 #include <stdio.h>
 @<Debug macros@>
 @h

@@ -56,6 +56,8 @@ static  void
 rhs_closure (GRAMMAR g, Bit_Vector bv);
 static  void transitive_closure(Bit_Matrix matrix);
 static  void
+default_out_of_memory(void);
+static  void
 set_error (struct marpa_g *g, Marpa_Error_Code code, const char* message, unsigned int flags);
 static 
 int marpa_default_debug_handler (const char *format, ...);
@@ -280,3 +282,9 @@ static inline  void psar_dealloc(const PSAR psar);
 static inline  void psl_claim(
     PSL* const psl_owner, const PSAR psar);
 static inline  PSL psl_alloc(const PSAR psar);
+static inline  void*
+marpa_malloc(size_t size);
+static inline  void*
+marpa_malloc0(size_t size);
+static inline  void*
+marpa_realloc(void* mem, size_t size);
