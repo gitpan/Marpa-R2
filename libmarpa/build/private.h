@@ -25,26 +25,25 @@ static
 RULE rule_start(GRAMMAR g,
 SYMID lhs, SYMID *rhs, int length);
 static  GRAMMAR census(GRAMMAR g);
-static  int cmp_by_aimid (gconstpointer ap,
-	gconstpointer bp,
-	gpointer user_data  G_GNUC_UNUSED);
-static  int cmp_by_postdot_and_aimid (gconstpointer ap,
-	gconstpointer bp, gpointer user_data  G_GNUC_UNUSED);
+static  int cmp_by_aimid (const void* ap,
+	const void* bp);
+static  int cmp_by_postdot_and_aimid (const void* ap,
+	const void* bp);
 static  int AHFA_state_cmp(
-    gconstpointer ap,
-    gconstpointer bp);
+    const void* ap,
+    const void* bp,
+    void *param UNUSED);
 static 
 void create_AHFA_states(struct marpa_g* g);
-static  gint
-cmp_by_rule_sort_key(gconstpointer ap,
-	gconstpointer bp, gpointer user_data);
+static  int
+cmp_by_rule_sort_key(const void* ap, const void* bp);
 static  AHFA
 create_predicted_AHFA_state(
      GRAMMAR g,
      Bit_Vector prediction_rule_vector,
      RULE* rule_by_sort_key,
      DQUEUE states_p,
-     GTree* duplicates
+     struct avl_table* duplicates
      );
 static  Marpa_Error_Code invalid_source_type_code(unsigned int type);
 static 
@@ -74,12 +73,11 @@ grammar_ref (GRAMMAR g);
 static inline 
 void grammar_free(GRAMMAR g);
 static inline 
-void symbol_add( GRAMMAR g, SYMID symid, SYM symbol);
+void symbol_add( GRAMMAR g, SYM symbol);
 static inline  int symbol_is_valid(GRAMMAR g, SYMID symid);
 static inline 
 void rule_add(
     GRAMMAR g,
-    RULEID rule_id,
     RULE rule);
 static inline 
 void event_new(struct marpa_g* g, int type);
@@ -89,9 +87,9 @@ static inline  SYM
 symbol_new (struct marpa_g *g);
 static inline  void symbol_free(SYM symbol);
 static inline 
-void symbol_lhs_add(SYM symbol, Marpa_Rule_ID rule_id);
+void symbol_lhs_add(SYM symbol, RULEID rule_id);
 static inline 
-void symbol_rhs_add(SYM symbol, Marpa_Rule_ID rule_id);
+void symbol_rhs_add(SYM symbol, RULEID rule_id);
 static inline 
 SYM symbol_proper_alias(SYM symbol);
 static inline 
@@ -103,12 +101,12 @@ int is_rule_duplicate(GRAMMAR g,
 SYMID lhs_id, SYMID* rhs_ids, int length);
 static inline  Marpa_Symbol_ID rule_lhs_get(RULE rule);
 static inline  Marpa_Symbol_ID* rule_rhs_get(RULE rule);
-static inline  gsize rule_length_get(RULE rule);
+static inline  size_t rule_length_get(RULE rule);
 static inline  int rule_is_accessible(struct marpa_g* g, RULE  rule);
 static inline  int rule_is_productive(struct marpa_g* g, RULE  rule);
-static inline  gint
+static inline  int
 rule_is_nulling (GRAMMAR g, RULE rule);
-static inline  gint
+static inline  int
 symbol_instance_of_ahfa_item_get (AIM aim);
 static inline  struct marpa_g* CHAF_rewrite(struct marpa_g* g);
 static inline 
@@ -125,7 +123,7 @@ static inline  void AHFA_initialize(AHFA ahfa);
 static inline  AEX aex_of_ahfa_by_aim_get(AHFA ahfa, AIM sought_aim);
 static inline  int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id);
 static inline  AHFA
-assign_AHFA_state (AHFA sought_state, GTree* duplicates);
+assign_AHFA_state (AHFA sought_state, struct avl_table* duplicates);
 static inline  AHFA to_ahfa_of_transition_get(TRANS transition);
 static inline  int completion_count_of_transition_get(TRANS transition);
 static inline 
@@ -174,7 +172,7 @@ leo_link_add (RECCE r,
 static inline  void trace_source_link_clear(RECCE r);
 static inline 
 TOK token_new(INPUT input, SYMID symbol_id, int value);
-static inline  gint
+static inline  int
 alternative_insertion_point (RECCE r, ALT new_alternative);
 static inline  int alternative_cmp(const ALT_Const a, const ALT_Const b);
 static inline  ALT alternative_pop(RECCE r, EARLEME earleme);
@@ -252,7 +250,7 @@ static inline  void bv_over_clear(Bit_Vector bv, unsigned int bit);
 static inline  void bv_bit_set(Bit_Vector vector, unsigned int bit);
 static inline  void bv_bit_clear(Bit_Vector vector, unsigned int bit);
 static inline  int bv_bit_test(Bit_Vector vector, unsigned int bit);
-static inline  gint
+static inline  int
 bv_bit_test_and_set (Bit_Vector vector, unsigned int bit);
 static inline 
 int bv_is_empty(Bit_Vector addr);
@@ -272,7 +270,7 @@ static inline  Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
 static inline  void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline  void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline  int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int column);
-static inline  gpointer dstack_resize(struct s_dstack* this, gsize type_bytes);
+static inline  void * dstack_resize(struct s_dstack* this, size_t type_bytes);
 static inline  void
 psar_init (const PSAR psar, int length);
 static inline  void psar_destroy(const PSAR psar);
@@ -283,8 +281,8 @@ static inline  void psl_claim(
     PSL* const psl_owner, const PSAR psar);
 static inline  PSL psl_alloc(const PSAR psar);
 static inline  void*
-marpa_malloc(size_t size);
+my_malloc(size_t size);
 static inline  void*
-marpa_malloc0(size_t size);
+my_malloc0(size_t size);
 static inline  void*
-marpa_realloc(void* mem, size_t size);
+my_realloc(void* mem, size_t size);

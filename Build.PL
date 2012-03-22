@@ -24,27 +24,23 @@ use English qw( -no_match_vars );
 
 use Config;
 use Module::Build;
-use ExtUtils::PkgConfig;
 
 use lib File::Spec->catdir('inc');
 use Marpa::R2::Build_Me;
 use Marpa::R2::Config;
 
-my %glib2_info              = ExtUtils::PkgConfig->find('glib-2.0');
-my $glib_linker_flags   = $glib2_info{libs};
-
 my %build_requires =
     map { ( $_, $Marpa::R2::VERSION_FOR_CONFIG{$_} ) }
-    qw( ExtUtils::CBuilder ExtUtils::PkgConfig Test::More );
+    qw( ExtUtils::CBuilder Test::More );
 my %configure_requires =
     map { ( $_, $Marpa::R2::VERSION_FOR_CONFIG{$_} ) }
-    qw( ExtUtils::PkgConfig Module::Build );
+    qw( Module::Build );
 my %requires =
     map { ( $_, $Marpa::R2::VERSION_FOR_CONFIG{$_} ) }
-    qw( Scalar::Util List::Util Task::Weaken Carp Data::Dumper );
+    qw( Scalar::Util List::Util Carp Data::Dumper );
 my %recommends =
     map { ( $_, $Marpa::R2::VERSION_FOR_CONFIG{$_} ) }
-    qw( PPI HTML::Entities HTML::Parser HTML::PullParser Test::Weaken );
+    qw( PPI HTML::Entities HTML::Parser HTML::PullParser );
 
 my %pod_files = ();
 {
@@ -113,7 +109,6 @@ my $build = Marpa::R2::Build_Me->new(
     configure_requires => \%configure_requires,
     build_requires     => \%build_requires,
     dynamic_config     => 1,
-    extra_linker_flags => $glib_linker_flags,
     PL_files           => {},
     pm_files           => \%pm_files,
     script_files       => [

@@ -33,7 +33,7 @@ m4_define(marpa_configure_in)
 #
 m4_define([marpa_major_version], [2])
 m4_define([marpa_minor_version], [0])
-m4_define([marpa_micro_version], [1])
+m4_define([marpa_micro_version], [2])
 m4_define([marpa_interface_age], [100])
 m4_define([marpa_binary_age],
           [m4_eval(100 * marpa_minor_version + marpa_micro_version)])
@@ -49,8 +49,9 @@ m4_define([marpa_lt_age], [m4_eval(marpa_binary_age - marpa_interface_age)])
 m4_define([marpa_lt_current_minus_age],
           [m4_eval(marpa_lt_current - marpa_lt_age)])
 
-# I am not using this system, so I've commented it out, while I decide
-# whether to delete these lines or switch to this system.
+# I am not using this system, at least not right now.
+# So I've commented it out, while I decide
+# whether to delete these lines permanently or adopt it.
 #
 # if the minor version number is odd, then we want debugging.  Otherwise
 # we only want minimal debugging support.
@@ -120,7 +121,8 @@ AC_PROG_CPP
 AC_PROG_LN_S
 
 # Checks for header files.
-AC_CHECK_HEADERS([inttypes.h stddef.h stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([inttypes.h stddef.h stdint.h stdlib.h string.h limits.h])
+AC_CHECK_FUNCS([memset])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T
@@ -181,9 +183,6 @@ fi
 AC_SUBST(WARNING_CFLAGS)
 AC_ARG_VAR(MARPA_DEBUG_FLAG,[Marpa debugging])
 AC_C_INLINE
-
-PKG_PROG_PKG_CONFIG([0.22])
-PKG_CHECK_MODULES(GLIB, [glib-2.0] )
 
 AC_CONFIG_FILES( [Makefile])
 AC_OUTPUT
