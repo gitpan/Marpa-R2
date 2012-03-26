@@ -7723,8 +7723,7 @@ This section is devoted to the logic for completion.
 @ @<Initialize recognizer elements@> = DSTACK_SAFE(r->t_eim_work_stack);
 @ @<Initialize Earley item work stacks@> =
     DSTACK_IS_INITIALIZED(r->t_eim_work_stack) ||
-	DSTACK_INIT (r->t_eim_work_stack, EIM ,
-	     MAX (1024, r->t_earley_item_warning_threshold));
+	DSTACK_INIT2 (r->t_eim_work_stack, EIM );
 @ @<Destroy recognizer elements@> = DSTACK_DESTROY(r->t_eim_work_stack);
 
 @ The completion stack is initialized to a very high-ball estimate of the
@@ -7735,8 +7734,7 @@ Large stacks may needed for very ambiguous grammars.
 @ @<Initialize recognizer elements@> = DSTACK_SAFE(r->t_completion_stack);
 @ @<Initialize Earley item work stacks@> =
     DSTACK_IS_INITIALIZED(r->t_completion_stack) ||
-    DSTACK_INIT (r->t_completion_stack, EIM ,
-	     MAX (1024, r->t_earley_item_warning_threshold));
+    DSTACK_INIT2 (r->t_completion_stack, EIM );
 @ @<Destroy recognizer elements@> = DSTACK_DESTROY(r->t_completion_stack);
 
 @ The completion stack is initialized to a very high-ball estimate of the
@@ -12447,11 +12445,27 @@ and the resizings, while fast, do take time.
 operation, making all pointers into it invalid.
 Data must be retrieved from the stack before the
 next |DSTACK_PUSH|.
-
+In the special 2-argument form,
+|DSTACK_INIT2|, the stack is initialized
+to a size convenient for the memory allocator.
+{\bf To Do}: @^To Do@>
+Right now this is hard-wired to 1024, but I should
+use the better calculation made by the obstack code.
 @d DSTACK_DECLARE(this) struct s_dstack this
+@d DSTACK_INIT2(this, type)
+(
+    ((this).t_count = 0),
+    ((sizeof(this)/1024 <= 0)
+         ? (((this).t_capacity = 1), ((this).t_base = my_malloc(sizeof(this))))
+         : (((this).t_capacity = sizeof(this)/1024),
+	     ((this).t_base = my_malloc(1024)))
+     )
+)
 @d DSTACK_INIT(this, type, initial_size)
-  (((this).t_count = 0),
-  ((this).t_base = my_new(type, ((this).t_capacity = (initial_size)))))
+(
+    ((this).t_count = 0),
+    ((this).t_base = my_new(type, ((this).t_capacity = (initial_size))))
+)
 
 @ |DSTACK_SAFE| is for cases where the dstack is not
 immediately initialized to a useful value,
@@ -12778,7 +12792,6 @@ fatal, irrecoverable problems.
 PRIVATE_NOT_INLINE void
 default_out_of_memory(void)
 {
-    (*marpa_debug_handler)("Out of memory");
     abort();
 }
 void (*marpa_out_of_memory)(void) = default_out_of_memory;
