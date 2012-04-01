@@ -39,8 +39,13 @@ STAGE_FILES = \
     ../stage/marpa_obs.c \
     ../stage/marpa_obs.h \
     ../stage/avl.h \
+    ../stage/private.h \
     ../stage/avl.c \
-    ../stage/private.h
+    ../stage/NEWS \
+    ../stage/README \
+    ../stage/ChangeLog \
+    ../stage/COPYING.LESSER \
+    ../stage/AUTHORS
 
 .SUFFIXES: .dvi .tex .w .pdf
 
@@ -70,7 +75,7 @@ STAGE_FILES = \
 
 all: marpa.pdf sources
 
-sources: marpa.c marpa.h marpa_api.h codes.h codes.c
+sources: marpa.c marpa.h marpa_api.h codes.h codes.c private.h
 
 marpa.h marpa.c: copyright_page_license.w marpa.w
 	$(CTANGLE) marpa.w
@@ -122,10 +127,25 @@ marpa.pdf: marpa.tex cwebmac.tex
 ../stage/private.h: private.h
 	cp $? $@
 
+../stage/README: dist/README
+	cp $? $@
+
+../stage/NEWS: dist/NEWS
+	cp $? $@
+
+../stage/AUTHORS: dist/AUTHORS
+	cp $? $@
+
+../stage/COPYING.LESSER: dist/COPYING.LESSER
+	cp $? $@
+
+../stage/ChangeLog: dist/ChangeLog
+	cp $? $@
+
 stage_dir:
 	test -d ../stage || mkdir ../stage
 
-stage_configuration: stage_dir ../stage/configure
+stage_configuration: stage_dir ../stage/configure ../stage/Makefile
 
 ../stage/configure: $(CONFIGURE_FILES)
 	test -d ../stage/m4 || mkdir ../stage/m4

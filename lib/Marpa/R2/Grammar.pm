@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_030';
+$VERSION        = '0.001_031';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -554,7 +554,7 @@ sub Marpa::R2::Grammar::precompute {
                 'Counted nullables confuse Marpa -- please rewrite the grammar'
             );
         } ## end if ( $error_code == $Marpa::R2::Error::COUNTED_NULLABLE)
-        if ( $error_code == $Marpa::R2::Error::NO_START_SYMBOL ) {
+        if ( $error_code == $Marpa::R2::Error::NO_START_SYM ) {
             Marpa::R2::exception('No start symbol');
         }
         if ( $error_code == $Marpa::R2::Error::START_NOT_LHS ) {
@@ -1653,10 +1653,9 @@ sub add_user_rule {
             $lhs_name . '[' . $rhs_desc . ( $min ? q{+} : q{*} ) . ']';
     }
     my $sequence_symbol_count      = 0;
-    my $sequence_null_symbol_count = 0;
 
     my @sequence_rule_ids = ();
-    my $event_count       = $grammar_c->sequence_new(
+    my $original_rule_id       = $grammar_c->sequence_new(
         $lhs_id,
         $rhs_ids[0],
         {   separator => $separator_id,
@@ -1665,7 +1664,7 @@ sub add_user_rule {
             min       => $min,
         }
     );
-    if ( not defined $event_count ) {
+    if ( not defined $original_rule_id ) {
         my $rule_description = "$lhs_name -> " . ( join q{ }, @{$rhs_names} );
         my $error_code = $grammar_c->error_code() // -1;
         my $problem_description =
@@ -1674,8 +1673,11 @@ sub add_user_rule {
             : $grammar_c->error();
         Marpa::R2::exception("$problem_description: $rule_description");
     } ## end if ( not defined $event_count )
-    for my $event_ix ( 0 .. $event_count - 1 ) {
-        my ( $event_type, $value ) = $grammar_c->event($event_ix);
+
+    my $event_ix = 0;
+    EVENT:
+    while ( my ( $event_type, $value ) = $grammar_c->event( $event_ix++ ) ) {
+	last EVENT if not defined $event_type;
         if ( $event_type eq 'MARPA_EVENT_NEW_SYMBOL' ) {
             my $name = $sequence_symbol_name_base;
             if ($sequence_symbol_count) {
@@ -1684,14 +1686,16 @@ sub add_user_rule {
             shadow_symbol( $grammar, $value, $name );
             $sequence_symbol_count++;
         } ## end if ( $event_type eq 'MARPA_EVENT_NEW_SYMBOL' )
+
+        # Make sure the new symbol is added before any rule
+        # using it
         if ( $event_type eq 'MARPA_EVENT_NEW_RULE' ) {
             push @sequence_rule_ids, $value;
         }
-    } ## end for my $event_ix ( 0 .. $event_count - 1 )
-    my $original_rule_id;
+    } ## end while ( my ( $event_type, $value ) = $grammar_c->event(...))
+
     for my $new_rule_id (@sequence_rule_ids) {
         shadow_rule( $grammar, $new_rule_id );
-        $original_rule_id //= $grammar_c->rule_original($new_rule_id);
     }
 
     # The original rule for a sequence rule is

@@ -1,3 +1,5 @@
+libmarpa contains the code that is the core of the Marpa project.
+
 Copyright 2012 Jeffrey Kegler
 This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 redistribute it and/or modify it under the terms of the GNU Lesser
@@ -12,6 +14,3 @@ Lesser General Public License for more details.
 You should have received a copy of the GNU Lesser
 General Public License along with Marpa::R2.  If not, see
 http://www.gnu.org/licenses/.
-
-In the Marpa::R2 distribution, the GNU Lesser General Public License
-version 3 should be in a file named "COPYING.LESSER".

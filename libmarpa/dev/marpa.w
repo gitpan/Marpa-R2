@@ -694,7 +694,9 @@ DSTACK_DESTROY(g->t_symbols);
 @ Symbol count accesors.
 @d SYM_Count_of_G(g) (DSTACK_LENGTH((g)->t_symbols))
 @ @<Function definitions@> =
-int marpa_g_symbol_count(struct marpa_g* g) {
+int marpa_g_symbol_count(Marpa_Grammar g) {
+   @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     return SYM_Count_of_G(g);
 }
 
@@ -732,7 +734,9 @@ with their |Marpa_Rule_ID| as the index.
 @*0 Rule count accessors.
 @ @d RULE_Count_of_G(g) (DSTACK_LENGTH((g)->t_rules))
 @ @<Function definitions@> =
-int marpa_g_rule_count(struct marpa_g* g) {
+int marpa_g_rule_count(Marpa_Grammar g) {
+   @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     return RULE_Count_of_G(g);
 }
 
@@ -776,8 +780,8 @@ Marpa_Symbol_ID marpa_g_start_symbol_set(Marpa_Grammar g, Marpa_Symbol_ID symid)
 {
    @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar is precomputed@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if precomputed@>@;
+    @<Fail if |symid| is invalid@>@;
     return g->t_original_start_symid = symid;
 }
 
@@ -866,8 +870,7 @@ By default, this is allowed under Marpa.
 @<Bit aligned grammar elements@> = unsigned int t_is_lhs_terminal_ok:1;
 @ @<Initialize grammar elements@> =
 g->t_is_lhs_terminal_ok = 1;
-@ The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
+@ @<Function definitions@> =
 int marpa_g_is_lhs_terminal_ok(Marpa_Grammar g)
 {
    @<Return |-2| on failure@>@/
@@ -878,12 +881,16 @@ int marpa_g_is_lhs_terminal_ok(Marpa_Grammar g)
 false on failure.
 @<Function definitions@> =
 int marpa_g_is_lhs_terminal_ok_set(
-struct marpa_g*g, int value)
+Marpa_Grammar g, int value)
 {
    @<Return |-2| on failure@>@/
     @<Fail if fatal error@>@;
-    @<Fail if grammar is precomputed@>
-    return g->t_is_lhs_terminal_ok = value ? 1 : 0;
+    @<Fail if precomputed@>
+    if (value < 0 || value > 1) {
+	MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
+	return failure_indicator;
+    }
+    return g->t_is_lhs_terminal_ok = value;
 }
 
 @*0 Terminal Boolean Vector.
@@ -976,9 +983,10 @@ marpa_g_event (Marpa_Grammar g, Marpa_Event public_event,
   GEV internal_event;
   int type;
 
+  MARPA_DEBUG4("%s: ix=%d, event_count=%d", STRLOC, ix, G_EVENT_COUNT(g));
   if (ix < 0)
     return failure_indicator;
-  if (ix > DSTACK_LENGTH (*events))
+  if (ix >= DSTACK_LENGTH (*events))
     return index_out_of_bounds;
   internal_event = DSTACK_INDEX (*events, GEV_Object, ix);
   type = internal_event->t_type;
@@ -1147,7 +1155,7 @@ Marpa_Rule_ID marpa_g_symbol_lhs_count(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     return DSTACK_LENGTH( SYM_by_ID(symid)->t_lhs );
 }
 Marpa_Rule_ID marpa_g_symbol_lhs(struct marpa_g* g, Marpa_Symbol_ID symid, int ix)
@@ -1155,14 +1163,14 @@ Marpa_Rule_ID marpa_g_symbol_lhs(struct marpa_g* g, Marpa_Symbol_ID symid, int i
     SYM symbol;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     symbol = SYM_by_ID(symid);
     if (ix < 0) {
-        MARPA_DEV_ERROR("symbol lhs index negative");
+        MARPA_ERROR(MARPA_ERR_SYMIX_LT_ZERO);
 	return failure_indicator;
     }
     if (ix >= DSTACK_LENGTH(symbol->t_lhs)) {
-        MARPA_DEV_ERROR("symbol lhs index out of bounds");
+        MARPA_ERROR(MARPA_ERR_SYMIX_OOB);
 	return -1;
     }
     return *DSTACK_INDEX(symbol->t_lhs, RULEID, ix);
@@ -1191,7 +1199,7 @@ Marpa_Rule_ID marpa_g_symbol_rhs_count(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     return DSTACK_LENGTH(SYM_by_ID(symid)->t_rhs);
 }
 Marpa_Rule_ID marpa_g_symbol_rhs(struct marpa_g* g, Marpa_Symbol_ID symid, int ix)
@@ -1199,14 +1207,14 @@ Marpa_Rule_ID marpa_g_symbol_rhs(struct marpa_g* g, Marpa_Symbol_ID symid, int i
     @<Return |-2| on failure@>@;
     SYM symbol;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     if (ix < 0) {
-        MARPA_DEV_ERROR("symbol rhs index negative");
+        MARPA_ERROR(MARPA_ERR_SYMIX_LT_ZERO);
 	return failure_indicator;
     }
     symbol = SYM_by_ID(symid);
     if (ix >= DSTACK_LENGTH( symbol->t_rhs)) {
-        MARPA_DEV_ERROR("symbol rhs index out of bounds");
+        MARPA_ERROR(MARPA_ERR_SYMIX_OOB);
 	return -1;
     }
     return *DSTACK_INDEX(symbol->t_rhs, RULEID, ix);
@@ -1237,7 +1245,7 @@ int marpa_g_symbol_is_ask_me_when_null(
     Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     return SYM_is_Ask_Me_When_Null(SYM_by_ID(symid));
 }
 int marpa_g_symbol_ask_me_when_null_set(
@@ -1245,7 +1253,7 @@ int marpa_g_symbol_ask_me_when_null_set(
 {
     SYM symbol;
     @<Return |-2| on failure@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     symbol = SYM_by_ID(symid);
     return SYM_is_Ask_Me_When_Null(symbol) = value ? 1 : 0;
 }
@@ -1259,15 +1267,13 @@ to the symbol function.
 If that becomes private,
 the prototype of this function
 must be changed.
-\par
-The internal accessor would be trivial, so there is none.
 @<Function definitions@> =
 int marpa_g_symbol_is_accessible(Marpa_Grammar g, Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar not precomputed@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |symid| is invalid@>@;
     return SYM_by_ID(symid)->t_is_accessible;
 }
 
@@ -1281,7 +1287,7 @@ Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     return SYM_by_ID(symid)->t_is_counted;
 }
 
@@ -1294,8 +1300,8 @@ int marpa_g_symbol_is_nullable(GRAMMAR g, SYMID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar not precomputed@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |symid| is invalid@>@;
     return SYM_by_ID(symid)->t_is_nullable;
 }
 
@@ -1309,8 +1315,8 @@ int marpa_g_symbol_is_nulling(GRAMMAR g, SYMID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar not precomputed@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |symid| is invalid@>@;
     return SYM_is_Nulling(SYM_by_ID(symid));
 }
 
@@ -1326,7 +1332,7 @@ Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     return SYMID_is_Terminal(symid);
 }
 @ @<Function definitions@> =
@@ -1334,8 +1340,9 @@ int marpa_g_symbol_is_terminal_set(
 Marpa_Grammar g, Marpa_Symbol_ID symid, int value)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar is precomputed@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if precomputed@>@;
+    @<Fail if |symid| is invalid@>@;
     return SYMID_is_Terminal(symid) = value;
 }
 
@@ -1349,8 +1356,9 @@ int marpa_g_symbol_is_productive(
     Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar not precomputed@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |symid| is invalid@>@;
     return SYM_by_ID(symid)->t_is_productive;
 }
 
@@ -1361,8 +1369,9 @@ int marpa_g_symbol_is_productive(
 int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID symid) 
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar not precomputed@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |symid| is invalid@>@;
    return SYM_by_ID(symid)->t_is_start;
 }
 
@@ -1396,7 +1405,7 @@ Marpa_Symbol_ID marpa_g_symbol_proper_alias(struct marpa_g* g, Marpa_Symbol_ID s
 SYM symbol;
 SYM proper_alias;
 @<Return |-2| on failure@>@;
-@<Fail if grammar |symid| is invalid@>@;
+@<Fail if |symid| is invalid@>@;
 symbol = SYM_by_ID(symid);
 proper_alias = symbol_proper_alias(symbol);
 return proper_alias == NULL ? -1 : ID_of_SYM(proper_alias);
@@ -1415,11 +1424,11 @@ Marpa_Symbol_ID marpa_g_symbol_null_alias(struct marpa_g* g, Marpa_Symbol_ID sym
 SYM symbol;
 SYM alias;
 @<Return |-2| on failure@>@;
-@<Fail if grammar |symid| is invalid@>@;
+@<Fail if |symid| is invalid@>@;
 symbol = SYM_by_ID(symid);
 alias = symbol_null_alias(symbol);
 if (alias == NULL) {
-    MARPA_DEV_ERROR("no alias");
+    MARPA_ERROR(MARPA_ERR_NO_ALIAS);
     return -1;
 }
 return ID_of_SYM(alias);
@@ -1480,7 +1489,7 @@ Marpa_Rule_ID marpa_g_symbol_virtual_lhs_rule(struct marpa_g* g, Marpa_Symbol_ID
     SYM symbol;
     RULE virtual_lhs_rule;
     @<Return |-2| on failure@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     symbol = SYM_by_ID(symid);
     virtual_lhs_rule = symbol->t_virtual_lhs_rule;
     return virtual_lhs_rule == NULL ? -1 : ID_of_RULE(virtual_lhs_rule);
@@ -1510,18 +1519,20 @@ typedef Marpa_Rule_ID RULEID;
 This logic is intended to be common to all individual rules.
 The name comes from the idea that this logic ``starts"
 the initialization of a rule.
-@ GCC complains about inlining |rule_start| -- it is
-not a tiny function, and it is repeated often.
+It is assummed that the caller has checked that all
+symbol ID's are valid.
+@ Not inline because GCC complains,
+and not unreasonably.
+It is big,
+and it is used in a lot of places.
 @<Function definitions@> =
 PRIVATE_NOT_INLINE
 RULE rule_start(GRAMMAR g,
 SYMID lhs, SYMID *rhs, int length)
 {
-    @<Return |NULL| on failure@>@;
     RULE rule;
     const int rule_sizeof = offsetof (struct s_rule, t_symbols) +
         (length + 1) * sizeof (rule->t_symbols[0]);
-    @<Return failure on invalid rule symbols@>@/
     rule = obstack_alloc (&g->t_obs, rule_sizeof);
     @<Initialize rule symbols@>@/
     @<Initialize rule elements@>@/
@@ -1531,46 +1542,51 @@ SYMID lhs, SYMID *rhs, int length)
 }
 
 @ @<Function definitions@> =
-Marpa_Rule_ID marpa_g_rule_new(struct marpa_g *g,
+Marpa_Rule_ID marpa_g_rule_new(Marpa_Grammar g,
 Marpa_Symbol_ID lhs, Marpa_Symbol_ID *rhs, int length)
 {
+    @<Return |-2| on failure@>@;
     Marpa_Rule_ID rule_id;
     RULE rule;
+    @<Fail if fatal error@>@;
+    @<Fail if precomputed@>@;
     if (length > MAX_RHS_LENGTH) {
-	MARPA_DEV_ERROR("rhs too long");
-        return -1;
+	MARPA_ERROR(MARPA_ERR_RHS_TOO_LONG);
+        return failure_indicator;
     }
     if (is_rule_duplicate(g, lhs, rhs, length) == 1) {
 	MARPA_ERROR(MARPA_ERR_DUPLICATE_RULE);
-        return -1;
+        return failure_indicator;
     }
+    if (!rule_check(g, lhs, rhs, length)) return failure_indicator;
     rule = rule_start(g, lhs, rhs, length);
-    if (!rule) { return -1; }@;
     rule_id = rule->t_id;
     return rule_id;
 }
 
 @ @<Function definitions@> =
-int marpa_g_sequence_new(struct marpa_g *g,
+Marpa_Rule_ID marpa_g_sequence_new(Marpa_Grammar g,
 Marpa_Symbol_ID lhs_id, Marpa_Symbol_ID rhs_id, Marpa_Symbol_ID separator_id,
 int min, int flags )
 {
     RULE original_rule;
-    RULEID original_rule_id;
+    RULEID original_rule_id = -2;
+    RULEID return_value = -2;
     SYM internal_lhs;
-    SYMID internal_lhs_id, *temp_rhs;
+    SYMID internal_lhs_id;
+    SYMID *temp_rhs = NULL;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar is precomputed@>@;
+    @<Fail if precomputed@>@;
+    G_EVENTS_CLEAR(g);
     if (is_rule_duplicate (g, lhs_id, &rhs_id, 1) == 1)
       {
 	MARPA_ERROR(MARPA_ERR_DUPLICATE_RULE);
 	return failure_indicator;
       }
-    G_EVENTS_CLEAR(g);
 
+    @<Check that the sequence symbols are valid@>@;
     @<Add the original rule for a sequence@>@;
-    @<Check that the separator is valid or -1@>@;
     @<Mark the counted symbols@>@;
     if (min == 0) { @<Add the nulling rule for a sequence@>@; }
     min = 1;
@@ -1582,19 +1598,20 @@ int min, int flags )
     }
     @<Add the minimum rule for the sequence@>@;
     @<Add the iterating rule for the sequence@>@;
+
+    return_value = original_rule_id;
+    FAILURE: ;
+    if (return_value < 0) {
+	G_EVENTS_CLEAR(g);
+    }
     @<Free the temporary rhs buffer@>@;
-     return G_EVENT_COUNT(g);
+     return return_value;
 }
 
 @ As a side effect, this checks the LHS and RHS symbols for validity.
 @<Add the original rule for a sequence@> =
 {
   original_rule = rule_start (g, lhs_id, &rhs_id, 1);
-  if (!original_rule)
-    {
-      MARPA_DEV_ERROR("internal_error");
-      return failure_indicator;
-    }
   RULE_is_Used (original_rule) = 0;
   original_rule_id = original_rule->t_id;
   original_rule->t_is_discard = !(flags & MARPA_KEEP_SEPARATION)
@@ -1602,10 +1619,15 @@ int min, int flags )
   int_event_new (g, MARPA_EVENT_NEW_RULE, original_rule_id);
 }
 
-@ @<Check that the separator is valid or -1@> =
+@ @<Check that the sequence symbols are valid@> =
 if (separator_id != -1 && !symbol_is_valid(g, separator_id)) {
-    MARPA_DEV_ERROR("bad separator");
-    return failure_indicator;
+    MARPA_ERROR(MARPA_ERR_BAD_SEPARATOR);
+    goto FAILURE;
+}
+if (!symbol_is_valid(g, lhs_id) || !symbol_is_valid(g, rhs_id))
+{
+    MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
+    goto FAILURE;
 }
 
 @ @<Mark the counted symbols@> =
@@ -1613,8 +1635,8 @@ SYM_by_ID(rhs_id)->t_is_counted = 1;
 if (separator_id >= 0) { SYM_by_ID(separator_id)->t_is_counted = 1; }
 @ @<Add the nulling rule for a sequence@> =
 {
-    RULE rule = rule_start(g, lhs_id, 0, 0);
-    if (!rule) { @<Fail with internal grammar error@>@; }
+    RULE rule;
+    rule = rule_start(g, lhs_id, 0, 0);
     rule->t_is_semantic_equivalent = 1;
     rule->t_original = original_rule_id;
     int_event_new (g, MARPA_EVENT_NEW_RULE, rule->t_id);
@@ -1645,7 +1667,6 @@ temp_rhs = my_new(Marpa_Symbol_ID, (3 + (separator_id < 0 ? 1 : 2) * min));
     RULE rule;
     temp_rhs[0] = internal_lhs_id;
     rule = rule_start(g, lhs_id, temp_rhs, 1);
-    if (!rule) { @<Fail with internal grammar error@>@; }
     rule->t_original = original_rule_id;
     rule->t_is_semantic_equivalent = 1;
     /* Real symbol count remains at default of 0 */
@@ -1659,7 +1680,6 @@ temp_rhs = my_new(Marpa_Symbol_ID, (3 + (separator_id < 0 ? 1 : 2) * min));
     temp_rhs[0] = internal_lhs_id;
     temp_rhs[1] = separator_id;
     rule = rule_start(g, lhs_id, temp_rhs, 2);
-    if (!rule) { @<Fail with internal grammar error@>@; }
     rule->t_original = original_rule_id;
     rule->t_is_semantic_equivalent = 1;
     RULE_has_Virtual_RHS(rule) = 1;
@@ -1679,7 +1699,6 @@ int rhs_ix, i;
         temp_rhs[rhs_ix++] = rhs_id;
     }
     rule = rule_start(g, internal_lhs_id, temp_rhs, rhs_ix);
-    if (!rule) { @<Fail with internal grammar error@>@; }
     RULE_has_Virtual_LHS(rule) = 1;
     Real_SYM_Count_of_RULE(rule) = rhs_ix;
     int_event_new (g, MARPA_EVENT_NEW_RULE, rule->t_id);
@@ -1691,7 +1710,6 @@ int rhs_ix = 0;
     if (separator_id >= 0) temp_rhs[rhs_ix++] = separator_id;
     temp_rhs[rhs_ix++] = rhs_id;
     rule = rule_start(g, internal_lhs_id, temp_rhs, rhs_ix);
-    if (!rule) { @<Fail with internal grammar error@>@; }
     RULE_has_Virtual_LHS(rule) = 1;
     RULE_has_Virtual_RHS(rule) = 1;
     Real_SYM_Count_of_RULE(rule) = rhs_ix - 1;
@@ -1895,16 +1913,21 @@ nobody will have noticed this restriction.
 so that they can be variable length.
 @<Final rule elements@> = Marpa_Symbol_ID t_symbols[1];
 
-@ @<Return failure on invalid rule symbols@> =
+@ @<Function definitions@> =
+PRIVATE
+int rule_check(GRAMMAR g,
+SYMID lhs, SYMID *rhs, int length)
 {
-    SYMID symid = lhs;
-    @<Fail if grammar |symid| is invalid@>@;
-}
-{ int rh_index;
+    int rh_index;
+    if (!symbol_is_valid(g, lhs)) goto ERROR;
     for (rh_index = 0; rh_index<length; rh_index++) {
 	SYMID symid = rhs[rh_index];
-	@<Fail if grammar |symid| is invalid@>@;
+	if (!symbol_is_valid(g, symid)) goto ERROR;
     }
+    return 1;
+    ERROR: ;
+    MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
+    return 0;
 }
 
 @ @<Initialize rule symbols@> =
@@ -1917,10 +1940,12 @@ PRIVATE Marpa_Symbol_ID rule_lhs_get(RULE rule)
 {
     return rule->t_symbols[0]; }
 @ @<Function definitions@> =
-Marpa_Symbol_ID marpa_g_rule_lhs(struct marpa_g *g, Marpa_Rule_ID rule_id) {
+Marpa_Symbol_ID marpa_g_rule_lhs(Marpa_Grammar g, Marpa_Rule_ID rule_id) {
     @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
-    return rule_lhs_get(RULE_by_ID(g, rule_id)); }
+    return rule_lhs_get(RULE_by_ID(g, rule_id));
+}
 @ @<Function definitions@> =
 PRIVATE Marpa_Symbol_ID* rule_rhs_get(RULE rule)
 {
@@ -1929,6 +1954,7 @@ PRIVATE Marpa_Symbol_ID* rule_rhs_get(RULE rule)
 Marpa_Symbol_ID marpa_g_rule_rh_symbol(struct marpa_g *g, Marpa_Rule_ID rule_id, int ix) {
     RULE rule;
     @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     rule = RULE_by_ID(g, rule_id);
     if (Length_of_RULE(rule) <= ix) return -1;
@@ -1941,6 +1967,7 @@ PRIVATE size_t rule_length_get(RULE rule)
 @ @<Function definitions@> =
 int marpa_g_rule_length(struct marpa_g *g, Marpa_Rule_ID rule_id) {
     @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     return rule_length_get(RULE_by_ID(g, rule_id)); }
 
@@ -2012,10 +2039,11 @@ PRIVATE int rule_is_accessible(struct marpa_g* g, RULE  rule)
 {
 Marpa_Symbol_ID lhs_id = LHS_ID_of_RULE(rule);
  return SYM_by_ID(lhs_id)->t_is_accessible; }
-int marpa_g_rule_is_accessible(struct marpa_g* g, Marpa_Rule_ID rule_id)
+int marpa_g_rule_is_accessible(Marpa_Grammar g, Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
 RULE  rule;
+    @<Fail if fatal error@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
 rule = RULE_by_ID(g, rule_id);
 return rule_is_accessible(g, rule);
@@ -2032,10 +2060,11 @@ for (rh_ix = 0; rh_ix < Length_of_RULE(rule); rh_ix++) {
    if ( !SYM_by_ID(rhs_id)->t_is_productive ) return 0;
 }
 return 1; }
-int marpa_g_rule_is_productive(struct marpa_g* g, Marpa_Rule_ID rule_id)
+int marpa_g_rule_is_productive(Marpa_Grammar g, Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
 RULE  rule;
+    @<Fail if fatal error@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
 rule = RULE_by_ID(g, rule_id);
 return rule_is_productive(g, rule);
@@ -2050,13 +2079,13 @@ derivation must have at least one step.
 @<Bit aligned rule elements@> = unsigned int t_is_loop:1;
 @ @<Initialize rule elements@> =
 rule->t_is_loop = 0;
-@ This is the external accessor.
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
+@ @<Function definitions@> =
 int marpa_g_rule_is_loop(struct marpa_g* g, Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
+    @<Fail if not precomputed@>@;
 return RULE_by_ID(g, rule_id)->t_is_loop; }
 
 @*0 Virtual Loop Rule.
@@ -2069,9 +2098,7 @@ but not vice versa.
 @<Bit aligned rule elements@> = unsigned int t_is_virtual_loop:1;
 @ @<Initialize rule elements@> =
 rule->t_is_virtual_loop = 0;
-@ This is the external accessor.
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
+@ @<Function definitions@> =
 int marpa_g_rule_is_virtual_loop(struct marpa_g* g, Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
@@ -2101,9 +2128,7 @@ Is the rule used in computing the AHFA sets?
 @<Bit aligned rule elements@> = unsigned int t_is_used:1;
 @ @<Initialize rule elements@> =
 RULE_is_Used(rule) = 1;
-@ This is the external accessor.
-The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
+@ @<Function definitions@> =
 int marpa_g_rule_is_used(struct marpa_g* g, Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
@@ -2130,14 +2155,13 @@ semantics specified for the original grammar.
 @<Bit aligned rule elements@> = unsigned int t_is_virtual_lhs:1;
 @ @<Initialize rule elements@> =
 RULE_has_Virtual_LHS(rule) = 0;
-@ The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
+@ @<Function definitions@> =
 int marpa_g_rule_is_virtual_lhs(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar not precomputed@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     return RULE_has_Virtual_LHS(RULE_by_ID(g, rule_id));
 }
@@ -2147,14 +2171,13 @@ int marpa_g_rule_is_virtual_lhs(
 @<Bit aligned rule elements@> = unsigned int t_is_virtual_rhs:1;
 @ @<Initialize rule elements@> =
 RULE_has_Virtual_RHS(rule) = 0;
-@ The internal accessor would be trivial, so there is none.
-@<Function definitions@> =
+@ @<Function definitions@> =
 int marpa_g_rule_is_virtual_rhs(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar not precomputed@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     return RULE_has_Virtual_RHS(RULE_by_ID(g, rule_id));
 }
@@ -2171,7 +2194,7 @@ unsigned int marpa_g_virtual_start(
     Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar not precomputed@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     return RULE_by_ID(g, rule_id)->t_virtual_start;
 }
@@ -2188,7 +2211,7 @@ unsigned int marpa_g_virtual_end(
     Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar not precomputed@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     return RULE_by_ID(g, rule_id)->t_virtual_end;
 }
@@ -2224,7 +2247,7 @@ int marpa_g_real_symbol_count(
     Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar not precomputed@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
     return Real_SYM_Count_of_RULE(RULE_by_ID(g, rule_id));
 }
@@ -2391,12 +2414,21 @@ covered in the next few
 sections.
 This section describes the top-level method for precomputation,
 which is external.
+@ If |marpa_g_precompute| is called on a precomputed
+grammar, the upper layers have a lot of latitude.
+There's no harm done, so the upper layers can simply ignore this one.
+On the other hand, the upper layer may see this as a sign of a major
+logic error, and treat it as a fatal error.
+Anything in between these two extremes is also possible.
 
 @<Function definitions@> =
-int marpa_g_precompute(struct marpa_g* g)
+int marpa_g_precompute(Marpa_Grammar g)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
+    @<Fail if empty grammar@>@;
+    @<Fail if precomputed@>@;
+    @<Fail if bad start symbol@>@;
     G_EVENTS_CLEAR(g);
      if (!census(g)) return failure_indicator;
      if (!CHAF_rewrite(g)) return failure_indicator;
@@ -2443,13 +2475,9 @@ The upside is that in the more frequent cases, the user is spared
 a lot of useless diagnostics.
 
 @<Function definitions@> =
-PRIVATE_NOT_INLINE GRAMMAR census(GRAMMAR g)
+PRIVATE GRAMMAR census(GRAMMAR g)
 {
-    @<Return |NULL| on failure@>@;
     @<Declare census variables@>@;
-    @<Return |NULL| if  empty grammar@>@;
-    @<Return |NULL| if already precomputed@>@;
-    @<Return |NULL| if bad start symbol@>@;
     @<Census LHS symbols@>@;
     @<Census terminals@>@;
     if (have_marked_terminals) {
@@ -2477,39 +2505,39 @@ PRIVATE_NOT_INLINE GRAMMAR census(GRAMMAR g)
 unsigned int pre_rewrite_rule_count = RULE_Count_of_G(g);
 unsigned int pre_rewrite_symbol_count = SYM_Count_of_G(g);
 
-@ @<Return |NULL| if empty grammar@> =
-if (RULE_Count_of_G(g) <= 0) { MARPA_ERROR(MARPA_ERR_NO_RULES); return NULL; }
-@ The upper layers have a lot of latitude with this one.
-There's no harm done, so the upper layers can simply ignore this one.
-On the other hand, the upper layer may see this as a sign of a major
-logic error, and treat it as a fatal error.
-Anything in between these two extremes is also possible.
-@<Return |NULL| if already precomputed@> =
-if (G_is_Precomputed(g)) {
-    MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
-return NULL; }
+@ @<Fail if empty grammar@> =
+if (RULE_Count_of_G(g) <= 0) {
+    MARPA_ERROR(MARPA_ERR_NO_RULES);
+    return failure_indicator;
+}
 @ Loop over the rules, producing bit vector of LHS symbols, and of
 symbols which are the LHS of empty rules.
 While at it, set a flag to indicate if there are empty rules.
 
-@ @<Return |NULL| if bad start symbol@> =
-if (original_start_symid < 0) {
-    MARPA_ERROR(MARPA_ERR_NO_START_SYMBOL);
-    return failure_indicator;
-}
-if (!symbol_is_valid(g, original_start_symid)) {
-    MARPA_DEV_ERROR("invalid start symbol");
-    return failure_indicator;
-}
-original_start_symbol = SYM_by_ID(original_start_symid);
-if (DSTACK_LENGTH(original_start_symbol->t_lhs) <= 0) {
-    MARPA_ERROR(MARPA_ERR_START_NOT_LHS);
-    return failure_indicator;
+@ @<Fail if bad start symbol@> =
+{
+  const Marpa_Symbol_ID original_start_symid = g->t_original_start_symid;
+    SYM original_start_symbol;
+  if (original_start_symid < 0)
+    {
+      MARPA_ERROR (MARPA_ERR_NO_START_SYM);
+      return failure_indicator;
+    }
+  if (!symbol_is_valid (g, original_start_symid))
+    {
+      MARPA_ERROR (MARPA_ERR_INVALID_START_SYM);
+      return failure_indicator;
+    }
+  original_start_symbol = SYM_by_ID (original_start_symid);
+  if (DSTACK_LENGTH (original_start_symbol->t_lhs) <= 0)
+    {
+      MARPA_ERROR (MARPA_ERR_START_NOT_LHS);
+      return failure_indicator;
+    }
 }
 
 @ @<Declare census variables@> =
 Marpa_Symbol_ID original_start_symid = g->t_original_start_symid;
-SYM original_start_symbol;
 
 @ @<Census LHS symbols@> =
 { Marpa_Rule_ID rule_id;
@@ -3546,7 +3574,7 @@ g->t_AHFA_items = NULL;
 
 @ Check that AHFA item ID is in valid range.
 @<Function definitions@> =
-PRIVATE int item_is_valid(
+PRIVATE int aim_is_valid(
 GRAMMAR g, AIMID item_id)
 {
 return item_id < (AIMID)AIM_Count_of_G(g) && item_id >= 0;
@@ -3585,7 +3613,7 @@ int t_leading_nulls;
 @<Function definitions@> =
 int marpa_g_AHFA_item_count(struct marpa_g* g) {
     @<Return |-2| on failure@>@/
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     return AIM_Count_of_G(g);
 }
 
@@ -3593,7 +3621,7 @@ int marpa_g_AHFA_item_count(struct marpa_g* g) {
 Marpa_Rule_ID marpa_g_AHFA_item_rule(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     @<Fail if grammar |item_id| is invalid@>@/
     return RULE_of_AIM(AIM_by_ID(item_id))->t_id;
 }
@@ -3603,7 +3631,7 @@ Marpa_Rule_ID marpa_g_AHFA_item_rule(struct marpa_g* g,
 int marpa_g_AHFA_item_position(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     @<Fail if grammar |item_id| is invalid@>@/
     return Position_of_AIM(AIM_by_ID(item_id));
 }
@@ -3613,7 +3641,7 @@ int marpa_g_AHFA_item_position(struct marpa_g* g,
 Marpa_Symbol_ID marpa_g_AHFA_item_postdot(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     @<Fail if grammar |item_id| is invalid@>@/
     return Postdot_SYMID_of_AIM(AIM_by_ID(item_id));
 }
@@ -3622,7 +3650,7 @@ Marpa_Symbol_ID marpa_g_AHFA_item_postdot(struct marpa_g* g,
 int marpa_g_AHFA_item_sort_key(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     @<Fail if grammar |item_id| is invalid@>@/
     return Sort_Key_of_AIM(AIM_by_ID(item_id));
 }
@@ -4030,7 +4058,7 @@ int
 marpa_g_AHFA_state_item_count(struct marpa_g* g, AHFAID AHFA_state_id)
 { @<Return |-2| on failure@>@/
     AHFA state;
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     @<Fail if grammar |AHFA_state_id| is invalid@>@/
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
     return state->t_item_count;
@@ -4044,15 +4072,15 @@ Marpa_AHFA_Item_ID marpa_g_AHFA_state_item(struct marpa_g* g,
 	int item_ix) {
     AHFA state;
     @<Return |-2| on failure@>@/
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     @<Fail if grammar |AHFA_state_id| is invalid@>@/
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
     if (item_ix < 0) {
-        MARPA_DEV_ERROR("symbol lhs index negative");
+        MARPA_ERROR(MARPA_ERR_AHFA_IX_NEGATIVE);
 	return failure_indicator;
     }
     if (item_ix >= state->t_item_count) {
-	MARPA_DEV_ERROR("invalid state item ix");
+	MARPA_ERROR(MARPA_ERR_AHFA_IX_OOB);
 	return failure_indicator;
     }
     return AIMID_of_AHFA_by_AEX(g, state, item_ix);
@@ -4063,7 +4091,7 @@ int marpa_g_AHFA_state_is_predict(struct marpa_g* g,
 	AHFAID AHFA_state_id) {
     AHFA state;
     @<Return |-2| on failure@>@/
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     @<Fail if grammar |AHFA_state_id| is invalid@>@/
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
     return AHFA_is_Predicted(state);
@@ -4085,7 +4113,7 @@ Marpa_Symbol_ID marpa_g_AHFA_state_leo_lhs_symbol(struct marpa_g* g,
 	Marpa_AHFA_State_ID AHFA_state_id) {
     @<Return |-2| on failure@>@;
     AHFA state;
-    @<Fail if grammar not precomputed@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if grammar |AHFA_state_id| is invalid@>@;
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
     return Leo_LHS_ID_of_AHFA(state);
@@ -5103,7 +5131,7 @@ int marpa_g_AHFA_state_transitions(struct marpa_g* g,
       The number of results which fit into 7 bytes is zero.
       */
 
-    @<Fail if grammar not precomputed@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if grammar |AHFA_state_id| is invalid@>@;
     if (max_results <= 0) return 0;
     from_ahfa_state = AHFA_of_G_by_ID(g, AHFA_state_id);
@@ -5130,7 +5158,7 @@ AHFAID marpa_g_AHFA_state_empty_transition(struct marpa_g* g,
     AHFA state;
     AHFA empty_transition_state;
     @<Return |-2| on failure@>@/
-    @<Fail if grammar not precomputed@>@/
+    @<Fail if not precomputed@>@/
     @<Fail if grammar |AHFA_state_id| is invalid@>@/
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
     empty_transition_state = Empty_Transition_of_AHFA (state);
@@ -5272,11 +5300,8 @@ Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
 {
     RECCE r;
     int symbol_count_of_g;
-    @<Return |NULL| on failure@>@/
-    if (!G_is_Precomputed(g)) {
-        MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
-	return failure_indicator;
-    }
+    @<Return |NULL| on failure@>@;
+    @<Fail if not precomputed@>@;
     r = my_slice_new(struct marpa_r);
     symbol_count_of_g = SYM_Count_of_G(g);
     @<Initialize recognizer obstack@>@;
@@ -5795,7 +5820,7 @@ Marpa_Earley_Set_ID marpa_r_trace_earley_set(struct marpa_r *r)
   ES trace_earley_set = r->t_trace_earley_set;
   @<Fail if not trace-safe@>@;
   if (!trace_earley_set) {
-      MARPA_DEV_ERROR("no trace es");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_ES);
       return failure_indicator;
   }
   return Ord_of_ES(trace_earley_set);
@@ -5820,7 +5845,7 @@ Marpa_Earleme marpa_r_earleme(struct marpa_r* r, Marpa_Earley_Set_ID set_id)
     @<Fail if recognizer not started@>@;
     @<Fail if fatal error@>@;
     if (set_id < 0) {
-        MARPA_DEV_ERROR("invalid es ordinal");
+        MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
 	return failure_indicator;
     }
     r_update_earley_sets (r);
@@ -5845,7 +5870,7 @@ int marpa_r_earley_set_size(struct marpa_r *r, Marpa_Earley_Set_ID set_id)
     r_update_earley_sets (r);
     if (!ES_Ord_is_Valid (r, set_id))
       {
-	MARPA_DEV_ERROR ("invalid es ordinal");
+	MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
 	return failure_indicator;
       }
     earley_set = ES_of_R_by_Ord (r, set_id);
@@ -6026,17 +6051,17 @@ PRIVATE_NOT_INLINE Marpa_Error_Code invalid_source_type_code(unsigned int type)
 {
      switch (type) {
     case NO_SOURCE:
-	return MARPA_ERR_NONE_IS_INVALID_SOURCE_TYPE;
+	return MARPA_ERR_SOURCE_TYPE_IS_NONE;
     case SOURCE_IS_TOKEN: 
-	return MARPA_ERR_TOKEN_IS_INVALID_SOURCE_TYPE;
+	return MARPA_ERR_SOURCE_TYPE_IS_TOKEN;
     case SOURCE_IS_COMPLETION:
-	return MARPA_ERR_COMPLETION_IS_INVALID_SOURCE_TYPE;
+	return MARPA_ERR_SOURCE_TYPE_IS_COMPLETION;
     case SOURCE_IS_LEO:
-	return MARPA_ERR_LEO_IS_INVALID_SOURCE_TYPE;
+	return MARPA_ERR_SOURCE_TYPE_IS_LEO;
     case SOURCE_IS_AMBIGUOUS:
-	return MARPA_ERR_AMBIGUOUS_IS_INVALID_SOURCE_TYPE;
+	return MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS;
      }
-     return MARPA_ERR_UNKNOWN_SOURCE_TYPE;
+     return MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN;
 }
 
 @*0 Trace Functions.
@@ -6104,7 +6129,7 @@ marpa_r_earley_set_trace (struct marpa_r *r, Marpa_Earley_Set_ID set_id)
   @<Clear trace Earley set dependent data@>@;
     if (set_id < 0)
     {
-	MARPA_DEV_ERROR ("invalid es ordinal");
+	MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
 	return failure_indicator;
     }
   r_update_earley_sets (r);
@@ -6138,13 +6163,13 @@ marpa_r_earley_item_trace (struct marpa_r *r, Marpa_Earley_Item_ID item_id)
   if (!trace_earley_set)
     {
       @<Clear trace Earley set dependent data@>@;
-      MARPA_DEV_ERROR ("no trace es");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_ES);
       return failure_indicator;
     }
   trace_earley_item_clear (r);
   if (item_id < 0)
     {
-      MARPA_DEV_ERROR ("invalid eim ordinal");
+      MARPA_ERROR (MARPA_ERR_EIM_ID_INVALID);
       return failure_indicator;
     }
   if (item_id >= EIM_Count_of_ES (trace_earley_set))
@@ -6182,7 +6207,7 @@ Marpa_Earley_Set_ID marpa_r_earley_item_origin(struct marpa_r *r)
   @<Fail if not trace-safe@>@;
     if (!item) {
         @<Clear trace Earley item data@>@;
-        MARPA_DEV_ERROR("no trace eim");
+        MARPA_ERROR(MARPA_ERR_NO_TRACE_EIM);
         return failure_indicator;
     }
     return Origin_Ord_of_EIM(item);
@@ -6264,11 +6289,11 @@ Marpa_Symbol_ID marpa_r_leo_predecessor_symbol(struct marpa_r *r)
   @<Unpack recognizer objects@>@;
   @<Fail if not trace-safe@>@;
   if (!postdot_item) {
-      MARPA_DEV_ERROR("no trace pim");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
       return failure_indicator;
   }
   if (EIM_of_PIM(postdot_item)) {
-      MARPA_DEV_ERROR("pim is not lim");
+      MARPA_ERROR(MARPA_ERR_PIM_IS_NOT_LIM);
       return failure_indicator;
   }
   predecessor_leo_item = Predecessor_LIM_of_LIM(LIM_of_PIM(postdot_item));
@@ -6286,7 +6311,7 @@ Marpa_Earley_Set_ID marpa_r_leo_base_origin(struct marpa_r *r)
   EIM base_earley_item;
   @<Fail if not trace-safe@>@;
   if (!postdot_item) {
-      MARPA_DEV_ERROR("no trace pim");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
       return failure_indicator;
   }
   if (EIM_of_PIM(postdot_item)) return pim_is_not_a_leo_item;
@@ -6304,7 +6329,7 @@ Marpa_AHFA_State_ID marpa_r_leo_base_state(struct marpa_r *r)
   @<Unpack recognizer objects@>@;
   @<Fail if not trace-safe@>@;
   if (!postdot_item) {
-      MARPA_DEV_ERROR("no trace pim");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
       return failure_indicator;
   }
   if (EIM_of_PIM(postdot_item)) return pim_is_not_a_leo_item;
@@ -6346,7 +6371,7 @@ Marpa_AHFA_State_ID marpa_r_leo_expansion_ahfa(struct marpa_r *r)
     @<Fail if not trace-safe@>@;
     if (!postdot_item)
       {
-	MARPA_DEV_ERROR ("no trace pim");
+	MARPA_ERROR (MARPA_ERR_NO_TRACE_PIM);
 	return failure_indicator;
       }
     if (!EIM_of_PIM (postdot_item))
@@ -6454,9 +6479,9 @@ marpa_r_postdot_symbol_trace (struct marpa_r *r,
   @<Unpack recognizer objects@>@;
   @<Clear trace postdot item data@>@;
   @<Fail if not trace-safe@>@;
-  @<Fail if recognizer |symid| is invalid@>@;
+  @<Fail if |symid| is invalid@>@;
   if (!current_es) {
-      MARPA_DEV_ERROR("no pim");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_ES);
       return failure_indicator;
   }
   pim_sym_p = PIM_SYM_P_of_ES_by_SYMID(current_es, symid);
@@ -6490,7 +6515,7 @@ marpa_r_first_postdot_item_trace (struct marpa_r *r)
   @<Fail if not trace-safe@>@;
   if (!current_earley_set) {
       @<Clear trace Earley item data@>@;
-      MARPA_DEV_ERROR("no trace es");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_ES);
       return failure_indicator;
   }
   if (current_earley_set->t_postdot_sym_count <= 0) return -1;
@@ -6523,12 +6548,12 @@ marpa_r_next_postdot_item_trace (struct marpa_r *r)
   pim = r->t_trace_postdot_item;
   @<Clear trace postdot item data@>@;
   if (!pim_sym_p || !pim) {
-      MARPA_DEV_ERROR("no trace pim");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
       return failure_indicator;
   }
   @<Fail if not trace-safe@>@;
   if (!current_set) {
-      MARPA_DEV_ERROR("no trace es");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_ES);
       return failure_indicator;
   }
   pim = Next_PIM_of_PIM(pim);
@@ -6554,7 +6579,7 @@ Marpa_AHFA_State_ID marpa_r_postdot_item_symbol(struct marpa_r *r)
   @<Unpack recognizer objects@>@;
   @<Fail if not trace-safe@>@;
   if (!postdot_item) {
-      MARPA_DEV_ERROR("no trace pim");
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
       return failure_indicator;
   }
   return Postdot_SYMID_of_PIM(postdot_item);
@@ -6953,7 +6978,7 @@ Marpa_Symbol_ID marpa_r_next_token_link_trace(struct marpa_r *r)
     @<Set |item|, failing if necessary@>@;
     if (r->t_trace_source_type != SOURCE_IS_TOKEN) {
 	trace_source_link_clear(r);
-	MARPA_DEV_ERROR("not tracing token links");
+	MARPA_ERROR(MARPA_ERR_NOT_TRACING_TOKEN_LINKS);
         return failure_indicator;
     }
     if (!r->t_trace_next_source_link) {
@@ -7028,7 +7053,7 @@ Marpa_Symbol_ID marpa_r_next_completion_link_trace(struct marpa_r *r)
     @<Set |item|, failing if necessary@>@;
     if (r->t_trace_source_type != SOURCE_IS_COMPLETION) {
 	trace_source_link_clear(r);
-	MARPA_DEV_ERROR("not tracing completion links");
+	MARPA_ERROR(MARPA_ERR_NOT_TRACING_COMPLETION_LINKS);
         return failure_indicator;
     }
     if (!r->t_trace_next_source_link) {
@@ -7109,7 +7134,7 @@ marpa_r_next_leo_link_trace (struct marpa_r *r)
   if (r->t_trace_source_type != SOURCE_IS_LEO)
     {
       trace_source_link_clear (r);
-      MARPA_DEV_ERROR("not tracing leo links");
+      MARPA_ERROR(MARPA_ERR_NOT_TRACING_LEO_LINKS);
       return failure_indicator;
     }
   if (!r->t_trace_next_source_link)
@@ -7129,7 +7154,7 @@ marpa_r_next_leo_link_trace (struct marpa_r *r)
     item = r->t_trace_earley_item;
     if (!item) {
 	trace_source_link_clear(r);
-	MARPA_DEV_ERROR("no eim");
+	MARPA_ERROR(MARPA_ERR_NO_TRACE_EIM);
         return failure_indicator;
     }
 
@@ -7304,7 +7329,7 @@ Marpa_Earley_Set_ID marpa_r_source_middle(struct marpa_r* r)
 @ @<Set source, failing if necessary@> =
     source = r->t_trace_source;
     if (!source) {
-	MARPA_DEV_ERROR("no trace source link");
+	MARPA_ERROR(MARPA_ERR_NO_TRACE_SRCL);
         return failure_indicator;
     }
 
@@ -7644,15 +7669,15 @@ Marpa_Earleme marpa_r_alternative(
 @ @<|marpa_alternative| initial check for failure conditions@> = {
     const SYM_Const token = SYM_by_ID(token_id);
     if (!SYM_is_Terminal(token)) {
-	MARPA_DEV_ERROR("token is not a terminal");
+	MARPA_ERROR(MARPA_ERR_TOKEN_IS_NOT_TERMINAL);
 	return failure_indicator;
     }
     if (length <= 0) {
-	MARPA_DEV_ERROR("token length negative or zero");
+	MARPA_ERROR(MARPA_ERR_TOKEN_LENGTH_LE_ZERO);
 	return failure_indicator;
     }
     if (length >= EARLEME_THRESHOLD) {
-	MARPA_DEV_ERROR("token too long");
+	MARPA_ERROR(MARPA_ERR_TOKEN_TOO_LONG);
 	return failure_indicator;
     }
 }
@@ -7660,7 +7685,7 @@ Marpa_Earleme marpa_r_alternative(
 @ @<Set |target_earleme| or fail@> = {
     target_earleme = current_earleme + length;
     if (target_earleme >= EARLEME_THRESHOLD) {
-	MARPA_DEV_ERROR("parse too long");
+	MARPA_ERROR(MARPA_ERR_PARSE_TOO_LONG);
 	return failure_indicator;
     }
 }
@@ -7805,7 +7830,7 @@ marpa_r_earleme_complete(struct marpa_r* r)
   if (current_earleme > Furthest_Earleme_of_R (r))
     {
 	@<Set |r| exhausted@>@;
-	MARPA_DEV_ERROR("parse exhausted");
+	MARPA_ERROR(MARPA_ERR_PARSE_EXHAUSTED);
 	return failure_indicator;
      }
 }
@@ -9911,11 +9936,11 @@ int marpa_b_and_node_count(Marpa_Bocage b)
   AND and_nodes;
   and_nodes = ANDs_of_B(b);
   if (!and_nodes) {
-      MARPA_DEV_ERROR("no and nodes");
+      MARPA_ERROR(MARPA_ERR_NO_AND_NODES);
       return failure_indicator;
   }
   if (and_node_id < 0) {
-      MARPA_DEV_ERROR("bad and node id");
+      MARPA_ERROR(MARPA_ERR_ANDID_LT_ZERO);
       return failure_indicator;
   }
   if (and_node_id >= AND_Count_of_B(b)) {
@@ -10141,7 +10166,7 @@ struct s_bocage_setup_per_es* per_es_data = NULL;
     {				/* |ordinal_arg| != -1 */
       if (!ES_Ord_is_Valid (r, ordinal_arg))
 	{
-	  MARPA_DEV_ERROR ("invalid es ordinal");
+	  MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
 	  return failure_indicator;
 	}
       end_of_parse_earley_set = ES_of_R_by_Ord (r, ordinal_arg);
@@ -10161,11 +10186,7 @@ struct s_bocage_setup_per_es* per_es_data = NULL;
     }
   else
     {
-      if (!RULEID_of_G_is_Valid (g, rule_id))
-	{
-	  MARPA_DEV_ERROR ("invalid rule id");
-	  return failure_indicator;
-	}
+	@<Fail if grammar |rule_id| is invalid@>@;
       completed_start_rule = RULE_by_ID (g, rule_id);
     }
 }
@@ -10394,11 +10415,11 @@ bocage_free (BOCAGE b)
   OR* or_nodes;
   or_nodes = ORs_of_B(b);
   if (!or_nodes) {
-      MARPA_DEV_ERROR("no or nodes");
+      MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
       return failure_indicator;
   }
   if (or_node_id < 0) {
-      MARPA_DEV_ERROR("bad or node id");
+      MARPA_ERROR(MARPA_ERR_ORID_LT_ZERO);
       return failure_indicator;
   }
   if (or_node_id >= OR_Count_of_B(b)) {
@@ -10724,19 +10745,19 @@ int marpa_o_and_order_set(
 		  ANDID and_node_id = and_node_ids[and_ix];
 		  if (and_node_id < first_and_node_id ||
 			  and_node_id - first_and_node_id >= and_count_of_or) {
-		      MARPA_DEV_ERROR ("and node not in or node");
+		      MARPA_ERROR (MARPA_ERR_ANDID_NOT_IN_OR);
 		      return failure_indicator;
 		    }
 		  if (bv_bit_test (and_node_in_use, (unsigned int)and_node_id))
 		    {
-		      MARPA_DEV_ERROR ("dup and node");
+		      MARPA_ERROR (MARPA_ERR_DUPLICATE_AND_NODE);
 		      return failure_indicator;
 		    }
 		  bv_bit_set (and_node_in_use, (unsigned int)and_node_id);
 		}
 	    }
 	    if (and_node_orderings[or_node_id]) {
-		      MARPA_DEV_ERROR ("or node already ordered");
+		      MARPA_ERROR (MARPA_ERR_OR_ALREADY_ORDERED);
 		      return failure_indicator;
 	    }
 	    {
@@ -10789,7 +10810,7 @@ Marpa_And_Node_ID marpa_o_and_order_get(Marpa_Order o,
   @<Fail if fatal error@>@;
     @<Check |or_node_id|; set |or_node|@>@;
   if (ix < 0) {
-      MARPA_DEV_ERROR("negative and ix");
+      MARPA_ERROR(MARPA_ERR_ANDIX_LT_ZERO);
       return failure_indicator;
   }
     return and_order_get(o, or_node, ix);
@@ -11012,7 +11033,7 @@ int marpa_t_next(Marpa_Tree t)
     @<Unpack tree objects@>@;
     @<Fail if fatal error@>@;
     if (T_is_Paused(t)) {
-	  MARPA_DEV_ERROR ("tree is paused");
+	  MARPA_ERROR (MARPA_ERR_TREE_PAUSED);
 	  return failure_indicator;
     }
     if (T_is_Exhausted (t))
@@ -11281,12 +11302,12 @@ set |nook|@> = {
   NOOK base_nook;
   @<Fail if fatal error@>@;
   if (T_is_Exhausted(t)) {
-      MARPA_DEV_ERROR("bocage iteration exhausted");
+      MARPA_ERROR(MARPA_ERR_BOCAGE_ITERATION_EXHAUSTED);
       return failure_indicator;
   }
   base_nook = FSTACK_BASE(t->t_nook_stack, NOOK_Object);
   if (nook_id < 0) {
-      MARPA_DEV_ERROR("bad nook id");
+      MARPA_ERROR(MARPA_ERR_NOOKID_LT_ZERO);
       return failure_indicator;
   }
   if (nook_id >= Size_of_T(t)) {
@@ -11510,7 +11531,7 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
 	T_of_V(v) = t;
 	return v;
       }
-    MARPA_DEV_ERROR("tree is exhausted");
+    MARPA_ERROR(MARPA_ERR_TREE_EXHAUSTED);
     return NULL;
 }
 
@@ -11628,7 +11649,7 @@ int marpa_v_symbol_is_ask_me_when_null(
     @<Return |-2| on failure@>@;
     @<Unpack value objects@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     return bv_bit_test(Nulling_Ask_BV_of_V(v), symid);
 }
 @ If the symbol has a null alias, the call is interpreted
@@ -11649,12 +11670,12 @@ int marpa_v_symbol_ask_me_when_null_set(
     @<Return |-2| on failure@>@;
     @<Unpack value objects@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |symid| is invalid@>@;
+    @<Fail if |symid| is invalid@>@;
     symbol = SYM_by_ID(symid);
     if (!SYM_is_Nulling(symbol)) {
          symbol = symbol_null_alias(symbol);
 	 if (!symbol && value) {
-	     MARPA_ERROR(MARPA_ERR_SYMBOL_NOT_NULLABLE);
+	     MARPA_ERROR(MARPA_ERR_SYM_NOT_NULLABLE);
 	 }
     }
     if (value) {
@@ -12994,38 +13015,35 @@ general failure indicator.
 @*0 Grammar Failures.
 |g| is assumed to be the value of the relevant grammar,
 when one is required.
-@<Fail if grammar is precomputed@> =
+@<Fail if precomputed@> =
 if (G_is_Precomputed(g)) {
     MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
     return failure_indicator;
 }
-@ @<Fail if grammar not precomputed@> =
+
+@ @<Fail if not precomputed@> =
 if (!G_is_Precomputed(g)) {
-    MARPA_DEV_ERROR("grammar not precomputed");
+    MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
     return failure_indicator;
 }
-@ @<Fail if grammar |symid| is invalid@> =
+@ @<Fail if |symid| is invalid@> =
 if (!symbol_is_valid(g, symid)) {
-    MARPA_DEV_ERROR("invalid symbol id");
+    MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
     return failure_indicator;
 }
 @ @<Fail if grammar |rule_id| is invalid@> =
 if (!RULEID_of_G_is_Valid(g, rule_id)) {
-    MARPA_DEV_ERROR("invalid rule id");
+    MARPA_ERROR (MARPA_ERR_INVALID_RULEID);
     return failure_indicator;
 }
 @ @<Fail if grammar |item_id| is invalid@> =
-if (!item_is_valid(g, item_id)) {
-    MARPA_DEV_ERROR("invalid item id");
+if (!aim_is_valid(g, item_id)) {
+    MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
     return failure_indicator;
 }
 @ @<Fail if grammar |AHFA_state_id| is invalid@> =
 if (!AHFA_state_id_is_valid(g, AHFA_state_id)) {
-    MARPA_DEV_ERROR("invalid AHFA state id");
-    return failure_indicator;
-}
-@ @<Fail with internal grammar error@> = {
-    MARPA_DEV_ERROR("internal error");
+    MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
     return failure_indicator;
 }
 
@@ -13034,17 +13052,17 @@ if (!AHFA_state_id_is_valid(g, AHFA_state_id)) {
 when one is required.
 @<Fail if recognizer started@> =
 if (Input_Phase_of_R(r) != R_BEFORE_INPUT) {
-    MARPA_DEV_ERROR("recce started");
+    MARPA_ERROR(MARPA_ERR_RECCE_STARTED);
     return failure_indicator;
 }
 @ @<Fail if recognizer not started@> =
 if (Input_Phase_of_R(r) == R_BEFORE_INPUT) {
-    MARPA_DEV_ERROR("recce not started");
+    MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
     return failure_indicator;
 }
 @ @<Fail if recognizer not accepting input@> =
 if (Input_Phase_of_R(r) != R_DURING_INPUT) {
-    MARPA_DEV_ERROR("recce not accepting input");
+    MARPA_ERROR(MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
     return failure_indicator;
 }
 
@@ -13055,12 +13073,6 @@ if (Input_Phase_of_R(r) != R_DURING_INPUT) {
 @ @<Fail if fatal error@> =
 if (!IS_G_OK(g)) {
     MARPA_ERROR(g->t_error);
-    return failure_indicator;
-}
-
-@ @<Fail if recognizer |symid| is invalid@> =
-if (!symbol_is_valid(G_of_R(r), symid)) {
-    MARPA_DEV_ERROR("invalid symid");
     return failure_indicator;
 }
 
@@ -13228,7 +13240,7 @@ void marpa_debug_level_set( int level )
     (*marpa_debug_handler)((a),(b),(c),(d),(e))) @]
 
 #define MARPA_ASSERT(expr) do { if LIKELY (expr) ; else \
-       (*marpa_debug_handler) ("%s: assertion failed %s", G_STRLOC, #expr); } while (0);
+       (*marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
 #else /* if not |MARPA_DEBUG| */
 #define MARPA_DEBUG1(a) @[@]
 #define MARPA_DEBUG2(a, b) @[@]
@@ -13241,7 +13253,7 @@ void marpa_debug_level_set( int level )
 #if MARPA_ENABLE_ASSERT
 #undef MARPA_ASSERT
 #define MARPA_ASSERT(expr) do { if LIKELY (expr) ; else \
-       (*marpa_debug_handler) ("%s: assertion failed %s", G_STRLOC, #expr); } while (0);
+       (*marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
 #endif
 
 @*0 Earley Item Tag.
@@ -13483,11 +13495,19 @@ in various ways or which are otherwise useful.
 #undef      MAX
 #define MAX(a, b)  (((a) > (b)) ? (a) : (b))
 
+#undef      CLAMP
+#define CLAMP(x, low, high)  (((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
+
+#undef STRINGIFY_ARG
+#define STRINGIFY_ARG(contents)       #contents
+#undef STRINGIFY
+#define STRINGIFY(macro_or_string)        STRINGIFY_ARG (macro_or_string)
+
 /* A string identifying the current code position */
 #if defined(__GNUC__) && (__GNUC__ < 3) && !defined(__cplusplus)
-#  define STRLOC	__FILE__ ":" G_STRINGIFY (__LINE__) ":" __PRETTY_FUNCTION__ "()"
+#  define STRLOC	__FILE__ ":" STRINGIFY (__LINE__) ":" __PRETTY_FUNCTION__ "()"
 #else
-#  define STRLOC	__FILE__ ":" G_STRINGIFY (__LINE__)
+#  define STRLOC	__FILE__ ":" STRINGIFY (__LINE__)
 #endif
 
 /* Provide a string identifying the current function, non-concatenatable */
@@ -13500,17 +13520,8 @@ in various ways or which are otherwise useful.
 #endif
 
 #if defined(__GNUC__) && (__GNUC__ > 2) && defined(__OPTIMIZE__)
-#define BOOLEAN_EXPR(expr)                   \
- __extension__ ({                               \
-   int _g_boolean_var_;                         \
-   if (expr)                                    \
-      _g_boolean_var_ = 1;                      \
-   else                                         \
-      _g_boolean_var_ = 0;                      \
-   _g_boolean_var_;                             \
-})
-#define LIKELY(expr) (__builtin_expect (BOOLEAN_EXPR(expr), 1))
-#define UNLIKELY(expr) (__builtin_expect (BOOLEAN_EXPR(expr), 0))
+#define LIKELY(expr) (__builtin_expect ((expr), 1))
+#define UNLIKELY(expr) (__builtin_expect ((expr), 0))
 #else
 #define LIKELY(expr) (expr)
 #define UNLIKELY(expr) (expr)
