@@ -112,33 +112,6 @@ AC_SUBST(LT_CURRENT_MINUS_AGE)
 #                              [turn on debugging @<:@default=marpa_debug_default@:>@]),,
 #               enable_debug=marpa_debug_default)
 
-LT_INIT([])
-
-# Checks for programs.
-AC_PROG_CC
-AC_PROG_CPP
-AC_PROG_LN_S
-
-# Checks for header files.
-AC_CHECK_HEADERS([inttypes.h stddef.h stdint.h stdlib.h string.h limits.h])
-AC_CHECK_FUNCS([memset])
-
-# Checks for typedefs, structures, and compiler characteristics.
-AC_TYPE_SIZE_T
-
-if test x"$GCC" = xyes; then
-  WARNING_CFLAGS="-Wall \
-    -Wextra \
-    -Wpointer-arith \
-    -Wstrict-prototypes \
-    -Wwrite-strings \
-    -Wdeclaration-after-statement \
-    -Wshadow \
-    -Winline \
-    -Wmissing-declarations \
-    -ansi -pedantic"
-fi
-
 dnl this section will only be run if config.status is invoked with no
 dnl arguments, or with "marpa_config.h" as an argument.
 AC_CONFIG_COMMANDS([marpa_config.h],
@@ -174,14 +147,6 @@ marpa_defines="
 "
 
 ])
-
-if test x"$MARPA_DEBUG_FLAG" = x; then
-    MARPA_DEBUG_FLAG=
-fi
-
-AC_SUBST(WARNING_CFLAGS)
-AC_ARG_VAR(MARPA_DEBUG_FLAG,[Marpa debugging])
-AC_C_INLINE
 
 AC_CONFIG_FILES( [Makefile])
 AC_OUTPUT
