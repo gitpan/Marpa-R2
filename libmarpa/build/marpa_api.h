@@ -29,14 +29,14 @@ Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar g);
 Marpa_Symbol_ID marpa_g_start_symbol_set ( Marpa_Grammar g, Marpa_Symbol_ID id);
 Marpa_Symbol_ID marpa_g_start_symbol (Marpa_Grammar g);
 int marpa_g_symbol_count (Marpa_Grammar g);
-int marpa_g_is_lhs_terminal_ok (Marpa_Grammar g);
-int marpa_g_is_lhs_terminal_ok_set ( Marpa_Grammar g, int value);
 int marpa_g_symbol_is_terminal ( Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_terminal_set ( Marpa_Grammar g, Marpa_Symbol_ID symid, int value);
 int marpa_g_symbol_is_accessible (Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_productive (Marpa_Grammar g, Marpa_Symbol_ID symid);
-int marpa_g_symbol_is_nullable (Marpa_Grammar g, Marpa_Symbol_ID symid);
+int marpa_g_symbol_is_internal (Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_nulling (Marpa_Grammar g, Marpa_Symbol_ID symid);
+int marpa_g_symbol_ask_me_when_null_set ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id, int value);
+int marpa_g_symbol_is_ask_me_when_null ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
 int marpa_g_rule_count (Marpa_Grammar g);
 Marpa_Rule_ID marpa_g_rule_new (Marpa_Grammar g, Marpa_Symbol_ID lhs, Marpa_Symbol_ID *rhs, int length);
 Marpa_Symbol_ID marpa_g_rule_lhs ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
@@ -51,41 +51,39 @@ int marpa_g_rule_is_productive (Marpa_Grammar g, Marpa_Rule_ID id);
 int marpa_g_rule_is_loop (Marpa_Grammar g, Marpa_Rule_ID rule_id);
 Marpa_Rule_ID marpa_g_sequence_new (Marpa_Grammar g, Marpa_Symbol_ID lhs_id, Marpa_Symbol_ID rhs_id, Marpa_Symbol_ID separator_id, int min, int flags );
 int marpa_g_symbol_is_counted (Marpa_Grammar g, Marpa_Symbol_ID symid);
-int marpa_g_rule_is_discard_separation ( Marpa_Grammar g, Marpa_Rule_ID id);
+int marpa_g_rule_is_keep_separation ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
 int marpa_g_precompute (Marpa_Grammar g);
 int marpa_g_is_precomputed (Marpa_Grammar g);
-int marpa_g_has_loop (Marpa_Grammar g);
-int marpa_g_symbol_is_start ( Marpa_Grammar g, Marpa_Symbol_ID symid);
-int marpa_g_symbol_ask_me_when_null_set ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id, int value);
-int marpa_g_symbol_is_ask_me_when_null ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
-int marpa_g_symbol_lhs_count (Marpa_Grammar g, Marpa_Symbol_ID symid);
-Marpa_Rule_ID marpa_g_symbol_lhs (Marpa_Grammar g, Marpa_Symbol_ID symid, int ix);
-int marpa_g_symbol_rhs_count (Marpa_Grammar g, Marpa_Symbol_ID symid);
-Marpa_Rule_ID marpa_g_symbol_rhs (Marpa_Grammar g, Marpa_Symbol_ID symid, int ix);
-Marpa_Symbol_ID marpa_g_symbol_proper_alias (Marpa_Grammar g, Marpa_Symbol_ID symid);
-Marpa_Symbol_ID marpa_g_symbol_null_alias (Marpa_Grammar g, Marpa_Symbol_ID symid);
-Marpa_Rule_ID marpa_g_symbol_virtual_lhs_rule (Marpa_Grammar g, Marpa_Symbol_ID symid);
-int marpa_g_rule_is_virtual_loop (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int marpa_g_rule_is_used (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int marpa_g_rule_is_virtual_lhs (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int marpa_g_rule_is_virtual_rhs (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-unsigned int marpa_g_virtual_start (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-unsigned int marpa_g_virtual_end (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-Marpa_Rule_ID marpa_g_rule_original (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int marpa_g_real_symbol_count (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-Marpa_Rule_ID marpa_g_rule_semantic_equivalent (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int marpa_g_AHFA_item_count (Marpa_Grammar g);
-Marpa_Rule_ID marpa_g_AHFA_item_rule (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
-int marpa_g_AHFA_item_position (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
-Marpa_Symbol_ID marpa_g_AHFA_item_postdot (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
-int marpa_g_AHFA_item_sort_key (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
-int marpa_g_AHFA_state_count (Marpa_Grammar g);
-int marpa_g_AHFA_state_item_count (Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id);
-Marpa_AHFA_Item_ID marpa_g_AHFA_state_item (Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id, int item_ix);
-int marpa_g_AHFA_state_is_predict (Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id);
-Marpa_Symbol_ID marpa_g_AHFA_state_leo_lhs_symbol (Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id);
-int marpa_g_AHFA_state_transitions (Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id, int *buffer, int buffer_size );
-Marpa_AHFA_State_ID marpa_g_AHFA_state_empty_transition (Marpa_Grammar g, Marpa_AHFA_Item_ID AHFA_item_id);
+int marpa_g_has_cycle (Marpa_Grammar g);
+int _marpa_g_symbol_is_start ( Marpa_Grammar g, Marpa_Symbol_ID symid);
+int _marpa_g_symbol_lhs_count (Marpa_Grammar g, Marpa_Symbol_ID symid);
+Marpa_Rule_ID _marpa_g_symbol_lhs (Marpa_Grammar g, Marpa_Symbol_ID symid, int ix);
+int _marpa_g_symbol_rhs_count (Marpa_Grammar g, Marpa_Symbol_ID symid);
+Marpa_Rule_ID _marpa_g_symbol_rhs (Marpa_Grammar g, Marpa_Symbol_ID symid, int ix);
+Marpa_Symbol_ID _marpa_g_symbol_proper_alias (Marpa_Grammar g, Marpa_Symbol_ID symid);
+Marpa_Symbol_ID _marpa_g_symbol_null_alias (Marpa_Grammar g, Marpa_Symbol_ID symid);
+Marpa_Rule_ID _marpa_g_symbol_virtual_lhs_rule (Marpa_Grammar g, Marpa_Symbol_ID symid);
+int _marpa_g_rule_is_virtual_loop (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+int _marpa_g_rule_is_used (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+int _marpa_g_rule_is_virtual_lhs (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+int _marpa_g_rule_is_virtual_rhs (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+unsigned int _marpa_g_virtual_start (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+unsigned int _marpa_g_virtual_end (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+Marpa_Rule_ID _marpa_g_rule_original (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+int _marpa_g_real_symbol_count (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+Marpa_Rule_ID _marpa_g_rule_semantic_equivalent (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+int _marpa_g_AHFA_item_count (Marpa_Grammar g);
+Marpa_Rule_ID _marpa_g_AHFA_item_rule (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
+int _marpa_g_AHFA_item_position (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
+Marpa_Symbol_ID _marpa_g_AHFA_item_postdot (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
+int _marpa_g_AHFA_item_sort_key (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
+int _marpa_g_AHFA_state_count (Marpa_Grammar g);
+int _marpa_g_AHFA_state_item_count (Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id);
+Marpa_AHFA_Item_ID _marpa_g_AHFA_state_item (Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id, int item_ix);
+int _marpa_g_AHFA_state_is_predict (Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id);
+Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol ( Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id);
+int _marpa_g_AHFA_state_transitions ( Marpa_Grammar g, Marpa_AHFA_State_ID AHFA_state_id, int *buffer, int buffer_size );
+Marpa_AHFA_State_ID _marpa_g_AHFA_state_empty_transition ( Marpa_Grammar g, Marpa_AHFA_Item_ID AHFA_item_id);
 int marpa_g_event (Marpa_Grammar g, Marpa_Event public_event, int ix);
 Marpa_Recognizer marpa_r_new ( Marpa_Grammar g );
 Marpa_Recognizer marpa_r_ref (Marpa_Recognizer r);
@@ -180,9 +178,9 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERR_NONE 0
 #define MARPA_ERR_AHFA_IX_NEGATIVE 1
 #define MARPA_ERR_AHFA_IX_OOB 2
-#define MARPA_ERR_ANDID_LT_ZERO 3
+#define MARPA_ERR_ANDID_NEGATIVE 3
 #define MARPA_ERR_ANDID_NOT_IN_OR 4
-#define MARPA_ERR_ANDIX_LT_ZERO 5
+#define MARPA_ERR_ANDIX_NEGATIVE 5
 #define MARPA_ERR_BAD_SEPARATOR 6
 #define MARPA_ERR_BOCAGE_ITERATION_EXHAUSTED 7
 #define MARPA_ERR_COUNTED_NULLABLE 8
@@ -192,15 +190,15 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERR_EIM_COUNT 12
 #define MARPA_ERR_EIM_ID_INVALID 13
 #define MARPA_ERR_INTERNAL 14
-#define MARPA_ERR_INVALID_AHFA_ID 15
-#define MARPA_ERR_INVALID_AIMID 16
-#define MARPA_ERR_INVALID_BOOLEAN 17
-#define MARPA_ERR_INVALID_ES_ORDINAL 18
-#define MARPA_ERR_INVALID_RULEID 19
-#define MARPA_ERR_INVALID_START_SYM 20
-#define MARPA_ERR_INVALID_SYMID 21
-#define MARPA_ERR_LHS_IS_TERMINAL 22
-#define MARPA_ERR_NOOKID_LT_ZERO 23
+#define MARPA_ERR_INTERNAL_SYM 15
+#define MARPA_ERR_INVALID_AHFA_ID 16
+#define MARPA_ERR_INVALID_AIMID 17
+#define MARPA_ERR_INVALID_BOOLEAN 18
+#define MARPA_ERR_INVALID_ES_ORDINAL 19
+#define MARPA_ERR_INVALID_RULEID 20
+#define MARPA_ERR_INVALID_START_SYM 21
+#define MARPA_ERR_INVALID_SYMID 22
+#define MARPA_ERR_NOOKID_NEGATIVE 23
 #define MARPA_ERR_NOT_PRECOMPUTED 24
 #define MARPA_ERR_NOT_TRACING_COMPLETION_LINKS 25
 #define MARPA_ERR_NOT_TRACING_LEO_LINKS 26
@@ -215,8 +213,8 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERR_NO_TRACE_PIM 35
 #define MARPA_ERR_NO_TRACE_EIM 36
 #define MARPA_ERR_NO_TRACE_SRCL 37
-#define MARPA_ERR_NULL_RULE_UNMARKED_TERMINALS 38
-#define MARPA_ERR_ORID_LT_ZERO 39
+#define MARPA_ERR_NULLING_TERMINAL 38
+#define MARPA_ERR_ORID_NEGATIVE 39
 #define MARPA_ERR_OR_ALREADY_ORDERED 40
 #define MARPA_ERR_ORDER_FROZEN 41
 #define MARPA_ERR_PARSE_EXHAUSTED 42
@@ -234,7 +232,7 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS 54
 #define MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN 55
 #define MARPA_ERR_START_NOT_LHS 56
-#define MARPA_ERR_SYMIX_LT_ZERO 57
+#define MARPA_ERR_SYMIX_NEGATIVE 57
 #define MARPA_ERR_SYMIX_OOB 58
 #define MARPA_ERR_SYM_NOT_NULLABLE 59
 #define MARPA_ERR_TOKEN_IS_NOT_TERMINAL 60
@@ -244,14 +242,13 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERR_TREE_PAUSED 64
 #define MARPA_ERR_UNKNOWN 65
 #define MARPA_ERR_UNPRODUCTIVE_START 66
-#define MARPA_EVENT_COUNT 7
+#define MARPA_EVENT_COUNT 6
 #define MARPA_EVENT_NONE 0
 #define MARPA_EVENT_EXHAUSTED 1
 #define MARPA_EVENT_EARLEY_ITEM_THRESHOLD 2
 #define MARPA_EVENT_LOOP_RULES 3
-#define MARPA_EVENT_NEW_SYMBOL 4
-#define MARPA_EVENT_NEW_RULE 5
-#define MARPA_EVENT_COUNTED_NULLABLE 6
+#define MARPA_EVENT_COUNTED_NULLABLE 4
+#define MARPA_EVENT_NULLING_TERMINAL 5
 #define MARPA_VALUE_TYPE_COUNT 7
 #define MARPA_VALUE_INTERNAL1 0
 #define MARPA_VALUE_RULE 1

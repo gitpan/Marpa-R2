@@ -120,7 +120,6 @@ my $counted_nullable_grammar = {
         { lhs => 'A' },
         { lhs => 'B' },
     ],
-    lhs_terminals => 0,
     start         => 'S',
 };
 
@@ -148,19 +147,19 @@ my $duplicate_rule_grammar = {
 test_grammar( 'duplicate rule',
     $duplicate_rule_grammar, 'Duplicate rule: Dup -> Item ' );
 
-my $lhs_terminal_grammar = {
+my $nulling_terminal_grammar = {
     rules => [
         { lhs => 'Top', rhs => ['Bad'] },
-        { lhs => 'Bad', rhs => ['Good'] },
+        { lhs => 'Top', rhs => ['Good'] },
+        { lhs => 'Bad', rhs => [] },
     ],
     start         => 'Top',
-    terminals     => ['Bad'],
-    lhs_terminals => 0,
+    terminals     => ['Good', 'Bad'],
 };
 test_grammar(
-    'illegal lhs terminal',
-    $lhs_terminal_grammar,
-    'lhs_terminals option is off, but Symbol Bad is both an LHS and a terminal'
+    'nulling terminal grammar',
+    $nulling_terminal_grammar,
+    'Nulling symbol "Bad" is also a terminal'
 );
 
 my $no_start_grammar = {

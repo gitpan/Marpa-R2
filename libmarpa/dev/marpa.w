@@ -851,46 +851,15 @@ int marpa_g_is_precomputed(Marpa_Grammar g)
 }
 
 @*0 Grammar boolean: has loop?.
-@<Bit aligned grammar elements@> = unsigned int t_has_loop:1;
+@<Bit aligned grammar elements@> = unsigned int t_has_cycle:1;
 @ @<Initialize grammar elements@> =
-g->t_has_loop = 0;
+g->t_has_cycle = 0;
 @ @<Function definitions@> =
-int marpa_g_has_loop(Marpa_Grammar g)
+int marpa_g_has_cycle(Marpa_Grammar g)
 {
    @<Return |-2| on failure@>@/
     @<Fail if fatal error@>@;
-return g->t_has_loop;
-}
-
-@*0 Grammar Boolean: LHS Terminal OK.
-Traditionally, a BNF grammar did {\bf not} allow a symbol
-which was a terminal symbol of the grammar, to also be a LHS
-symbol.
-By default, this is allowed under Marpa.
-@<Bit aligned grammar elements@> = unsigned int t_is_lhs_terminal_ok:1;
-@ @<Initialize grammar elements@> =
-g->t_is_lhs_terminal_ok = 1;
-@ @<Function definitions@> =
-int marpa_g_is_lhs_terminal_ok(Marpa_Grammar g)
-{
-   @<Return |-2| on failure@>@/
-    @<Fail if fatal error@>@;
-    return g->t_is_lhs_terminal_ok;
-}
-@ Returns true on success,
-false on failure.
-@<Function definitions@> =
-int marpa_g_is_lhs_terminal_ok_set(
-Marpa_Grammar g, int value)
-{
-   @<Return |-2| on failure@>@/
-    @<Fail if fatal error@>@;
-    @<Fail if precomputed@>
-    if (value < 0 || value > 1) {
-	MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
-	return failure_indicator;
-    }
-    return g->t_is_lhs_terminal_ok = value;
+return g->t_has_cycle;
 }
 
 @*0 Terminal Boolean Vector.
@@ -1011,11 +980,11 @@ the need to carefully examine their context.
 struct obstack t_obs;
 struct obstack t_obs_tricky;
 @ @<Initialize grammar elements@> =
-obstack_init(&g->t_obs);
-obstack_init(&g->t_obs_tricky);
+my_obstack_init(&g->t_obs);
+my_obstack_init(&g->t_obs_tricky);
 @ @<Destroy grammar elements@> =
-obstack_free(&g->t_obs, NULL);
-obstack_free(&g->t_obs_tricky, NULL);
+my_obstack_free(&g->t_obs, NULL);
+my_obstack_free(&g->t_obs_tricky, NULL);
 
 @*0 The "is OK" Word.
 The grammar needs a flag for a fatal error.
@@ -1126,10 +1095,11 @@ symbol_new (struct marpa_g *g)
 
 @ @<Function definitions@> =
 Marpa_Symbol_ID
-marpa_g_symbol_new (struct marpa_g * g)
+marpa_g_symbol_new (Marpa_Grammar g)
 {
-  SYMID id = ID_of_SYM(symbol_new (g));
-  return id;
+  const SYM symbol = symbol_new (g);
+  symbol->t_is_internal = 0;
+  return ID_of_SYM(symbol);
 }
 
 @ @<Function definitions@> =
@@ -1151,14 +1121,14 @@ by scanning the rules every time this information is needed.
     DSTACK_DESTROY(symbol->t_lhs);
 
 @ @<Function definitions@> = 
-Marpa_Rule_ID marpa_g_symbol_lhs_count(struct marpa_g* g, Marpa_Symbol_ID symid)
+Marpa_Rule_ID _marpa_g_symbol_lhs_count(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if |symid| is invalid@>@;
     return DSTACK_LENGTH( SYM_by_ID(symid)->t_lhs );
 }
-Marpa_Rule_ID marpa_g_symbol_lhs(struct marpa_g* g, Marpa_Symbol_ID symid, int ix)
+Marpa_Rule_ID _marpa_g_symbol_lhs(struct marpa_g* g, Marpa_Symbol_ID symid, int ix)
 {
     SYM symbol;
     @<Return |-2| on failure@>@;
@@ -1166,7 +1136,7 @@ Marpa_Rule_ID marpa_g_symbol_lhs(struct marpa_g* g, Marpa_Symbol_ID symid, int i
     @<Fail if |symid| is invalid@>@;
     symbol = SYM_by_ID(symid);
     if (ix < 0) {
-        MARPA_ERROR(MARPA_ERR_SYMIX_LT_ZERO);
+        MARPA_ERROR(MARPA_ERR_SYMIX_NEGATIVE);
 	return failure_indicator;
     }
     if (ix >= DSTACK_LENGTH(symbol->t_lhs)) {
@@ -1195,21 +1165,21 @@ by scanning the rules every time this information is needed.
     DSTACK_DESTROY(symbol->t_rhs);
 
 @ @<Function definitions@> = 
-Marpa_Rule_ID marpa_g_symbol_rhs_count(struct marpa_g* g, Marpa_Symbol_ID symid)
+Marpa_Rule_ID _marpa_g_symbol_rhs_count(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if |symid| is invalid@>@;
     return DSTACK_LENGTH(SYM_by_ID(symid)->t_rhs);
 }
-Marpa_Rule_ID marpa_g_symbol_rhs(struct marpa_g* g, Marpa_Symbol_ID symid, int ix)
+Marpa_Rule_ID _marpa_g_symbol_rhs(struct marpa_g* g, Marpa_Symbol_ID symid, int ix)
 {
     @<Return |-2| on failure@>@;
     SYM symbol;
     @<Fail if fatal error@>@;
     @<Fail if |symid| is invalid@>@;
     if (ix < 0) {
-        MARPA_ERROR(MARPA_ERR_SYMIX_LT_ZERO);
+        MARPA_ERROR(MARPA_ERR_SYMIX_NEGATIVE);
 	return failure_indicator;
     }
     symbol = SYM_by_ID(symid);
@@ -1225,6 +1195,22 @@ PRIVATE
 void symbol_rhs_add(SYM symbol, RULEID rule_id)
 {
     *DSTACK_PUSH(symbol->t_rhs, RULEID) = rule_id;
+}
+
+@*0 Symbol is internal?.
+@d SYM_is_Internal(symbol) ((symbol)->t_is_internal)
+@<Bit aligned symbol elements@> = unsigned int t_is_internal:1;
+@ Symbols start life as internal symbols.
+@<Initialize symbol elements@> =
+    SYM_is_Internal(symbol) = 1;
+@ @<Function definitions@> =
+int marpa_g_symbol_is_internal(
+    Marpa_Grammar g,
+    Marpa_Symbol_ID symid)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if |symid| is invalid@>@;
+    return SYM_is_Internal(SYM_by_ID(symid));
 }
 
 @*0 Nulling symbol has semantics?.
@@ -1291,20 +1277,6 @@ Marpa_Symbol_ID symid)
     return SYM_by_ID(symid)->t_is_counted;
 }
 
-@ Symbol Is Nullable Boolean
-@<Bit aligned symbol elements@> = unsigned int t_is_nullable:1;
-@ @<Initialize symbol elements@> =
-symbol->t_is_nullable = 0;
-@ @<Function definitions@> =
-int marpa_g_symbol_is_nullable(GRAMMAR g, SYMID symid)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if fatal error@>@;
-    @<Fail if not precomputed@>@;
-    @<Fail if |symid| is invalid@>@;
-    return SYM_by_ID(symid)->t_is_nullable;
-}
-
 @ Symbol Is Nulling Boolean
 @d SYM_is_Nulling(sym) ((sym)->t_is_nulling)
 @<Bit aligned symbol elements@> = unsigned int t_is_nulling:1;
@@ -1321,10 +1293,20 @@ int marpa_g_symbol_is_nulling(GRAMMAR g, SYMID symid)
 }
 
 @ Symbol Is Terminal Boolean
-@<Bit aligned symbol elements@> = unsigned int t_is_terminal:1;
+The ``marked terminal'' flag tracked whether
+the terminal flag was set by the user.
+It distinguishes those
+terminal settings that will
+be overwritten by the default
+from those should not be.
+@<Bit aligned symbol elements@> =
+unsigned int t_is_terminal:1;
+unsigned int t_is_marked_terminal:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_terminal = 0;
+symbol->t_is_marked_terminal = 0;
 @ @d SYM_is_Terminal(symbol) ((symbol)->t_is_terminal)
+@ @d SYM_is_Marked_Terminal(symbol) ((symbol)->t_is_marked_terminal)
 @d SYMID_is_Terminal(id) (SYM_is_Terminal(SYM_by_ID(id)))
 @<Function definitions@> =
 int marpa_g_symbol_is_terminal(Marpa_Grammar g,
@@ -1339,11 +1321,19 @@ Marpa_Symbol_ID symid)
 int marpa_g_symbol_is_terminal_set(
 Marpa_Grammar g, Marpa_Symbol_ID symid, int value)
 {
+    SYM symbol;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if precomputed@>@;
     @<Fail if |symid| is invalid@>@;
-    return SYMID_is_Terminal(symid) = value;
+    symbol = SYM_by_ID(symid);
+    @<Fail if |symbol| is internal@>@;
+    if (UNLIKELY(value < 0 || value > 1)) {
+	MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
+	return failure_indicator;
+    }
+    SYM_is_Marked_Terminal(symbol) = 1;
+    return SYM_is_Terminal(symbol) = value;
 }
 
 @ Symbol Is Productive Boolean
@@ -1366,7 +1356,7 @@ int marpa_g_symbol_is_productive(
 @<Bit aligned symbol elements@> = unsigned int t_is_start:1;
 @ @<Initialize symbol elements@> = symbol->t_is_start = 0;
 @ @<Function definitions@> =
-int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID symid) 
+int _marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID symid) 
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
@@ -1400,7 +1390,7 @@ Otherwise, returns |NULL|.
 PRIVATE
 SYM symbol_proper_alias(SYM symbol)
 { return symbol->t_is_nulling_alias ? symbol->t_alias : NULL; }
-Marpa_Symbol_ID marpa_g_symbol_proper_alias(struct marpa_g* g, Marpa_Symbol_ID symid)
+Marpa_Symbol_ID _marpa_g_symbol_proper_alias(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
 SYM symbol;
 SYM proper_alias;
@@ -1419,7 +1409,7 @@ Otherwise, returns |NULL|.
 PRIVATE
 SYM symbol_null_alias(SYM symbol)
 { return symbol->t_is_proper_alias ? symbol->t_alias : NULL; }
-Marpa_Symbol_ID marpa_g_symbol_null_alias(struct marpa_g* g, Marpa_Symbol_ID symid)
+Marpa_Symbol_ID _marpa_g_symbol_null_alias(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
 SYM symbol;
 SYM alias;
@@ -1447,13 +1437,11 @@ SYM symbol_alias_create(GRAMMAR g, SYM symbol)
     SYM alias = symbol_new(g);
     symbol->t_is_proper_alias = 1;
     SYM_is_Nulling(symbol) = 0;
-    symbol->t_is_nullable = 0;
     symbol->t_alias = alias;
     alias->t_is_nulling_alias = 1;
     SYM_is_Nulling(alias) = 1;
     SYM_is_Ask_Me_When_Null(alias)
 	= SYM_is_Ask_Me_When_Null(symbol);
-    alias->t_is_nullable = 1;
     alias->t_is_productive = 1;
     alias->t_is_accessible = symbol->t_is_accessible;
     alias->t_alias = symbol;
@@ -1484,7 +1472,7 @@ with a virtual LHS rule, returns the rule ID.
 If there is no virtual LHS rule, returns |-1|.
 On other failures, returns |-2|.
 @ @<Function definitions@> =
-Marpa_Rule_ID marpa_g_symbol_virtual_lhs_rule(struct marpa_g* g, Marpa_Symbol_ID symid)
+Marpa_Rule_ID _marpa_g_symbol_virtual_lhs_rule(struct marpa_g* g, Marpa_Symbol_ID symid)
 {
     SYM symbol;
     RULE virtual_lhs_rule;
@@ -1533,7 +1521,7 @@ SYMID lhs, SYMID *rhs, int length)
     RULE rule;
     const int rule_sizeof = offsetof (struct s_rule, t_symbols) +
         (length + 1) * sizeof (rule->t_symbols[0]);
-    rule = obstack_alloc (&g->t_obs, rule_sizeof);
+    rule = my_obstack_alloc (&g->t_obs, rule_sizeof);
     @<Initialize rule symbols@>@/
     @<Initialize rule elements@>@/
     rule_add(g, rule);
@@ -1579,7 +1567,7 @@ int min, int flags )
     @<Fail if fatal error@>@;
     @<Fail if precomputed@>@;
     G_EVENTS_CLEAR(g);
-    if (is_rule_duplicate (g, lhs_id, &rhs_id, 1) == 1)
+    if (UNLIKELY(is_rule_duplicate (g, lhs_id, &rhs_id, 1) == 1))
       {
 	MARPA_ERROR(MARPA_ERR_DUPLICATE_RULE);
 	return failure_indicator;
@@ -1616,18 +1604,48 @@ int min, int flags )
   original_rule_id = original_rule->t_id;
   original_rule->t_is_discard = !(flags & MARPA_KEEP_SEPARATION)
     && separator_id >= 0;
-  int_event_new (g, MARPA_EVENT_NEW_RULE, original_rule_id);
 }
 
 @ @<Check that the sequence symbols are valid@> =
-if (separator_id != -1 && !symbol_is_valid(g, separator_id)) {
-    MARPA_ERROR(MARPA_ERR_BAD_SEPARATOR);
-    goto FAILURE;
-}
-if (!symbol_is_valid(g, lhs_id) || !symbol_is_valid(g, rhs_id))
+if (separator_id != -1)
+  {
+    SYM separator;
+    if (UNLIKELY (!symbol_is_valid (g, separator_id)))
+      {
+	MARPA_ERROR (MARPA_ERR_BAD_SEPARATOR);
+	goto FAILURE;
+      }
+      separator = SYM_by_ID(separator_id);
+      if (UNLIKELY(SYM_is_Internal(separator))) {
+	MARPA_ERROR (MARPA_ERR_INTERNAL_SYM);
+	goto FAILURE;
+      }
+  }
 {
-    MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
-    goto FAILURE;
+    SYM lhs;
+    if (UNLIKELY (!symbol_is_valid (g, lhs_id)))
+      {
+	MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
+	goto FAILURE;
+      }
+    lhs = SYM_by_ID(lhs_id);
+    if (UNLIKELY(SYM_is_Internal(lhs))) {
+	MARPA_ERROR (MARPA_ERR_INTERNAL_SYM);
+	goto FAILURE;
+    }
+}
+{
+    SYM rhs;
+    if (UNLIKELY (!symbol_is_valid (g, rhs_id)))
+      {
+	MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
+	goto FAILURE;
+      }
+    rhs = SYM_by_ID(rhs_id);
+    if (UNLIKELY(SYM_is_Internal(rhs))) {
+	MARPA_ERROR (MARPA_ERR_INTERNAL_SYM);
+	goto FAILURE;
+    }
 }
 
 @ @<Mark the counted symbols@> =
@@ -1639,13 +1657,11 @@ if (separator_id >= 0) { SYM_by_ID(separator_id)->t_is_counted = 1; }
     rule = rule_start(g, lhs_id, 0, 0);
     rule->t_is_semantic_equivalent = 1;
     rule->t_original = original_rule_id;
-    int_event_new (g, MARPA_EVENT_NEW_RULE, rule->t_id);
 }
 @ @<Create the sequence internal LHS symbol@> =
 {
   internal_lhs = symbol_new (g);
   internal_lhs_id = ID_of_SYM (internal_lhs);
-  int_event_new (g, MARPA_EVENT_NEW_SYMBOL, internal_lhs_id);
 }
 
 @ The actual size needed for the RHS buffer is determined by
@@ -1671,7 +1687,6 @@ temp_rhs = my_new(Marpa_Symbol_ID, (3 + (separator_id < 0 ? 1 : 2) * min));
     rule->t_is_semantic_equivalent = 1;
     /* Real symbol count remains at default of 0 */
     RULE_has_Virtual_RHS (rule) = 1;
-    int_event_new (g, MARPA_EVENT_NEW_RULE, rule->t_id);
 }
 
 @ This ``alternate" top rule is needed if a final separator is allowed.
@@ -1684,7 +1699,6 @@ temp_rhs = my_new(Marpa_Symbol_ID, (3 + (separator_id < 0 ? 1 : 2) * min));
     rule->t_is_semantic_equivalent = 1;
     RULE_has_Virtual_RHS(rule) = 1;
     Real_SYM_Count_of_RULE(rule) = 1;
-    int_event_new (g, MARPA_EVENT_NEW_RULE, rule->t_id);
 }
 @ The traditional way to write a sequence in BNF is with one
 rule to represent the minimum, and another to deal with iteration.
@@ -1701,7 +1715,6 @@ int rhs_ix, i;
     rule = rule_start(g, internal_lhs_id, temp_rhs, rhs_ix);
     RULE_has_Virtual_LHS(rule) = 1;
     Real_SYM_Count_of_RULE(rule) = rhs_ix;
-    int_event_new (g, MARPA_EVENT_NEW_RULE, rule->t_id);
 }
 @ @<Add the iterating rule for the sequence@> =
 { RULE rule;
@@ -1713,7 +1726,6 @@ int rhs_ix = 0;
     RULE_has_Virtual_LHS(rule) = 1;
     RULE_has_Virtual_RHS(rule) = 1;
     Real_SYM_Count_of_RULE(rule) = rhs_ix - 1;
-    int_event_new (g, MARPA_EVENT_NEW_RULE, rule->t_id);
 }
 
 @ Does this rule duplicate an already existing rule?
@@ -1914,27 +1926,46 @@ so that they can be variable length.
 @<Final rule elements@> = Marpa_Symbol_ID t_symbols[1];
 
 @ @<Function definitions@> =
-PRIVATE
-int rule_check(GRAMMAR g,
-SYMID lhs, SYMID *rhs, int length)
+PRIVATE int
+rule_check (GRAMMAR g, SYMID lhs_id, SYMID * rhs_ids, int length)
 {
-    int rh_index;
-    if (!symbol_is_valid(g, lhs)) goto ERROR;
-    for (rh_index = 0; rh_index<length; rh_index++) {
-	SYMID symid = rhs[rh_index];
-	if (!symbol_is_valid(g, symid)) goto ERROR;
+  int rh_index;
+  SYM lhs;
+  if (UNLIKELY (!symbol_is_valid (g, lhs_id)))
+    goto INVALID_SYMID;
+  lhs = SYM_by_ID (lhs_id);
+  if (UNLIKELY (SYM_is_Internal (lhs)))
+    goto INTERNAL_SYM;
+  for (rh_index = 0; rh_index < length; rh_index++)
+    {
+      SYMID symid = rhs_ids[rh_index];
+      SYM rhs;
+      if (UNLIKELY (!symbol_is_valid (g, symid)))
+	goto INVALID_SYMID;
+      rhs = SYM_by_ID (symid);
+      if (UNLIKELY (SYM_is_Internal (rhs)))
+	goto INTERNAL_SYM;
     }
-    return 1;
-    ERROR: ;
-    MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
-    return 0;
+  return 1;
+INTERNAL_SYM:;
+  MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
+  return 0;
+INVALID_SYMID:;
+  MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
+  return 0;
 }
 
 @ @<Initialize rule symbols@> =
-Length_of_RULE(rule) = length;
+Length_of_RULE (rule) = length;
 rule->t_symbols[0] = lhs;
-{ int i; for (i = 0; i<length; i++) {
-    rule->t_symbols[i+1] = rhs[i]; } }
+{
+  int i;
+  for (i = 0; i < length; i++)
+    {
+      rule->t_symbols[i + 1] = rhs[i];
+    }
+}
+
 @ @<Function definitions@> =
 PRIVATE Marpa_Symbol_ID rule_lhs_get(RULE rule)
 {
@@ -1997,14 +2028,14 @@ For non-sequence rules, this flag should be false.
 @ @<Initialize rule elements@> =
 rule->t_is_discard = 0;
 @ @<Function definitions@> =
-int marpa_g_rule_is_discard_separation(
+int marpa_g_rule_is_keep_separation(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
-    return RULE_by_ID(g, rule_id)->t_is_discard;
+    return !RULE_by_ID(g, rule_id)->t_is_discard;
 }
 
 @*0 Rule Boolean: Proper Separation.
@@ -2090,7 +2121,7 @@ return RULE_by_ID(g, rule_id)->t_is_loop; }
 
 @*0 Virtual Loop Rule.
 @ When dealing with rules which result from the CHAF rewrite,
-it is convenient to recognize the ``loop rule" property as belonging
+it is convenient to recognize the ``loop rule'' property as belonging
 to only one of the pieces.
 The ``virtual loop rule" property exists for this purpose.
 All virtual loop rules are loop rules,
@@ -2099,11 +2130,13 @@ but not vice versa.
 @ @<Initialize rule elements@> =
 rule->t_is_virtual_loop = 0;
 @ @<Function definitions@> =
-int marpa_g_rule_is_virtual_loop(struct marpa_g* g, Marpa_Rule_ID rule_id)
+int _marpa_g_rule_is_virtual_loop(Marpa_Grammar g, Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
-return RULE_by_ID(g, rule_id)->t_is_virtual_loop; }
+    return RULE_by_ID(g, rule_id)->t_is_virtual_loop;
+}
 
 @*0 Nulling Rules.
 @ A rule is nulling if every symbol on its RHS is nulling.
@@ -2129,7 +2162,7 @@ Is the rule used in computing the AHFA sets?
 @ @<Initialize rule elements@> =
 RULE_is_Used(rule) = 1;
 @ @<Function definitions@> =
-int marpa_g_rule_is_used(struct marpa_g* g, Marpa_Rule_ID rule_id)
+int _marpa_g_rule_is_used(struct marpa_g* g, Marpa_Rule_ID rule_id)
 {
     @<Return |-2| on failure@>@;
     @<Fail if grammar |rule_id| is invalid@>@;
@@ -2156,7 +2189,7 @@ semantics specified for the original grammar.
 @ @<Initialize rule elements@> =
 RULE_has_Virtual_LHS(rule) = 0;
 @ @<Function definitions@> =
-int marpa_g_rule_is_virtual_lhs(
+int _marpa_g_rule_is_virtual_lhs(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
@@ -2172,7 +2205,7 @@ int marpa_g_rule_is_virtual_lhs(
 @ @<Initialize rule elements@> =
 RULE_has_Virtual_RHS(rule) = 0;
 @ @<Function definitions@> =
-int marpa_g_rule_is_virtual_rhs(
+int _marpa_g_rule_is_virtual_rhs(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
@@ -2189,7 +2222,7 @@ where this one starts.
 @<Int aligned rule elements@> = int t_virtual_start;
 @ @<Initialize rule elements@> = rule->t_virtual_start = -1;
 @ @<Function definitions@> =
-unsigned int marpa_g_virtual_start(
+unsigned int _marpa_g_virtual_start(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
@@ -2206,7 +2239,7 @@ at which this one ends.
 @<Int aligned rule elements@> = int t_virtual_end;
 @ @<Initialize rule elements@> = rule->t_virtual_end = -1;
 @ @<Function definitions@> =
-unsigned int marpa_g_virtual_end(
+unsigned int _marpa_g_virtual_end(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
@@ -2223,7 +2256,7 @@ the ID of the original rule.
 @ @<Int aligned rule elements@> = Marpa_Rule_ID t_original;
 @ @<Initialize rule elements@> = rule->t_original = -1;
 @ @<Function definitions@> =
-Marpa_Rule_ID marpa_g_rule_original(
+Marpa_Rule_ID _marpa_g_rule_original(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
@@ -2242,7 +2275,7 @@ the rule has a virtual rhs or a virtual lhs.
 @ @<Int aligned rule elements@> = int t_real_symbol_count;
 @ @<Initialize rule elements@> = Real_SYM_Count_of_RULE(rule) = 0;
 @ @<Function definitions@> =
-int marpa_g_real_symbol_count(
+int _marpa_g_real_symbol_count(
     Marpa_Grammar g,
     Marpa_Rule_ID rule_id)
 {
@@ -2337,7 +2370,7 @@ this external accessor returns the ``original rule".
 Otherwise it returns -1.
 @ @<Function definitions@> =
 Marpa_Rule_ID
-marpa_g_rule_semantic_equivalent (struct marpa_g *g, Marpa_Rule_ID rule_id)
+_marpa_g_rule_semantic_equivalent (Marpa_Grammar g, Marpa_Rule_ID rule_id)
 {
   RULE rule;
 @<Return |-2| on failure@>@;
@@ -2425,22 +2458,41 @@ Anything in between these two extremes is also possible.
 int marpa_g_precompute(Marpa_Grammar g)
 {
     @<Return |-2| on failure@>@;
+    int return_value = failure_indicator;
+    struct obstack *obs_precompute = my_new(struct obstack, 1);
+    @<Declare precompute variables@>@;
+    my_obstack_init(obs_precompute);
     @<Fail if fatal error@>@;
-    @<Fail if empty grammar@>@;
+    G_EVENTS_CLEAR(g);
+    @<Fail if no rules@>@;
     @<Fail if precomputed@>@;
     @<Fail if bad start symbol@>@;
-    G_EVENTS_CLEAR(g);
-     if (!census(g)) return failure_indicator;
-     if (!CHAF_rewrite(g)) return failure_indicator;
-     if (!g_augment(g)) return failure_indicator;
+    { /* Scope with only external grammar */
+	@<Declare external grammar variables@>@;
+	@<Perform census of grammar |g|@>@;
+	@<Detect cycles@>@;
+    }
+    @<Rewrite grammar |g| into CHAF form@>@;
+    @<Augment grammar |g|@>@;
      if (!G_is_Trivial(g)) {
-	loop_detect(g);
-	create_AHFA_items(g);
-	create_AHFA_states(g);
+	@<Create AHFA items@>@;
+	@<Create AHFA states@>@;
 	@<Populate the Terminal Boolean Vector@>@;
     }
-     return G_EVENT_COUNT(g);
+     return_value = G_EVENT_COUNT(g);
+     FAILURE:;
+    my_obstack_free(obs_precompute, NULL);
+    my_free(obs_precompute);
+     return return_value;
 }
+@ {\bf To Do}: @^To Do@>
+Perhaps I should revamp the memory allocation for the
+vectors and matrices.
+On one hand I could put them on an obstack,
+or on the other hand I could free them more quickly
+once their useful lifetime is past.
+@<Declare precompute variables@> =
+Bit_Vector nullable_v = NULL;
 
 @** The Grammar Census.
 
@@ -2474,38 +2526,24 @@ more than a single pass of the diagnostics.
 The upside is that in the more frequent cases, the user is spared
 a lot of useless diagnostics.
 
-@<Function definitions@> =
-PRIVATE GRAMMAR census(GRAMMAR g)
+@<Perform census of grammar |g|@> =
 {
-    @<Declare census variables@>@;
-    @<Census LHS symbols@>@;
+    @<Census symbols@>@;
     @<Census terminals@>@;
-    if (have_marked_terminals) {
-	@<Fatal if LHS terminal when not allowed@>@;
-    } else {
-	@<Fatal if empty rule and unmarked terminals@>;
-	if (g->t_is_lhs_terminal_ok) {
-	    @<Mark all symbols terminal@>@;
-	} else {
-	    @<Mark non-LHS symbols terminal@>@;
-	}
-    }
+    @<Calculate reach matrix@>@;
     @<Census nullable symbols@>@;
     @<Census productive symbols@>@;
     @<Check that start symbol is productive@>@;
-    @<Calculate reach matrix@>@;
     @<Census accessible symbols@>@;
     @<Census nulling symbols@>@;
-    @<Free Boolean vectors@>@;
-    @<Free Boolean matrixes@>@;
     g->t_is_precomputed = 1;
-    return g;
 }
-@ @<Declare census variables@> =
+
+@ @<Declare precompute variables@> =
 unsigned int pre_rewrite_rule_count = RULE_Count_of_G(g);
 unsigned int pre_rewrite_symbol_count = SYM_Count_of_G(g);
 
-@ @<Fail if empty grammar@> =
+@ @<Fail if no rules@> =
 if (RULE_Count_of_G(g) <= 0) {
     MARPA_ERROR(MARPA_ERR_NO_RULES);
     return failure_indicator;
@@ -2516,8 +2554,6 @@ While at it, set a flag to indicate if there are empty rules.
 
 @ @<Fail if bad start symbol@> =
 {
-  const Marpa_Symbol_ID original_start_symid = g->t_original_start_symid;
-    SYM original_start_symbol;
   if (original_start_symid < 0)
     {
       MARPA_ERROR (MARPA_ERR_NO_START_SYM);
@@ -2528,114 +2564,94 @@ While at it, set a flag to indicate if there are empty rules.
       MARPA_ERROR (MARPA_ERR_INVALID_START_SYM);
       return failure_indicator;
     }
-  original_start_symbol = SYM_by_ID (original_start_symid);
-  if (DSTACK_LENGTH (original_start_symbol->t_lhs) <= 0)
+  if (DSTACK_LENGTH (SYM_by_ID (original_start_symid)->t_lhs) <= 0)
     {
       MARPA_ERROR (MARPA_ERR_START_NOT_LHS);
       return failure_indicator;
     }
 }
 
-@ @<Declare census variables@> =
+@ @<Declare precompute variables@> =
 Marpa_Symbol_ID original_start_symid = g->t_original_start_symid;
 
-@ @<Census LHS symbols@> =
-{ Marpa_Rule_ID rule_id;
-lhs_v = bv_create(pre_rewrite_symbol_count);
-empty_lhs_v = bv_shadow(lhs_v);
-for (rule_id = 0;
-	rule_id < (Marpa_Rule_ID)pre_rewrite_rule_count;
-	rule_id++) {
-    RULE  rule = RULE_by_ID(g, rule_id);
-    Marpa_Symbol_ID lhs_id = LHS_ID_of_RULE(rule);
-    bv_bit_set(lhs_v, (unsigned int)lhs_id);
-    if (Length_of_RULE(rule) <= 0) {
-	bv_bit_set(empty_lhs_v, (unsigned int)lhs_id);
-	have_empty_rule = 1;
+@ @<Census symbols@> =
+{
+  Marpa_Rule_ID rule_id;
+  lhs_v = bv_obs_create (obs_precompute, pre_rewrite_symbol_count);
+  empty_lhs_v = bv_obs_shadow (obs_precompute, lhs_v);
+  rule_x_rh_sym_matrix =
+    matrix_obs_create (obs_precompute, pre_rewrite_rule_count,
+		       pre_rewrite_symbol_count);
+  for (rule_id = 0; rule_id < (Marpa_Rule_ID) pre_rewrite_rule_count;
+       rule_id++)
+    {
+      const RULE rule = RULE_by_ID (g, rule_id);
+      const Marpa_Symbol_ID lhs_id = LHS_ID_of_RULE (rule);
+      const int rule_length = Length_of_RULE (rule);
+      bv_bit_set (lhs_v, (unsigned int) lhs_id);
+      if (rule_length <= 0)
+	{
+	  bv_bit_set (empty_lhs_v, (unsigned int) lhs_id);
+	}
+      else
+	{
+	  int rhs_ix;
+	  for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
+	    {
+	      matrix_bit_set (rule_x_rh_sym_matrix,
+			      (unsigned int) RHS_ID_of_RULE (rule, rhs_ix),
+			      rule_id);
+	    }
+	}
     }
 }
-}
+
 @ Loop over the symbols, producing the boolean vector of symbols
 already marked as terminal,
 and a flag which indicates if there are any.
 @<Census terminals@> =
-{ Marpa_Symbol_ID symid;
-terminal_v = bv_create(pre_rewrite_symbol_count);
-for (symid = 0;
-	symid < (Marpa_Symbol_ID)pre_rewrite_symbol_count;
-	symid++) {
-    SYM symbol = SYM_by_ID(symid);
-    if (SYM_is_Terminal(symbol)) {
-	bv_bit_set(terminal_v, (unsigned int)symid);
-	have_marked_terminals = 1;
-    }
-} }
-@ @<Free Boolean vectors@> =
-bv_free(terminal_v);
-@
-@s Bit_Vector int
-@<Declare census variables@> =
-Bit_Vector terminal_v;
-int have_marked_terminals = 0;
-
-@ @<Fatal if empty rule and unmarked terminals@> =
-if (have_empty_rule && g->t_is_lhs_terminal_ok) {
-    MARPA_ERROR(MARPA_ERR_NULL_RULE_UNMARKED_TERMINALS);
-    return NULL;
-}
-@ Any optimization should be for the non-error case.
-But in that case
-there are no LHS terminals, and the entire list of symbols must
-be scanned to discover this.
-It is possible to find the first error without going
-through entire list of symbols, which this code does,
-but that would be optimizing for a fatal error.
-For fatal errors,
-this code is plenty fast enough.
-@<Fatal if LHS terminal when not allowed@> = 
-if (!g->t_is_lhs_terminal_ok) {
-    int no_lhs_terminals;
-    Bit_Vector bad_lhs_v = bv_clone(terminal_v);
-    bv_and(bad_lhs_v, bad_lhs_v, lhs_v);
-    no_lhs_terminals = bv_is_empty(bad_lhs_v);
-    bv_free(bad_lhs_v);
-    if (!no_lhs_terminals) {
-        MARPA_ERROR(MARPA_ERR_LHS_IS_TERMINAL);
-	return NULL;
+{
+  SYMID symid;
+  terminal_v = bv_obs_create (obs_precompute, pre_rewrite_symbol_count);
+  bv_not (terminal_v, lhs_v);
+  for (symid = 0; symid < (SYMID) pre_rewrite_symbol_count; symid++)
+    {
+      SYM symbol = SYM_by_ID (symid);
+      if (SYM_is_Marked_Terminal (symbol))
+	{
+	  /* If marked by the user, leave the symbol
+	     as set by the user, and update the boolean vector */
+	  if (SYM_is_Terminal (symbol))
+	    {
+	      bv_bit_set (terminal_v, (unsigned int) symid);
+	      continue;
+	    }
+	  bv_bit_clear (terminal_v, (unsigned int) symid);
+	  continue;
+	}
+      /* If not marked by the user, take the default
+         from the boolean vector and mark the symbol,
+         if necessary. */
+      if (bv_bit_test (terminal_v, (unsigned int) symid))
+	SYM_is_Terminal (symbol) = 1;
     }
 }
 
-@ @<Mark all symbols terminal@> =
-{ Marpa_Symbol_ID symid;
-bv_fill(terminal_v);
-for (symid = 0; symid < (Marpa_Symbol_ID)SYM_Count_of_G(g); symid++)
-{ SYMID_is_Terminal(symid) = 1; } }
-@ @<Mark non-LHS symbols terminal@> = 
-{ unsigned int start = 0;
-unsigned int min, max;
-bv_not(terminal_v, lhs_v);
-while ( bv_scan(terminal_v, start, &min, &max) ) {
-    Marpa_Symbol_ID symid;
-    for (symid = (Marpa_Symbol_ID)min; symid <= (Marpa_Symbol_ID)max; symid++) {
-     SYMID_is_Terminal(symid) = 1;
-    }
-    start = max+2;
-}
-}
-@ @<Free Boolean vectors@> =
-bv_free(lhs_v);
-bv_free(empty_lhs_v);
-@ @<Declare census variables@> =
-Bit_Vector lhs_v;
-Bit_Vector empty_lhs_v;
-int have_empty_rule = 0;
+@ @s Bit_Vector int
+@<Declare external grammar variables@> =
+Bit_Vector terminal_v = NULL;
+
+@ @<Declare external grammar variables@> =
+Bit_Vector lhs_v = NULL;
+Bit_Vector empty_lhs_v = NULL;
+Bit_Matrix rule_x_rh_sym_matrix = NULL;
 
 @ @<Census nullable symbols@> = 
 {
   unsigned int min, max, start;
   SYMID symid;
   int counted_nullables = 0;
-  nullable_v = bv_clone (empty_lhs_v);
+  nullable_v = bv_obs_clone (obs_precompute, empty_lhs_v);
   rhs_closure (g, nullable_v);
   for (start = 0; bv_scan (nullable_v, start, &min, &max); start = max + 2)
     {
@@ -2643,49 +2659,49 @@ int have_empty_rule = 0;
 	   symid++)
 	{
 	  SYM symbol = SYM_by_ID (symid);
-	  if (symbol->t_is_counted)
+	  if (UNLIKELY(symbol->t_is_counted))
 	    {
 	      counted_nullables++;
 	      int_event_new (g, MARPA_EVENT_COUNTED_NULLABLE, symid);
 	    }
-	  symbol->t_is_nullable = 1;
 	}
     }
-  if (counted_nullables)
+  if (UNLIKELY(counted_nullables))
     {
       MARPA_ERROR (MARPA_ERR_COUNTED_NULLABLE);
-      return NULL;
+      goto FAILURE;
     }
 }
-@ @<Declare census variables@> =
-Bit_Vector nullable_v;
-@ @<Free Boolean vectors@> =
-bv_free(nullable_v);
 
 @ @<Census productive symbols@> = 
-productive_v = bv_shadow(nullable_v);
-bv_or(productive_v, nullable_v, terminal_v);
-rhs_closure(g, productive_v);
-{ unsigned int min, max, start;
-Marpa_Symbol_ID symid;
-    for ( start = 0; bv_scan(productive_v, start, &min, &max); start = max+2 ) {
-	for (symid = (Marpa_Symbol_ID)min;
-		symid <= (Marpa_Symbol_ID)max;
-		symid++) {
-	    SYM symbol = SYM_by_ID(symid);
+{
+  productive_v = bv_obs_shadow (obs_precompute, nullable_v);
+  bv_or (productive_v, nullable_v, terminal_v);
+  rhs_closure (g, productive_v);
+  {
+    unsigned int min, max, start;
+    Marpa_Symbol_ID symid;
+    for (start = 0; bv_scan (productive_v, start, &min, &max);
+	 start = max + 2)
+      {
+	for (symid = (Marpa_Symbol_ID) min;
+	     symid <= (Marpa_Symbol_ID) max; symid++)
+	  {
+	    SYM symbol = SYM_by_ID (symid);
 	    symbol->t_is_productive = 1;
-} }
+	  }
+      }
+  }
 }
+
 @ @<Check that start symbol is productive@> =
-if (!bv_bit_test(productive_v, (unsigned int)original_start_symid))
+if (UNLIKELY(!bv_bit_test(productive_v, (unsigned int)original_start_symid)))
 {
     MARPA_ERROR(MARPA_ERR_UNPRODUCTIVE_START);
-    return NULL;
+    goto FAILURE;
 }
-@ @<Declare census variables@> =
-Bit_Vector productive_v;
-@ @<Free Boolean vectors@> =
-bv_free(productive_v);
+@ @<Declare external grammar variables@> =
+Bit_Vector productive_v = NULL;
 
 @ The reach matrix is the an $n\times n$ matrix,
 where $n$ is the number of symbols.
@@ -2706,51 +2722,57 @@ is not a pointless or even counter-productive optimization.
 It would only make a difference in grammars
 where many of the right hand sides repeat symbols.
 @<Calculate reach matrix@> =
-reach_matrix
-    = matrix_create(pre_rewrite_symbol_count, pre_rewrite_symbol_count);
-{ unsigned int symid, no_of_symbols = SYM_Count_of_G(g);
-for (symid = 0; symid < no_of_symbols; symid++) {
-     matrix_bit_set(reach_matrix, symid, symid);
-} }
-{ Marpa_Rule_ID rule_id;
-RULEID rule_count_of_g = RULE_Count_of_G(g);
-for (rule_id = 0; rule_id < rule_count_of_g; rule_id++) {
-     RULE  rule = RULE_by_ID(g, rule_id);
-     Marpa_Symbol_ID lhs_id = LHS_ID_of_RULE(rule);
-     unsigned int rhs_ix, rule_length = Length_of_RULE(rule);
-     for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++) {
-	 matrix_bit_set(reach_matrix,
-	     (unsigned int)lhs_id, (unsigned int)RHS_ID_of_RULE(rule, rhs_ix));
-} } }
-transitive_closure(reach_matrix);
-@ @<Declare census variables@> = Bit_Matrix reach_matrix;
-@ @<Free Boolean matrixes@> =
-matrix_free(reach_matrix);
-
-@ @<Census accessible symbols@> = 
-accessible_v = matrix_row(reach_matrix, (unsigned int)original_start_symid);
-{ unsigned int min, max, start;
-Marpa_Symbol_ID symid;
-    for ( start = 0; bv_scan(accessible_v, start, &min, &max); start = max+2 ) {
-	for (symid = (Marpa_Symbol_ID)min;
-		symid <= (Marpa_Symbol_ID)max;
-		symid++) {
-	    SYM symbol = SYM_by_ID(symid);
-	    symbol->t_is_accessible = 1;
-} }
+{
+  Marpa_Rule_ID rule_id;
+  RULEID rule_count_of_g = RULE_Count_of_G (g);
+  reach_matrix
+    = matrix_obs_create (obs_precompute, pre_rewrite_symbol_count, pre_rewrite_symbol_count);
+  for (rule_id = 0; rule_id < rule_count_of_g; rule_id++)
+    {
+      RULE rule = RULE_by_ID (g, rule_id);
+      Marpa_Symbol_ID lhs_id = LHS_ID_of_RULE (rule);
+      unsigned int rhs_ix, rule_length = Length_of_RULE (rule);
+      for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
+	{
+	  matrix_bit_set (reach_matrix,
+			  (unsigned int) lhs_id,
+			  (unsigned int) RHS_ID_of_RULE (rule, rhs_ix));
+	}
+    }
+  transitive_closure (reach_matrix);
 }
+
+@ @<Declare precompute variables@> =
+Bit_Matrix reach_matrix = NULL;
+
 @ |accessible_v| is a pointer into the |reach_matrix|.
 Therefore there is no code to free it.
-@<Declare census variables@> =
-Bit_Vector accessible_v;
+@<Census accessible symbols@> = 
+{
+  Bit_Vector accessible_v =
+    matrix_row (reach_matrix, (unsigned int) original_start_symid);
+  unsigned int min, max, start;
+  Marpa_Symbol_ID symid;
+  for (start = 0; bv_scan (accessible_v, start, &min, &max); start = max + 2)
+    {
+      for (symid = (Marpa_Symbol_ID) min;
+	   symid <= (Marpa_Symbol_ID) max; symid++)
+	{
+	  SYM symbol = SYM_by_ID (symid);
+	  symbol->t_is_accessible = 1;
+	}
+    }
+    SYM_by_ID(original_start_symid)->t_is_accessible = 1;
+}
 
-@ A symbol is nulling if and only if it is a productive symbol which does not
+@ A symbol is nulling if and only if it is an LHS symbol which does not
 reach a terminal symbol.
 @<Census nulling symbols@> = 
 {
   Bit_Vector reaches_terminal_v = bv_shadow (terminal_v);
+  int nulling_terminal_found = 0;
   unsigned int min, max, start;
-  for (start = 0; bv_scan (productive_v, start, &min, &max); start = max + 2)
+  for (start = 0; bv_scan (lhs_v, start, &min, &max); start = max + 2)
     {
       Marpa_Symbol_ID productive_id;
       for (productive_id = (Marpa_Symbol_ID) min;
@@ -2759,10 +2781,24 @@ reach a terminal symbol.
 	  bv_and (reaches_terminal_v, terminal_v,
 		  matrix_row (reach_matrix, (unsigned int) productive_id));
 	  if (bv_is_empty (reaches_terminal_v))
-	    SYM_is_Nulling(SYM_by_ID (productive_id)) = 1;
+	    {
+	      const SYM symbol = SYM_by_ID (productive_id);
+	      SYM_is_Nulling (symbol) = 1;
+	      if (UNLIKELY (SYM_is_Terminal (symbol)))
+		{
+		  nulling_terminal_found = 1;
+		  int_event_new (g, MARPA_EVENT_NULLING_TERMINAL,
+				 productive_id);
+		}
+	    }
 	}
     }
   bv_free (reaches_terminal_v);
+  if (UNLIKELY (nulling_terminal_found))
+    {
+      MARPA_ERROR (MARPA_ERR_NULLING_TERMINAL);
+      goto FAILURE;
+    }
 }
 
 @** The CHAF Rewrite.
@@ -2823,8 +2859,7 @@ And rule ID's increase by one each time,
 so that all the new
 rules will have ID's equal to or greater than
 the pre-CHAF rule count.
-@ @<Function definitions@> =
-PRIVATE struct marpa_g* CHAF_rewrite(struct marpa_g* g)
+@ @<Rewrite grammar |g| into CHAF form@> =
 {
     @<CHAF rewrite declarations@>@;
     @<CHAF rewrite allocations@>@;
@@ -2842,7 +2877,6 @@ PRIVATE struct marpa_g* CHAF_rewrite(struct marpa_g* g)
 	 NEXT_RULE: ;
     }
     @<CHAF rewrite deallocations@>@;
-    return g;
 }
 @ @<CHAF rewrite declarations@> =
 Marpa_Rule_ID rule_id;
@@ -2857,18 +2891,27 @@ if (!rule_is_productive(g, rule)) { RULE_is_Used(rule) = 0; goto NEXT_RULE; }
 @ For every accessible and productive proper nullable which
 is not already aliased, alias it.
 @<Alias proper nullables@> =
-{ int no_of_symbols = SYM_Count_of_G(g);
-Marpa_Symbol_ID symid;
-for (symid = 0; symid < no_of_symbols; symid++) {
-     SYM symbol = SYM_by_ID(symid);
-     SYM alias;
-     if (!symbol->t_is_nullable) continue;
-     if (SYM_is_Nulling(symbol)) continue;
-     if (!symbol->t_is_accessible) continue;
-     if (!symbol->t_is_productive) continue;
-     if (symbol_null_alias(symbol)) continue;
-    alias = symbol_alias_create(g, symbol);
-} }
+{
+  unsigned int min, max, start;
+  for (start = 0; bv_scan (nullable_v, start, &min, &max); start = max + 2)
+    {
+      Marpa_Symbol_ID nullable_id;
+      for (nullable_id = (Marpa_Symbol_ID) min; nullable_id <= (Marpa_Symbol_ID) max;
+	   nullable_id++)
+	{
+	  const SYM nullable = SYM_by_ID (nullable_id);
+	  if (SYM_is_Nulling (nullable))
+	    continue;
+	  if (UNLIKELY(!nullable->t_is_accessible))
+	    continue;
+	  if (UNLIKELY(!nullable->t_is_productive))
+	    continue;
+	  if (UNLIKELY(symbol_null_alias (nullable) != NULL))
+	    continue;
+	  symbol_alias_create (g, nullable);
+	}
+    }
+}
 
 @*0 Compute Statistics Needed to Rewrite the Rule.
 The term
@@ -3228,9 +3271,7 @@ SYMID alias_by_id(GRAMMAR g, SYMID proper_id)
 @** Adding a New Start Symbol.
 This is such a common rewrite that it has a special name
 in the literature --- it is called ``augmenting the grammar".
-@ @<Function definitions@> =
-PRIVATE
-GRAMMAR g_augment(GRAMMAR g)
+@ @<Augment grammar |g|@> =
 {
     Marpa_Symbol_ID proper_new_start_id = -1;
     SYM proper_old_start = NULL;
@@ -3238,9 +3279,8 @@ GRAMMAR g_augment(GRAMMAR g)
     SYM proper_new_start = NULL;
     SYM old_start = SYM_by_ID(g->t_original_start_symid);
     @<Find and classify the old start symbols@>@;
-    if (proper_old_start) { @<Set up a new proper start rule@> }
+    if (proper_old_start) { @<Set up a new proper start rule@>@; }
     if (nulling_old_start) { @<Set up a new nulling start rule@>@; }
-    return g;
 }
 
 @ @<Find and classify the old start symbols@> =
@@ -3286,7 +3326,6 @@ if there is one.  Otherwise it is a new, nulling, symbol.
       nulling_new_start = symbol_new (g);
       nulling_new_start_id = ID_of_SYM(nulling_new_start);
       SYM_is_Nulling(nulling_new_start) = 1;
-      nulling_new_start->t_is_nullable = 1;
       nulling_new_start->t_is_productive = 1;
       nulling_new_start->t_is_accessible = 1;
     }
@@ -3347,24 +3386,21 @@ It is also reasonable for a higher layer to always silently allow them.
 There are lots of possibilities in between these two extremes.
 To assist the upper layers, an event is reported for a non-zero
 loop rule count, with the final tally.
-@<Function definitions@> =
-PRIVATE
-void loop_detect(struct marpa_g* g)
+@<Detect cycles@> =
 {
     int rule_count_of_g = RULE_Count_of_G(g);
     int loop_rule_count = 0;
     Bit_Matrix unit_transition_matrix =
-	matrix_create ((unsigned int) rule_count_of_g,
+	matrix_obs_create (obs_precompute, (unsigned int) rule_count_of_g,
 	    (unsigned int) rule_count_of_g);
     @<Mark direct unit transitions in |unit_transition_matrix|@>@;
     transitive_closure(unit_transition_matrix);
     @<Mark loop rules@>@;
     if (loop_rule_count)
       {
-	g->t_has_loop = 1;
+	g->t_has_cycle = 1;
 	int_event_new (g, MARPA_EVENT_LOOP_RULES, loop_rule_count);
       }
-    matrix_free(unit_transition_matrix);
 }
 
 @ Note that direct transitions are marked in advance,
@@ -3375,34 +3411,55 @@ unit transitions are not in general reflexive.
 @<Mark direct unit transitions in |unit_transition_matrix|@> = {
 Marpa_Rule_ID rule_id;
 for (rule_id = 0; rule_id < rule_count_of_g; rule_id++) {
-     RULE  rule = RULE_by_ID(g, rule_id);
-     Marpa_Symbol_ID proper_id;
+     RULE rule = RULE_by_ID(g, rule_id);
+     SYMID nonnulling_id = -1;
+     int nonnulling_count = 0;
      int rhs_ix, rule_length;
-     if (!RULE_is_Used(rule)) continue;
      rule_length = Length_of_RULE(rule);
-     proper_id = -1;
      for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++) {
 	 Marpa_Symbol_ID symid = RHS_ID_of_RULE(rule, rhs_ix);
-	 SYM symbol = SYM_by_ID(symid);
-	 if (symbol->t_is_nullable) continue; /* After the CHAF rewrite, nullable $\E$ nulling */
-	 if (proper_id >= 0) goto NEXT_RULE; /* More
-	     than one proper symbol -- not a unit rule */
-	 proper_id = symid;
+	 if (bv_bit_test(nullable_v, symid)) continue;
+	 nonnulling_id = symid;
+	 nonnulling_count ++;
     }
     @#
-    if (proper_id < 0) continue; /* A
-	nulling start rule is allowed, so there may be no proper symbol */
-     { SYM rhs_symbol = SYM_by_ID(proper_id);
-     RULEID ix;
-     RULEID no_of_lhs_rules = DSTACK_LENGTH(rhs_symbol->t_lhs);
-     for (ix = 0; ix < no_of_lhs_rules; ix++) {
-	 /* Direct loops ($A \RA A$) only need the $(rule_id, rule_id)$ bit set,
-	    but it is not clear that it is a win to special case them. */
-	 matrix_bit_set(unit_transition_matrix, (unsigned int)rule_id,
-	     *DSTACK_INDEX(rhs_symbol->t_lhs, RULEID, ix));
-     } }
-     NEXT_RULE: ;
-} }
+    /* nulling start rule is allowed, so there may be no proper symbol */
+    if (nonnulling_count == 1) {
+	@<For |nonnulling_id|, set to,from rule bit in |unit_transition_matrix|@>@;
+    } else if (nonnulling_count == 0) {
+	 for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++) {
+	    nonnulling_id = RHS_ID_of_RULE (rule, rhs_ix);
+	    if (!bv_bit_test (nullable_v, nonnulling_id))
+	      continue;
+	    if (SYM_is_Nulling (SYM_by_ID (nonnulling_id)))
+	      continue;
+	    /* |nonnulling_id| is a proper nullable */
+	    @<For |nonnulling_id|, set to,from rule bit
+	    in |unit_transition_matrix|@>@;
+	 }
+    }
+}
+}
+
+@ We have a lone |nonnulling_id| in |rule_id|,
+so there is a unit transition from |rule_id| to every
+rule with |nonnulling_id| on the LHS.
+@<For |nonnulling_id|, set to,from rule bit in |unit_transition_matrix|@> =
+{
+  SYM rhs_symbol = SYM_by_ID (nonnulling_id);
+  RULEID ix;
+  RULEID no_of_lhs_rules = DSTACK_LENGTH (rhs_symbol->t_lhs);
+  for (ix = 0; ix < no_of_lhs_rules; ix++)
+    {
+      /* Direct loops ($A \RA A$) only need the $(rule_id, rule_id)$ bit set,
+         but it is not clear that it is a win to special case them. */
+      const RULEID to_rule_id = *DSTACK_INDEX (rhs_symbol->t_lhs, RULEID, ix);
+      MARPA_DEBUG4 ("%s: unit transition from=%d, to=%d", STRLOC, rule_id,
+		    to_rule_id);
+      matrix_bit_set (unit_transition_matrix, (unsigned int) rule_id,
+		      to_rule_id);
+    }
+}
 
 @ Virtual loop rule are loop rules from the virtual point of view.
 When CHAF rules, which are rewritten into multiple pieces,
@@ -3411,16 +3468,23 @@ Therefore only certain of CHAF pieces that are loop rules
 are regarded as virtual loop rules.
 All non-CHAF rules are virtual loop rules including,
 at this point, sequence rules.
-@<Mark loop rules@> = { RULEID rule_id;
-for (rule_id = 0; rule_id < rule_count_of_g; rule_id++) {
-    RULE  rule;
-    if (!matrix_bit_test(unit_transition_matrix, (unsigned int)rule_id, (unsigned int)rule_id))
+@<Mark loop rules@> =
+{
+  RULEID rule_id;
+  for (rule_id = 0; rule_id < rule_count_of_g; rule_id++)
+    {
+      RULE rule;
+      if (!matrix_bit_test
+	  (unit_transition_matrix, (unsigned int) rule_id,
+	   (unsigned int) rule_id))
 	continue;
-    loop_rule_count++;
-    rule = RULE_by_ID(g, rule_id);
-    rule->t_is_loop = 1;
-    rule->t_is_virtual_loop = rule->t_virtual_start < 0 || !RULE_has_Virtual_RHS(rule);
-} }
+      loop_rule_count++;
+      rule = RULE_by_ID (g, rule_id);
+      rule->t_is_loop = 1;
+      rule->t_is_virtual_loop = rule->t_virtual_start < 0
+	|| !RULE_has_Virtual_RHS (rule);
+    }
+}
 
 @** The Aycock-Horspool Finite Automata.
 
@@ -3611,14 +3675,14 @@ int t_leading_nulls;
 
 @*0 AHFA Item External Accessors.
 @<Function definitions@> =
-int marpa_g_AHFA_item_count(struct marpa_g* g) {
+int _marpa_g_AHFA_item_count(struct marpa_g* g) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
     return AIM_Count_of_G(g);
 }
 
 @ @<Function definitions@> =
-Marpa_Rule_ID marpa_g_AHFA_item_rule(struct marpa_g* g,
+Marpa_Rule_ID _marpa_g_AHFA_item_rule(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
@@ -3628,7 +3692,7 @@ Marpa_Rule_ID marpa_g_AHFA_item_rule(struct marpa_g* g,
 
 @ |-1| is the value for completions, so |-2| is the failure indicator.
 @ @<Function definitions@> =
-int marpa_g_AHFA_item_position(struct marpa_g* g,
+int _marpa_g_AHFA_item_position(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
@@ -3638,7 +3702,7 @@ int marpa_g_AHFA_item_position(struct marpa_g* g,
 
 @ |-1| is the value for completions, so |-2| is the failure indicator.
 @ @<Function definitions@> =
-Marpa_Symbol_ID marpa_g_AHFA_item_postdot(struct marpa_g* g,
+Marpa_Symbol_ID _marpa_g_AHFA_item_postdot(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
@@ -3647,7 +3711,7 @@ Marpa_Symbol_ID marpa_g_AHFA_item_postdot(struct marpa_g* g,
 }
 
 @ @<Function definitions@> =
-int marpa_g_AHFA_item_sort_key(struct marpa_g* g,
+int _marpa_g_AHFA_item_sort_key(struct marpa_g* g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
@@ -3662,9 +3726,7 @@ but guaranteed to be greater than
 or equal to the final numbers of items.
 That means that I can avoid the overhead of checking the array
 size when adding each new AHFA item.
-@<Function definitions@> =
-PRIVATE
-void create_AHFA_items(GRAMMAR g)
+@<Create AHFA items@> =
 {
     RULEID rule_id;
     AIMID no_of_items;
@@ -3695,7 +3757,7 @@ void create_AHFA_items(GRAMMAR g)
     {
       SYMID rh_symid = RHS_ID_of_RULE (rule, rhs_ix);
       SYM symbol = SYM_by_ID (rh_symid);
-      if (!symbol->t_is_nullable)
+      if (!symbol->t_is_nulling)
 	{
 	  Last_Proper_SYMI_of_RULE(rule) = symbol_instance_of_next_rule + rhs_ix;
 	  @<Create an AHFA item for a precompletion@>@;
@@ -4049,13 +4111,13 @@ PRIVATE int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id)
 
 @*0 AHFA State External Accessors.
 @<Function definitions@> =
-int marpa_g_AHFA_state_count(Marpa_Grammar g) {
+int _marpa_g_AHFA_state_count(Marpa_Grammar g) {
     return AHFA_Count_of_G(g);
 }
 
 @ @<Function definitions@> =
 int
-marpa_g_AHFA_state_item_count(struct marpa_g* g, AHFAID AHFA_state_id)
+_marpa_g_AHFA_state_item_count(struct marpa_g* g, AHFAID AHFA_state_id)
 { @<Return |-2| on failure@>@/
     AHFA state;
     @<Fail if not precomputed@>@/
@@ -4067,7 +4129,7 @@ marpa_g_AHFA_state_item_count(struct marpa_g* g, AHFAID AHFA_state_id)
 @ @d AIMID_of_AHFA_by_AEX(g, ahfa, aex)
    ((ahfa)->t_items[aex] - (g)->t_AHFA_items)
 @<Function definitions@> =
-Marpa_AHFA_Item_ID marpa_g_AHFA_state_item(struct marpa_g* g,
+Marpa_AHFA_Item_ID _marpa_g_AHFA_state_item(struct marpa_g* g,
      AHFAID AHFA_state_id,
 	int item_ix) {
     AHFA state;
@@ -4087,7 +4149,7 @@ Marpa_AHFA_Item_ID marpa_g_AHFA_state_item(struct marpa_g* g,
 }
 
 @ @<Function definitions@> =
-int marpa_g_AHFA_state_is_predict(struct marpa_g* g,
+int _marpa_g_AHFA_state_is_predict(struct marpa_g* g,
 	AHFAID AHFA_state_id) {
     AHFA state;
     @<Return |-2| on failure@>@/
@@ -4109,7 +4171,7 @@ with this AHFA state is eligible to be a Leo completion.
 @ @<Int aligned AHFA state elements@> = SYMID t_leo_lhs_sym;
 @ @<Initialize AHFA@> = Leo_LHS_ID_of_AHFA(ahfa) = -1;
 @ @<Function definitions@> =
-Marpa_Symbol_ID marpa_g_AHFA_state_leo_lhs_symbol(struct marpa_g* g,
+Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol(struct marpa_g* g,
 	Marpa_AHFA_State_ID AHFA_state_id) {
     @<Return |-2| on failure@>@;
     AHFA state;
@@ -4162,10 +4224,8 @@ PRIVATE_NOT_INLINE int AHFA_state_cmp(
     return 0;
 }
 
-@*0 AHFA State Mutators.
-@<Function definitions@> =
-PRIVATE_NOT_INLINE
-void create_AHFA_states(struct marpa_g* g)
+@*0 Creating AHFA states.
+@<Create AHFA states@> =
 {
     @<Declare locals for creating AHFA states@>@;
     @<Initialize locals for creating AHFA states@>@;
@@ -4194,7 +4254,6 @@ void create_AHFA_states(struct marpa_g* g)
     struct avl_table *duplicates;
     AHFA* singleton_duplicates;
    DQUEUE_DECLARE(states);
-  struct obstack ahfa_work_obs;
   int ahfa_count_of_g;
   AHFA ahfas_of_g;
 
@@ -4206,8 +4265,7 @@ void create_AHFA_states(struct marpa_g* g)
 {
   unsigned int item_id;
   unsigned int no_of_items_in_grammar = AIM_Count_of_G (g);
-  obstack_init(&ahfa_work_obs);
-  duplicates = marpa_avl_create (AHFA_state_cmp, NULL, NULL);
+  duplicates = _marpa_avl_create (AHFA_state_cmp, NULL, NULL);
   singleton_duplicates = my_new (AHFA, no_of_items_in_grammar);
   for (item_id = 0; item_id < no_of_items_in_grammar; item_id++)
     {
@@ -4261,7 +4319,7 @@ NEXT_AHFA_STATE: ;
 		   int sizeof_transition =
 		       offsetof (struct s_transition, t_aex) + completion_count *
 		       sizeof (transitions[0]->t_aex[0]);
-		   TRANS new_transition = obstack_alloc(&g->t_obs, sizeof_transition);
+		   TRANS new_transition = my_obstack_alloc(&g->t_obs, sizeof_transition);
 		   LV_To_AHFA_of_TRANS(new_transition) = To_AHFA_of_TRANS(working_transition);
 		   LV_Completion_Count_of_TRANS(new_transition) = 0;
 		   transitions[symbol_id] = new_transition;
@@ -4336,13 +4394,11 @@ You can get the AIM from the AEX, but not vice versa.
 
 @ @<Free locals for creating AHFA states@> =
    my_free(rule_by_sort_key);
-   matrix_free(prediction_matrix);
     @<Free duplicates data structures@>@;
-     obstack_free(&ahfa_work_obs, NULL);
 
 @ @<Free duplicates data structures@> =
 my_free(singleton_duplicates);
-marpa_avl_destroy(duplicates, NULL);
+_marpa_avl_destroy(duplicates, NULL);
 
 @ @<Construct initial AHFA states@> =
 {
@@ -4350,7 +4406,7 @@ marpa_avl_destroy(duplicates, NULL);
   const RULE start_rule = g->t_proper_start_rule;
   SYMID *postdot_symbol_ids;
   AIM start_item;
-  AIM *item_list = obstack_alloc (&g->t_obs, sizeof (AIM));
+  AIM *item_list = my_obstack_alloc (&g->t_obs, sizeof (AIM));
   /* The start item is the initial item for the start rule */
   start_item = start_rule->t_first_aim;
   item_list[0] = start_item;
@@ -4362,7 +4418,7 @@ marpa_avl_destroy(duplicates, NULL);
   TRANSs_of_AHFA (p_initial_state) = transitions_new (g);
   Postdot_SYM_Count_of_AHFA (p_initial_state) = 1;
   postdot_symbol_ids = Postdot_SYMID_Ary_of_AHFA (p_initial_state) =
-    obstack_alloc (&g->t_obs, sizeof (SYMID));
+    my_obstack_alloc (&g->t_obs, sizeof (SYMID));
   *postdot_symbol_ids = Postdot_SYMID_of_AIM (start_item);
   Complete_SYM_Count_of_AHFA (p_initial_state) = 0;
   p_initial_state->t_empty_transition =
@@ -4415,7 +4471,7 @@ are either AHFA state 0, or 1-item discovered AHFA states.
     p_new_state = singleton_duplicates[single_item_id];
     if (p_new_state)
       {				/* Do not add, this is a duplicate */
-	transition_add (&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
+	transition_add (obs_precompute, p_working_state, working_symbol, p_new_state);
 	goto NEXT_WORKING_SYMBOL;
       }
     p_new_state = DQUEUE_PUSH (states, AHFA_Object);
@@ -4423,20 +4479,20 @@ are either AHFA state 0, or 1-item discovered AHFA states.
     AHFA_initialize(p_new_state);
     singleton_duplicates[single_item_id] = p_new_state;
     new_state_item_list = p_new_state->t_items =
-	obstack_alloc (&g->t_obs, sizeof (AIM));
+	my_obstack_alloc (&g->t_obs, sizeof (AIM));
     new_state_item_list[0] = single_item_p;
     p_new_state->t_item_count = 1;
     AHFA_is_Predicted(p_new_state) = 0;
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE (states, AHFA_Object);
     TRANSs_of_AHFA(p_new_state) = transitions_new(g);
-    transition_add (&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
+    transition_add (obs_precompute, p_working_state, working_symbol, p_new_state);
     postdot = Postdot_SYMID_of_AIM(single_item_p);
     if (postdot >= 0)
       {
 	Complete_SYM_Count_of_AHFA(p_new_state) = 0;
 	p_new_state->t_postdot_sym_count = 1;
 	p_new_state->t_postdot_symid_ary =
-	  obstack_alloc (&g->t_obs, sizeof (SYMID));
+	  my_obstack_alloc (&g->t_obs, sizeof (SYMID));
 	*(p_new_state->t_postdot_symid_ary) = postdot;
     /* If the sole item is not a completion
      attempt to create a predicted AHFA state as well */
@@ -4449,10 +4505,10 @@ are either AHFA state 0, or 1-item discovered AHFA states.
     else
       {
 	SYMID lhs_id = LHS_ID_of_AIM(single_item_p);
-	SYMID* complete_symids = obstack_alloc (&g->t_obs, sizeof (SYMID));
+	SYMID* complete_symids = my_obstack_alloc (&g->t_obs, sizeof (SYMID));
 	*complete_symids = lhs_id;
 	Complete_SYMIDs_of_AHFA(p_new_state) = complete_symids;
-	completion_count_inc(&ahfa_work_obs, p_new_state, lhs_id);
+	completion_count_inc(obs_precompute, p_new_state, lhs_id);
 	Complete_SYM_Count_of_AHFA(p_new_state) = 1;
 	p_new_state->t_postdot_sym_count = 0;
 	p_new_state->t_empty_transition = NULL;
@@ -4521,7 +4577,7 @@ unsigned int no_of_new_items_so_far = 0;
 AIM* item_list_for_new_state;
 AHFA queued_AHFA_state;
 p_new_state = DQUEUE_PUSH(states, AHFA_Object);
-item_list_for_new_state = p_new_state->t_items = obstack_alloc(&g->t_obs_tricky,
+item_list_for_new_state = p_new_state->t_items = my_obstack_alloc(&g->t_obs_tricky,
     no_of_items_in_new_state * sizeof(AIM));
 p_new_state->t_item_count = no_of_items_in_new_state;
 for (predecessor_ix = first_working_item_ix;
@@ -4547,8 +4603,8 @@ if (queued_AHFA_state)
   {				// The new state would be a duplicate
 // Back it out and go on to the next in the queue
     (void) DQUEUE_POP (states, AHFA_Object);
-    obstack_free (&g->t_obs_tricky, item_list_for_new_state);
-    transition_add (&ahfa_work_obs, p_working_state, working_symbol, queued_AHFA_state);
+    my_obstack_free (&g->t_obs_tricky, item_list_for_new_state);
+    transition_add (obs_precompute, p_working_state, working_symbol, queued_AHFA_state);
     /* |transition_add()| allocates obstack memory, but uses the 
        ``non-tricky" obstack */
     goto NEXT_WORKING_SYMBOL;
@@ -4559,7 +4615,7 @@ if (queued_AHFA_state)
     AHFA_is_Predicted(p_new_state) = 0;
     TRANSs_of_AHFA(p_new_state) = transitions_new(g);
     @<Calculate complete and postdot symbols for discovered state@>@/
-    transition_add(&ahfa_work_obs, p_working_state, working_symbol, p_new_state);
+    transition_add(obs_precompute, p_working_state, working_symbol, p_new_state);
     @<Calculate the predicted rule vector for this state
         and add the predicted AHFA state@>@/
 }
@@ -4579,7 +4635,7 @@ if (queued_AHFA_state)
       if (postdot < 0)
 	{
 	  int complete_symbol_id = LHS_ID_of_AIM (item);
-	  completion_count_inc (&ahfa_work_obs, p_new_state, complete_symbol_id);
+	  completion_count_inc (obs_precompute, p_new_state, complete_symbol_id);
 	  bv_bit_set (complete_v, (unsigned int)complete_symbol_id );
 	}
       else
@@ -4592,7 +4648,7 @@ if ((no_of_postdot_symbols = p_new_state->t_postdot_sym_count =
   {
     unsigned int min, max, start;
     Marpa_Symbol_ID *p_symbol = p_new_state->t_postdot_symid_ary =
-      obstack_alloc (&g->t_obs,
+      my_obstack_alloc (&g->t_obs,
 		     no_of_postdot_symbols * sizeof (SYMID));
     for (start = 0; bv_scan (postdot_v, start, &min, &max); start = max + 2)
       {
@@ -4608,7 +4664,7 @@ if ((no_of_postdot_symbols = p_new_state->t_postdot_sym_count =
 	 Complete_SYM_Count_of_AHFA (p_new_state) = bv_count (complete_v)))
       {
 	unsigned int min, max, start;
-	SYMID *complete_symids = obstack_alloc (&g->t_obs,
+	SYMID *complete_symids = my_obstack_alloc (&g->t_obs,
 						no_of_complete_symbols *
 						sizeof (SYMID));
 	SYMID *p_symbol = complete_symids;
@@ -4637,7 +4693,7 @@ When it does exist, return a pointer to it.
 PRIVATE AHFA
 assign_AHFA_state (AHFA sought_state, struct avl_table* duplicates)
 {
-  const AHFA state_found = marpa_avl_insert(duplicates, sought_state);
+  const AHFA state_found = _marpa_avl_insert(duplicates, sought_state);
   return state_found;
 }
 
@@ -4706,11 +4762,10 @@ states.
 
 @ @<Construct prediction matrix@> = {
     Bit_Matrix symbol_by_symbol_matrix =
-	matrix_create (symbol_count_of_g, symbol_count_of_g);
+	matrix_obs_create (obs_precompute, symbol_count_of_g, symbol_count_of_g);
     @<Initialize the symbol-by-symbol matrix@>@/
     transitive_closure(symbol_by_symbol_matrix);
     @<Create the prediction matrix from the symbol-by-symbol matrix@>@/
-    matrix_free(symbol_by_symbol_matrix);
 }
 
 @ @<Initialize the symbol-by-symbol matrix@> =
@@ -4843,37 +4898,37 @@ populate the index from rule id to sort key.
 
 @ @<Populate the prediction matrix@> =
 {
-  prediction_matrix = matrix_create (symbol_count_of_g, no_of_predictable_rules);
-  for (from_symid = 0; from_symid < (SYMID) symbol_count_of_g;
-       from_symid++)
+  prediction_matrix =
+    matrix_obs_create (obs_precompute, symbol_count_of_g,
+		       no_of_predictable_rules);
+  for (from_symid = 0; from_symid < (SYMID) symbol_count_of_g; from_symid++)
     {
       // for every row of the symbol-by-symbol matrix
       unsigned int min, max, start;
       for (start = 0;
 	   bv_scan (matrix_row
-		    (symbol_by_symbol_matrix, (unsigned int) from_symid), start,
-		    &min, &max); start = max + 2)
+		    (symbol_by_symbol_matrix, (unsigned int) from_symid),
+		    start, &min, &max); start = max + 2)
 	{
 	  Marpa_Symbol_ID to_symid;
-	  for (to_symid = min; to_symid <= (Marpa_Symbol_ID) max;
-	       to_symid++)
+	  for (to_symid = min; to_symid <= (Marpa_Symbol_ID) max; to_symid++)
 	    {
 	      // for every predicted symbol
 	      SYM to_symbol = SYM_by_ID (to_symid);
 	      RULEID ix;
-	      RULEID no_of_lhs_rules = DSTACK_LENGTH(to_symbol->t_lhs);
+	      RULEID no_of_lhs_rules = DSTACK_LENGTH (to_symbol->t_lhs);
 	      for (ix = 0; ix < no_of_lhs_rules; ix++)
 		{
 		  // For every rule with that symbol on its LHS
 		  Marpa_Rule_ID rule_with_this_lhs_symbol =
-		    *DSTACK_INDEX(to_symbol->t_lhs, RULEID, ix);
+		    *DSTACK_INDEX (to_symbol->t_lhs, RULEID, ix);
 		  unsigned int sort_key =
 		    sort_key_by_rule_id[rule_with_this_lhs_symbol];
 		  if (sort_key >= no_of_predictable_rules)
 		    continue;	/*
 				   We only need to predict rules which have items */
-		  matrix_bit_set (prediction_matrix, (unsigned int) from_symid,
-				  sort_key);
+		  matrix_bit_set (prediction_matrix,
+				  (unsigned int) from_symid, sort_key);
 		  // Set the $(symbol, rule sort key)$ bit in the matrix
 		}
 	    }
@@ -4896,7 +4951,7 @@ AHFA p_new_state;
 unsigned int item_list_ix = 0;
 unsigned int no_of_items_in_new_state = bv_count( prediction_rule_vector);
 	if (no_of_items_in_new_state == 0) return NULL;
-item_list_for_new_state = obstack_alloc (&g->t_obs,
+item_list_for_new_state = my_obstack_alloc (&g->t_obs,
 	       no_of_items_in_new_state * sizeof (AIM));
 {
   unsigned int start, min, max;
@@ -4922,7 +4977,7 @@ item_list_for_new_state = obstack_alloc (&g->t_obs,
 		 /* The new state would be a duplicate.
 		 Back it out and return the one that already exists */
 	    (void)DQUEUE_POP((*states_p), AHFA_Object);
-	    obstack_free(&g->t_obs, item_list_for_new_state);
+	    my_obstack_free(&g->t_obs, item_list_for_new_state);
 	    return queued_AHFA_state;
 	}
     }
@@ -4954,7 +5009,7 @@ item_list_for_new_state = obstack_alloc (&g->t_obs,
   {
     unsigned int min, max, start;
     Marpa_Symbol_ID *p_symbol = p_new_state->t_postdot_symid_ary =
-      obstack_alloc (&g->t_obs,
+      my_obstack_alloc (&g->t_obs,
 		     no_of_postdot_symbols * sizeof (SYMID));
     for (start = 0; bv_scan (postdot_v, start, &min, &max); start = max + 2)
       {
@@ -5063,7 +5118,7 @@ PRIVATE
 URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix)
 {
      URTRANS transition;
-     transition = obstack_alloc (obstack, sizeof (transition[0]));
+     transition = my_obstack_alloc (obstack, sizeof (transition[0]));
      transition->t_to_ahfa = to_ahfa;
      transition->t_completion_count = aim_ix;
      return transition;
@@ -5112,7 +5167,7 @@ void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, SYMID symid)
 
 @*0 Trace Functions.
 @ @<Function definitions@> =
-int marpa_g_AHFA_state_transitions(struct marpa_g* g,
+int _marpa_g_AHFA_state_transitions(struct marpa_g* g,
     Marpa_AHFA_State_ID AHFA_state_id,
     int *buffer,
     int buffer_size
@@ -5153,7 +5208,7 @@ int marpa_g_AHFA_state_transitions(struct marpa_g* g,
 @ In the external accessor,
 -1 is a valid return value, indicating no empty transition.
 @<Function definitions@> =
-AHFAID marpa_g_AHFA_state_empty_transition(struct marpa_g* g,
+AHFAID _marpa_g_AHFA_state_empty_transition(struct marpa_g* g,
      AHFAID AHFA_state_id) {
     AHFA state;
     AHFA empty_transition_state;
@@ -5200,7 +5255,7 @@ PRIVATE INPUT
 input_new (GRAMMAR g)
 {
   INPUT input = my_slice_new (struct s_input);
-  obstack_init (TOK_Obs_of_I (input));
+  my_obstack_init (TOK_Obs_of_I (input));
   @<Initialize input elements@>@;
   return input;
 }
@@ -5241,7 +5296,7 @@ guarantee that it is safe to destroy it.
 @<Function definitions@> =
 PRIVATE void input_free(INPUT input)
 {
-    obstack_free(TOK_Obs_of_I(input), NULL);
+    my_obstack_free(TOK_Obs_of_I(input), NULL);
     my_slice_free(struct s_input, input);
 }
 
@@ -5665,8 +5720,8 @@ Create an obstack with the lifetime of the recognizer.
 This is a very efficient way of allocating memory which won't be
 resized and which will have the same lifetime as the recognizer.
 @<Widely aligned recognizer elements@> = struct obstack t_obs;
-@ @<Initialize recognizer obstack@> = obstack_init(&r->t_obs);
-@ @<Destroy recognizer obstack@> = obstack_free(&r->t_obs, NULL);
+@ @<Initialize recognizer obstack@> = my_obstack_init(&r->t_obs);
+@ @<Destroy recognizer obstack@> = my_obstack_free(&r->t_obs, NULL);
 
 @*0 Recognizer error accessor.
 @ A convenience wrapper for the grammar error strings.
@@ -5773,7 +5828,7 @@ earley_set_new( RECCE r, EARLEME id)
 {
   ESK_Object key;
   ES set;
-  set = obstack_alloc (&r->t_obs, sizeof (*set));
+  set = my_obstack_alloc (&r->t_obs, sizeof (*set));
   key.t_earleme = id;
   set->t_key = key;
   set->t_postdot_ary = NULL;
@@ -5973,7 +6028,7 @@ PRIVATE EIM earley_item_create(const RECCE r,
   const ES set = key.t_set;
   const int count = ++EIM_Count_of_ES(set);
   @<Check count against Earley item thresholds@>@;
-  new_item = obstack_alloc (&r->t_obs, sizeof (*new_item));
+  new_item = my_obstack_alloc (&r->t_obs, sizeof (*new_item));
   new_item->t_key = key;
   new_item->t_source_type = NO_SOURCE;
   Ord_of_EIM(new_item) = count - 1;
@@ -6725,7 +6780,7 @@ token_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
+  new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = First_Token_Link_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   TOK_of_Source(new_link->t_source) = token;
@@ -6802,7 +6857,7 @@ completion_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
+  new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = First_Completion_Link_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -6829,7 +6884,7 @@ leo_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
+  new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = First_Leo_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -6874,7 +6929,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate token source@> = {
-  SRCL new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
+  SRCL new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
   First_Leo_SRCL_of_EIM (item) = NULL;
@@ -6883,7 +6938,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate completion source@> = {
-  SRCL new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
+  SRCL new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
   First_Leo_SRCL_of_EIM (item) = NULL;
@@ -6892,7 +6947,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate Leo source@> = {
-  SRCL new_link = obstack_alloc (&r->t_obs, sizeof (*new_link));
+  SRCL new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
   First_Leo_SRCL_of_EIM (item) = new_link;
@@ -7408,12 +7463,12 @@ TOK token_new(INPUT input, SYMID symbol_id, int value)
 {
   TOK token;
   if (value) {
-    token = obstack_alloc (TOK_Obs_of_I(input), sizeof(*token));
+    token = my_obstack_alloc (TOK_Obs_of_I(input), sizeof(*token));
     SYMID_of_TOK(token) = symbol_id;
     Type_of_TOK(token) = VALUED_TOKEN_OR_NODE;
     Value_of_TOK(token) = value;
   } else {
-    token = obstack_alloc (TOK_Obs_of_I(input), sizeof(token->t_unvalued));
+    token = my_obstack_alloc (TOK_Obs_of_I(input), sizeof(token->t_unvalued));
     SYMID_of_TOK(token) = symbol_id;
     Type_of_TOK(token) = UNVALUED_TOKEN_OR_NODE;
   }
@@ -7423,7 +7478,7 @@ TOK token_new(INPUT input, SYMID symbol_id, int value)
 @ Recover |token| from the token obstack.
 The intended use is to recover the one token
 most recently added in case of an error.
-@<Recover |token|@> = obstack_free (TOK_Obs_of_R(r), token);
+@<Recover |token|@> = my_obstack_free (TOK_Obs_of_R(r), token);
 
 @** Alternative Tokens (ALT) Code.
 Because Marpa allows more than one token at every
@@ -8097,7 +8152,7 @@ At this point there are no Leo items.
 	  PIM old_pim = NULL;
 	  PIM new_pim;
 	  Marpa_Symbol_ID symid;
-	  new_pim = obstack_alloc (&r->t_obs, sizeof (EIX_Object));
+	  new_pim = my_obstack_alloc (&r->t_obs, sizeof (EIX_Object));
 	  symid = postdot_symbols[symbol_ix];
 	  Postdot_SYMID_of_PIM(new_pim) = symid;
 	  EIM_of_PIM(new_pim) = earley_item;
@@ -8173,7 +8228,7 @@ That may become its actual value,
 once it is populated.
 @<Create a new, unpopulated, LIM@> = {
     LIM new_lim;
-    new_lim = obstack_alloc(&r->t_obs, sizeof(*new_lim));
+    new_lim = my_obstack_alloc(&r->t_obs, sizeof(*new_lim));
     Postdot_SYMID_of_LIM(new_lim) = symid;
     EIM_of_PIM(new_lim) = NULL;
     Predecessor_LIM_of_LIM(new_lim) = NULL;
@@ -8437,7 +8492,7 @@ of the base EIM.
 @ @<Copy PIM workarea to postdot item array@> = {
     PIM *postdot_array
 	= current_earley_set->t_postdot_ary
-	= obstack_alloc (&r->t_obs,
+	= my_obstack_alloc (&r->t_obs,
 	       current_earley_set->t_postdot_sym_count * sizeof (PIM));
     unsigned int min, max, start;
     int postdot_array_ix = 0;
@@ -8629,7 +8684,7 @@ are settled.
 @ @<Function definitions@> =
 PRIVATE void ur_node_stack_init(URS stack)
 {
-    obstack_init(&stack->t_obs);
+    my_obstack_init(&stack->t_obs);
     stack->t_base = ur_node_new(stack, 0);
     ur_node_stack_reset(stack);
 }
@@ -8643,7 +8698,7 @@ PRIVATE void ur_node_stack_reset(URS stack)
 @ @<Function definitions@> =
 PRIVATE void ur_node_stack_destroy(URS stack)
 {
-    if (stack->t_base) obstack_free(&stack->t_obs, NULL);
+    if (stack->t_base) my_obstack_free(&stack->t_obs, NULL);
     stack->t_base = NULL;
 }
 
@@ -8651,7 +8706,7 @@ PRIVATE void ur_node_stack_destroy(URS stack)
 PRIVATE UR ur_node_new(URS stack, UR prev)
 {
     UR new_ur_node;
-    new_ur_node = obstack_alloc(&stack->t_obs, sizeof(new_ur_node[0]));
+    new_ur_node = my_obstack_alloc(&stack->t_obs, sizeof(new_ur_node[0]));
     Next_UR_of_UR(new_ur_node) = 0;
     Prev_UR_of_UR(new_ur_node) = prev;
     return new_ur_node;
@@ -8752,7 +8807,7 @@ MARPA_ASSERT(ahfa_element_ix < aim_count_of_item)@;
     if (!nodes_by_aex) {
 	AEX aex;
         nodes_by_aex = nodes_by_item[item_ordinal] =
-	    obstack_alloc(obs, aim_count_of_item*sizeof(OR));
+	    my_obstack_alloc(obs, aim_count_of_item*sizeof(OR));
 	for (aex = 0; aex < aim_count_of_item; aex++) {
 	    nodes_by_aex[aex] = NULL;
 	}
@@ -9220,7 +9275,7 @@ or arranging to test it.
 {
   const int or_node_id = OR_Count_of_B (b)++;
   OR *or_nodes_of_b = ORs_of_B (b);
-  last_or_node = (OR)obstack_alloc (&OBS_of_B(b), sizeof(OR_Object));
+  last_or_node = (OR)my_obstack_alloc (&OBS_of_B(b), sizeof(OR_Object));
   ID_of_OR(last_or_node) = or_node_id;
   if (UNLIKELY(or_node_id >= or_node_estimate))
     {
@@ -9467,7 +9522,7 @@ typedef struct s_draft_and_node DAND_Object;
 PRIVATE
 DAND draft_and_node_new(struct obstack *obs, OR predecessor, OR cause)
 {
-    DAND draft_and_node = obstack_alloc (obs, sizeof(DAND_Object));
+    DAND draft_and_node = my_obstack_alloc (obs, sizeof(DAND_Object));
     Predecessor_OR_of_DAND(draft_and_node) = predecessor;
     Cause_OR_of_DAND(draft_and_node) = cause;
     MARPA_ASSERT(cause);
@@ -9940,7 +9995,7 @@ int marpa_b_and_node_count(Marpa_Bocage b)
       return failure_indicator;
   }
   if (and_node_id < 0) {
-      MARPA_ERROR(MARPA_ERR_ANDID_LT_ZERO);
+      MARPA_ERROR(MARPA_ERR_ANDID_NEGATIVE);
       return failure_indicator;
   }
   if (and_node_id >= AND_Count_of_B(b)) {
@@ -10063,14 +10118,14 @@ An obstack with the lifetime of the bocage.
 @<Widely aligned bocage elements@> =
 struct obstack t_obs;
 @ @<Bit aligned bocage elements@> =
-unsigned int is_obstack_initialized:1;
+unsigned int t_is_obstack_initialized:1;
 @ @<Initialize bocage elements@> =
-b->is_obstack_initialized = 1;
-obstack_init(&OBS_of_B(b));
+b->t_is_obstack_initialized = 1;
+my_obstack_init(&OBS_of_B(b));
 @ @<Destroy bocage elements, final phase@> =
-if (b->is_obstack_initialized) {
-    obstack_free(&OBS_of_B(b), NULL);
-    b->is_obstack_initialized = 0;
+if (b->t_is_obstack_initialized) {
+    my_obstack_free(&OBS_of_B(b), NULL);
+    b->t_is_obstack_initialized = 0;
 }
 
 @*0 Bocage Construction.
@@ -10113,13 +10168,13 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     @<Set |completed_start_rule|@>@;
     @<Find |start_eim|, |start_aim| and |start_aex|@>@;
     if (!start_eim) goto B_NEW_RETURN_ERROR;
-    obstack_init(&bocage_setup_obs);
+    my_obstack_init(&bocage_setup_obs);
     @<Allocate bocage setup working data@>@;
     @<Populate the PSIA data@>@;
     @<Create the or-nodes for all earley sets@>@;
     @<Create the final and-nodes for all earley sets@>@;
     @<Set top or node id in |b|@>;
-    obstack_free(&bocage_setup_obs, NULL);
+    my_obstack_free(&bocage_setup_obs, NULL);
     return b;
     B_NEW_RETURN_ERROR: ;
     input_unref(input);
@@ -10205,7 +10260,7 @@ PRIVATE_NOT_INLINE BOCAGE r_create_null_bocage(RECCE r, BOCAGE b)
   OR *or_nodes = ORs_of_B (b) = my_new (OR, 1);
   AND and_nodes = ANDs_of_B (b) = my_new (AND_Object, 1);
   OR or_node = or_nodes[0] =
-    (OR) obstack_alloc (&OBS_of_B (b), sizeof (OR_Object));
+    (OR) my_obstack_alloc (&OBS_of_B (b), sizeof (OR_Object));
   ORID null_or_node_id = 0;
   Top_ORID_of_B (b) = null_or_node_id;
 
@@ -10235,7 +10290,7 @@ PRIVATE_NOT_INLINE BOCAGE r_create_null_bocage(RECCE r, BOCAGE b)
   unsigned int earley_set_count = ES_Count_of_R (r);
   total_earley_items_in_parse = 0;
   per_es_data =
-    obstack_alloc (&bocage_setup_obs,
+    my_obstack_alloc (&bocage_setup_obs,
 		   sizeof (struct s_bocage_setup_per_es) * earley_set_count);
   for (ix = 0; ix < earley_set_count; ix++)
     {
@@ -10245,7 +10300,7 @@ PRIVATE_NOT_INLINE BOCAGE r_create_null_bocage(RECCE r, BOCAGE b)
 	{
 	  struct s_bocage_setup_per_es *per_es = per_es_data + ix;
 	  OR ** const per_eim_eixes = per_es->t_aexes_by_item =
-	    obstack_alloc (&bocage_setup_obs, sizeof (OR *) * item_count);
+	    my_obstack_alloc (&bocage_setup_obs, sizeof (OR *) * item_count);
 	  unsigned int item_ordinal;
 	  per_es->t_or_psl = NULL;
 	  per_es->t_and_psl = NULL;
@@ -10419,7 +10474,7 @@ bocage_free (BOCAGE b)
       return failure_indicator;
   }
   if (or_node_id < 0) {
-      MARPA_ERROR(MARPA_ERR_ORID_LT_ZERO);
+      MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
       return failure_indicator;
   }
   if (or_node_id >= OR_Count_of_B(b)) {
@@ -10618,7 +10673,7 @@ PRIVATE void order_free(ORDER o)
   order_strip(o);
   if (o->t_and_node_orderings) {
       o->t_and_node_orderings = NULL;
-      obstack_free(&OBS_of_O(o), NULL);
+      my_obstack_free(&OBS_of_O(o), NULL);
   }
   my_slice_free(struct s_order, o);
 }
@@ -10725,10 +10780,10 @@ int marpa_o_and_order_set(
 	  {
 	    int and_id;
 	    const int and_count_of_r = AND_Count_of_B (b);
-	    obstack_init(obs);
+	    my_obstack_init(obs);
 	    o->t_and_node_orderings =
 	      and_node_orderings =
-	      obstack_alloc (obs, sizeof (ANDID *) * and_count_of_r);
+	      my_obstack_alloc (obs, sizeof (ANDID *) * and_count_of_r);
 	    for (and_id = 0; and_id < and_count_of_r; and_id++)
 	      {
 		and_node_orderings[and_id] = (ANDID *) NULL;
@@ -10761,7 +10816,7 @@ int marpa_o_and_order_set(
 		      return failure_indicator;
 	    }
 	    {
-	      ANDID *orderings = obstack_alloc (obs, sizeof (ANDID) * (length + 1));
+	      ANDID *orderings = my_obstack_alloc (obs, sizeof (ANDID) * (length + 1));
 	      int i;
 	      and_node_orderings[or_node_id] = orderings;
 	      *orderings++ = length;
@@ -10810,7 +10865,7 @@ Marpa_And_Node_ID marpa_o_and_order_get(Marpa_Order o,
   @<Fail if fatal error@>@;
     @<Check |or_node_id|; set |or_node|@>@;
   if (ix < 0) {
-      MARPA_ERROR(MARPA_ERR_ANDIX_LT_ZERO);
+      MARPA_ERROR(MARPA_ERR_ANDIX_NEGATIVE);
       return failure_indicator;
   }
     return and_order_get(o, or_node, ix);
@@ -11307,7 +11362,7 @@ set |nook|@> = {
   }
   base_nook = FSTACK_BASE(t->t_nook_stack, NOOK_Object);
   if (nook_id < 0) {
-      MARPA_ERROR(MARPA_ERR_NOOKID_LT_ZERO);
+      MARPA_ERROR(MARPA_ERR_NOOKID_NEGATIVE);
       return failure_indicator;
   }
   if (nook_id >= Size_of_T(t)) {
@@ -11900,7 +11955,7 @@ bv_obs_create (struct obstack *obs, unsigned int bits)
 {
   unsigned int size = bv_bits_to_size (bits);
   unsigned int bytes = (size + bv_hiddenwords) << sizeof (unsigned int);
-  unsigned int *addr = (Bit_Vector) obstack_alloc (obs, (size_t) bytes);
+  unsigned int *addr = (Bit_Vector) my_obstack_alloc (obs, (size_t) bytes);
   *addr++ = bits;
   *addr++ = size;
   *addr++ = bv_bits_to_unused_mask (bits);
@@ -11919,6 +11974,10 @@ all bits unset.
 PRIVATE Bit_Vector bv_shadow(Bit_Vector bv)
 {
     return bv_create(BV_BITS(bv));
+}
+PRIVATE Bit_Vector bv_obs_shadow(struct obstack * obs, Bit_Vector bv)
+{
+    return bv_obs_create(obs, BV_BITS(bv));
 }
 
 @*0 Clone a Boolean Vector.
@@ -11950,12 +12009,21 @@ Bit_Vector bv_clone(Bit_Vector bv)
     return bv_copy(bv_shadow(bv), bv);
 }
 
+PRIVATE
+Bit_Vector bv_obs_clone(struct obstack *obs, Bit_Vector bv)
+{
+    return bv_copy(bv_obs_shadow(obs, bv), bv);
+}
+
 @*0 Free a Boolean Vector.
 @<Function definitions@> =
 PRIVATE void bv_free(Bit_Vector vector)
 {
-    vector -= bv_hiddenwords;
-    my_free(vector);
+    if (LIKELY(vector != NULL))
+    {
+	vector -= bv_hiddenwords;
+	my_free(vector);
+    }
 }
 
 @*0 The Number of Bytes in a Boolean Vector.
@@ -12089,7 +12157,7 @@ PRIVATE void bv_or_assign(Bit_Vector X, Bit_Vector Y)
 
 @*0 Scan a Boolean Vector.
 @<Function definitions@>=
-PRIVATE
+PRIVATE_NOT_INLINE
 int bv_scan(Bit_Vector bv, unsigned int start,
                                     unsigned int* min, unsigned int* max)
 {
@@ -12200,7 +12268,7 @@ This means the RHS closure operation can only be used for
 properties which can meaningfully be regarded as vacuously
 true.
 In |libmarpa|, two important symbol properties are
-RHS clousure properties:
+RHS closure properties:
 the property of being productive,
 and the property of being nullable.
 
@@ -12208,10 +12276,6 @@ and the property of being nullable.
 This routine takes a symbol vector and a grammar,
 and turns the original vector into the RHS closure of that vector.
 The orignal vector is destroyed.
-\par
-If I decide rules should have a unique right hand symbol list,
-this is one place to use it.
-Duplicate symbols on the RHS are visited uselessly.
 @<Function definitions@> =
 PRIVATE_NOT_INLINE void
 rhs_closure (GRAMMAR g, Bit_Vector bv)
@@ -12291,27 +12355,24 @@ typedef Bit_Vector_Word* Bit_Matrix;
 This is {\bf not} the case with vectors, whose pointer is offset for
 the ``hidden words".
 @<Function definitions@> =
-PRIVATE Bit_Matrix matrix_create(unsigned int rows, unsigned int columns)
+PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns)
 {
-    unsigned int bv_data_words = bv_bits_to_size(columns);
-    unsigned int row_bytes = (bv_data_words + bv_hiddenwords) * sizeof(Bit_Vector_Word);
-    unsigned int bv_mask = bv_bits_to_unused_mask(columns);
-    Bit_Vector_Word* matrix_addr = my_malloc0((size_t)(row_bytes * rows));
+    const unsigned int bv_data_words = bv_bits_to_size(columns);
+    const unsigned int row_bytes = (bv_data_words + bv_hiddenwords) * sizeof(Bit_Vector_Word);
+    const unsigned int bv_mask = bv_bits_to_unused_mask(columns);
+    const size_t allocation_size = row_bytes * rows;
+    Bit_Vector_Word* matrix_addr = my_obstack_alloc(obs, allocation_size);
     unsigned int row;
     for (row = 0; row < rows; row++) {
-	unsigned int row_start = row*(bv_data_words+bv_hiddenwords);
-	matrix_addr[row_start] = columns;
-	matrix_addr[row_start+1] = bv_data_words;
-	matrix_addr[row_start+2] = bv_mask;
+	const unsigned int row_start = row*(bv_data_words+bv_hiddenwords);
+	Bit_Vector_Word* p_current_word = matrix_addr + row_start;
+	int data_word_counter = bv_data_words;
+	*p_current_word++ = columns;
+	*p_current_word++ = bv_data_words;
+	*p_current_word++ = bv_mask;
+	while (data_word_counter--) *p_current_word++ = 0;
     }
     return matrix_addr;
-}
-
-@*0 Free a Boolean Matrix.
-@<Function definitions@> =
-PRIVATE void matrix_free(Bit_Matrix matrix)
-{
-    my_free(matrix);
 }
 
 @*0 Find the Number of Columns in a Boolean Matrix.
@@ -12900,28 +12961,32 @@ to provide more convenient behaviors.
 a |NULL| pointer.  (This is the GNU C library behavior.)
 
 @d my_free(p) free(p)
+@d MY_MALLOC(newmem, size) {
+    (newmem) = malloc((size));
+    if (UNLIKELY(!(newmem))) (*marpa_out_of_memory)();
+}
 @<Function definitions@> =
 PRIVATE void*
 my_malloc(size_t size)
 {
-    void *newmem = malloc(size);
-    if (!newmem) (*marpa_out_of_memory)();
+    void *newmem;
+    MY_MALLOC(newmem, size);
     return newmem;
 }
 @ These are the malloc wrappers compiled
 ``on their own'', that is, not inlined.
 @ @<Function definitions@> =
 extern void*
-marpa_avl_malloc(struct libavl_allocator* alloc UNUSED, size_t size);
+_marpa_avl_malloc(struct libavl_allocator* alloc UNUSED, size_t size);
 void*
-marpa_avl_malloc(struct libavl_allocator* alloc UNUSED, size_t size)
+_marpa_avl_malloc(struct libavl_allocator* alloc UNUSED, size_t size)
 {
     return my_malloc(size);
 }
 extern void
-marpa_avl_free(struct libavl_allocator* alloc UNUSED, void *p);
+_marpa_avl_free(struct libavl_allocator* alloc UNUSED, void *p);
 void
-marpa_avl_free(struct libavl_allocator* alloc UNUSED, void *p)
+_marpa_avl_free(struct libavl_allocator* alloc UNUSED, void *p)
 {
     my_free(p);
 }
@@ -12930,7 +12995,8 @@ marpa_avl_free(struct libavl_allocator* alloc UNUSED, void *p)
 PRIVATE void*
 my_malloc0(size_t size)
 {
-    void *newmem = my_malloc(size);
+    void *newmem;
+    MY_MALLOC(newmem, size);
     memset (newmem, 0, size);
     return newmem;
 }
@@ -12940,7 +13006,10 @@ PRIVATE void*
 my_realloc(void* mem, size_t size)
 {
     void *newmem;
-    if (!mem) return my_malloc(size);
+    if (!mem) {
+       MY_MALLOC(newmem, size);
+       return newmem;
+    }
     newmem = realloc(mem, size);
     if (!newmem) (*marpa_out_of_memory)();
     return newmem;
@@ -13016,33 +13085,38 @@ general failure indicator.
 |g| is assumed to be the value of the relevant grammar,
 when one is required.
 @<Fail if precomputed@> =
-if (G_is_Precomputed(g)) {
+if (UNLIKELY(G_is_Precomputed(g))) {
     MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
     return failure_indicator;
 }
 
 @ @<Fail if not precomputed@> =
-if (!G_is_Precomputed(g)) {
+if (UNLIKELY(!G_is_Precomputed(g))) {
     MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
     return failure_indicator;
 }
+@ @<Fail if |symbol| is internal@> =
+if (UNLIKELY(SYM_is_Internal(symbol))) {
+    MARPA_ERROR(MARPA_ERR_INTERNAL_SYM);
+    return failure_indicator;
+}
 @ @<Fail if |symid| is invalid@> =
-if (!symbol_is_valid(g, symid)) {
+if (UNLIKELY(!symbol_is_valid(g, symid))) {
     MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
     return failure_indicator;
 }
 @ @<Fail if grammar |rule_id| is invalid@> =
-if (!RULEID_of_G_is_Valid(g, rule_id)) {
+if (UNLIKELY(!RULEID_of_G_is_Valid(g, rule_id))) {
     MARPA_ERROR (MARPA_ERR_INVALID_RULEID);
     return failure_indicator;
 }
 @ @<Fail if grammar |item_id| is invalid@> =
-if (!aim_is_valid(g, item_id)) {
+if (UNLIKELY(!aim_is_valid(g, item_id))) {
     MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
     return failure_indicator;
 }
 @ @<Fail if grammar |AHFA_state_id| is invalid@> =
-if (!AHFA_state_id_is_valid(g, AHFA_state_id)) {
+if (UNLIKELY(!AHFA_state_id_is_valid(g, AHFA_state_id))) {
     MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
     return failure_indicator;
 }
@@ -13051,17 +13125,17 @@ if (!AHFA_state_id_is_valid(g, AHFA_state_id)) {
 |r| is assumed to be the value of the relevant recognizer,
 when one is required.
 @<Fail if recognizer started@> =
-if (Input_Phase_of_R(r) != R_BEFORE_INPUT) {
+if (UNLIKELY(Input_Phase_of_R(r) != R_BEFORE_INPUT)) {
     MARPA_ERROR(MARPA_ERR_RECCE_STARTED);
     return failure_indicator;
 }
 @ @<Fail if recognizer not started@> =
-if (Input_Phase_of_R(r) == R_BEFORE_INPUT) {
+if (UNLIKELY(Input_Phase_of_R(r) == R_BEFORE_INPUT)) {
     MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
     return failure_indicator;
 }
 @ @<Fail if recognizer not accepting input@> =
-if (Input_Phase_of_R(r) != R_DURING_INPUT) {
+if (UNLIKELY(Input_Phase_of_R(r) != R_DURING_INPUT)) {
     MARPA_ERROR(MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
     return failure_indicator;
 }
@@ -13071,7 +13145,7 @@ if (Input_Phase_of_R(r) != R_DURING_INPUT) {
     @<Fail if recognizer not started@>@;
 
 @ @<Fail if fatal error@> =
-if (!IS_G_OK(g)) {
+if (UNLIKELY(!IS_G_OK(g))) {
     MARPA_ERROR(g->t_error);
     return failure_indicator;
 }

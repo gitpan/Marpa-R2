@@ -31,7 +31,6 @@ static int AHFA_state_cmp(
     const void* ap,
     const void* bp,
     void *param UNUSED);
-static void create_AHFA_states(struct marpa_g* g);
 static int
 cmp_by_rule_sort_key(const void* ap, const void* bp);
 static AHFA
@@ -47,6 +46,8 @@ static void earley_item_ambiguate (struct marpa_r * r, EIM item);
 static void
 postdot_items_create (RECCE r, ES current_earley_set);
 static BOCAGE r_create_null_bocage(RECCE r, BOCAGE b);
+static int bv_scan(Bit_Vector bv, unsigned int start,
+                                    unsigned int* min, unsigned int* max);
 static void
 rhs_closure (GRAMMAR g, Bit_Vector bv);
 static void transitive_closure(Bit_Matrix matrix);
@@ -81,8 +82,8 @@ static inline SYM symbol_null_alias(SYM symbol);
 static inline SYM symbol_alias_create(GRAMMAR g, SYM symbol);
 static inline int is_rule_duplicate(GRAMMAR g,
 SYMID lhs_id, SYMID* rhs_ids, int length);
-static inline int rule_check(GRAMMAR g,
-SYMID lhs, SYMID *rhs, int length);
+static inline int
+rule_check (GRAMMAR g, SYMID lhs_id, SYMID * rhs_ids, int length);
 static inline Marpa_Symbol_ID rule_lhs_get(RULE rule);
 static inline Marpa_Symbol_ID* rule_rhs_get(RULE rule);
 static inline size_t rule_length_get(RULE rule);
@@ -92,14 +93,9 @@ static inline int
 rule_is_nulling (GRAMMAR g, RULE rule);
 static inline int
 symbol_instance_of_ahfa_item_get (AIM aim);
-static inline GRAMMAR census(GRAMMAR g);
-static inline struct marpa_g* CHAF_rewrite(struct marpa_g* g);
 static inline SYMID alias_by_id(GRAMMAR g, SYMID proper_id);
-static inline GRAMMAR g_augment(GRAMMAR g);
-static inline void loop_detect(struct marpa_g* g);
 static inline int aim_is_valid(
 GRAMMAR g, AIMID item_id);
-static inline void create_AHFA_items(GRAMMAR g);
 static inline void AHFA_initialize(AHFA ahfa);
 static inline AEX aex_of_ahfa_by_aim_get(AHFA ahfa, AIM sought_aim);
 static inline int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id);
@@ -210,8 +206,10 @@ static inline Bit_Vector bv_create(unsigned int bits);
 static inline Bit_Vector
 bv_obs_create (struct obstack *obs, unsigned int bits);
 static inline Bit_Vector bv_shadow(Bit_Vector bv);
+static inline Bit_Vector bv_obs_shadow(struct obstack * obs, Bit_Vector bv);
 static inline Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from);
 static inline Bit_Vector bv_clone(Bit_Vector bv);
+static inline Bit_Vector bv_obs_clone(struct obstack *obs, Bit_Vector bv);
 static inline void bv_free(Bit_Vector vector);
 static inline int bv_bytes(Bit_Vector bv);
 static inline void bv_fill(Bit_Vector bv);
@@ -227,12 +225,9 @@ static inline void bv_not(Bit_Vector X, Bit_Vector Y);
 static inline void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z);
 static inline void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z);
 static inline void bv_or_assign(Bit_Vector X, Bit_Vector Y);
-static inline int bv_scan(Bit_Vector bv, unsigned int start,
-                                    unsigned int* min, unsigned int* max);
 static inline unsigned int
 bv_count (Bit_Vector v);
-static inline Bit_Matrix matrix_create(unsigned int rows, unsigned int columns);
-static inline void matrix_free(Bit_Matrix matrix);
+static inline Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns);
 static inline int matrix_columns(Bit_Matrix matrix);
 static inline Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
 static inline void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column);
