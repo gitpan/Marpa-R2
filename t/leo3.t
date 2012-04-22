@@ -57,17 +57,17 @@ $grammar->precompute();
 
 Marpa::R2::Test::is( $grammar->show_symbols(),
     <<'END_OF_STRING', 'Leo166 Symbols' );
-0: a, lhs=[] rhs=[0 5 6] terminal
-1: S, lhs=[0 4 5 6] rhs=[3 9 10]
-2: A, lhs=[1 7] rhs=[0 5]
-3: B, lhs=[2 8] rhs=[1 7]
-4: C, lhs=[3 9] rhs=[2 8]
-5: S[], lhs=[] rhs=[] nulling
-6: A[], lhs=[] rhs=[6] nulling
-7: B[], lhs=[] rhs=[] nulling
-8: C[], lhs=[] rhs=[] nulling
-9: S['], lhs=[10] rhs=[]
-10: S['][], lhs=[11] rhs=[] nulling
+0: a, terminal
+1: S
+2: A
+3: B
+4: C
+5: S[], nulling
+6: A[], nulling
+7: B[], nulling
+8: C[], nulling
+9: S[']
+10: S['][], nulling
 END_OF_STRING
 
 Marpa::R2::Test::is( $grammar->show_rules,

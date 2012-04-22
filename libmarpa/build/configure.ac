@@ -33,7 +33,7 @@ m4_define(marpa_configure_in)
 #
 m4_define([marpa_major_version], [2])
 m4_define([marpa_minor_version], [0])
-m4_define([marpa_micro_version], [34])
+m4_define([marpa_micro_version], [35])
 m4_define([marpa_interface_age], [100])
 m4_define([marpa_binary_age],
           [m4_eval(100 * marpa_minor_version + marpa_micro_version)])
@@ -181,6 +181,8 @@ fi
 
 AC_SUBST(WARNING_CFLAGS)
 AC_ARG_VAR(MARPA_DEBUG_FLAG,[Marpa debugging])
+AC_TYPE_UINTMAX_T
+AC_TYPE_INTMAX_T
 AC_C_INLINE
 
 AC_CONFIG_FILES( [Makefile])

@@ -28,43 +28,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "marpa_obs.h"
+#include "marpa_util.h"
 #include "avl.h"
-
-extern void*
-_marpa_avl_malloc(struct libavl_allocator* alloc, size_t size);
-extern void
-_marpa_avl_free(struct libavl_allocator* alloc, void *p);
-
-/* Default memory allocator */
-static struct libavl_allocator avl_allocator_default =
-  {
-    _marpa_avl_malloc,
-    _marpa_avl_free
-  };
 
 /* Creates and returns a new table
    with comparison function |compare| using parameter |param|
    and memory allocator |allocator|.
    Returns |NULL| if memory allocation failed. */
-struct avl_table *
+AVL_TREE 
 _marpa_avl_create (avl_comparison_func *compare, void *param,
-            struct libavl_allocator *allocator)
+            int minimum_alignment)
 {
-  struct avl_table *tree;
+  AVL_TREE tree;
+  int alignment = MAX(minimum_alignment, (int)alignof(struct avl_node));
 
   assert (compare != NULL);
 
-  if (allocator == NULL)
-    allocator = &avl_allocator_default;
-
-  tree = allocator->libavl_malloc (allocator, sizeof *tree);
+  tree = my_malloc( sizeof *tree);
   if (tree == NULL)
     return NULL;
 
+  my_obstack_begin(&tree->obstack, 0, alignment);
   tree->avl_root = NULL;
   tree->avl_compare = compare;
   tree->avl_param = param;
-  tree->avl_alloc = allocator;
   tree->avl_count = 0;
   tree->avl_generation = 0;
 
@@ -74,7 +62,7 @@ _marpa_avl_create (avl_comparison_func *compare, void *param,
 /* Search |tree| for an item matching |item|, and return it if found.
    Otherwise return |NULL|. */
 void *
-_marpa_avl_find (const struct avl_table *tree, const void *item)
+_marpa_avl_find (const AVL_TREE tree, const void *item)
 {
   const struct avl_node *p;
 
@@ -99,7 +87,7 @@ _marpa_avl_find (const struct avl_table *tree, const void *item)
    returns a pointer to the duplicate without inserting |item|.
    Returns |NULL| in case of memory allocation failure. */
 void **
-_marpa_avl_probe (struct avl_table *tree, void *item)
+_marpa_avl_probe (AVL_TREE tree, void *item)
 {
   struct avl_node *y, *z; /* Top node to update balance factor, and parent. */
   struct avl_node *p, *q; /* Iterator, and parent. */
@@ -126,8 +114,7 @@ _marpa_avl_probe (struct avl_table *tree, void *item)
       da[k++] = dir = cmp > 0;
     }
 
-  n = q->avl_link[dir] =
-    tree->avl_alloc->libavl_malloc (tree->avl_alloc, sizeof *n);
+  n = q->avl_link[dir] = my_obstack_alloc (&tree->obstack, sizeof *n);
   if (n == NULL)
     return NULL;
 
@@ -211,7 +198,7 @@ _marpa_avl_probe (struct avl_table *tree, void *item)
    or if a memory allocation error occurred.
    Otherwise, returns the duplicate item. */
 void *
-_marpa_avl_insert (struct avl_table *table, void *item)
+_marpa_avl_insert (AVL_TREE table, void *item)
 {
   void **p = _marpa_avl_probe (table, item);
   return p == NULL || *p == item ? NULL : *p;
@@ -222,7 +209,7 @@ _marpa_avl_insert (struct avl_table *table, void *item)
    or if a memory allocation error occurred.
    Otherwise, returns the item that was replaced. */
 void *
-_marpa_avl_replace (struct avl_table *table, void *item)
+_marpa_avl_replace (AVL_TREE table, void *item)
 {
   void **p = _marpa_avl_probe (table, item);
   if (p == NULL || *p == item)
@@ -238,7 +225,7 @@ _marpa_avl_replace (struct avl_table *table, void *item)
 /* Deletes from |tree| and returns an item matching |item|.
    Returns a null pointer if no matching item found. */
 void *
-_marpa_avl_delete (struct avl_table *tree, const void *item)
+_marpa_avl_delete (AVL_TREE tree, const void *item)
 {
   /* Stack of nodes. */
   struct avl_node *pa[AVL_MAX_HEIGHT]; /* Nodes. */
@@ -306,7 +293,7 @@ _marpa_avl_delete (struct avl_table *tree, const void *item)
         }
     }
 
-  tree->avl_alloc->libavl_free (tree->avl_alloc, p);
+  my_obstack_free (&tree->obstack);
 
   assert (k > 0);
   while (--k > 0)
@@ -435,7 +422,7 @@ trav_refresh (struct avl_traverser *trav)
 /* Initializes |trav| for use with |tree|
    and selects the null node. */
 void
-_marpa_avl_t_init (struct avl_traverser *trav, struct avl_table *tree)
+_marpa_avl_t_init (struct avl_traverser *trav, AVL_TREE tree)
 {
   trav->avl_table = tree;
   trav->avl_node = NULL;
@@ -447,7 +434,7 @@ _marpa_avl_t_init (struct avl_traverser *trav, struct avl_table *tree)
    and selects and returns a pointer to its least-valued item.
    Returns |NULL| if |tree| contains no nodes. */
 void *
-_marpa_avl_t_first (struct avl_traverser *trav, struct avl_table *tree)
+_marpa_avl_t_first (struct avl_traverser *trav, AVL_TREE tree)
 {
   struct avl_node *x;
 
@@ -474,7 +461,7 @@ _marpa_avl_t_first (struct avl_traverser *trav, struct avl_table *tree)
    and selects and returns a pointer to its greatest-valued item.
    Returns |NULL| if |tree| contains no nodes. */
 void *
-_marpa_avl_t_last (struct avl_traverser *trav, struct avl_table *tree)
+_marpa_avl_t_last (struct avl_traverser *trav, AVL_TREE tree)
 {
   struct avl_node *x;
 
@@ -503,7 +490,7 @@ _marpa_avl_t_last (struct avl_traverser *trav, struct avl_table *tree)
    If there is no matching item, initializes |trav| to the null item
    and returns |NULL|. */
 void *
-_marpa_avl_t_find (struct avl_traverser *trav, struct avl_table *tree, void *item)
+_marpa_avl_t_find (struct avl_traverser *trav, AVL_TREE tree, void *item)
 {
   struct avl_node *p, *q;
 
@@ -542,7 +529,7 @@ _marpa_avl_t_find (struct avl_traverser *trav, struct avl_table *tree, void *ite
    If a memory allocation failure occurs, |NULL| is returned and |trav|
    is initialized to the null item. */
 void *
-_marpa_avl_t_insert (struct avl_traverser *trav, struct avl_table *tree, void *item)
+_marpa_avl_t_insert (struct avl_traverser *trav, AVL_TREE tree, void *item)
 {
   void **p;
 
@@ -716,147 +703,13 @@ _marpa_avl_t_replace (struct avl_traverser *trav, void *new)
   return old;
 }
 
-/* Destroys |new| with |_marpa_avl_destroy (new, destroy)|,
-   first setting right links of nodes in |stack| within |new|
-   to null pointers to avoid touching uninitialized data. */
-static void
-copy_error_recovery (struct avl_node **stack, int height,
-                     struct avl_table *new, avl_item_func *destroy)
-{
-  assert (stack != NULL && height >= 0 && new != NULL);
-
-  for (; height > 2; height -= 2)
-    stack[height - 1]->avl_link[1] = NULL;
-  _marpa_avl_destroy (new, destroy);
-}
-
-/* Copies |org| to a newly created tree, which is returned.
-   If |copy != NULL|, each data item in |org| is first passed to |copy|,
-   and the return values are inserted into the tree,
-   with |NULL| return values taken as indications of failure.
-   On failure, destroys the partially created new tree,
-   applying |destroy|, if non-null, to each item in the new tree so far,
-   and returns |NULL|.
-   If |allocator != NULL|, it is used for allocation in the new tree.
-   Otherwise, the same allocator used for |org| is used. */
-struct avl_table *
-_marpa_avl_copy (const struct avl_table *org, avl_copy_func *copy,
-          avl_item_func *destroy, struct libavl_allocator *allocator)
-{
-  struct avl_node *stack[2 * (AVL_MAX_HEIGHT + 1)];
-  int height = 0;
-
-  struct avl_table *new;
-  const struct avl_node *x;
-  struct avl_node *y;
-
-  assert (org != NULL);
-  new = _marpa_avl_create (org->avl_compare, org->avl_param,
-                    allocator != NULL ? allocator : org->avl_alloc);
-  if (new == NULL)
-    return NULL;
-  new->avl_count = org->avl_count;
-  if (new->avl_count == 0)
-    return new;
-
-  x = (const struct avl_node *) &org->avl_root;
-  y = (struct avl_node *) &new->avl_root;
-  for (;;)
-    {
-      while (x->avl_link[0] != NULL)
-        {
-          assert (height < 2 * (AVL_MAX_HEIGHT + 1));
-
-          y->avl_link[0] =
-            new->avl_alloc->libavl_malloc (new->avl_alloc,
-                                           sizeof *y->avl_link[0]);
-          if (y->avl_link[0] == NULL)
-            {
-              if (y != (struct avl_node *) &new->avl_root)
-                {
-                  y->avl_data = NULL;
-                  y->avl_link[1] = NULL;
-                }
-
-              copy_error_recovery (stack, height, new, destroy);
-              return NULL;
-            }
-
-          stack[height++] = (struct avl_node *) x;
-          stack[height++] = y;
-          x = x->avl_link[0];
-          y = y->avl_link[0];
-        }
-      y->avl_link[0] = NULL;
-
-      for (;;)
-        {
-          y->avl_balance = x->avl_balance;
-          if (copy == NULL)
-            y->avl_data = x->avl_data;
-          else
-            {
-              y->avl_data = copy (x->avl_data, org->avl_param);
-              if (y->avl_data == NULL)
-                {
-                  y->avl_link[1] = NULL;
-                  copy_error_recovery (stack, height, new, destroy);
-                  return NULL;
-                }
-            }
-
-          if (x->avl_link[1] != NULL)
-            {
-              y->avl_link[1] =
-                new->avl_alloc->libavl_malloc (new->avl_alloc,
-                                               sizeof *y->avl_link[1]);
-              if (y->avl_link[1] == NULL)
-                {
-                  copy_error_recovery (stack, height, new, destroy);
-                  return NULL;
-                }
-
-              x = x->avl_link[1];
-              y = y->avl_link[1];
-              break;
-            }
-          else
-            y->avl_link[1] = NULL;
-
-          if (height <= 2)
-            return new;
-
-          y = stack[--height];
-          x = stack[--height];
-        }
-    }
-}
-
-/* Frees storage allocated for |tree|.
-   If |destroy != NULL|, applies it to each data item in inorder. */
+/* Frees storage allocated for |tree|. */
 void
-_marpa_avl_destroy (struct avl_table *tree, avl_item_func *destroy)
+_marpa_avl_destroy (AVL_TREE tree)
 {
-  struct avl_node *p, *q;
-
-  assert (tree != NULL);
-
-  for (p = tree->avl_root; p != NULL; p = q)
-    if (p->avl_link[0] == NULL)
-      {
-        q = p->avl_link[1];
-        if (destroy != NULL && p->avl_data != NULL)
-          destroy (p->avl_data, tree->avl_param);
-        tree->avl_alloc->libavl_free (tree->avl_alloc, p);
-      }
-    else
-      {
-        q = p->avl_link[0];
-        p->avl_link[0] = q->avl_link[1];
-        q->avl_link[1] = p;
-      }
-
-  tree->avl_alloc->libavl_free (tree->avl_alloc, tree);
+  if (tree ==  NULL) return;
+  my_obstack_free (&tree->obstack);
+  my_free (tree);
 }
 
 #undef NDEBUG
@@ -864,7 +717,7 @@ _marpa_avl_destroy (struct avl_table *tree, avl_item_func *destroy)
 
 /* Asserts that |avl_insert()| succeeds at inserting |item| into |table|. */
 void
-(_marpa_avl_assert_insert) (struct avl_table *table, void *item)
+(_marpa_avl_assert_insert) (AVL_TREE table, void *item)
 {
   void **p = _marpa_avl_probe (table, item);
   assert (p != NULL && *p == item);
@@ -873,7 +726,7 @@ void
 /* Asserts that |_marpa_avl_delete()| really removes |item| from |table|,
    and returns the removed item. */
 void *
-(_marpa_avl_assert_delete) (struct avl_table *table, void *item)
+(_marpa_avl_assert_delete) (AVL_TREE table, void *item)
 {
   void *p = _marpa_avl_delete (table, item);
   assert (p != NULL);

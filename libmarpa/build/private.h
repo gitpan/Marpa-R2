@@ -22,7 +22,15 @@
 
 
 static RULE rule_start(GRAMMAR g,
-SYMID lhs, SYMID *rhs, int length);
+const SYMID lhs, const SYMID *rhs, int length);
+static int rule_duplication_cmp(
+    const void* ap,
+    const void* bp,
+    void *param UNUSED);
+static int sym_rule_cmp(
+    const void* ap,
+    const void* bp,
+    void *param UNUSED);
 static int cmp_by_aimid (const void* ap,
 	const void* bp);
 static int cmp_by_postdot_and_aimid (const void* ap,
@@ -39,7 +47,8 @@ create_predicted_AHFA_state(
      Bit_Vector prediction_rule_vector,
      RULE* rule_by_sort_key,
      DQUEUE states_p,
-     struct avl_table* duplicates
+     AVL_TREE duplicates,
+     AIM* item_list_working_buffer
      );
 static Marpa_Error_Code invalid_source_type_code(unsigned int type);
 static void earley_item_ambiguate (struct marpa_r * r, EIM item);
@@ -48,14 +57,11 @@ postdot_items_create (RECCE r, ES current_earley_set);
 static BOCAGE r_create_null_bocage(RECCE r, BOCAGE b);
 static int bv_scan(Bit_Vector bv, unsigned int start,
                                     unsigned int* min, unsigned int* max);
-static void
-rhs_closure (GRAMMAR g, Bit_Vector bv);
 static void transitive_closure(Bit_Matrix matrix);
 static void
-default_out_of_memory(void);
+_marpa_default_out_of_memory(void);
 static void
 set_error (struct marpa_g *g, Marpa_Error_Code code, const char* message, unsigned int flags);
-static int marpa_default_debug_handler (const char *format, ...);
 static inline const char* check_alpha_version(
     unsigned int required_major,
 		unsigned int required_minor,
@@ -76,7 +82,6 @@ static inline SYM
 symbol_new (struct marpa_g *g);
 static inline void symbol_free(SYM symbol);
 static inline void symbol_lhs_add(SYM symbol, RULEID rule_id);
-static inline void symbol_rhs_add(SYM symbol, RULEID rule_id);
 static inline SYM symbol_proper_alias(SYM symbol);
 static inline SYM symbol_null_alias(SYM symbol);
 static inline SYM symbol_alias_create(GRAMMAR g, SYM symbol);
@@ -100,7 +105,7 @@ static inline void AHFA_initialize(AHFA ahfa);
 static inline AEX aex_of_ahfa_by_aim_get(AHFA ahfa, AIM sought_aim);
 static inline int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id);
 static inline AHFA
-assign_AHFA_state (AHFA sought_state, struct avl_table* duplicates);
+assign_AHFA_state (AHFA sought_state, AVL_TREE duplicates);
 static inline AHFA to_ahfa_of_transition_get(TRANS transition);
 static inline int completion_count_of_transition_get(TRANS transition);
 static inline URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix);
@@ -141,7 +146,6 @@ leo_link_add (RECCE r,
 		LIM predecessor,
 		EIM cause);
 static inline void trace_source_link_clear(RECCE r);
-static inline TOK token_new(INPUT input, SYMID symbol_id, int value);
 static inline int
 alternative_insertion_point (RECCE r, ALT new_alternative);
 static inline int alternative_cmp(const ALT_Const a, const ALT_Const b);
@@ -227,6 +231,8 @@ static inline void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z);
 static inline void bv_or_assign(Bit_Vector X, Bit_Vector Y);
 static inline unsigned int
 bv_count (Bit_Vector v);
+static inline void
+rhs_closure (GRAMMAR g, Bit_Vector bv, RULEID ** xrl_list_x_rh_sym);
 static inline Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns);
 static inline int matrix_columns(Bit_Matrix matrix);
 static inline Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
@@ -243,9 +249,3 @@ static inline void psar_dealloc(const PSAR psar);
 static inline void psl_claim(
     PSL* const psl_owner, const PSAR psar);
 static inline PSL psl_alloc(const PSAR psar);
-static inline void*
-my_malloc(size_t size);
-static inline void*
-my_malloc0(size_t size);
-static inline void*
-my_realloc(void* mem, size_t size);

@@ -24,58 +24,28 @@
  * http://www.gnu.org/licenses/.
  */
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-
-# include "marpa_obs.h"
-extern void (*marpa_out_of_memory)(void);
-
-/* NOTES FOR THE MARPA MODIFICATIONS --
-
-   Marpa has its own copy of the obstack code because
-   the GNU original had a number of complications which caused Marpa
-   problems, and which added no value in the Marpa context.
-   The first was the complex CPP logic needed
-   to make the same obstack files work both as part of GNU libc and
-   as independently.  Inclusion as an integral part of
-   the GNU libc is not exactly a near term priority for libmarpa,
-   so I was happy to eliminate all that.
-
-   A second complication was the internationalization.
-   This caused portability problems for Marpa.
-   The internationalization did not add value --
-   there was exactly one message in the obstack
-   files to be internationalized
-   and in the libmarpa context it would *NEVER* be called -- it's for
-   memory allocation failures and libmarpa uses g_malloc();
-   libmarpa itself avoids internationalization issues by kicking them
-   up to the higher levels.  libmarpa avoids the use of strings
-   except 7-bit ASCII which are for internal purposes.
-   The use of American English in these strings is the same kind
-   of arbitrary convention as its use in variable names, and for
-   the same reasons they are not considered translation candidates.
-
-*/
-
-#include <stdio.h>		/* Random thing to get __GNU_LIBRARY__.  */
-
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
-# if HAVE_INTTYPES_H
-#  include <inttypes.h>
-# endif
-# if HAVE_STDINT_H
-#  include <stdint.h>
-# endif
+# include "config.h"
+# include "marpa_util.h"
+# include "marpa_obs.h"
 
 /* Determine default alignment.  */
 union fooround
 {
-  uintmax_t i;
-  long double d;
-  void *p;
+/* intmax_t is guaranteed by AUTOCONF's AC_TYPE_INTMAX_T.
+    Similarly, for uintmax_t.
+*/
+  uintmax_t t_imax;
+  intmax_t t_uimax;
+/* According to the autoconf manual, long double is provided by
+   all non-obsolescent C compilers. */
+  long double t_d;
+  void *t_p;
 };
+
 struct fooalign
 {
   char c;
@@ -90,17 +60,6 @@ enum
     DEFAULT_ROUNDING = sizeof (union fooround)
   };
 
-/* When we copy a long block of data, this is the unit to do it with.
-   On some machines, copying successive ints does not work;
-   in such a case, redefine COPYING_UNIT to `long' (if that works)
-   or `char' as a last resort.  */
-# ifndef COPYING_UNIT
-#  define COPYING_UNIT int
-# endif
-
-# include <stdlib.h>
-
-
 /* Initialize an obstack H for use.  Specify chunk size SIZE (0 means default).
    Objects start on multiples of ALIGNMENT (0 means use default).
 
@@ -111,7 +70,7 @@ int
 _marpa_obs_begin (struct obstack *h,
 		int size, int alignment)
 {
-  register struct _obstack_chunk *chunk; /* points to new chunk */
+  struct _obstack_chunk *chunk; /* points to new chunk */
 
   if (alignment == 0)
     alignment = DEFAULT_ALIGNMENT;
@@ -134,12 +93,8 @@ _marpa_obs_begin (struct obstack *h,
 
   h->chunk_size = size;
   h->alignment_mask = alignment - 1;
-  h->use_extra_arg = 0;
 
-  chunk = h->chunk = malloc(h -> chunk_size);
-  if (!chunk) (*marpa_out_of_memory)();
-  /* chunk = h->chunk = CALL_CHUNKFUN (h, h -> chunk_size); */
-  /* if (!chunk) (*obstack_alloc_failed_handler) (); */
+  chunk = h->chunk = my_malloc(h -> chunk_size);
   h->next_free = h->object_base = __PTR_ALIGN ((char *) chunk, chunk->contents,
 					       alignment - 1);
   h->chunk_limit = chunk->limit
@@ -147,7 +102,6 @@ _marpa_obs_begin (struct obstack *h,
   chunk->prev = 0;
   /* The initial chunk now contains no empty object.  */
   h->maybe_empty_object = 0;
-  h->alloc_failed = 0;
   return 1;
 }
 
@@ -160,12 +114,11 @@ _marpa_obs_begin (struct obstack *h,
 void
 _marpa_obs_newchunk (struct obstack *h, int length)
 {
-  register struct _obstack_chunk *old_chunk = h->chunk;
-  register struct _obstack_chunk *new_chunk;
-  register long	new_size;
-  register long obj_size = h->next_free - h->object_base;
-  register long i;
-  long already;
+  struct _obstack_chunk *old_chunk = h->chunk;
+  struct _obstack_chunk *new_chunk;
+  long	new_size;
+  long obj_size = h->next_free - h->object_base;
+  long i;
   char *object_base;
 
   /* Compute size for new chunk.  */
@@ -174,10 +127,7 @@ _marpa_obs_newchunk (struct obstack *h, int length)
     new_size = h->chunk_size;
 
   /* Allocate and initialize the new chunk.  */
-  new_chunk = malloc( new_size);
-  if (!new_chunk) (*marpa_out_of_memory)();
-  /* new_chunk = CALL_CHUNKFUN (h, new_size); */
-  /* if (!new_chunk) (*obstack_alloc_failed_handler) (); */
+  new_chunk = my_malloc( new_size);
   h->chunk = new_chunk;
   new_chunk->prev = old_chunk;
   new_chunk->limit = h->chunk_limit = (char *) new_chunk + new_size;
@@ -186,25 +136,7 @@ _marpa_obs_newchunk (struct obstack *h, int length)
   object_base =
     __PTR_ALIGN ((char *) new_chunk, new_chunk->contents, h->alignment_mask);
 
-  /* Move the existing object to the new chunk.
-     Word at a time is fast and is safe if the object
-     is sufficiently aligned.  */
-  if (h->alignment_mask + 1 >= DEFAULT_ALIGNMENT)
-    {
-      for (i = obj_size / sizeof (COPYING_UNIT) - 1;
-	   i >= 0; i--)
-	((COPYING_UNIT *)object_base)[i]
-	  = ((COPYING_UNIT *)h->object_base)[i];
-      /* We used to copy the odd few remaining bytes as one extra COPYING_UNIT,
-	 but that can cross a page boundary on a machine
-	 which does not do strict alignment for COPYING_UNITS.  */
-      already = obj_size / sizeof (COPYING_UNIT) * sizeof (COPYING_UNIT);
-    }
-  else
-    already = 0;
-  /* Copy remaining bytes one by one.  */
-  for (i = already; i < obj_size; i++)
-    object_base[i] = h->object_base[i];
+  for (i = obj_size - 1; i >= 0; i--) object_base[i] = (h->object_base)[i];
 
   /* If the object just copied was the only data in OLD_CHUNK,
      free that chunk and remove it from the chain.
@@ -215,7 +147,7 @@ _marpa_obs_newchunk (struct obstack *h, int length)
 			  h->alignment_mask)))
     {
       new_chunk->prev = old_chunk->prev;
-      free( old_chunk);
+      my_free( old_chunk);
     }
 
   h->object_base = object_base;
@@ -235,8 +167,8 @@ int _marpa_obs_allocated_p (struct obstack *h, void *obj);
 int
 _marpa_obs_allocated_p (struct obstack *h, void *obj)
 {
-  register struct _obstack_chunk *lp;	/* below addr of any objects in this chunk */
-  register struct _obstack_chunk *plp;	/* point to previous chunk if any */
+  struct _obstack_chunk *lp;	/* below addr of any objects in this chunk */
+  struct _obstack_chunk *plp;	/* point to previous chunk if any */
 
   lp = (h)->chunk;
   /* We use >= rather than > since the object cannot be exactly at
@@ -249,49 +181,51 @@ _marpa_obs_allocated_p (struct obstack *h, void *obj)
     }
   return lp != 0;
 }
-
-/* The function name is overriden by a define, which we must
- * in order to actually define the function.
- */
-#undef _marpa_obs_free
 
-/* Free objects in obstack H, including OBJ and everything allocate
-   more recently than OBJ.  If OBJ is zero, free everything in H.  */
+/* Free everything in H.  */
 void
-_marpa_obs_free (struct obstack *h, void *obj)
+_marpa_obs_free (struct obstack *h)
 {
-  register struct _obstack_chunk *lp;	/* below addr of any objects in this chunk */
-  register struct _obstack_chunk *plp;	/* point to previous chunk if any */
+  struct _obstack_chunk *lp;	/* below addr of any objects in this chunk */
+  struct _obstack_chunk *plp;	/* point to previous chunk if any */
+
+  if (h->chunk_size < 0)
+    return;			/* Return safely if never initialized */
+  lp = h->chunk;
+  while (lp != 0)
+    {
+      plp = lp->prev;
+      my_free (lp);
+      lp = plp;
+    }
+}
+
+/* Free objects in obstack H, but leave it initialized */
+void
+_marpa_obs_clear (struct obstack *h)
+{
+  struct _obstack_chunk *lp;	/* below addr of any objects in this chunk */
+  struct _obstack_chunk *plp;	/* point to previous chunk if any */
 
   lp = h->chunk;
   /* We use >= because there cannot be an object at the beginning of a chunk.
      But there can be an empty object at that address
      at the end of another chunk.  */
-  while (lp != 0 && ((void *) lp >= obj || (void *) (lp)->limit < obj))
+  while ((plp = lp->prev) != 0)
     {
-      plp = lp->prev;
-      free( lp);
-      lp = plp;
-      /* If we switch chunks, we can't tell whether the new current
-	 chunk contains an empty object, so assume that it may.  */
-      h->maybe_empty_object = 1;
+      my_free (plp);
     }
-  if (lp)
-    {
-      h->object_base = h->next_free = (char *) (obj);
-      h->chunk_limit = lp->limit;
-      h->chunk = lp;
-    }
-  else if (obj != 0)
-    /* obj is not in any of the chunks! */
-    abort ();
+  h->object_base = h->next_free =
+    __PTR_ALIGN ((char *) lp, lp->contents, h->alignment_mask);
+  h->chunk_limit = lp->limit;
+  h->chunk = lp;
 }
-
+
 int
 _marpa_obs_memory_used (struct obstack *h)
 {
-  register struct _obstack_chunk* lp;
-  register int nbytes = 0;
+  struct _obstack_chunk* lp;
+  int nbytes = 0;
 
   for (lp = h->chunk; lp != 0; lp = lp->prev)
     {
@@ -299,4 +233,3 @@ _marpa_obs_memory_used (struct obstack *h)
     }
   return nbytes;
 }
-
