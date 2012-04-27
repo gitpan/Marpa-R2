@@ -1,8 +1,8 @@
-/*1202:*/
-#line 13772 "./marpa.w"
-
 /*1197:*/
-#line 13730 "./marpa.w"
+#line 13787 "./marpa.w"
+
+/*1192:*/
+#line 13745 "./marpa.w"
 
 /*
  * Copyright 2012 Jeffrey Kegler
@@ -26,22 +26,22 @@
  * It is not intended to be modified directly
  */
 
-/*:1197*/
-#line 13773 "./marpa.w"
+/*:1192*/
+#line 13788 "./marpa.w"
 
 
 #ifndef __MARPA_UTIL_H__
 #define __MARPA_UTIL_H__
 
-/*1148:*/
-#line 13213 "./marpa.w"
+/*1143:*/
+#line 13228 "./marpa.w"
 
 #define my_new(type, count) ((type *)my_malloc((sizeof(type)*(count))))
 #define my_renew(type, p, count) \
     ((type *)my_realloc((p), (sizeof(type)*(count))))
 
-/*:1148*//*1203:*/
-#line 13788 "./marpa.w"
+/*:1143*//*1198:*/
+#line 13803 "./marpa.w"
 
 
 #if     __GNUC__ >  2 || (__GNUC__ == 2 && __GNUC_MINOR__ >  4)
@@ -96,19 +96,19 @@
 # define alignof(type) (offsetof (struct { char __slot1; type __slot2; }, __slot2))
 #endif
 
-/*:1203*/
-#line 13778 "./marpa.w"
+/*:1198*/
+#line 13793 "./marpa.w"
 
-/*1138:*/
-#line 13086 "./marpa.w"
+/*1133:*/
+#line 13101 "./marpa.w"
 
 extern void(*_marpa_out_of_memory)(void);
 
-/*:1138*/
-#line 13779 "./marpa.w"
+/*:1133*/
+#line 13794 "./marpa.w"
 
-/*1147:*/
-#line 13175 "./marpa.w"
+/*1142:*/
+#line 13190 "./marpa.w"
 
 static inline
 void my_free(void*p)
@@ -145,10 +145,10 @@ return newmem;
 return my_malloc(size);
 }
 
-/*:1147*/
-#line 13780 "./marpa.w"
+/*:1142*/
+#line 13795 "./marpa.w"
 
 
 #endif __MARPA__UTIL_H__
 
-/*:1202*/
+/*:1197*/

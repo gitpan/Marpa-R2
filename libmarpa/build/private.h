@@ -21,12 +21,10 @@
  */
 
 
-static RULE rule_start(GRAMMAR g,
+static RULE rule_new(GRAMMAR g,
 const SYMID lhs, const SYMID *rhs, int length);
-static int rule_duplication_cmp(
-    const void* ap,
-    const void* bp,
-    void *param UNUSED);
+static int
+duplicate_rule_cmp (const void *ap, const void *bp, void *param UNUSED);
 static int sym_rule_cmp(
     const void* ap,
     const void* bp,
@@ -79,16 +77,15 @@ static inline void rule_add(
 static inline void event_new(struct marpa_g* g, int type);
 static inline void int_event_new(struct marpa_g* g, int type, int value);
 static inline SYM
-symbol_new (struct marpa_g *g);
+symbol_new (GRAMMAR g);
 static inline void symbol_free(SYM symbol);
-static inline void symbol_lhs_add(SYM symbol, RULEID rule_id);
 static inline SYM symbol_proper_alias(SYM symbol);
 static inline SYM symbol_null_alias(SYM symbol);
 static inline SYM symbol_alias_create(GRAMMAR g, SYM symbol);
-static inline int is_rule_duplicate(GRAMMAR g,
-SYMID lhs_id, SYMID* rhs_ids, int length);
+static inline   RULE rule_start (GRAMMAR g, const SYMID lhs, const SYMID * rhs, int length);
+static inline RULE rule_finish(GRAMMAR g, RULE rule);
 static inline int
-rule_check (GRAMMAR g, SYMID lhs_id, SYMID * rhs_ids, int length);
+rule_check (GRAMMAR g, XRL rule);
 static inline Marpa_Symbol_ID rule_lhs_get(RULE rule);
 static inline Marpa_Symbol_ID* rule_rhs_get(RULE rule);
 static inline size_t rule_length_get(RULE rule);
