@@ -103,6 +103,7 @@ const struct s_marpa_error_description marpa_error_description[] = {
   { 65, "MARPA_ERR_TREE_PAUSED", "MARPA_ERR_TREE_PAUSED" },
   { 66, "MARPA_ERR_UNKNOWN", "Unknown error." },
   { 67, "MARPA_ERR_UNPRODUCTIVE_START", "Unproductive start symbol." },
+  { 68, "MARPA_ERR_VALUATOR_INACTIVE", "Valuator inactive." },
 };
 const struct s_marpa_event_description marpa_event_description[] = {
   { 0, "MARPA_EVENT_NONE", "No event." },
@@ -116,7 +117,7 @@ const struct s_marpa_value_type_description marpa_value_type_description[] = {
   { 0, "MARPA_VALUE_INTERNAL1" },
   { 1, "MARPA_VALUE_RULE" },
   { 2, "MARPA_VALUE_TOKEN" },
-  { 3, "MARPA_VALUE_NULLING_TOKEN" },
+  { 3, "MARPA_VALUE_NULLING_SYMBOL" },
   { 4, "MARPA_VALUE_TRACE" },
   { 5, "MARPA_VALUE_INACTIVE" },
   { 6, "MARPA_VALUE_INTERNAL2" },

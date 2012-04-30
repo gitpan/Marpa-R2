@@ -35,6 +35,7 @@ int marpa_g_symbol_is_accessible (Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_productive (Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_internal (Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_nulling (Marpa_Grammar g, Marpa_Symbol_ID symid);
+int marpa_g_symbol_is_nullable ( Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_ask_me_when_null_set ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id, int value);
 int marpa_g_symbol_is_ask_me_when_null ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
 int marpa_g_rule_count (Marpa_Grammar g);
@@ -129,40 +130,40 @@ Marpa_Bocage marpa_b_new (Marpa_Recognizer r, Marpa_Earley_Set_ID ordinal_arg);
 Marpa_Grammar marpa_b_g (Marpa_Bocage b);
 Marpa_Bocage marpa_b_ref (Marpa_Bocage b);
 void marpa_b_unref (Marpa_Bocage b);
-int marpa_b_and_node_count ( Marpa_Bocage b);
-int marpa_b_and_node_parent ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id);
-int marpa_b_and_node_predecessor ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id);
-int marpa_b_and_node_cause ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id);
-int marpa_b_and_node_symbol ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id);
-Marpa_Symbol_ID marpa_b_and_node_token ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id, int* value_p);
-Marpa_Or_Node_ID marpa_b_top_or_node ( Marpa_Bocage b);
-int marpa_b_or_node_set ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
-int marpa_b_or_node_origin ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
-int marpa_b_or_node_rule ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
-int marpa_b_or_node_position ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
-int marpa_b_or_node_first_and ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
-int marpa_b_or_node_last_and ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
-int marpa_b_or_node_and_count ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
+int _marpa_b_and_node_count ( Marpa_Bocage b);
+int _marpa_b_and_node_parent ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id);
+int _marpa_b_and_node_predecessor ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id);
+int _marpa_b_and_node_cause ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id);
+int _marpa_b_and_node_symbol ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id);
+Marpa_Symbol_ID _marpa_b_and_node_token ( Marpa_Bocage b, Marpa_And_Node_ID and_node_id, int* value_p);
+Marpa_Or_Node_ID _marpa_b_top_or_node ( Marpa_Bocage b);
+int _marpa_b_or_node_set ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
+int _marpa_b_or_node_origin ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
+int _marpa_b_or_node_rule ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
+int _marpa_b_or_node_position ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
+int _marpa_b_or_node_first_and ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
+int _marpa_b_or_node_last_and ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
+int _marpa_b_or_node_and_count ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
 Marpa_Order marpa_o_new ( Marpa_Bocage b);
 Marpa_Grammar marpa_o_g ( Marpa_Order o);
 void marpa_o_unref ( Marpa_Order o);
 Marpa_Order marpa_o_ref ( Marpa_Order o);
-int marpa_o_and_order_set ( Marpa_Order o, Marpa_Or_Node_ID or_node_id, Marpa_And_Node_ID* and_node_ids, int length);
-Marpa_And_Node_ID marpa_o_and_order_get ( Marpa_Order o, Marpa_Or_Node_ID or_node_id, int ix);
+int _marpa_o_and_order_set ( Marpa_Order o, Marpa_Or_Node_ID or_node_id, Marpa_And_Node_ID* and_node_ids, int length);
+Marpa_And_Node_ID _marpa_o_and_order_get ( Marpa_Order o, Marpa_Or_Node_ID or_node_id, int ix);
 Marpa_Tree marpa_t_new (Marpa_Order o);
 Marpa_Grammar marpa_t_g (Marpa_Tree o);
 Marpa_Tree marpa_t_ref (Marpa_Tree t);
 void marpa_t_unref (Marpa_Tree t);
 int marpa_t_next ( Marpa_Tree t);
 int marpa_t_parse_count ( Marpa_Tree t);
-int marpa_t_size ( Marpa_Tree t);
-Marpa_Or_Node_ID marpa_t_nook_or_node ( Marpa_Tree t, Marpa_Nook_ID nook_id);
-int marpa_t_nook_choice ( Marpa_Tree t, Marpa_Nook_ID nook_id );
-int marpa_t_nook_parent ( Marpa_Tree t, Marpa_Nook_ID nook_id );
-int marpa_t_nook_cause_is_ready ( Marpa_Tree t, Marpa_Nook_ID nook_id );
-int marpa_t_nook_predecessor_is_ready ( Marpa_Tree t, Marpa_Nook_ID nook_id );
-int marpa_t_nook_is_cause ( Marpa_Tree t, Marpa_Nook_ID nook_id );
-int marpa_t_nook_is_predecessor ( Marpa_Tree t, Marpa_Nook_ID nook_id );
+int _marpa_t_size ( Marpa_Tree t);
+Marpa_Or_Node_ID _marpa_t_nook_or_node ( Marpa_Tree t, Marpa_Nook_ID nook_id);
+int _marpa_t_nook_choice ( Marpa_Tree t, Marpa_Nook_ID nook_id );
+int _marpa_t_nook_parent ( Marpa_Tree t, Marpa_Nook_ID nook_id );
+int _marpa_t_nook_cause_is_ready ( Marpa_Tree t, Marpa_Nook_ID nook_id );
+int _marpa_t_nook_predecessor_is_ready ( Marpa_Tree t, Marpa_Nook_ID nook_id );
+int _marpa_t_nook_is_cause ( Marpa_Tree t, Marpa_Nook_ID nook_id );
+int _marpa_t_nook_is_predecessor ( Marpa_Tree t, Marpa_Nook_ID nook_id );
 Marpa_Value marpa_v_new ( Marpa_Tree t );
 Marpa_Grammar marpa_v_g ( Marpa_Value v );
 void marpa_v_unref ( Marpa_Value v);
@@ -170,10 +171,10 @@ int marpa_v_symbol_ask_me_when_null_set ( Marpa_Value v, Marpa_Symbol_ID symid, 
 int marpa_v_symbol_is_ask_me_when_null ( Marpa_Value v, Marpa_Symbol_ID symid );
 Marpa_Value marpa_v_ref (Marpa_Value v);
 Marpa_Value_Type marpa_v_step ( Marpa_Value v);
-int marpa_v_trace ( Marpa_Value v, int flag);
-Marpa_Nook_ID marpa_v_nook ( Marpa_Value v);
+int _marpa_v_trace ( Marpa_Value v, int flag);
+Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
 Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
-#define MARPA_ERROR_COUNT 68
+#define MARPA_ERROR_COUNT 69
 #define MARPA_ERR_NONE 0
 #define MARPA_ERR_AHFA_IX_NEGATIVE 1
 #define MARPA_ERR_AHFA_IX_OOB 2
@@ -242,6 +243,7 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERR_TREE_PAUSED 65
 #define MARPA_ERR_UNKNOWN 66
 #define MARPA_ERR_UNPRODUCTIVE_START 67
+#define MARPA_ERR_VALUATOR_INACTIVE 68
 #define MARPA_EVENT_COUNT 6
 #define MARPA_EVENT_NONE 0
 #define MARPA_EVENT_EXHAUSTED 1
@@ -253,7 +255,7 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_VALUE_INTERNAL1 0
 #define MARPA_VALUE_RULE 1
 #define MARPA_VALUE_TOKEN 2
-#define MARPA_VALUE_NULLING_TOKEN 3
+#define MARPA_VALUE_NULLING_SYMBOL 3
 #define MARPA_VALUE_TRACE 4
 #define MARPA_VALUE_INACTIVE 5
 #define MARPA_VALUE_INTERNAL2 6

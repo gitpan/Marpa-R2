@@ -52,7 +52,6 @@ static Marpa_Error_Code invalid_source_type_code(unsigned int type);
 static void earley_item_ambiguate (struct marpa_r * r, EIM item);
 static void
 postdot_items_create (RECCE r, ES current_earley_set);
-static BOCAGE r_create_null_bocage(RECCE r, BOCAGE b);
 static int bv_scan(Bit_Vector bv, unsigned int start,
                                     unsigned int* min, unsigned int* max);
 static void transitive_closure(Bit_Matrix matrix);
