@@ -230,7 +230,7 @@ static inline void bv_or_assign(Bit_Vector X, Bit_Vector Y);
 static inline unsigned int
 bv_count (Bit_Vector v);
 static inline void
-rhs_closure (GRAMMAR g, Bit_Vector bv, RULEID ** xrl_list_x_rh_sym);
+rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym);
 static inline Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns);
 static inline int matrix_columns(Bit_Matrix matrix);
 static inline Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);

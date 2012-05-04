@@ -743,7 +743,6 @@ The |rule_tree| is a tree for detecting duplicates.
 @*0 Rule count accessors.
 @ @d XRL_Count_of_G(g) (DSTACK_LENGTH((g)->t_xrl_stack))
 @ @d IRL_Count_of_G(g) (DSTACK_LENGTH((g)->t_irl_stack))
-@ @d RULE_Count_of_G(g) (XRL_Count_of_G(g))
 @ @<Function definitions@> =
 int marpa_g_rule_count(Marpa_Grammar g) {
    @<Return |-2| on failure@>@;
@@ -1798,23 +1797,23 @@ PRIVATE Marpa_Symbol_ID rule_lhs_get(RULE rule)
 {
     return rule->t_symbols[0]; }
 @ @<Function definitions@> =
-Marpa_Symbol_ID marpa_g_rule_lhs(Marpa_Grammar g, Marpa_Rule_ID rule_id) {
+Marpa_Symbol_ID marpa_g_rule_lhs(Marpa_Grammar g, Marpa_Rule_ID xrl_id) {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return rule_lhs_get(RULE_by_ID(g, rule_id));
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    return rule_lhs_get(XRL_by_ID(xrl_id));
 }
 @ @<Function definitions@> =
 PRIVATE Marpa_Symbol_ID* rule_rhs_get(RULE rule)
 {
     return rule->t_symbols+1; }
 @ @<Function definitions@> =
-Marpa_Symbol_ID marpa_g_rule_rh_symbol(Marpa_Grammar g, Marpa_Rule_ID rule_id, int ix) {
+Marpa_Symbol_ID marpa_g_rule_rh_symbol(Marpa_Grammar g, Marpa_Rule_ID xrl_id, int ix) {
     RULE rule;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    rule = RULE_by_ID(g, rule_id);
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    rule = XRL_by_ID(xrl_id);
     if (Length_of_RULE(rule) <= ix) return -1;
     return RHS_ID_of_RULE(rule, ix);
 }
@@ -1823,11 +1822,11 @@ PRIVATE size_t rule_length_get(RULE rule)
 {
     return Length_of_RULE(rule); }
 @ @<Function definitions@> =
-int marpa_g_rule_length(Marpa_Grammar g, Marpa_Rule_ID rule_id) {
+int marpa_g_rule_length(Marpa_Grammar g, Marpa_Rule_ID xrl_id) {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return rule_length_get(RULE_by_ID(g, rule_id)); }
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    return rule_length_get(XRL_by_ID(xrl_id)); }
 
 @*1 Symbols of the Rule.
 @d LHS_ID_of_RULE(rule) ((rule)->t_symbols[0])
@@ -1863,12 +1862,12 @@ rule->t_is_sequence = 0;
 @ @<Function definitions@> =
 int marpa_g_rule_is_sequence(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_Rule_ID xrl_id)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return XRL_is_Sequence(RULE_by_ID(g, rule_id));
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    return XRL_is_Sequence(XRL_by_ID(xrl_id));
 }
 
 
@@ -1908,12 +1907,12 @@ rule->t_is_discard = 0;
 @ @<Function definitions@> =
 int marpa_g_rule_is_keep_separation(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_Rule_ID xrl_id)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return !RULE_by_ID(g, rule_id)->t_is_discard;
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    return !XRL_by_ID(xrl_id)->t_is_discard;
 }
 
 @*0 Rule has proper separation?.
@@ -1947,12 +1946,12 @@ rule->t_is_proper_separation = 0;
 @ @<Function definitions@> =
 int marpa_g_rule_is_proper_separation(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_Rule_ID xrl_id)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return !XRL_is_Proper_Separation(RULE_by_ID(g, rule_id));
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    return !XRL_is_Proper_Separation(XRL_by_ID(xrl_id));
 }
 
 @*0 Loop Rule.
@@ -1965,13 +1964,14 @@ derivation must have at least one step.
 @ @<Initialize rule elements@> =
 rule->t_is_loop = 0;
 @ @<Function definitions@> =
-int marpa_g_rule_is_loop(Marpa_Grammar g, Marpa_Rule_ID rule_id)
+int marpa_g_rule_is_loop(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
 {
-    @<Return |-2| on failure@>@;
-    @<Fail if fatal error@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    @<Fail if not precomputed@>@;
-return RULE_by_ID(g, rule_id)->t_is_loop; }
+  @<Return |-2| on failure@>@;
+  @<Fail if fatal error@>@;
+  @<Fail if grammar |xrl_id| is invalid@>@;
+  @<Fail if not precomputed@>@;
+  return XRL_by_ID(xrl_id)->t_is_loop;
+}
 
 @*0 Is Rule Nulling?.
 Is the rule nulling?
@@ -2157,18 +2157,18 @@ The second case is where the application wants
 the value of a rule to be the value of its
 first child, which under the current implementation
 is a stack no-op.
-@d RULE_is_Ask_Me(rule) ((rule)->t_is_ask_me)
+@d XRL_is_Ask_Me(rule) ((rule)->t_is_ask_me)
 @<Int aligned rule elements@> = unsigned int t_is_ask_me:1;
 @ @<Initialize rule elements@> =
-    RULE_is_Ask_Me(rule) = 0;
+    XRL_is_Ask_Me(rule) = 0;
 @ @<Function definitions@> =
 int marpa_g_rule_is_ask_me(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_Rule_ID xrl_id)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return RULE_is_Ask_Me(RULE_by_ID(g, rule_id));
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    return XRL_is_Ask_Me(XRL_by_ID(xrl_id));
 }
 @ The application can specify the zero-based
 number of a child as the semantics of a rule.
@@ -2188,31 +2188,31 @@ but may not in some future implementation.
 The result of any other value is a failure.
 @<Function definitions@> =
 int marpa_g_rule_whatever_set(
-    Marpa_Grammar g, Marpa_Rule_ID rule_id)
+    Marpa_Grammar g, Marpa_Rule_ID xrl_id)
 {
-    RULE rule;
+    XRL xrl;
     @<Return |-2| on failure@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    rule = RULE_by_ID(g, rule_id);
-    return RULE_is_Ask_Me(rule) = 0;
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    xrl = XRL_by_ID(xrl_id);
+    return XRL_is_Ask_Me(xrl) = 0;
 }
 int marpa_g_rule_ask_me_set(
-    Marpa_Grammar g, Marpa_Rule_ID rule_id)
+    Marpa_Grammar g, Marpa_Rule_ID xrl_id)
 {
-    RULE rule;
+    XRL xrl;
     @<Return |-2| on failure@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    rule = RULE_by_ID(g, rule_id);
-    return RULE_is_Ask_Me(rule) = 1;
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    xrl = XRL_by_ID(xrl_id);
+    return XRL_is_Ask_Me(xrl) = 1;
 }
 int marpa_g_rule_first_child_set(
-    Marpa_Grammar g, Marpa_Rule_ID rule_id)
+    Marpa_Grammar g, Marpa_Rule_ID xrl_id)
 {
-    RULE rule;
+    XRL xrl;
     @<Return |-2| on failure@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    rule = RULE_by_ID(g, rule_id);
-    return RULE_is_Ask_Me(rule) = 0;
+    @<Fail if grammar |xrl_id| is invalid@>@;
+    xrl = XRL_by_ID(xrl_id);
+    return XRL_is_Ask_Me(xrl) = 0;
 }
 
 @*0 Semantic Equivalents.
@@ -2290,6 +2290,7 @@ not zero length.
 |SYMI_of_Last_AIM_of_RULE| will return -1 if the
 rule has no proper symbols.
 @d SYMI_of_RULE(rule) ((rule)->t_symbol_instance_base)
+@d SYMI_of_IRL(irl) SYMI_of_RULE(Co_RULE_of_IRL(irl))
 @d Last_Proper_SYMI_of_RULE(rule) ((rule)->t_last_proper_symi)
 @d SYMI_of_Completed_RULE(rule)
     (SYMI_of_RULE(rule) + Length_of_RULE(rule)-1)
@@ -2519,9 +2520,9 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
 
   lhs_v = bv_obs_create (obs_precompute, xsy_count);
   empty_lhs_v = bv_obs_shadow (obs_precompute, lhs_v);
-  for (rule_id = 0; rule_id < (Marpa_Rule_ID) xrl_count; rule_id++)
+  for (rule_id = 0; rule_id < xrl_count; rule_id++)
     {
-      const RULE rule = RULE_by_ID (g, rule_id);
+      const XRL rule = XRL_by_ID (rule_id);
       const Marpa_Symbol_ID lhs_id = LHS_ID_of_RULE (rule);
       const int rule_length = Length_of_RULE (rule);
       const int is_sequence = XRL_is_Sequence (rule);
@@ -2733,11 +2734,11 @@ It would only make a difference in grammars
 where many of the right hand sides repeat symbols.
 @<Calculate reach matrix@> =
 {
-  RULEID rule_id;
+  XRLID rule_id;
   reach_matrix = matrix_obs_create (obs_precompute, xsy_count, xsy_count);
   for (rule_id = 0; rule_id < xrl_count; rule_id++)
     {
-      RULE rule = RULE_by_ID (g, rule_id);
+      XRL rule = XRL_by_ID (rule_id);
       SYMID lhs_id = LHS_ID_of_RULE (rule);
       unsigned int rhs_ix, rule_length = Length_of_RULE (rule);
       for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
@@ -2985,7 +2986,7 @@ the pre-CHAF rule count.
     pre_chaf_rule_count = XRL_Count_of_G(g);
     for (rule_id = 0; rule_id < pre_chaf_rule_count; rule_id++) {
 
-         RULE  rule = RULE_by_ID(g, rule_id);
+         XRL rule = XRL_by_ID(rule_id);
 	 const int rule_length = Length_of_RULE(rule);
 	 int nullable_suffix_ix = 0;
 	  if (XRL_is_Sequence (rule) && XRL_is_Used (rule))
@@ -3560,7 +3561,7 @@ unit transitions are not in general reflexive.
 @<Mark direct unit transitions in |unit_transition_matrix|@> = {
 Marpa_Rule_ID rule_id;
 for (rule_id = 0; rule_id < xrl_count; rule_id++) {
-     RULE rule = RULE_by_ID(g, rule_id);
+     XRL rule = XRL_by_ID(rule_id);
      SYMID nonnulling_id = -1;
      int nonnulling_count = 0;
      int rhs_ix, rule_length;
@@ -3608,16 +3609,16 @@ rule with |nonnulling_id| on the LHS.
 
 @ @<Mark loop rules@> =
 {
-  RULEID rule_id;
+  XRLID rule_id;
   for (rule_id = 0; rule_id < xrl_count; rule_id++)
     {
-      RULE rule;
+      XRL rule;
       if (!matrix_bit_test
 	  (unit_transition_matrix, (unsigned int) rule_id,
 	   (unsigned int) rule_id))
 	continue;
       loop_rule_count++;
-      rule = RULE_by_ID (g, rule_id);
+      rule = XRL_by_ID (rule_id);
       rule->t_is_loop = 1;
     }
 }
@@ -9275,7 +9276,8 @@ Position is the dot position.
 @d OR_is_Token(or) (Type_of_OR(or) <= MAX_TOKEN_OR_NODE)
 @d Position_of_OR(or) ((or)->t_final.t_position)
 @d Type_of_OR(or) ((or)->t_final.t_position)
-@d RULE_of_OR(or) ((or)->t_final.t_rule)
+@d RULE_of_OR(or) Co_RULE_of_IRL(IRL_of_OR(or))
+@d IRL_of_OR(or) ((or)->t_final.t_irl)
 @d Origin_Ord_of_OR(or) ((or)->t_final.t_start_set_ordinal)
 @d ID_of_OR(or) ((or)->t_final.t_id)
 @d ES_Ord_of_OR(or) ((or)->t_draft.t_end_set_ordinal)
@@ -9287,7 +9289,7 @@ may be accessed via different members of a union.
 @<Or-node common initial sequence@> =
 int t_position;
 int t_end_set_ordinal;
-RULE t_rule;
+IRL t_irl;
 int t_start_set_ordinal;
 ORID t_id;
 @ @<Private structures@> =
@@ -9436,15 +9438,15 @@ MARPA_ASSERT(ahfa_item_symbol_instance < SYMI_Count_of_G(g))@;
       or_node = PSL_Datum (or_psl, ahfa_item_symbol_instance);
       if (!or_node || ES_Ord_of_OR(or_node) != work_earley_set_ordinal)
 	{
-	  const RULE rule = RULE_of_AIM(ahfa_item);
+	  const IRL irl = IRL_of_AIM(ahfa_item);
 	  @<Set |last_or_node| to a new or-node@>@;
 	  or_node = last_or_node;
 	  PSL_Datum (or_psl, ahfa_item_symbol_instance) = last_or_node;
 	  Origin_Ord_of_OR(or_node) = Origin_Ord_of_EIM(work_earley_item);
 	  ES_Ord_of_OR(or_node) = work_earley_set_ordinal;
-	  RULE_of_OR(or_node) = rule;
+	  IRL_of_OR(or_node) = irl;
 	  Position_of_OR (or_node) =
-	      ahfa_item_symbol_instance - SYMI_of_RULE (rule) + 1;
+	      ahfa_item_symbol_instance - SYMI_of_IRL (irl) + 1;
 	  DANDs_of_OR(or_node) = NULL;
 	}
 	psia_or_node = or_node;
@@ -9486,8 +9488,9 @@ and this is the case if |Position_of_OR(or_node) == 0|.
   const int null_count = Null_Count_of_AIM (ahfa_item);
   if (null_count > 0)
     {
-      const RULE rule = RULE_of_AIM (ahfa_item);
-      const int symbol_instance_of_rule = SYMI_of_RULE(rule);
+      const IRL irl = IRL_of_AIM (ahfa_item);
+      const RULE rule = Co_RULE_of_IRL(irl);
+      const int symbol_instance_of_rule = SYMI_of_IRL(irl);
       const int first_null_symbol_instance =
 	  ahfa_item_symbol_instance < 0 ? symbol_instance_of_rule : ahfa_item_symbol_instance + 1;
       int i;
@@ -9497,14 +9500,14 @@ and this is the case if |Position_of_OR(or_node) == 0|.
 	  OR or_node = PSL_Datum (or_psl, symbol_instance);
 	  if (!or_node || ES_Ord_of_OR (or_node) != work_earley_set_ordinal) {
 		DAND draft_and_node;
-		const int rhs_ix = symbol_instance - SYMI_of_RULE(rule);
+		const int rhs_ix = symbol_instance - symbol_instance_of_rule;
 		const OR predecessor = rhs_ix ? last_or_node : NULL;
 		const OR cause = (OR)TOK_by_SYMID( RHS_ID_of_RULE (rule, rhs_ix ) );
 		@<Set |last_or_node| to a new or-node@>@;
 		or_node = PSL_Datum (or_psl, symbol_instance) = last_or_node ;
 		Origin_Ord_of_OR (or_node) = work_origin_ordinal;
 		ES_Ord_of_OR (or_node) = work_earley_set_ordinal;
-		RULE_of_OR (or_node) = rule;
+		IRL_of_OR (or_node) = irl;
 		Position_of_OR (or_node) = rhs_ix + 1;
 MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 		draft_and_node = DANDs_of_OR (or_node) =
@@ -9566,7 +9569,8 @@ requirements in the process.
     {
 	const int ordinal_of_set_of_this_leo_item = Ord_of_ES(ES_of_LIM(this_leo_item));
           const AIM path_ahfa_item = Path_AIM_of_LIM(previous_leo_item);
-	  const RULE path_rule = RULE_of_AIM(path_ahfa_item);
+	  const IRL path_irl = IRL_of_AIM(path_ahfa_item);
+	  const RULE path_rule = Co_RULE_of_IRL(path_irl);
 	  const int symbol_instance_of_path_ahfa_item = SYMI_of_AIM(path_ahfa_item);
 	@<Add main Leo path or-node@>@;
 	@<Add Leo path nulling token or-nodes@>@;
@@ -9614,9 +9618,9 @@ corresponds to the leo predecessor.
 	  PSL_Datum (leo_psl, symbol_instance_of_path_ahfa_item) = or_node = last_or_node;
 	  Origin_Ord_of_OR(or_node) = ordinal_of_set_of_this_leo_item;
 	  ES_Ord_of_OR(or_node) = work_earley_set_ordinal;
-	  RULE_of_OR(or_node) = path_rule;
+	  IRL_of_OR(or_node) = path_irl;
 	  Position_of_OR (or_node) =
-	      symbol_instance_of_path_ahfa_item - SYMI_of_RULE (path_rule) + 1;
+	      symbol_instance_of_path_ahfa_item - SYMI_of_IRL (path_irl) + 1;
 	  DANDs_of_OR(or_node) = NULL;
 	}
     }
@@ -9638,7 +9642,7 @@ or-nodes follow a completion.
       if (!or_node || ES_Ord_of_OR (or_node) != work_earley_set_ordinal)
 	{
 	  DAND draft_and_node;
-	  const int rhs_ix = symbol_instance - SYMI_of_RULE(path_rule);
+	  const int rhs_ix = symbol_instance - SYMI_of_IRL(path_irl);
 	    const OR predecessor = rhs_ix ? last_or_node : NULL;
 	  const OR cause = (OR)TOK_by_SYMID( RHS_ID_of_RULE (path_rule, rhs_ix)) ;
 	  MARPA_ASSERT (symbol_instance < Length_of_RULE (path_rule)) @;
@@ -9647,7 +9651,7 @@ or-nodes follow a completion.
 	  PSL_Datum (this_earley_set_psl, symbol_instance) = or_node = last_or_node;
 	  Origin_Ord_of_OR (or_node) = ordinal_of_set_of_this_leo_item;
 	  ES_Ord_of_OR (or_node) = work_earley_set_ordinal;
-	  RULE_of_OR (or_node) = path_rule;
+	  IRL_of_OR (or_node) = path_irl;
 	  Position_of_OR (or_node) = rhs_ix + 1;
 MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 	  DANDs_of_OR (or_node) = draft_and_node =
@@ -9655,7 +9659,7 @@ MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 	  Next_DAND_of_DAND (draft_and_node) = NULL;
 	}
       MARPA_ASSERT (Position_of_OR (or_node) <=
-		    SYMI_of_RULE (path_rule) + Length_of_RULE (path_rule)) @;
+		    SYMI_of_IRL (path_irl) + Length_of_RULE (path_rule)) @;
       MARPA_ASSERT (Position_of_OR (or_node) >= SYMI_of_RULE (path_rule)) @;
     }
 }
@@ -9664,21 +9668,21 @@ MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 The "whole elements" of the grammar are the symbols
 and the completed rules.
 {\bf To Do}: @^To Do@>
+{\bf Restriction}: @^Restriction@>
 Note that this puts a limit on the number of symbols
-and rules in a grammar --- their total must fit in an
+and internal rules in a grammar --- their total must fit in an
 int.
-@d WHEID_of_SYMID(symid) (rule_count_of_g+(symid))
-@d WHEID_of_RULEID(ruleid) (ruleid)
-@d WHEID_of_RULE(rule) WHEID_of_RULEID(ID_of_RULE(rule))
+@d WHEID_of_SYMID(symid) (irl_count+(symid))
+@d WHEID_of_IRLID(irlid) (irlid)
+@d WHEID_of_IRL(irl) WHEID_of_IRLID(ID_of_IRL(irl))
 @d WHEID_of_OR(or) (
     wheid = OR_is_Token(or) ?
         WHEID_of_SYMID(SYMID_of_OR(or)) :
-        WHEID_of_RULE(RULE_of_OR(or))
+        WHEID_of_IRL(IRL_of_OR(or))
     )
 
 @<Private typedefs@> =
 typedef int WHEID;
-
 
 @** Draft And-Node (DAND) Code.
 The draft and-nodes are used while the bocage is
@@ -10024,7 +10028,7 @@ predecessor.  Set |or_node| to 0 if there is none.
   PSAR_Object and_per_es_arena;
   const PSAR and_psar = &and_per_es_arena;
   int or_node_id = 0;
-  psar_init (and_psar, rule_count_of_g+symbol_count_of_g);
+  psar_init (and_psar, irl_count+symbol_count_of_g);
   while (or_node_id < or_node_count_of_b) {
       const OR work_or_node = or_nodes_of_b[or_node_id];
     @<Mark the duplicate draft and-nodes for |work_or_node|@>@;
@@ -10383,8 +10387,8 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
 
 @ @<Declare bocage locals@> =
 const GRAMMAR g = G_of_R(r);
-const int rule_count_of_g = RULE_Count_of_G(g);
 const int symbol_count_of_g = SYM_Count_of_G(g);
+const IRLID irl_count = IRL_Count_of_G(g);
 BOCAGE b = NULL;
 ES end_of_parse_earley_set;
 EARLEME end_of_parse_earleme;
@@ -12154,10 +12158,10 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 		    real_symbol_count = Length_of_RULE(nook_rule);
 		}
 		{
-		  RULEID original_rule_id =
+		  XRLID original_rule_id =
 		    nook_rule->t_is_semantic_equivalent ?
-		    nook_rule->t_original : ID_of_RULE (nook_rule);
-		  if (RULE_is_Ask_Me (RULE_by_ID (g, original_rule_id)))
+		    nook_rule->t_original : ID_of_XRL (nook_rule);
+		  if (XRL_is_Ask_Me (XRL_by_ID (original_rule_id)))
 		    {
 		      RULEID_of_V(v) = original_rule_id;
 		      TOS_of_V(v) = Arg_N_of_V(v) - real_symbol_count + 1;
@@ -12563,7 +12567,7 @@ and turns the original vector into the RHS closure of that vector.
 The orignal vector is destroyed.
 @<Function definitions@> =
 PRIVATE void
-rhs_closure (GRAMMAR g, Bit_Vector bv, RULEID ** xrl_list_x_rh_sym)
+rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
 {
   unsigned int min, max, start = 0;
   Marpa_Symbol_ID *top_of_stack = NULL;
@@ -12581,21 +12585,21 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, RULEID ** xrl_list_x_rh_sym)
   while ((top_of_stack = FSTACK_POP (stack)))
     {
       const SYMID symid = *top_of_stack;
-      RULEID *p_xrl = xrl_list_x_rh_sym[symid];
-      const RULEID *p_one_past_rules = xrl_list_x_rh_sym[symid + 1];
+      XRLID *p_xrl = xrl_list_x_rh_sym[symid];
+      const XRLID *p_one_past_rules = xrl_list_x_rh_sym[symid + 1];
       for (; p_xrl < p_one_past_rules; p_xrl++)
 	{
-	  const RULEID rule_id = *p_xrl;
-	  const RULE rule = RULE_by_ID (g, rule_id);
+	  const XRLID rule_id = *p_xrl;
+	  const XRL rule = XRL_by_ID (rule_id);
 	  int rule_length;
 	  int rh_ix;
-	  const SYMID lhs_id = LHS_ID_of_RULE (rule);
+	  const SYMID lhs_id = LHS_ID_of_XRL (rule);
 
 	  const int is_sequence = XRL_is_Sequence (rule);
 
 	  if (bv_bit_test (bv, (unsigned int) lhs_id))
 	    goto NEXT_RULE;
-	  rule_length = Length_of_RULE (rule);
+	  rule_length = Length_of_XRL (rule);
 
 	  /* This works for the present allowed sequence rules --
 	     These currently always allow rules of length 1,
@@ -12605,7 +12609,7 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, RULEID ** xrl_list_x_rh_sym)
 	  for (rh_ix = 0; rh_ix < rule_length; rh_ix++)
 	    {
 	      if (!bv_bit_test
-		  (bv, (unsigned int) RHS_ID_of_RULE (rule, rh_ix)))
+		  (bv, (unsigned int) RHS_ID_of_XRL (rule, rh_ix)))
 		goto NEXT_RULE;
 	    }
 
