@@ -18,16 +18,13 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 7;
+use Test::More tests => 6;
 
 use English qw( -no_match_vars );
 use Fatal qw( open close );
 use lib 'inc';
 use Marpa::R2::Test;
-
-BEGIN {
-    Test::More::use_ok('Marpa::R2');
-}
+use Marpa::R2;
 
 sub catch_problem {
     my ( $test_name, $test, $expected_result, $expected_error ) = @_;

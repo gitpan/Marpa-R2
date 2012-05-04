@@ -18,11 +18,9 @@ use 5.010;
 use warnings;
 use strict;
 
-use Test::More tests => 3;
+use Test::More tests => 2;
 
-BEGIN {
-    Test::More::use_ok('Marpa::R2');
-}
+use Marpa::R2;
 
 defined $INC{'Marpa/R2.pm'}
     or Test::More::BAIL_OUT('Could not load Marpa::R2');

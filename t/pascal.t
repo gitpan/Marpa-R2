@@ -23,13 +23,10 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 8;
+use Test::More tests => 7;
 use lib 'inc';
 use Marpa::R2::Test;
-
-BEGIN {
-    Test::More::use_ok('Marpa::R2');
-}
+use Marpa::R2;
 
 sub ah_extended {
     my $n = shift;

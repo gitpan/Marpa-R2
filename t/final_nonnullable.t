@@ -21,14 +21,11 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 11;
+use Test::More tests => 10;
 
 use lib 'inc';
 use Marpa::R2::Test;
-
-BEGIN {
-    Test::More::use_ok('Marpa::R2');
-}
+use Marpa::R2;
 
 ## no critic (Subroutines::RequireArgUnpacking)
 
@@ -61,7 +58,7 @@ $grammar->precompute();
 
 Marpa::R2::Test::is( $grammar->show_rules,
     <<'END_OF_STRING', 'final nonnulling Rules' );
-0: S -> p p p n /* !used */
+0: S -> p p p n
 1: p -> a
 2: p -> /* empty !used */
 3: n -> a

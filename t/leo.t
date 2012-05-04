@@ -22,14 +22,11 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 18;
+use Test::More tests => 17;
 
 use lib 'inc';
 use Marpa::R2::Test;
-
-BEGIN {
-    Test::More::use_ok('Marpa::R2');
-}
+use Marpa::R2;
 
 ## no critic (Subroutines::RequireArgUnpacking)
 
@@ -78,9 +75,9 @@ END_OF_STRING
 
 Marpa::R2::Test::is( $grammar->show_rules,
     <<'END_OF_STRING', 'Leo168 Rules' );
-0: S -> a S /* !used */
-1: S -> C /* !used */
-2: C -> a C b /* !used */
+0: S -> a S
+1: S -> C
+2: C -> a C b
 3: C -> /* empty !used */
 4: S -> a S
 5: S -> a S[]

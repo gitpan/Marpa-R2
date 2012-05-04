@@ -23,13 +23,10 @@ use warnings;
 use English qw( -no_match_vars );
 use Fatal qw(open close chdir);
 
-use Test::More tests => 5;
+use Test::More tests => 4;
 use lib 'inc';
 use Marpa::R2::Test;
-
-BEGIN {
-    Test::More::use_ok('Marpa::R2');
-}
+use Marpa::R2;
 
 sub make_rule {
     my ( $lhs_symbol_name, $rhs_symbol_name ) = @_;

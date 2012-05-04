@@ -33,7 +33,7 @@ m4_define(marpa_configure_in)
 #
 m4_define([marpa_major_version], [2])
 m4_define([marpa_minor_version], [0])
-m4_define([marpa_micro_version], [38])
+m4_define([marpa_micro_version], [39])
 m4_define([marpa_interface_age], [100])
 m4_define([marpa_binary_age],
           [m4_eval(100 * marpa_minor_version + marpa_micro_version)])
@@ -127,16 +127,19 @@ AC_CHECK_FUNCS([memset])
 AC_TYPE_SIZE_T
 
 if test x"$GCC" = xyes; then
-  WARNING_CFLAGS="-Wall \
-    -Wextra \
-    -Wpointer-arith \
-    -Wstrict-prototypes \
-    -Wwrite-strings \
-    -Wdeclaration-after-statement \
-    -Wshadow \
-    -Winline \
-    -Wmissing-declarations \
-    -ansi -pedantic"
+
+dnl One to a line to make these easy to edit
+WARNING_CFLAGS="-Wall \
+-Wextra \
+-Wpointer-arith \
+-Wstrict-prototypes \
+-Wwrite-strings \
+-Wdeclaration-after-statement \
+-Wshadow \
+-Winline \
+-Wmissing-declarations \
+-ansi -pedantic"
+
 fi
 
 dnl this section will only be run if config.status is invoked with no

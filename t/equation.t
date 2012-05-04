@@ -19,16 +19,13 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 13;
+use Test::More tests => 12;
 
 use lib 'inc';
 use Marpa::R2::Test;
 use English qw( -no_match_vars );
 use Fatal qw( close open );
-
-BEGIN {
-    Test::More::use_ok('Marpa::R2');
-}
+use Marpa::R2;
 
 ## no critic (InputOutput::RequireBriefOpen)
 open my $original_stdout, q{>&STDOUT};

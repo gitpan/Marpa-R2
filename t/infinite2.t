@@ -20,13 +20,10 @@ use strict;
 use warnings;
 use English qw( -no_match_vars );
 use Fatal qw(open close chdir);
-use Test::More tests => 4;
+use Test::More tests => 3;
 use lib 'inc';
 use Marpa::R2::Test;
-
-BEGIN {
-    Test::More::use_ok('Marpa::R2');
-}
+use Marpa::R2;
 
 my %expected_original = map { ( $_ => 1 ) } qw( A(B(a)) a );
 

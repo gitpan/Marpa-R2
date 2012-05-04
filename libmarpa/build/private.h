@@ -38,12 +38,12 @@ static int AHFA_state_cmp(
     const void* bp,
     void *param UNUSED);
 static int
-cmp_by_rule_sort_key(const void* ap, const void* bp);
+cmp_by_irl_sort_key(const void* ap, const void* bp);
 static AHFA
 create_predicted_AHFA_state(
      GRAMMAR g,
      Bit_Vector prediction_rule_vector,
-     RULE* rule_by_sort_key,
+     IRL* irl_by_sort_key,
      DQUEUE states_p,
      AVL_TREE duplicates,
      AIM* item_list_working_buffer
@@ -58,8 +58,8 @@ static void transitive_closure(Bit_Matrix matrix);
 static void
 _marpa_default_out_of_memory(void);
 static void
-set_error (struct marpa_g *g, Marpa_Error_Code code, const char* message, unsigned int flags);
-static inline const char* check_alpha_version(
+set_error (GRAMMAR g, Marpa_Error_Code code, const char* message, unsigned int flags);
+static inline Marpa_Error_Code check_alpha_version(
     unsigned int required_major,
 		unsigned int required_minor,
 		unsigned int required_micro);
@@ -70,11 +70,10 @@ grammar_ref (GRAMMAR g);
 static inline void grammar_free(GRAMMAR g);
 static inline void symbol_add( GRAMMAR g, SYM symbol);
 static inline int symbol_is_valid(GRAMMAR g, SYMID symid);
-static inline void rule_add(
-    GRAMMAR g,
-    RULE rule);
-static inline void event_new(struct marpa_g* g, int type);
-static inline void int_event_new(struct marpa_g* g, int type, int value);
+static inline void
+rule_add (GRAMMAR g, RULE rule);
+static inline void event_new(GRAMMAR g, int type);
+static inline void int_event_new(GRAMMAR g, int type, int value);
 static inline SYM
 symbol_new (GRAMMAR g);
 static inline void symbol_free(SYM symbol);
@@ -83,15 +82,18 @@ static inline SYM symbol_null_alias(SYM symbol);
 static inline SYM symbol_alias_create(GRAMMAR g, SYM symbol);
 static inline   RULE rule_start (GRAMMAR g, const SYMID lhs, const SYMID * rhs, int length);
 static inline RULE rule_finish(GRAMMAR g, RULE rule);
+static inline IRL
+irl_start(GRAMMAR g);
+static inline IRL
+irl_new(GRAMMAR g,
+const SYMID lhs, const SYMID *rhs, int length);
+static inline IRL
+irl_clone(GRAMMAR g, XRL xrl);
 static inline int
 rule_check (GRAMMAR g, XRL rule);
 static inline Marpa_Symbol_ID rule_lhs_get(RULE rule);
 static inline Marpa_Symbol_ID* rule_rhs_get(RULE rule);
 static inline size_t rule_length_get(RULE rule);
-static inline int rule_is_accessible(struct marpa_g* g, RULE  rule);
-static inline int rule_is_productive(struct marpa_g* g, RULE  rule);
-static inline int
-rule_is_nulling (GRAMMAR g, RULE rule);
 static inline int
 symbol_instance_of_ahfa_item_get (AIM aim);
 static inline SYMID alias_by_id(GRAMMAR g, SYMID proper_id);
