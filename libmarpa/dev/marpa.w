@@ -746,8 +746,13 @@ The |rule_tree| is a tree for detecting duplicates.
 @ @<Function definitions@> =
 int marpa_g_rule_count(Marpa_Grammar g) {
    @<Return |-2| on failure@>@;
-    @<Fail if fatal error@>@;
-    return XRL_Count_of_G(g);
+   @<Fail if fatal error@>@;
+   return XRL_Count_of_G(g);
+}
+int _marpa_g_irl_count(Marpa_Grammar g) {
+  @<Return |-2| on failure@>@;
+  @<Fail if fatal error@>@;
+  return IRL_Count_of_G(g);
 }
 
 @ Internal accessor to find a rule by its id.
@@ -771,6 +776,8 @@ rule_add (GRAMMAR g, RULE rule)
 @ Check that rule is in valid range.
 @d XRLID_of_G_is_Valid(rule_id)
     ((rule_id) >= 0 && (rule_id) < XRL_Count_of_G(g))
+@d IRLID_of_G_is_Valid(irl_id)
+    ((irl_id) >= 0 && (irl_id) < IRL_Count_of_G(g))
 @d RULEID_of_G_is_Valid(g, rule_id) XRLID_of_G_is_Valid(rule_id)
 
 @*0 Start Symbol.
@@ -1453,7 +1460,7 @@ Marpa_Rule_ID _marpa_g_symbol_lhs_xrl(Marpa_Grammar g, Marpa_Symbol_ID symid)
     const SYM symbol = SYM_by_ID (symid);
     const XRL lhs_xrl = LHS_XRL_of_ISY (symbol);
     if (lhs_xrl)
-      return ID_of_RULE (lhs_xrl);
+      return ID_of_XRL (lhs_xrl);
   }
   return -1;
 }
@@ -2045,84 +2052,98 @@ It was an especially non-negotiable criteria, because
 almost the only reason for parsing a grammar is to apply the
 semantics specified for the original grammar.
 @d RULE_has_Virtual_LHS(rule) ((rule)->t_is_virtual_lhs)
+@d IRL_has_Virtual_LHS(irl) RULE_has_Virtual_LHS(Co_RULE_of_IRL(irl))
 @<Bit aligned rule elements@> = unsigned int t_is_virtual_lhs:1;
 @ @<Initialize rule elements@> =
 RULE_has_Virtual_LHS(rule) = 0;
 @ @<Function definitions@> =
-int _marpa_g_rule_is_virtual_lhs(
+int _marpa_g_irl_is_virtual_lhs(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_IRL_ID irl_id)
 {
     @<Return |-2| on failure@>@;
     @<Fail if not precomputed@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return RULE_has_Virtual_LHS(RULE_by_ID(g, rule_id));
+    @<Fail if grammar |irl_id| is invalid@>@;
+    return IRL_has_Virtual_LHS(IRL_by_ID(irl_id));
 }
 
 @*0 Rule has Virtual RHS?.
 @d RULE_has_Virtual_RHS(rule) ((rule)->t_is_virtual_rhs)
+@d IRL_has_Virtual_RHS(irl) RULE_has_Virtual_RHS(Co_RULE_of_IRL(irl))
 @<Bit aligned rule elements@> = unsigned int t_is_virtual_rhs:1;
 @ @<Initialize rule elements@> =
 RULE_has_Virtual_RHS(rule) = 0;
 @ @<Function definitions@> =
-int _marpa_g_rule_is_virtual_rhs(
+int _marpa_g_irl_is_virtual_rhs(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_IRL_ID irl_id)
 {
     @<Return |-2| on failure@>@;
     @<Fail if not precomputed@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return RULE_has_Virtual_RHS(RULE_by_ID(g, rule_id));
+    @<Fail if grammar |irl_id| is invalid@>@;
+    return IRL_has_Virtual_RHS(IRL_by_ID(irl_id));
 }
 
 @*0 Virtual Start Position.
 For a virtual rule,
 this is the RHS position in the original rule
 where this one starts.
+@d Virtual_Start_of_IRL(irl) (Co_RULE_of_IRL(irl)->t_virtual_start)
 @<Int aligned rule elements@> = int t_virtual_start;
 @ @<Initialize rule elements@> = rule->t_virtual_start = -1;
 @ @<Function definitions@> =
 unsigned int _marpa_g_virtual_start(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_IRL_ID irl_id)
 {
+    IRL irl;
     @<Return |-2| on failure@>@;
     @<Fail if not precomputed@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return RULE_by_ID(g, rule_id)->t_virtual_start;
+    @<Fail if grammar |irl_id| is invalid@>@;
+    irl = IRL_by_ID(irl_id);
+    return Virtual_Start_of_IRL(irl);
 }
 
 @*0 Virtual End Position.
 For a virtual rule,
 this is the RHS position in the original rule
 at which this one ends.
+@d Virtual_End_of_IRL(irl) (Co_RULE_of_IRL(irl)->t_virtual_end)
 @<Int aligned rule elements@> = int t_virtual_end;
 @ @<Initialize rule elements@> = rule->t_virtual_end = -1;
 @ @<Function definitions@> =
 unsigned int _marpa_g_virtual_end(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_IRL_ID irl_id)
 {
+    IRL irl;
     @<Return |-2| on failure@>@;
     @<Fail if not precomputed@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return RULE_by_ID(g, rule_id)->t_virtual_end;
+    @<Fail if grammar |irl_id| is invalid@>@;
+    irl = IRL_by_ID(irl_id);
+    return Virtual_End_of_IRL(irl);
 }
 
-@*0 Rule Original.
-In many cases, Marpa will rewrite a rule.
-If this rule is the result of a rewriting, this element contains
-the ID of the original rule.
-@ @<Int aligned rule elements@> = Marpa_Rule_ID t_original;
-@ @<Initialize rule elements@> = rule->t_original = -1;
+@*0 Source XRL.
+This is the ``source'' of the internal rule --
+the external rule that it is derived from.
+Currently, there is no dedicated flag for determining
+whether this rule also provides the semantics,
+because the ``virtual LHS'' flag serves that purpose.
+@d Source_XRL_of_IRL(irl) (Co_RULE_of_IRL(irl)->t_source_xrl)
+@d Source_XRL_of_RULE(rule) ((rule)->t_source_xrl)
+@<Int aligned rule elements@> = XRL t_source_xrl;
+@ @<Initialize rule elements@> = Source_XRL_of_RULE(rule) = NULL;
 @ @<Function definitions@> =
-Marpa_Rule_ID _marpa_g_rule_original(
+Marpa_Rule_ID _marpa_g_source_xrl(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_IRL_ID irl_id)
 {
+    XRL source_xrl;
     @<Return |-2| on failure@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return RULE_by_ID(g, rule_id)->t_original;
+    @<Fail if grammar |irl_id| is invalid@>@;
+    source_xrl = Source_XRL_of_IRL(IRL_by_ID(irl_id));
+    return source_xrl ? ID_of_XRL(source_xrl) : -1;
 }
 
 @*0 Rule Real Symbol Count.
@@ -2132,17 +2153,18 @@ look as if they came from the original, un-rewritten rules.
 The value of this field is meaningful if and only if
 the rule has a virtual rhs or a virtual lhs.
 @d Real_SYM_Count_of_RULE(rule) ((rule)->t_real_symbol_count)
+@d Real_SYM_Count_of_IRL(irl) Real_SYM_Count_of_RULE(Co_RULE_of_IRL(irl))
 @ @<Int aligned rule elements@> = int t_real_symbol_count;
 @ @<Initialize rule elements@> = Real_SYM_Count_of_RULE(rule) = 0;
 @ @<Function definitions@> =
 int _marpa_g_real_symbol_count(
     Marpa_Grammar g,
-    Marpa_Rule_ID rule_id)
+    Marpa_IRL_ID irl_id)
 {
     @<Return |-2| on failure@>@;
     @<Fail if not precomputed@>@;
-    @<Fail if grammar |rule_id| is invalid@>@;
-    return Real_SYM_Count_of_RULE(RULE_by_ID(g, rule_id));
+    @<Fail if grammar |irl_id| is invalid@>@;
+    return Real_SYM_Count_of_IRL(IRL_by_ID(irl_id));
 }
 
 @*0 Rule has semantics?.
@@ -2215,30 +2237,19 @@ int marpa_g_rule_first_child_set(
     return XRL_is_Ask_Me(xrl) = 0;
 }
 
-@*0 Semantic Equivalents.
-@<Bit aligned rule elements@> = unsigned int t_is_semantic_equivalent:1;
-@ @<Initialize rule elements@> =
-rule->t_is_semantic_equivalent = 0;
-@ Semantic equivalence arises out of Marpa's rewritings.
-When a rule is rewritten,
-some (but not all!) of the resulting rules have the
-same semantics as the original rule.
-It is this ``original rule" that |semantic_equivalent()| returns.
-
 @ If this rule is the semantic equivalent of another rule,
 this external accessor returns the ``original rule".
 Otherwise it returns -1.
 @ @<Function definitions@> =
 Marpa_Rule_ID
-_marpa_g_rule_semantic_equivalent (Marpa_Grammar g, Marpa_Rule_ID rule_id)
+_marpa_g_irl_semantic_equivalent (Marpa_Grammar g, Marpa_IRL_ID irl_id)
 {
-  RULE rule;
-@<Return |-2| on failure@>@;
-@<Fail if grammar |rule_id| is invalid@>@;
-  rule = RULE_by_ID (g, rule_id);
-  if (RULE_has_Virtual_LHS(rule)) return -1;
-  if (rule->t_is_semantic_equivalent) return rule->t_original;
-  return rule_id;
+  IRL irl;
+  @<Return |-2| on failure@>@;
+  @<Fail if grammar |irl_id| is invalid@>@;
+  irl = IRL_by_ID (irl_id);
+  if ( IRL_has_Virtual_LHS (irl) ) return -1;
+  return ID_of_XRL( Source_XRL_of_IRL(irl) );
 }
 
 @ This is the first AHFA item for a rule.
@@ -2258,11 +2269,12 @@ struct s_irl {
   @<Widely aligned irl elements@>@;
   @<Int aligned irl elements@>@;
 };
-@
-@<Private typedefs@> =
+@ @<Public typedefs@> =
+typedef int Marpa_IRL_ID;
+@ @<Private typedefs@> =
 struct s_irl;
 typedef struct s_irl* IRL;
-typedef Marpa_Rule_ID IRLID;
+typedef Marpa_IRL_ID IRLID;
 
 @*0 Development stubs.
 @ {\bf To Do}: @^To Do@>
@@ -2271,14 +2283,54 @@ external and internal is complete.
 @d Co_RULE_of_IRL(irl) ((irl)->t_co_rule)
 @<Widely aligned irl elements@> =
   XRL t_co_rule;
+@ @<Function definitions@> =
+Marpa_Rule_ID _marpa_g_irl_co_rule(
+    Marpa_Grammar g,
+    Marpa_IRL_ID irl_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if grammar |irl_id| is invalid@>@;
+    return ID_of_XRL(Co_RULE_of_IRL(IRL_by_ID(irl_id)));
+}
 
 @*0 Rule ID.
 The {\bf rule ID} is a number which
 acts as the unique identifier for a rule.
 The rule ID is initialized when the rule is
 added to the list of rules.
-@d ID_of_IRL(xrl) ((xrl)->t_irl_id)
+@d ID_of_IRL(irl) ((irl)->t_irl_id)
 @<Int aligned irl elements@> = IRLID t_irl_id;
+
+@ @d LHS_ID_of_IRL(irl) LHS_ID_of_RULE(Co_RULE_of_IRL(irl))
+@<Function definitions@> =
+Marpa_Symbol_ID _marpa_g_irl_lhs(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |irl_id| is invalid@>@;
+    return LHS_ID_of_IRL(IRL_by_ID(irl_id));
+}
+
+@ @d RHS_ID_of_IRL(irl, position) RHS_ID_of_RULE(Co_RULE_of_IRL(irl), (position))
+@<Function definitions@> =
+Marpa_Symbol_ID _marpa_g_irl_rh_symbol(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix) {
+    IRL irl;
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |irl_id| is invalid@>@;
+    irl = IRL_by_ID(irl_id);
+    if (Length_of_IRL(irl) <= ix) return -1;
+    return RHS_ID_of_IRL(irl, ix);
+}
+
+@ @d Length_of_IRL(irl) Length_of_RULE(Co_RULE_of_IRL(irl))
+@<Function definitions@> =
+int _marpa_g_irl_length(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if grammar |irl_id| is invalid@>@;
+    return Length_of_IRL(IRL_by_ID(irl_id));
+}
+
 
 @** Symbol Instance (SYMI) Code.
 @<Private typedefs@> = typedef int SYMI;
@@ -2870,8 +2922,7 @@ and productive.
 {
     IRL rewrite_irl = irl_new(g, lhs_id, &internal_lhs_id, 1);
     RULE rewrite_rule = Co_RULE_of_IRL(rewrite_irl);
-    rewrite_rule->t_original = rule_id;
-    rewrite_rule->t_is_semantic_equivalent = 1;
+    Source_XRL_of_IRL(rewrite_irl) = rule;
     /* Real symbol count remains at default of 0 */
     RULE_has_Virtual_RHS (rewrite_rule) = 1;
 }
@@ -2886,8 +2937,7 @@ and productive.
     temp_rhs[1] = separator_id;
     rewrite_irl = irl_new(g, lhs_id, temp_rhs, 2);
     rewrite_rule = Co_RULE_of_IRL(rewrite_irl);
-    rewrite_rule->t_original = rule_id;
-    rewrite_rule->t_is_semantic_equivalent = 1;
+    Source_XRL_of_IRL(rewrite_irl) = rule;
     RULE_has_Virtual_RHS(rewrite_rule) = 1;
     Real_SYM_Count_of_RULE(rewrite_rule) = 1;
 }
@@ -2898,7 +2948,7 @@ That's the core of Marpa's rewrite.
 {
   const IRL rewrite_irl = irl_new (g, internal_lhs_id, &rhs_id, 1);
   const RULE rewrite_rule = Co_RULE_of_IRL(rewrite_irl);
-  rewrite_rule->t_original = rule_id;
+  Source_XRL_of_IRL(rewrite_irl) = rule;
   RULE_has_Virtual_LHS (rewrite_rule) = 1;
   Real_SYM_Count_of_RULE (rewrite_rule) = 1;
 }
@@ -2914,7 +2964,7 @@ That's the core of Marpa's rewrite.
   temp_rhs[rhs_ix++] = rhs_id;
   rewrite_irl = irl_new (g, internal_lhs_id, temp_rhs, rhs_ix);
   rewrite_rule = Co_RULE_of_IRL (rewrite_irl);
-  rewrite_rule->t_original = rule_id;
+  Source_XRL_of_IRL(rewrite_irl) = rule;
   RULE_has_Virtual_LHS (rewrite_rule) = 1;
   RULE_has_Virtual_RHS (rewrite_rule) = 1;
   Real_SYM_Count_of_RULE (rewrite_rule) = rhs_ix - 1;
@@ -3006,12 +3056,12 @@ MARPA_DEBUG4("%s: rule_id=%d factor_count=%d", STRLOC, rule_id, factor_count);
 
 	     @<Factor the rule into CHAF rules@>@;
 	   } else {
-	       irl_clone(g, rule);
+	       IRL new_irl = irl_clone(g, rule);
+	       Source_XRL_of_IRL(new_irl) = rule;
 	   }
 	 }
 	 NEXT_XRL: ;
     }
-    @<CHAF rewrite deallocations@>@;
 }
 @ @<CHAF rewrite declarations@> =
 Marpa_Rule_ID rule_id;
@@ -3071,9 +3121,7 @@ for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++) {
 int factor_count;
 int* factor_positions;
 @ @<CHAF rewrite allocations@> =
-factor_positions = my_new(int, g->t_max_rule_length);
-@ @<CHAF rewrite deallocations@> =
-my_free(factor_positions);
+factor_positions = my_obstack_new(obs_precompute, int, g->t_max_rule_length);
 
 @*0 Divide the Rule into Pieces.
 @<Factor the rule into CHAF rules@> =
@@ -3122,11 +3170,8 @@ In such cases, the RHS is built in the
 Marpa_Symbol_ID* piece_rhs;
 Marpa_Symbol_ID* remaining_rhs;
 @ @<CHAF rewrite allocations@> =
-piece_rhs = my_new(Marpa_Symbol_ID, g->t_max_rule_length);
-remaining_rhs = my_new(Marpa_Symbol_ID, g->t_max_rule_length);
-@ @<CHAF rewrite deallocations@> =
-my_free(piece_rhs);
-my_free(remaining_rhs);
+piece_rhs = my_obstack_new(obs_precompute, Marpa_Symbol_ID, g->t_max_rule_length);
+remaining_rhs = my_obstack_new(obs_precompute, Marpa_Symbol_ID, g->t_max_rule_length);
 
 @*0 Factor A Non-Final Piece.
 @ As long as I have more than 3 unprocessed factors, I am working on a non-final
@@ -3434,13 +3479,12 @@ rule structure, and performing the call back.
 {
   const SYM current_lhs = SYM_by_ID (current_lhs_id);
   const int is_virtual_lhs = (piece_start > 0);
-  chaf_rule->t_original = rule_id;
+  Source_XRL_of_IRL(chaf_irl) = rule;
   RULE_has_Virtual_LHS (chaf_rule) = is_virtual_lhs;
-  chaf_rule->t_is_semantic_equivalent = !is_virtual_lhs;
   RULE_has_Virtual_RHS (chaf_rule) =
     Length_of_RULE (chaf_rule) > real_symbol_count;
-  chaf_rule->t_virtual_start = piece_start;
-  chaf_rule->t_virtual_end = piece_start + real_symbol_count - 1;
+  Virtual_Start_of_IRL(chaf_irl) = piece_start;
+  Virtual_End_of_IRL(chaf_irl) = piece_start + real_symbol_count - 1;
   Real_SYM_Count_of_RULE (chaf_rule) = real_symbol_count;
   LHS_XRL_of_ISY (current_lhs) = chaf_xrl;
   XRL_Offset_of_ISY (current_lhs) = piece_start;
@@ -3784,7 +3828,7 @@ return item_id < (AIMID)AIM_Count_of_G(g) && item_id >= 0;
 @*0 Rule.
 @d IRL_of_AIM(aim) ((aim)->t_irl)
 @d RULE_of_AIM(aim) Co_RULE_of_IRL(IRL_of_AIM(aim))
-@d RULEID_of_AIM(item) ID_of_RULE(RULE_of_AIM(item))
+@d IRLID_of_AIM(item) ID_of_IRL(IRL_of_AIM(item))
 @d LHS_ID_of_AIM(item) LHS_ID_of_RULE(RULE_of_AIM(item))
 @<Widely aligned AHFA item elements@> =
     IRL t_irl;
@@ -3820,12 +3864,12 @@ int _marpa_g_AHFA_item_count(Marpa_Grammar g) {
 }
 
 @ @<Function definitions@> =
-Marpa_Rule_ID _marpa_g_AHFA_item_rule(Marpa_Grammar g,
+Marpa_IRL_ID _marpa_g_AHFA_item_irl(Marpa_Grammar g,
 	Marpa_AHFA_Item_ID item_id) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
     @<Fail if grammar |item_id| is invalid@>@/
-    return RULEID_of_AIM(AIM_by_ID(item_id));
+    return IRLID_of_AIM(AIM_by_ID(item_id));
 }
 
 @ |-1| is the value for completions, so |-2| is the failure indicator.
@@ -10490,8 +10534,7 @@ to make sense.
     int eim_ix;
     EIM* const earley_items = EIMs_of_ES(end_of_parse_earley_set);
     const IRL start_irl = g->t_start_irl;
-    const RULE start_rule = Co_RULE_of_IRL(start_irl);
-    const RULEID sought_rule_id = ID_of_RULE(start_rule);
+    const IRLID sought_irl_id = ID_of_IRL(start_irl);
     const int earley_item_count = EIM_Count_of_ES(end_of_parse_earley_set);
     for (eim_ix = 0; eim_ix < earley_item_count; eim_ix++) {
         const EIM earley_item = earley_items[eim_ix];
@@ -10503,7 +10546,7 @@ to make sense.
 	    const int ahfa_item_count = AIM_Count_of_AHFA(ahfa_state);
 	    for (aex = 0; aex < ahfa_item_count; aex++) {
 		 const AIM ahfa_item = ahfa_items[aex];
-	         if (RULEID_of_AIM(ahfa_item) == sought_rule_id) {
+	         if (IRLID_of_AIM(ahfa_item) == sought_irl_id) {
 		      start_aim = ahfa_item;
 		      start_eim = earley_item;
 		      start_aex = aex;
@@ -10679,7 +10722,7 @@ int _marpa_b_or_node_origin(Marpa_Bocage b,
 }
 
 @ @<Function definitions@> =
-int _marpa_b_or_node_rule(Marpa_Bocage b,
+Marpa_IRL_ID _marpa_b_or_node_irl(Marpa_Bocage b,
   Marpa_Or_Node_ID or_node_id)
 {
   OR or_node;
@@ -10687,7 +10730,7 @@ int _marpa_b_or_node_rule(Marpa_Bocage b,
   @<Unpack bocage objects@>@;
   @<Fail if fatal error@>@;
   @<Check |or_node_id|; set |or_node|@>@;
-  return ID_of_RULE(RULE_of_OR(or_node));
+  return ID_of_IRL(IRL_of_OR(or_node));
 }
 
 @ @<Function definitions@> =
@@ -12097,6 +12140,7 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
     while (1) {
 	OR or;
 	RULE nook_rule;
+	IRL nook_irl;
 	Token_Value_of_V(v) = -1;
 	RULEID_of_V(v) = -1;
 	NOOK_of_V(v)--;
@@ -12136,10 +12180,11 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 		}
 	    }
 	}
-	nook_rule = RULE_of_OR(or);
+	nook_irl = IRL_of_OR(or);
+	nook_rule = Co_RULE_of_IRL(nook_irl);
 	if (Position_of_OR(or) == Length_of_RULE(nook_rule)) {
 	    int virtual_rhs = RULE_has_Virtual_RHS(nook_rule);
-	    int virtual_lhs = RULE_has_Virtual_LHS(nook_rule);
+	    int virtual_lhs = IRL_has_Virtual_LHS(nook_irl);
 	    int real_symbol_count;
 	    const DSTACK virtual_stack = &VStack_of_V(v);
 	    if (virtual_lhs) {
@@ -12158,9 +12203,9 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 		    real_symbol_count = Length_of_RULE(nook_rule);
 		}
 		{
-		  XRLID original_rule_id =
-		    nook_rule->t_is_semantic_equivalent ?
-		    nook_rule->t_original : ID_of_XRL (nook_rule);
+		  // Currently all rules with a non-virtual LHS are
+		  // "semantic" rules.
+		  XRLID original_rule_id = ID_of_XRL(Source_XRL_of_IRL(nook_irl));
 		  if (XRL_is_Ask_Me (XRL_by_ID (original_rule_id)))
 		    {
 		      RULEID_of_V(v) = original_rule_id;
@@ -13405,14 +13450,14 @@ if (UNLIKELY(!symbol_is_valid(g, symid))) {
     MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
     return failure_indicator;
 }
-@ @<Fail if grammar |xrl_id| is invalid@> =
-if (UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))) {
-    MARPA_ERROR (MARPA_ERR_INVALID_RULEID);
+@ @<Fail if grammar |irl_id| is invalid@> =
+if (UNLIKELY(!IRLID_of_G_is_Valid(irl_id))) {
+    MARPA_ERROR (MARPA_ERR_INVALID_IRLID);
     return failure_indicator;
 }
-@ @<Fail if grammar |rule_id| is invalid@> =
-if (UNLIKELY(!RULEID_of_G_is_Valid(g, rule_id))) {
-    MARPA_ERROR (MARPA_ERR_INVALID_RULEID);
+@ @<Fail if grammar |xrl_id| is invalid@> =
+if (UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))) {
+    MARPA_ERROR (MARPA_ERR_INVALID_XRLID);
     return failure_indicator;
 }
 @ @<Fail if grammar |item_id| is invalid@> =
@@ -13714,7 +13759,7 @@ or_tag_safe (char * buffer, OR or)
   if (OR_is_Token(or)) return "TOKEN";
   if (Type_of_OR(or) == DUMMY_OR_NODE) return "DUMMY";
   sprintf (buffer, "R%d:%d@@%d-%d",
-	   ID_of_RULE(RULE_of_OR (or)), Position_of_OR (or),
+	   ID_of_IRL(IRL_of_OR (or)), Position_of_OR (or),
 	   Origin_Ord_of_OR (or),
 	   ES_Ord_of_OR (or));
   return buffer;
@@ -13744,9 +13789,9 @@ aim_tag_safe (char * buffer, AIM aim)
   if (!aim) return "NULL";
   const int aim_position = Position_of_AIM (aim);
   if (aim_position >= 0) {
-      sprintf (buffer, "R%d@@%d", RULEID_of_AIM (aim), Position_of_AIM (aim));
+      sprintf (buffer, "R%d@@%d", IRLID_of_AIM (aim), Position_of_AIM (aim));
   } else {
-      sprintf (buffer, "R%d@@end", RULEID_of_AIM (aim));
+      sprintf (buffer, "R%d@@end", IRLID_of_AIM (aim));
   }
   return buffer;
 }

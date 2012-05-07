@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_040';
+$VERSION        = '0.001_041';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -72,7 +72,6 @@ BEGIN {
     NAME
     ACTION { action for this rule as specified by user }
     RANK
-    CHAF_RANK
     NULL_RANKING
 
 END_OF_STRUCTURE
@@ -600,7 +599,6 @@ sub Marpa::R2::Grammar::precompute {
 
     if ( $loop_rule_count and $infinite_action ne 'quiet' ) {
         my @loop_rules =
-            map { $grammar_c->_marpa_g_rule_original($_) // $_ }
             grep { $grammar_c->rule_is_loop($_) } ( 0 .. $#{$rules} );
         for my $rule_id (@loop_rules) {
             print {$trace_fh}
@@ -698,97 +696,23 @@ sub Marpa::R2::Grammar::precompute {
     } ## end if ( $grammar->[Marpa::R2::Internal::Grammar::WARNINGS...])
 
     RULE: for my $rule_id ( 0 .. $grammar_c->rule_count() - 1 ) {
-        my $rule      = $rules->[$rule_id];
+        my $rule = $rules->[$rule_id];
+        $rule->[Marpa::R2::Internal::Rule::RANK] //= $default_rank;
         my $rule_rank = $rule->[Marpa::R2::Internal::Rule::RANK];
         my $lhs_id    = $grammar_c->rule_lhs($rule_id);
         my $lhs       = $symbols->[$lhs_id];
         my $lhs_rank  = $lhs->[Marpa::R2::Internal::Symbol::LHS_RANK];
-        SET_RULE_RANK: {
-            last SET_RULE_RANK if defined $rule_rank;
-            my $original_rule_id = $grammar_c->_marpa_g_rule_original($rule_id);
-            if ( not defined $original_rule_id ) {
-                $rule_rank = $rule->[Marpa::R2::Internal::Rule::RANK] =
-                    $default_rank;
-                last SET_RULE_RANK;
-            }
-            my $original_rule = $rules->[$original_rule_id];
-            $rule_rank = $rule->[Marpa::R2::Internal::Rule::RANK] =
-                $original_rule->[Marpa::R2::Internal::Rule::RANK];
-        } ## end SET_RULE_RANK:
-        next RULE
-            if not defined $lhs_rank
-                or $lhs_rank == $rule->[Marpa::R2::Internal::Rule::RANK];
-        Marpa::R2::exception(
-            'Rank mismatch in rule: ',
-            brief_rule($rule),
-            "\n",
-            "LHS rank is $lhs_rank; rule rank is ",
-            $rule->[Marpa::R2::Internal::Rule::RANK]
-        );
-    } ## end for my $rule_id ( 0 .. $grammar_c->rule_count() - 1 )
-
-    #
-    # Set ranks for chaf rules
-    #
-
-    RULE: for my $rule_id ( 0 .. $grammar_c->rule_count() - 1 ) {
-
-        my $rule             = $rules->[$rule_id];
-        my $original_rule_id = $grammar_c->_marpa_g_rule_original($rule_id);
-        my $original_rule =
-            defined $original_rule_id ? $rules->[$original_rule_id] : $rule;
-
-        # If not null ranked, default to highest CHAF rank
-        my $null_ranking =
-            $original_rule->[Marpa::R2::Internal::Rule::NULL_RANKING];
-        if ( not $null_ranking ) {
-            $rule->[Marpa::R2::Internal::Rule::CHAF_RANK] = 99;
-            next RULE;
-        }
-
-        # If this rule is marked as null ranked,
-        # but it is not actually a CHAF rule, rank it below
-        # all non-null-ranked rules, but above all rules with CHAF
-        # ranks actually computed from the proper nullables
-        my $virtual_start = $grammar_c->_marpa_g_rule_virtual_start($rule_id);
-        if ( $virtual_start < 0 ) {
-            $rule->[Marpa::R2::Internal::Rule::CHAF_RANK] = 98;
-            next RULE;
-        }
-
-        my $original_rule_length = $grammar_c->rule_length($original_rule_id);
-
-        my $rank                  = 0;
-        my $proper_nullable_count = 0;
-        RHS_IX:
-        for (
-            my $rhs_ix = $virtual_start;
-            $rhs_ix < $original_rule_length;
-            $rhs_ix++
-            )
+        if ( defined $lhs_rank
+            and $lhs_rank == $rule->[Marpa::R2::Internal::Rule::RANK] )
         {
-            my $original_rhs_id =
-                $grammar_c->rule_rhs( $original_rule_id, $rhs_ix );
-
-            # Do nothing unless this is a proper nullable
-            next RHS_IX if $grammar_c->symbol_is_nulling($original_rhs_id);
-            next RHS_IX
-                if not $grammar_c->_marpa_g_symbol_null_alias($original_rhs_id);
-
-            my $rhs_id =
-                $grammar_c->rule_rhs( $rule_id, $rhs_ix - $virtual_start );
-            last RHS_IX if not defined $rhs_id;
-            $rank *= 2;
-            $rank += ( $grammar_c->symbol_is_nulling($rhs_id) ? 0 : 1 );
-
-            last RHS_IX if ++$proper_nullable_count >= 2;
-        } ## end for ( my $rhs_ix = $virtual_start; $rhs_ix < ...)
-
-        if ( $null_ranking eq 'high' ) {
-            $rank = ( 2**$proper_nullable_count - 1 ) - $rank;
-        }
-        $rule->[Marpa::R2::Internal::Rule::CHAF_RANK] = $rank;
-
+            Marpa::R2::exception(
+                'Rank mismatch in rule: ',
+                brief_rule($rule),
+                "\n",
+                "LHS rank is $lhs_rank; rule rank is ",
+                $rule->[Marpa::R2::Internal::Rule::RANK]
+            );
+        } ## end if ( defined $lhs_rank and $lhs_rank == $rule->[...])
     } ## end for my $rule_id ( 0 .. $grammar_c->rule_count() - 1 )
 
     return $grammar;
@@ -906,79 +830,21 @@ sub Marpa::R2::Grammar::brief_rule {
     return $text;
 } ## end sub Marpa::R2::Grammar::brief_rule
 
-sub Marpa::R2::Grammar::brief_original_rule {
-    my ( $grammar, $rule_id ) = @_;
+sub Marpa::R2::Grammar::brief_irl {
+    my ( $grammar, $irl_id ) = @_;
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
-    my $original_rule_id = $grammar_c->_marpa_g_rule_original($rule_id) //= $rule_id;
-    return Marpa::R2::brief_rule( $grammar, $original_rule_id );
-} ## end sub Marpa::R2::Grammar::brief_original_rule
-
-sub Marpa::R2::Grammar::brief_virtual_rule {
-    my ( $grammar, $rule_id, $dot_position ) = @_;
-    my $grammar_c        = $grammar->[Marpa::R2::Internal::Grammar::C];
-    my $symbols          = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
-    my $original_rule_id = $grammar_c->_marpa_g_rule_original($rule_id);
-    if ( not defined $original_rule_id ) {
-        return $grammar->show_dotted_rule( $rule_id, $dot_position )
-            if defined $dot_position;
-        return $grammar->brief_rule($rule_id);
-    }
-
-    my $original_lhs_id = $grammar_c->rule_lhs($original_rule_id);
-    my $original_lhs    = $symbols->[$original_lhs_id];
-    my $chaf_start      = $grammar_c->rule_virtual_start($rule_id);
-    my $chaf_end        = $grammar_c->rule_virtual_end($rule_id);
-
-    if ( not defined $chaf_start ) {
-        return "dot at $dot_position, virtual "
-            . $grammar->brief_rule($original_rule_id)
-            if defined $dot_position;
-        return 'virtual ' . $grammar->brief_rule($original_rule_id);
-    } ## end if ( not defined $chaf_start )
-
-    my $text .= "(part of $original_rule_id) ";
-    $text .= $grammar->symbol_name($original_lhs_id) . ' ->';
-    my @rhs_names = ();
-    for my $ix ( 0 .. $grammar_c->rule_length($original_rule_id) ) {
-        my $rhs_symbol_id = $grammar_c->rule_rhs( $original_rule_id, $ix );
-        my $rhs_symbol_name = $grammar->symbol_name($rhs_symbol_id);
-        push @rhs_names, $rhs_symbol_name;
-    }
-
-    my @chaf_symbol_start;
-    my @chaf_symbol_end;
-
-    # Mark the beginning and end of the non-CHAF symbols
-    # in the CHAF rule.
-    for my $chaf_ix ( $chaf_start .. $chaf_end ) {
-        $chaf_symbol_start[$chaf_ix] = 1;
-        $chaf_symbol_end[ $chaf_ix + 1 ] = 1;
-    }
-
-    # Mark the beginning and special CHAF symbol
-    # for the "rest" of the rule.
-    if ( $chaf_end < $#rhs_names ) {
-        $chaf_symbol_start[ $chaf_end + 1 ] = 1;
-        $chaf_symbol_end[ scalar @rhs_names ] = 1;
-    }
-
-    $dot_position =
-        $dot_position >= $grammar_c->rule_length($rule_id)
-        ? scalar @rhs_names
-        : ( $chaf_start + $dot_position );
-
-    for ( 0 .. scalar @rhs_names ) {
-        when ( defined $chaf_symbol_end[$_] )   { $text .= ' >';  continue }
-        when ($dot_position)                    { $text .= q{ .}; continue; }
-        when ( defined $chaf_symbol_start[$_] ) { $text .= ' <';  continue }
-        when ( $_ < scalar @rhs_names ) {
-            $text .= q{ } . $rhs_names[$_]
+    my $lhs_id    = $grammar_c->_marpa_g_irl_lhs($irl_id);
+    my $text .= $irl_id . ': ' . $grammar->isy_name($lhs_id) . ' ->';
+    if ( my $rh_length = $grammar_c->_marpa_g_irl_length($irl_id) ) {
+        my @rhs_ids = ();
+        for my $ix ( 0 .. $rh_length - 1 ) {
+            push @rhs_ids, $grammar_c->_marpa_g_irl_rhs( $irl_id, $ix );
         }
-    } ## end for ( 0 .. scalar @rhs_names )
-
+        $text
+            .= q{ } . ( join q{ }, map { $grammar->isy_name($_) } @rhs_ids );
+    } ## end if ( my $rh_length = $grammar_c->_marpa_g_irl_length($irl_id))
     return $text;
-
-} ## end sub Marpa::R2::Grammar::brief_virtual_rule
+} ## end sub Marpa::R2::Grammar::brief_irl
 
 sub Marpa::R2::Grammar::show_rule {
     my ( $grammar, $rule ) = @_;
@@ -991,17 +857,8 @@ sub Marpa::R2::Grammar::show_rule {
     $grammar_c->_marpa_g_rule_is_used($rule_id)       or push @comment, '!used';
     $grammar_c->rule_is_productive($rule_id) or push @comment, 'unproductive';
     $grammar_c->rule_is_accessible($rule_id) or push @comment, 'inaccessible';
-    my $rule_is_virtual_lhs = $grammar_c->_marpa_g_rule_is_virtual_lhs($rule_id);
-    $rule_is_virtual_lhs and push @comment, 'vlhs';
-    my $rule_is_virtual_rhs = $grammar_c->_marpa_g_rule_is_virtual_rhs($rule_id);
-    $rule_is_virtual_rhs and push @comment, 'vrhs';
     $grammar_c->rule_is_keep_separation($rule_id)
         or push @comment, 'discard_sep';
-
-    if ( $rule_is_virtual_lhs or $rule_is_virtual_rhs ) {
-        push @comment, sprintf 'real=%d',
-            $grammar_c->_marpa_g_real_symbol_count($rule_id);
-    }
 
     my $text = $grammar->brief_rule($rule_id);
 
@@ -1030,26 +887,15 @@ sub Marpa::R2::Grammar::show_dotted_rule {
     my $symbols   = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
     my $lhs_id    = $grammar_c->rule_lhs($rule_id);
     my $lhs       = $symbols->[$lhs_id];
+    my $rule_length = $grammar_c->rule_length($rule_id);
 
     my $text = $grammar->symbol_name($lhs_id) . q{ ->};
-
-    # In the bocage, when we are starting a rule and
-    # there is no current symbol, the position may
-    # be -1.
-    # Position has different semantics in the bocage, than in an LR-item.
-    # In the bocage, the position is *AT* a symbol.
-    # In the bocage the position is the number OF the current symbol.
-    # An LR-item the position how far into the rule parsing has
-    # proceded and is therefore between symbols (or at the end
-    # or beginning or a rule).
-    # Usually bocage position is one less than the analagous
-    # LR-item position.
     if ( $dot_position < 0 ) {
-        $text .= q{ !};
+        $dot_position = $rule_length;
     }
 
     my @rhs_names = ();
-    for my $ix ( 0 .. $grammar_c->rule_length($rule_id) - 1 ) {
+    for my $ix ( 0 .. $rule_length - 1 ) {
         my $rhs_symbol_id = $grammar_c->rule_rhs( $rule_id, $ix );
         my $rhs_symbol_name = $grammar->symbol_name($rhs_symbol_id);
         push @rhs_names, $rhs_symbol_name;
@@ -1067,6 +913,40 @@ sub Marpa::R2::Grammar::show_dotted_rule {
     return $text;
 
 } ## end sub Marpa::R2::Grammar::show_dotted_rule
+
+sub Marpa::R2::Grammar::show_dotted_irl {
+    my ( $grammar, $irl_id, $dot_position ) = @_;
+    my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
+    my $symbols   = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
+    my $lhs_id    = $grammar_c->_marpa_g_irl_lhs($irl_id);
+    my $lhs       = $symbols->[$lhs_id];
+    my $irl_length = $grammar_c->_marpa_g_irl_length($irl_id);
+
+    my $text = $grammar->symbol_name($lhs_id) . q{ ->};
+
+    if ( $dot_position < 0 ) {
+        $dot_position = $irl_length;
+    }
+
+    my @rhs_names = ();
+    for my $ix ( 0 .. $irl_length - 1 ) {
+        my $rhs_symbol_id = $grammar_c->_marpa_g_irl_rhs( $irl_id, $ix );
+        my $rhs_symbol_name = $grammar->symbol_name($rhs_symbol_id);
+        push @rhs_names, $rhs_symbol_name;
+    }
+
+    POSITION: for my $position ( 0 .. scalar @rhs_names ) {
+        if ( $position == $dot_position ) {
+            $text .= q{ .};
+        }
+        my $name = $rhs_names[$position];
+        next POSITION if not defined $name;
+        $text .= " $name";
+    } ## end for my $position ( 0 .. scalar @rhs_names )
+
+    return $text;
+
+} ## end sub Marpa::R2::Grammar::show_dotted_irl
 
 sub Marpa::R2::show_AHFA_item {
     my ( $grammar, $item_id ) = @_;
@@ -1095,11 +975,9 @@ sub Marpa::R2::show_brief_AHFA_item {
     my ( $grammar, $item_id ) = @_;
     my $grammar_c  = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $postdot_id = $grammar_c->_marpa_g_AHFA_item_postdot($item_id);
-    my $rule_id    = $grammar_c->_marpa_g_AHFA_item_rule($item_id);
+    my $irl_id    = $grammar_c->_marpa_g_AHFA_item_irl($item_id);
     my $position   = $grammar_c->_marpa_g_AHFA_item_position($item_id);
-    my $dot_position =
-        $position < 0 ? $grammar_c->rule_length($rule_id) : $position;
-    return $grammar->show_dotted_rule( $rule_id, $dot_position );
+    return $grammar->show_dotted_irl( $irl_id, $position );
 } ## end sub Marpa::R2::show_brief_AHFA_item
 
 sub Marpa::R2::Grammar::show_AHFA {
@@ -1120,7 +998,7 @@ sub Marpa::R2::Grammar::show_AHFA {
         for my $item_id ( $grammar_c->_marpa_g_AHFA_state_items($state_id) ) {
             push @items,
                 [
-                $grammar_c->_marpa_g_AHFA_item_rule($item_id),
+                $grammar_c->_marpa_g_AHFA_item_irl($item_id),
                 $grammar_c->_marpa_g_AHFA_item_postdot($item_id),
                 Marpa::R2::show_brief_AHFA_item( $grammar, $item_id )
                 ];
@@ -1193,6 +1071,17 @@ sub Marpa::R2::Grammar::symbol_name {
     }
     return '[SYMBOL' . $id . 'L' . __LINE__ . ']';
 } ## end sub Marpa::R2::Grammar::symbol_name
+
+sub Marpa::R2::Grammar::isy_name {
+    my ( $grammar, $id ) = @_;
+    my $symbols = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
+
+    # The next is a little roundabout to prevent auto-instantiation
+    if ( defined $symbols->[$id] ) {
+        return $symbols->[$id]->[Marpa::R2::Internal::Symbol::NAME];
+    }
+    return '[ISY' . $id . 'L' . __LINE__ . ']';
+} ## end sub Marpa::R2::Grammar::isy_name
 
 sub gen_symbol_name {
     my ( $grammar, $id ) = @_;

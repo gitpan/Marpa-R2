@@ -130,7 +130,7 @@ Marpa::R2::Test::is( ${$actual_ref},
     <<'END_RULES', 'Ambiguous Equation Rules' );
 0: E -> E Op E
 1: E -> Number
-2: E['] -> E /* vlhs real=1 */
+2: E['] -> E
 END_RULES
 
 # Alternative tests: AHFA items if XS, NFA items if PP
@@ -299,7 +299,6 @@ Marpa::R2::Test::is( ${$actual_ref},
 R0:1 x4 @0...6-7 E -> E . Op E
 F0 x3 @0,2,4-7 E -> E Op E .
 F1 @6-7 E -> Number .
-F2 @0-7 E['] -> E .
 END_OF_PROGRESS_REPORT
 
 restore_stdout();

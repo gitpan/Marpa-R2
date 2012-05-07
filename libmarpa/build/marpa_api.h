@@ -63,17 +63,21 @@ Marpa_Symbol_ID _marpa_g_symbol_null_alias ( Marpa_Grammar g, Marpa_Symbol_ID sy
 Marpa_Rule_ID _marpa_g_symbol_lhs_xrl ( Marpa_Grammar g, Marpa_Symbol_ID symid);
 int _marpa_g_symbol_xrl_offset ( Marpa_Grammar g, Marpa_Symbol_ID symid );
 int marpa_g_rule_is_keep_separation ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int _marpa_g_rule_is_virtual_loop (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+Marpa_Rule_ID _marpa_g_irl_co_rule ( Marpa_Grammar g, Marpa_Rule_ID irl_id);
+int _marpa_g_irl_count ( Marpa_Grammar g);
+Marpa_Symbol_ID _marpa_g_irl_lhs ( Marpa_Grammar g, Marpa_IRL_ID irl_id);
+int _marpa_g_irl_length ( Marpa_Grammar g, Marpa_IRL_ID irl_id);
+Marpa_Symbol_ID _marpa_g_irl_rh_symbol ( Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix);
 int _marpa_g_rule_is_used (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int _marpa_g_rule_is_virtual_lhs (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int _marpa_g_rule_is_virtual_rhs (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-unsigned int _marpa_g_virtual_start (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-unsigned int _marpa_g_virtual_end (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-Marpa_Rule_ID _marpa_g_rule_original (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int _marpa_g_real_symbol_count (Marpa_Grammar g, Marpa_Rule_ID rule_id);
-Marpa_Rule_ID _marpa_g_rule_semantic_equivalent (Marpa_Grammar g, Marpa_Rule_ID rule_id);
+int _marpa_g_irl_is_virtual_lhs (Marpa_Grammar g, Marpa_IRL_ID irl_id);
+int _marpa_g_irl_is_virtual_rhs (Marpa_Grammar g, Marpa_IRL_ID irl_id);
+unsigned int _marpa_g_virtual_start (Marpa_Grammar g, Marpa_IRL_ID irl_id);
+unsigned int _marpa_g_virtual_end (Marpa_Grammar g, Marpa_IRL_ID irl_id);
+Marpa_Rule_ID _marpa_g_source_xrl (Marpa_Grammar g, Marpa_IRL_ID irl_id);
+int _marpa_g_real_symbol_count (Marpa_Grammar g, Marpa_IRL_ID irl_id);
+Marpa_Rule_ID _marpa_g_irl_semantic_equivalent (Marpa_Grammar g, Marpa_IRL_ID irl_id);
 int _marpa_g_AHFA_item_count (Marpa_Grammar g);
-Marpa_Rule_ID _marpa_g_AHFA_item_rule (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
+Marpa_Rule_ID _marpa_g_AHFA_item_irl (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
 int _marpa_g_AHFA_item_position (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
 Marpa_Symbol_ID _marpa_g_AHFA_item_postdot (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
 int _marpa_g_AHFA_item_sort_key (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
@@ -139,7 +143,7 @@ Marpa_Symbol_ID _marpa_b_and_node_token ( Marpa_Bocage b, Marpa_And_Node_ID and_
 Marpa_Or_Node_ID _marpa_b_top_or_node ( Marpa_Bocage b);
 int _marpa_b_or_node_set ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
 int _marpa_b_or_node_origin ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
-int _marpa_b_or_node_rule ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
+Marpa_IRL_ID _marpa_b_or_node_irl ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
 int _marpa_b_or_node_position ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
 int _marpa_b_or_node_first_and ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
 int _marpa_b_or_node_last_and ( Marpa_Bocage b, Marpa_Or_Node_ID or_node_id);
@@ -174,7 +178,7 @@ Marpa_Value_Type marpa_v_step ( Marpa_Value v);
 int _marpa_v_trace ( Marpa_Value v, int flag);
 Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
 Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
-#define MARPA_ERROR_COUNT 72
+#define MARPA_ERROR_COUNT 74
 #define MARPA_ERR_NONE 0
 #define MARPA_ERR_AHFA_IX_NEGATIVE 1
 #define MARPA_ERR_AHFA_IX_OOB 2
@@ -195,58 +199,60 @@ Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 #define MARPA_ERR_INVALID_AIMID 17
 #define MARPA_ERR_INVALID_BOOLEAN 18
 #define MARPA_ERR_INVALID_ES_ORDINAL 19
-#define MARPA_ERR_INVALID_RULEID 20
-#define MARPA_ERR_INVALID_START_SYM 21
-#define MARPA_ERR_INVALID_SYMID 22
-#define MARPA_ERR_NOOKID_NEGATIVE 23
-#define MARPA_ERR_MAJOR_VERSION_MISMATCH 24
-#define MARPA_ERR_MICRO_VERSION_MISMATCH 25
-#define MARPA_ERR_MINOR_VERSION_MISMATCH 26
-#define MARPA_ERR_NOT_PRECOMPUTED 27
-#define MARPA_ERR_NOT_TRACING_COMPLETION_LINKS 28
-#define MARPA_ERR_NOT_TRACING_LEO_LINKS 29
-#define MARPA_ERR_NOT_TRACING_TOKEN_LINKS 30
-#define MARPA_ERR_NO_ALIAS 31
-#define MARPA_ERR_NO_AND_NODES 32
-#define MARPA_ERR_NO_OR_NODES 33
-#define MARPA_ERR_NO_PARSE 34
-#define MARPA_ERR_NO_RULES 35
-#define MARPA_ERR_NO_START_SYM 36
-#define MARPA_ERR_NO_TRACE_ES 37
-#define MARPA_ERR_NO_TRACE_PIM 38
-#define MARPA_ERR_NO_TRACE_EIM 39
-#define MARPA_ERR_NO_TRACE_SRCL 40
-#define MARPA_ERR_NULLING_TERMINAL 41
-#define MARPA_ERR_ORID_NEGATIVE 42
-#define MARPA_ERR_OR_ALREADY_ORDERED 43
-#define MARPA_ERR_ORDER_FROZEN 44
-#define MARPA_ERR_PARSE_EXHAUSTED 45
-#define MARPA_ERR_PARSE_TOO_LONG 46
-#define MARPA_ERR_PIM_IS_NOT_LIM 47
-#define MARPA_ERR_PRECOMPUTED 48
-#define MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT 49
-#define MARPA_ERR_RECCE_NOT_STARTED 50
-#define MARPA_ERR_RECCE_STARTED 51
-#define MARPA_ERR_RHS_TOO_LONG 52
-#define MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE 53
-#define MARPA_ERR_SOURCE_TYPE_IS_NONE 54
-#define MARPA_ERR_SOURCE_TYPE_IS_TOKEN 55
-#define MARPA_ERR_SOURCE_TYPE_IS_COMPLETION 56
-#define MARPA_ERR_SOURCE_TYPE_IS_LEO 57
-#define MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS 58
-#define MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN 59
-#define MARPA_ERR_START_NOT_LHS 60
-#define MARPA_ERR_SYMIX_NEGATIVE 61
-#define MARPA_ERR_SYMIX_OOB 62
-#define MARPA_ERR_SYM_NOT_NULLABLE 63
-#define MARPA_ERR_TOKEN_IS_NOT_TERMINAL 64
-#define MARPA_ERR_TOKEN_LENGTH_LE_ZERO 65
-#define MARPA_ERR_TOKEN_TOO_LONG 66
-#define MARPA_ERR_TREE_EXHAUSTED 67
-#define MARPA_ERR_TREE_PAUSED 68
-#define MARPA_ERR_UNKNOWN 69
-#define MARPA_ERR_UNPRODUCTIVE_START 70
-#define MARPA_ERR_VALUATOR_INACTIVE 71
+#define MARPA_ERR_INVALID_IRLID 20
+#define MARPA_ERR_INVALID_RULEID 21
+#define MARPA_ERR_INVALID_START_SYM 22
+#define MARPA_ERR_INVALID_SYMID 23
+#define MARPA_ERR_INVALID_XRLID 24
+#define MARPA_ERR_NOOKID_NEGATIVE 25
+#define MARPA_ERR_MAJOR_VERSION_MISMATCH 26
+#define MARPA_ERR_MICRO_VERSION_MISMATCH 27
+#define MARPA_ERR_MINOR_VERSION_MISMATCH 28
+#define MARPA_ERR_NOT_PRECOMPUTED 29
+#define MARPA_ERR_NOT_TRACING_COMPLETION_LINKS 30
+#define MARPA_ERR_NOT_TRACING_LEO_LINKS 31
+#define MARPA_ERR_NOT_TRACING_TOKEN_LINKS 32
+#define MARPA_ERR_NO_ALIAS 33
+#define MARPA_ERR_NO_AND_NODES 34
+#define MARPA_ERR_NO_OR_NODES 35
+#define MARPA_ERR_NO_PARSE 36
+#define MARPA_ERR_NO_RULES 37
+#define MARPA_ERR_NO_START_SYM 38
+#define MARPA_ERR_NO_TRACE_ES 39
+#define MARPA_ERR_NO_TRACE_PIM 40
+#define MARPA_ERR_NO_TRACE_EIM 41
+#define MARPA_ERR_NO_TRACE_SRCL 42
+#define MARPA_ERR_NULLING_TERMINAL 43
+#define MARPA_ERR_ORID_NEGATIVE 44
+#define MARPA_ERR_OR_ALREADY_ORDERED 45
+#define MARPA_ERR_ORDER_FROZEN 46
+#define MARPA_ERR_PARSE_EXHAUSTED 47
+#define MARPA_ERR_PARSE_TOO_LONG 48
+#define MARPA_ERR_PIM_IS_NOT_LIM 49
+#define MARPA_ERR_PRECOMPUTED 50
+#define MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT 51
+#define MARPA_ERR_RECCE_NOT_STARTED 52
+#define MARPA_ERR_RECCE_STARTED 53
+#define MARPA_ERR_RHS_TOO_LONG 54
+#define MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE 55
+#define MARPA_ERR_SOURCE_TYPE_IS_NONE 56
+#define MARPA_ERR_SOURCE_TYPE_IS_TOKEN 57
+#define MARPA_ERR_SOURCE_TYPE_IS_COMPLETION 58
+#define MARPA_ERR_SOURCE_TYPE_IS_LEO 59
+#define MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS 60
+#define MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN 61
+#define MARPA_ERR_START_NOT_LHS 62
+#define MARPA_ERR_SYMIX_NEGATIVE 63
+#define MARPA_ERR_SYMIX_OOB 64
+#define MARPA_ERR_SYM_NOT_NULLABLE 65
+#define MARPA_ERR_TOKEN_IS_NOT_TERMINAL 66
+#define MARPA_ERR_TOKEN_LENGTH_LE_ZERO 67
+#define MARPA_ERR_TOKEN_TOO_LONG 68
+#define MARPA_ERR_TREE_EXHAUSTED 69
+#define MARPA_ERR_TREE_PAUSED 70
+#define MARPA_ERR_UNKNOWN 71
+#define MARPA_ERR_UNPRODUCTIVE_START 72
+#define MARPA_ERR_VALUATOR_INACTIVE 73
 #define MARPA_EVENT_COUNT 6
 #define MARPA_EVENT_NONE 0
 #define MARPA_EVENT_EXHAUSTED 1

@@ -165,21 +165,21 @@ Marpa::R2::Test::is( $grammar->show_rules(),
 12: FilterExpr -> FALSE
 13: WithPf -> /* empty !used */
 14: WithPf -> WITH PF
-15: Input -> Input[Seq] /* vrhs real=0 */
-16: Input -> Input[Seq] SEPARATOR /* vrhs real=1 */
-17: Input[Seq] -> Statement /* vlhs real=1 */
-18: Input[Seq] -> Input[Seq] SEPARATOR Statement /* vlhs vrhs real=2 */
-19: MetricSelect -> SELECT MetricExpr ByClause MetricSelect[R3:3] /* vrhs real=3 */
+15: Input -> Input[Seq]
+16: Input -> Input[Seq] SEPARATOR
+17: Input[Seq] -> Statement
+18: Input[Seq] -> Input[Seq] SEPARATOR Statement
+19: MetricSelect -> SELECT MetricExpr ByClause MetricSelect[R3:3]
 20: MetricSelect -> SELECT MetricExpr ByClause Match[] Filter[] WithPf[]
-21: MetricSelect -> SELECT MetricExpr ByClause[] MetricSelect[R3:3] /* vrhs real=3 */
+21: MetricSelect -> SELECT MetricExpr ByClause[] MetricSelect[R3:3]
 22: MetricSelect -> SELECT MetricExpr ByClause[] Match[] Filter[] WithPf[]
-23: MetricSelect[R3:3] -> Match MetricSelect[R3:4] /* vlhs vrhs real=1 */
-24: MetricSelect[R3:3] -> Match Filter[] WithPf[] /* vlhs real=3 */
-25: MetricSelect[R3:3] -> Match[] MetricSelect[R3:4] /* vlhs vrhs real=1 */
-26: MetricSelect[R3:4] -> Filter WithPf /* vlhs real=2 */
-27: MetricSelect[R3:4] -> Filter WithPf[] /* vlhs real=2 */
-28: MetricSelect[R3:4] -> Filter[] WithPf /* vlhs real=2 */
-29: Input['] -> Input /* vlhs real=1 */
+23: MetricSelect[R3:3] -> Match MetricSelect[R3:4]
+24: MetricSelect[R3:3] -> Match Filter[] WithPf[]
+25: MetricSelect[R3:3] -> Match[] MetricSelect[R3:4]
+26: MetricSelect[R3:4] -> Filter WithPf
+27: MetricSelect[R3:4] -> Filter WithPf[]
+28: MetricSelect[R3:4] -> Filter[] WithPf
+29: Input['] -> Input
 END_OF_RULES
 
 Marpa::R2::Test::is( $grammar->show_AHFA(),
@@ -188,11 +188,11 @@ Marpa::R2::Test::is( $grammar->show_AHFA(),
 Input['] -> . Input
  <Input> => S2; leo(Input['])
 * S1: predict
-Statement -> . CREATE TypeDef
 Input -> . Input[Seq]
 Input -> . Input[Seq] SEPARATOR
 Input[Seq] -> . Statement
 Input[Seq] -> . Input[Seq] SEPARATOR Statement
+Statement -> . CREATE TypeDef
  <CREATE> => S3; S4
  <Input[Seq]> => S6
  <Statement> => S5; leo(Input[Seq])
@@ -256,16 +256,16 @@ MetricSelect -> SELECT MetricExpr ByClause[] Match[] Filter[] WithPf[] .
  <ByClause> => S21; S22
  <MetricSelect[R3:3]> => S23; leo(MetricSelect)
 * S19: predict
-ByClause -> . BY
-Match -> . FOR
-Filter -> . WHERE FilterExpr
-WithPf -> . WITH PF
 MetricSelect[R3:3] -> . Match MetricSelect[R3:4]
 MetricSelect[R3:3] -> . Match Filter[] WithPf[]
 MetricSelect[R3:3] -> Match[] . MetricSelect[R3:4]
 MetricSelect[R3:4] -> . Filter WithPf
 MetricSelect[R3:4] -> . Filter WithPf[]
 MetricSelect[R3:4] -> Filter[] . WithPf
+ByClause -> . BY
+Match -> . FOR
+Filter -> . WHERE FilterExpr
+WithPf -> . WITH PF
  <BY> => S24
  <FOR> => S25
  <Filter> => S31; S32
@@ -281,15 +281,15 @@ MetricSelect -> SELECT MetricExpr ByClause . MetricSelect[R3:3]
 MetricSelect -> SELECT MetricExpr ByClause Match[] Filter[] WithPf[] .
  <MetricSelect[R3:3]> => S35; leo(MetricSelect)
 * S22: predict
-Match -> . FOR
-Filter -> . WHERE FilterExpr
-WithPf -> . WITH PF
 MetricSelect[R3:3] -> . Match MetricSelect[R3:4]
 MetricSelect[R3:3] -> . Match Filter[] WithPf[]
 MetricSelect[R3:3] -> Match[] . MetricSelect[R3:4]
 MetricSelect[R3:4] -> . Filter WithPf
 MetricSelect[R3:4] -> . Filter WithPf[]
 MetricSelect[R3:4] -> Filter[] . WithPf
+Match -> . FOR
+Filter -> . WHERE FilterExpr
+WithPf -> . WITH PF
  <FOR> => S25
  <Filter> => S31; S32
  <Match> => S29; S30
@@ -319,11 +319,11 @@ MetricSelect[R3:3] -> Match . MetricSelect[R3:4]
 MetricSelect[R3:3] -> Match Filter[] WithPf[] .
  <MetricSelect[R3:4]> => S40; leo(MetricSelect[R3:3])
 * S30: predict
-Filter -> . WHERE FilterExpr
-WithPf -> . WITH PF
 MetricSelect[R3:4] -> . Filter WithPf
 MetricSelect[R3:4] -> . Filter WithPf[]
 MetricSelect[R3:4] -> Filter[] . WithPf
+Filter -> . WHERE FilterExpr
+WithPf -> . WITH PF
  <Filter> => S31; S32
  <WHERE> => S26; S27
  <WITH> => S28
@@ -547,52 +547,52 @@ END_OF_EARLEY_SETS
 
 Marpa::R2::Test::is( $recog->show_and_nodes(),
     <<'END_OF_AND_NODES', 'And Nodes' );
-R1:1@0-1S2@0
-R1:2@0-8C2@1
-R15:1@0-8C17@0
-R17:1@0-8C1@0
-R29:1@0-8C15@0
-R2:1@1-2S5@1
-R2:2@1-3S11@2
-R2:3@1-4S0@3
-R2:4@1-8C21@4
-R21:1@4-5S7@4
-R21:2@4-6C4@5
-R21:3@4-6S24@6
-R21:4@4-8C25@6
-R4:1@5-6S13@5
-R25:1@6-6S25@6
-R10:1@6-7S9@6
-R10:2@6-8C11@7
-R25:2@6-8C27@6
-R27:1@6-8C10@6
-R27:2@6-8S27@8
-R11:1@7-8S8@7
+R4:1@0-1S2@0
+R0:1@0-8C2@0
+R2:1@0-8C4@0
+R4:2@0-8C5@1
+R23:1@0-8C0@0
+R5:1@1-2S5@1
+R5:2@1-3S11@2
+R5:3@1-4S0@3
+R5:4@1-8C8@4
+R8:1@4-5S7@4
+R8:2@4-6C16@5
+R8:3@4-6S24@6
+R8:4@4-8C12@6
+R16:1@5-6S13@5
+R12:1@6-6S25@6
+R19:1@6-7S9@6
+R12:2@6-8C14@6
+R14:1@6-8C19@6
+R14:2@6-8S27@8
+R19:2@6-8C20@7
+R20:1@7-8S8@7
 END_OF_AND_NODES
 
 Marpa::R2::Test::is( $recog->show_or_nodes(),
     <<'END_OF_OR_NODES', 'Or Nodes' );
-R1:1@0-1
-R1:2@0-8
-R15:1@0-8
-R17:1@0-8
-R29:1@0-8
-R2:1@1-2
-R2:2@1-3
-R2:3@1-4
-R2:4@1-8
-R21:1@4-5
-R21:2@4-6
-R21:3@4-6
-R21:4@4-8
-R4:1@5-6
-R25:1@6-6
-R10:1@6-7
-R10:2@6-8
-R25:2@6-8
-R27:1@6-8
-R27:2@6-8
-R11:1@7-8
+R4:1@0-1
+R0:1@0-8
+R2:1@0-8
+R4:2@0-8
+R23:1@0-8
+R5:1@1-2
+R5:2@1-3
+R5:3@1-4
+R5:4@1-8
+R8:1@4-5
+R8:2@4-6
+R8:3@4-6
+R8:4@4-8
+R16:1@5-6
+R12:1@6-6
+R19:1@6-7
+R12:2@6-8
+R14:1@6-8
+R14:2@6-8
+R19:2@6-8
+R20:1@7-8
 END_OF_OR_NODES
 
 Marpa::R2::Test::is( Dumper( \@result ), <<'END_OF_STRING', 'Result' );

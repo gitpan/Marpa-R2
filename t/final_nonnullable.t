@@ -62,13 +62,13 @@ Marpa::R2::Test::is( $grammar->show_rules,
 1: p -> a
 2: p -> /* empty !used */
 3: n -> a
-4: S -> p p S[R0:2] /* vrhs real=2 */
-5: S -> p p[] S[R0:2] /* vrhs real=2 */
-6: S -> p[] p S[R0:2] /* vrhs real=2 */
-7: S -> p[] p[] S[R0:2] /* vrhs real=2 */
-8: S[R0:2] -> p n /* vlhs real=2 */
-9: S[R0:2] -> p[] n /* vlhs real=2 */
-10: S['] -> S /* vlhs real=1 */
+4: S -> p p S[R0:2]
+5: S -> p p[] S[R0:2]
+6: S -> p[] p S[R0:2]
+7: S -> p[] p[] S[R0:2]
+8: S[R0:2] -> p n
+9: S[R0:2] -> p[] n
+10: S['] -> S
 END_OF_STRING
 
 Marpa::R2::Test::is( $grammar->show_AHFA,
@@ -77,14 +77,14 @@ Marpa::R2::Test::is( $grammar->show_AHFA,
 S['] -> . S
  <S> => S2; leo(S['])
 * S1: predict
-p -> . a
-n -> . a
 S -> . p p S[R0:2]
 S -> . p p[] S[R0:2]
 S -> p[] . p S[R0:2]
 S -> p[] p[] . S[R0:2]
 S[R0:2] -> . p n
 S[R0:2] -> p[] . n
+p -> . a
+n -> . a
  <S[R0:2]> => S7; leo(S)
  <a> => S3
  <n> => S6; leo(S[R0:2])
@@ -103,10 +103,10 @@ S[R0:2] -> p . n
  <n> => S9; leo(S[R0:2])
  <p> => S5; S8
 * S5: predict
-p -> . a
-n -> . a
 S[R0:2] -> . p n
 S[R0:2] -> p[] . n
+p -> . a
+n -> . a
  <a> => S3
  <n> => S6; leo(S[R0:2])
  <p> => S11; S12
