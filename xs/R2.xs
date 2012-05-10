@@ -433,16 +433,16 @@ PPCODE:
 }
 
 void
-symbol_is_internal( g_wrapper, symbol_id )
+_marpa_g_symbol_is_semantic( g_wrapper, symbol_id )
     G_Wrapper *g_wrapper;
     Marpa_Symbol_ID symbol_id;
 PPCODE:
 {
   Marpa_Grammar g = g_wrapper->g;
-  int result = marpa_g_symbol_is_internal (g, symbol_id);
+  int result = _marpa_g_symbol_is_semantic (g, symbol_id);
   if (result < 0)
     {
-      croak ("Problem in g->symbol_is_internal(): %s", xs_g_error (g_wrapper));
+      croak ("Problem in g->_marpa_g_symbol_is_semantic(): %s", xs_g_error (g_wrapper));
     }
   if (result)
     XSRETURN_YES;
@@ -572,41 +572,22 @@ PPCODE:
 }
 
 Marpa_Symbol_ID
-_marpa_g_symbol_null_alias( g_wrapper, symbol_id )
+_marpa_g_source_xsy( g_wrapper, symbol_id )
     G_Wrapper *g_wrapper;
     Marpa_Symbol_ID symbol_id;
 PPCODE:
 {
   Marpa_Grammar g = g_wrapper->g;
-  Marpa_Symbol_ID alias_id = _marpa_g_symbol_null_alias (g, symbol_id);
-  if (alias_id < -1)
+  Marpa_Symbol_ID source_xsy = _marpa_g_source_xsy (g, symbol_id);
+  if (source_xsy < -1)
     {
-      croak ("problem with g->_marpa_g_symbol_null_alias: %s", xs_g_error (g_wrapper));
+      croak ("problem with g->_marpa_g_source_xsy: %s", xs_g_error (g_wrapper));
     }
-  if (alias_id < 0)
-    {
-      XSRETURN_UNDEF;
-    }
-  XPUSHs (sv_2mortal (newSViv (alias_id)));
-}
-
-Marpa_Symbol_ID
-_marpa_g_symbol_proper_alias( g_wrapper, symbol_id )
-    G_Wrapper *g_wrapper;
-    Marpa_Symbol_ID symbol_id;
-PPCODE:
-{
-  Marpa_Grammar g = g_wrapper->g;
-  Marpa_Symbol_ID alias_id = _marpa_g_symbol_proper_alias (g, symbol_id);
-  if (alias_id < -1)
-    {
-      croak ("problem with g->_marpa_g_symbol_proper_alias: %s", xs_g_error (g_wrapper));
-    }
-  if (alias_id < 0)
+  if (source_xsy < 0)
     {
       XSRETURN_UNDEF;
     }
-  XPUSHs (sv_2mortal (newSViv (alias_id)));
+  XPUSHs (sv_2mortal (newSViv (source_xsy)));
 }
 
 Marpa_Rule_ID
@@ -637,6 +618,10 @@ PPCODE:
 {
   Marpa_Grammar g = g_wrapper->g;
   int offset = _marpa_g_symbol_xrl_offset (g, symbol_id);
+  if (offset == -1)
+    {
+      XSRETURN_UNDEF;
+    }
   if (offset < 0)
     {
       croak ("problem with g->_marpa_g_symbol_xrl_offset: %s",

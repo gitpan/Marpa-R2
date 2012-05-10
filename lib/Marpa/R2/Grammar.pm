@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_041';
+$VERSION        = '0.001_042';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -618,8 +618,6 @@ sub Marpa::R2::Grammar::precompute {
             $default_rank;
     }
 
-    populate_null_values($grammar);
-
     # A bit hackish here: INACCESSIBLE_OK is not a HASH ref iff
     # it is a Boolean TRUE indicating that all inaccessibles are OK.
     # A Boolean FALSE will have been replaced with an empty hash.
@@ -1089,31 +1087,40 @@ sub gen_symbol_name {
     my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
     my $symbols     = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
 
-    if ( $grammar_c->_marpa_g_symbol_is_start($id) ) {
-        my $name = $grammar->[Marpa::R2::Internal::Grammar::START_NAME];
-        $name .= q<[']>;
-        $name .= q<[]> if $grammar_c->symbol_is_nulling($id);
-        return $name;
-    } ## end if ( $grammar_c->_marpa_g_symbol_is_start($id) )
+    my $name = '!!!!!';
+    GEN_NAME: {
+        if ( $grammar_c->_marpa_g_symbol_is_start($id) ) {
+            $name = $grammar->[Marpa::R2::Internal::Grammar::START_NAME];
+            $name .= q<[']>;
+            $name .= q<[]> if $grammar_c->symbol_is_nulling($id);
+            last GEN_NAME;
+        } ## end if ( $grammar_c->_marpa_g_symbol_is_start($id) )
 
-    my $proper_alias_id = $grammar_c->_marpa_g_symbol_proper_alias($id);
-    if ( defined $proper_alias_id ) {
-        my $proper_alias = $symbols->[$proper_alias_id];
-        my $name = $symbols->[$id]->[Marpa::R2::Internal::Symbol::NAME] =
-            $grammar->symbol_name($proper_alias_id) . '[]';
-        $symbol_hash->{$name} = $id;
-        return $name;
-    } ## end if ( defined $proper_alias_id )
-    my $lhs_xrl = $grammar_c->_marpa_g_symbol_lhs_xrl($id);
-    my $original_lhs_id = $grammar_c->rule_lhs($lhs_xrl);
-    if ($grammar_c->rule_is_sequence($lhs_xrl)) {
-      return $grammar->symbol_name($original_lhs_id) . '[Seq]';
-    }
-    my $xrl_offset = $grammar_c->_marpa_g_symbol_xrl_offset($id);
-    my $name =
-          $grammar->symbol_name($original_lhs_id) . '[R'
-        . $lhs_xrl . q{:}
-        . $xrl_offset . ']';
+        my $lhs_xrl = $grammar_c->_marpa_g_symbol_lhs_xrl($id);
+        if ( defined $lhs_xrl and $grammar_c->rule_is_sequence($lhs_xrl) ) {
+            my $original_lhs_id = $grammar_c->rule_lhs($lhs_xrl);
+            $name = $grammar->symbol_name($original_lhs_id) . '[Seq]';
+            last GEN_NAME;
+        }
+
+        my $xrl_offset = $grammar_c->_marpa_g_symbol_xrl_offset($id);
+        if ( defined $xrl_offset ) {
+            my $original_lhs_id = $grammar_c->rule_lhs($lhs_xrl);
+            $name =
+                  $grammar->symbol_name($original_lhs_id) . '[R' 
+                . $lhs_xrl . q{:}
+                . $xrl_offset . ']';
+            last GEN_NAME;
+        } ## end if ( defined $xrl_offset )
+
+        my $source_id = $grammar_c->_marpa_g_source_xsy($id);
+        my $source    = $symbols->[$source_id];
+        $name      = $symbols->[$id]->[Marpa::R2::Internal::Symbol::NAME] =
+            $grammar->symbol_name($source_id) . '[]';
+
+    } ## end GEN_NAME:
+
+    $symbol_hash->{$name} = $id;
     return $name;
 } ## end sub gen_symbol_name
 
@@ -1167,38 +1174,6 @@ sub shadow_rule {
     return $new_rule;
 } ## end sub shadow_rule
 
-sub populate_null_values {
-    my ($grammar)   = @_;
-    my $grammar_c   = $grammar->[Marpa::R2::Internal::Grammar::C];
-    my $symbols     = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
-    my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
-    RULE: for my $nulling_symbol ( @{$symbols} ) {
-
-        # Copy the null values for a nulling alias from its proper alias
-        my $nulling_symbol_id =
-            $nulling_symbol->[Marpa::R2::Internal::Symbol::ID];
-        next RULE if not $grammar_c->symbol_is_nulling($nulling_symbol_id);
-        if ( $grammar_c->_marpa_g_symbol_is_start($nulling_symbol_id) ) {
-            my $old_start_symbol_id = $symbol_hash
-                ->{ $grammar->[Marpa::R2::Internal::Grammar::START_NAME] };
-            my $null_value =
-                $symbols->[$old_start_symbol_id]
-                ->[Marpa::R2::Internal::Symbol::NULL_VALUE];
-            $nulling_symbol->[Marpa::R2::Internal::Symbol::NULL_VALUE] =
-                $null_value;
-            next RULE;
-        } ## end if ( $grammar_c->_marpa_g_symbol_is_start($nulling_symbol_id...))
-        my $proper_alias_id =
-            $grammar_c->_marpa_g_symbol_proper_alias($nulling_symbol_id);
-        next RULE if not defined $proper_alias_id;
-        my $proper_alias = $symbols->[$proper_alias_id];
-        $nulling_symbol->[Marpa::R2::Internal::Symbol::NULL_VALUE] =
-            $proper_alias->[Marpa::R2::Internal::Symbol::NULL_VALUE];
-        $nulling_symbol->[Marpa::R2::Internal::Symbol::TERMINAL_RANK] =
-            $proper_alias->[Marpa::R2::Internal::Symbol::TERMINAL_RANK];
-    } ## end for my $nulling_symbol ( @{$symbols} )
-    return 1;
-} ## end sub populate_null_values
 
 sub assign_symbol {
     my ( $grammar, $name ) = @_;

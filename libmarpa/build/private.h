@@ -55,7 +55,8 @@ postdot_items_create (RECCE r, ES current_earley_set);
 static int bv_scan(Bit_Vector bv, unsigned int start,
                                     unsigned int* min, unsigned int* max);
 static void transitive_closure(Bit_Matrix matrix);
-static void
+static void * dstack_resize(struct s_dstack* this, size_t type_bytes);
+static void*
 _marpa_default_out_of_memory(void);
 static void
 set_error (GRAMMAR g, Marpa_Error_Code code, const char* message, unsigned int flags);
@@ -70,18 +71,22 @@ grammar_ref (GRAMMAR g);
 static inline void grammar_free(GRAMMAR g);
 static inline void symbol_add( GRAMMAR g, SYM symbol);
 static inline int symbol_is_valid(GRAMMAR g, SYMID symid);
+static inline int isy_is_valid(GRAMMAR g, ISYID isyid);
 static inline void
 rule_add (GRAMMAR g, RULE rule);
 static inline void event_new(GRAMMAR g, int type);
 static inline void int_event_new(GRAMMAR g, int type, int value);
 static inline SYM
-symbol_new (GRAMMAR g);
-static inline void symbol_free(SYM symbol);
-static inline SYM symbol_proper_alias(SYM symbol);
-static inline SYM symbol_null_alias(SYM symbol);
-static inline SYM symbol_alias_create(GRAMMAR g, SYM symbol);
-static inline   RULE rule_start (GRAMMAR g, const SYMID lhs, const SYMID * rhs, int length);
-static inline RULE rule_finish(GRAMMAR g, RULE rule);
+symbol_new (GRAMMAR g, XSY source);
+static inline ISY symbol_alias_create(GRAMMAR g, SYM symbol);
+static inline ISY
+isy_start(GRAMMAR g);
+static inline ISY
+isy_new(GRAMMAR g, XSY source);
+static inline ISY
+isy_clone(GRAMMAR g, XSY xsy);
+static inline   XRL xrl_start (GRAMMAR g, const SYMID lhs, const SYMID * rhs, int length);
+static inline XRL xrl_finish(GRAMMAR g, XRL rule);
 static inline IRL
 irl_start(GRAMMAR g);
 static inline IRL
@@ -96,7 +101,6 @@ static inline Marpa_Symbol_ID* rule_rhs_get(RULE rule);
 static inline size_t rule_length_get(RULE rule);
 static inline int
 symbol_instance_of_ahfa_item_get (AIM aim);
-static inline SYMID alias_by_id(GRAMMAR g, SYMID proper_id);
 static inline int aim_is_valid(
 GRAMMAR g, AIMID item_id);
 static inline void AHFA_initialize(AHFA ahfa);
@@ -237,7 +241,6 @@ static inline Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
 static inline void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int column);
-static inline void * dstack_resize(struct s_dstack* this, size_t type_bytes);
 static inline void
 psar_init (const PSAR psar, int length);
 static inline void psar_destroy(const PSAR psar);
