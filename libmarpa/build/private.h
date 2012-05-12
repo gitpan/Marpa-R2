@@ -88,12 +88,15 @@ isy_clone(GRAMMAR g, XSY xsy);
 static inline   XRL xrl_start (GRAMMAR g, const SYMID lhs, const SYMID * rhs, int length);
 static inline XRL xrl_finish(GRAMMAR g, XRL rule);
 static inline IRL
-irl_start(GRAMMAR g);
+irl_start(GRAMMAR g, int length);
 static inline IRL
-irl_new(GRAMMAR g,
+old_irl_new(GRAMMAR g,
 const SYMID lhs, const SYMID *rhs, int length);
 static inline IRL
-irl_clone(GRAMMAR g, XRL xrl);
+irl_new( GRAMMAR g,
+const ISY lhs, const ISY *rhs, int length);
+static inline XRL
+irl_finish( GRAMMAR g, IRL irl);
 static inline int
 rule_check (GRAMMAR g, XRL rule);
 static inline Marpa_Symbol_ID rule_lhs_get(RULE rule);

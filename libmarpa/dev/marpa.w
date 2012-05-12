@@ -1477,17 +1477,12 @@ int _marpa_g_isy_is_nulling(Marpa_Grammar g, Marpa_ISY_ID isy_id)
   return ISY_is_Nulling(ISY_by_ID(isy_id));
 }
 
-@*0 Virtual LHS Rule.
-In writing sequence rules,
-and breaking up rule for the CHAF logic,
-libmarpa sometimes needs to create a new, virtual, LHS.
-When this is done,
-the rule is said to be the symbol's
-{bf virtual lhs rule}.
-Only virtual symbols have a virtual lhs rule, but
-not all virtual symbol has a virtual lhs rule.
-Null aliases are virtual symbols, but are not on
-the LHS of any rule.
+@*0 Source rule and offset.
+In the case of sequences and CHAF rules, internal symbol
+are created to act as the LHS of internal rules.
+The semantics need this information so that they can
+simulate the external ``source'' rule.
+These fields record that information.
 @ @d LHS_XRL_of_SYM(sym) ((sym)->t_lhs_xrl)
 @d XRL_Offset_of_SYM(sym) ((sym)->t_xrl_offset)
 @<Widely aligned symbol elements@> =
@@ -1606,11 +1601,17 @@ const SYMID lhs, const SYMID *rhs, int length)
     return rule;
 }
 
+@ This is the logic common to every IRL construction.
+@<Function definitions@> =
 PRIVATE IRL
-irl_start(GRAMMAR g)
+irl_start(GRAMMAR g, int length)
 {
-  const IRL new_irl = my_obstack_new (&g->t_obs, struct s_irl, 1);
+  IRL new_irl;
+  const int sizeof_irl = offsetof (struct s_irl, t_isy_array) +
+    (length + 1) * sizeof (new_irl->t_isy_array[0]);
+  new_irl = my_obstack_alloc (&g->t_obs, sizeof_irl);
   ID_of_IRL(new_irl) = DSTACK_LENGTH((g)->t_irl_stack);
+  Length_of_IRL(new_irl) = length;
   *DSTACK_PUSH((g)->t_irl_stack, IRL) = new_irl;
   return new_irl;
 }
@@ -1618,24 +1619,67 @@ irl_start(GRAMMAR g)
 @ Create an IRL from scratch.
 @<Function definitions@> =
 PRIVATE IRL
-irl_new(GRAMMAR g,
+old_irl_new(GRAMMAR g,
 const SYMID lhs, const SYMID *rhs, int length)
 {
   const XRL xrl = rule_new(g, lhs, rhs, length);
-  IRL new_irl = irl_start(g);
+  IRL new_irl = irl_start(g, length);
   Co_RULE_of_IRL(new_irl) = xrl;
   g->t_max_rule_length = MAX(Length_of_RULE(xrl), g->t_max_rule_length);
   return new_irl;
 }
 
-@ Clone an IRL from an XRL.
-@<Function definitions@> =
 PRIVATE IRL
-irl_clone(GRAMMAR g, XRL xrl)
+irl_new( GRAMMAR g,
+const ISY lhs, const ISY *rhs, int length)
 {
-  const IRL new_irl = irl_start(g);
-  Co_RULE_of_IRL(new_irl) = xrl;
-  return new_irl;
+    IRL new_irl;
+    int symbol_ix;
+    const SYMID new_lhs = ID_of_XSY(Buddy_of_ISY(lhs));
+    // I expect this use of |my_new| to be temporary
+    SYMID* new_rhs = my_new(SYMID, length);
+    for (symbol_ix = 0; symbol_ix < length; symbol_ix++) {
+      new_rhs[symbol_ix] = ID_of_XSY(Buddy_of_ISY(rhs[symbol_ix]));
+    }
+    new_irl = old_irl_new(g, new_lhs, new_rhs, length);
+    LHS_of_IRL(new_irl) = lhs;
+    for (symbol_ix = 0; symbol_ix < length; symbol_ix++)
+      {
+	RHS_of_IRL(new_irl, symbol_ix) = rhs[symbol_ix];
+      }
+    my_free(new_rhs);
+    return new_irl;
+}
+
+PRIVATE XRL
+irl_finish( GRAMMAR g, IRL irl)
+{
+  int rhs_ix;
+  XRL xrl;
+  const int length = Length_of_IRL(irl);
+  // I expect this use of |my_new| to be temporary
+  SYMID* new_rhs = my_new(SYMID, length);
+  SYMID new_lhs = ID_of_XSY(Buddy_of_ISY(LHS_of_IRL(irl)));
+  for (rhs_ix = 0; rhs_ix < length; rhs_ix++) {
+    new_rhs[rhs_ix] = ID_of_XSY(Buddy_of_ISY(RHS_of_IRL(irl, rhs_ix)));
+  }
+  xrl = rule_new(g, new_lhs, new_rhs, length);
+  Co_RULE_of_IRL(irl) = xrl;
+  my_free(new_rhs);
+  return xrl;
+}
+
+@ @<Clone a new IRL from |rule|@> =
+{
+  int symbol_ix;
+  const IRL new_irl = irl_start (g, rule_length);
+  Co_RULE_of_IRL (new_irl) = rule;
+  Source_XRL_of_IRL (new_irl) = rule;
+  for (symbol_ix = 0; symbol_ix <= rule_length; symbol_ix++)
+    {
+      new_irl->t_isy_array[symbol_ix] =
+	primary_isy_by_xsyid[rule->t_symbols[symbol_ix]];
+    }
 }
 
 @ @<Function definitions@> =
@@ -1802,11 +1846,12 @@ I take off two more bits than necessary, as a fudge
 factor.
 This is only checked for new rules.
 The rules generated internally by libmarpa
-are shorter than
-a small constant in length, and 
-rewrites of existing rules shorten them.
+are either shorter than
+a small constant in length, or
+else shorter than the XRL which is their
+source.
 On a 32-bit machine, this still allows a RHS of over a billion
-of symbols.
+symbols.
 I believe
 by the time 64-bit machines become universal,
 nobody will have noticed this restriction.
@@ -2317,8 +2362,9 @@ be using it.
 
 @ @<Private structures@> =
 struct s_irl {
-  @<Widely aligned irl elements@>@;
-  @<Int aligned irl elements@>@;
+  @<Widely aligned IRL elements@>@;
+  @<Int aligned IRL elements@>@;
+  @<Final IRL elements@>@/
 };
 @ @<Public typedefs@> =
 typedef int Marpa_IRL_ID;
@@ -2332,7 +2378,7 @@ typedef Marpa_IRL_ID IRLID;
 Delete this when division of grammar into
 external and internal is complete.
 @d Co_RULE_of_IRL(irl) ((irl)->t_co_rule)
-@<Widely aligned irl elements@> =
+@<Widely aligned IRL elements@> =
   XRL t_co_rule;
 @ @<Function definitions@> =
 Marpa_Rule_ID _marpa_g_irl_co_rule(
@@ -2344,37 +2390,38 @@ Marpa_Rule_ID _marpa_g_irl_co_rule(
     return ID_of_XRL(Co_RULE_of_IRL(IRL_by_ID(irl_id)));
 }
 
-@*0 ID.
-The {\bf IRL ID} is a number which
-acts as the unique identifier for an IRL.
-The rule ID is initialized when the IRL is
-added to the list of rules.
-@d ID_of_IRL(irl) ((irl)->t_irl_id)
-@<Int aligned irl elements@> = IRLID t_irl_id;
+@*0 Symbols.
+@ The symbols come at the end of the structure,
+so that they can be variable length.
+@<Final IRL elements@> =
+  ISY t_isy_array[1];
 
-@ @d LHS_ID_of_IRL(irl) LHS_ID_of_RULE(Co_RULE_of_IRL(irl))
+@ @d LHS_of_IRL(irl) ((irl)->t_isy_array[0])
 @<Function definitions@> =
-Marpa_Symbol_ID _marpa_g_irl_lhs(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
+Marpa_ISY_ID _marpa_g_irl_lhs(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
+    IRL irl;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if |irl_id| is invalid@>@;
-    return LHS_ID_of_IRL(IRL_by_ID(irl_id));
+    irl = IRL_by_ID(irl_id);
+    return LHS_ID_of_XRL(Co_RULE_of_IRL(irl));
 }
 
-@ @d RHS_ID_of_IRL(irl, position) RHS_ID_of_RULE(Co_RULE_of_IRL(irl), (position))
+@ @d RHS_of_IRL(irl, position) ((irl)->t_isy_array[(position)+1])
 @<Function definitions@> =
-Marpa_Symbol_ID _marpa_g_irl_rh_symbol(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix) {
+Marpa_ISY_ID _marpa_g_irl_rh_symbol(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix) {
     IRL irl;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if |irl_id| is invalid@>@;
     irl = IRL_by_ID(irl_id);
     if (Length_of_IRL(irl) <= ix) return -1;
-    return RHS_ID_of_IRL(irl, ix);
+    return RHS_ID_of_XRL(Co_RULE_of_IRL(irl), ix);
 }
 
-@ @d Length_of_IRL(irl) Length_of_RULE(Co_RULE_of_IRL(irl))
-@<Function definitions@> =
+@ @d Length_of_IRL(irl) ((irl)->t_length)
+@<Int aligned IRL elements@> = int t_length;
+@ @<Function definitions@> =
 int _marpa_g_irl_length(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
@@ -2382,6 +2429,13 @@ int _marpa_g_irl_length(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
     return Length_of_IRL(IRL_by_ID(irl_id));
 }
 
+@*0 ID.
+The {\bf IRL ID} is a number which
+acts as the unique identifier for an IRL.
+The rule ID is initialized when the IRL is
+added to the list of rules.
+@d ID_of_IRL(irl) ((irl)->t_irl_id)
+@<Int aligned IRL elements@> = IRLID t_irl_id;
 
 @** Symbol Instance (SYMI) Code.
 @<Private typedefs@> = typedef int SYMI;
@@ -2953,15 +3007,22 @@ and productive.
 @<Rewrite sequence |rule| into BNF@> =
 {
   const SYMID lhs_id = LHS_ID_of_RULE (rule);
+  const ISY lhs_isy = primary_isy_by_xsyid[lhs_id];
+
   const ISY internal_lhs_isy = isy_new (g, SYM_by_ID(lhs_id));
   const SYM internal_lhs = Buddy_of_ISY(internal_lhs_isy);
-  const SYMID internal_lhs_id = ID_of_SYM (internal_lhs);
+
   const SYMID rhs_id = RHS_ID_of_RULE (rule, 0);
+  const ISY rhs_isy = primary_isy_by_xsyid[rhs_id];
+
   const SYMID separator_id = Separator_of_XRL (rule);
+  const ISY separator_isy = separator_id >= 0 ?
+     primary_isy_by_xsyid[separator_id] : NULL;
+
   SYM_is_Semantic(internal_lhs) = 0;
   LHS_XRL_of_SYM(internal_lhs) = rule;
   @<Add the top rule for the sequence@>@;
-  if (separator_id >= 0 && !XRL_is_Proper_Separation(rule)) {
+  if (separator_isy && !XRL_is_Proper_Separation(rule)) {
       @<Add the alternate top rule for the sequence@>@;
   }
   @<Add the minimum rule for the sequence@>@;
@@ -2970,8 +3031,11 @@ and productive.
 
 @ @<Add the top rule for the sequence@> =
 {
-    IRL rewrite_irl = irl_new(g, lhs_id, &internal_lhs_id, 1);
-    RULE rewrite_rule = Co_RULE_of_IRL(rewrite_irl);
+    RULE rewrite_rule;
+    IRL rewrite_irl = irl_start(g, 1);
+    LHS_of_IRL(rewrite_irl) = lhs_isy;
+    RHS_of_IRL(rewrite_irl, 0) = internal_lhs_isy;
+    rewrite_rule = irl_finish(g, rewrite_irl);
     Source_XRL_of_IRL(rewrite_irl) = rule;
     /* Real symbol count remains at default of 0 */
     RULE_has_Virtual_RHS (rewrite_rule) = 1;
@@ -2982,23 +3046,28 @@ and productive.
 {
   RULE rewrite_rule;
   IRL rewrite_irl;
-    SYMID temp_rhs[2];
-    temp_rhs[0] = internal_lhs_id;
-    temp_rhs[1] = separator_id;
-    rewrite_irl = irl_new(g, lhs_id, temp_rhs, 2);
-    rewrite_rule = Co_RULE_of_IRL(rewrite_irl);
-    Source_XRL_of_IRL(rewrite_irl) = rule;
-    RULE_has_Virtual_RHS(rewrite_rule) = 1;
-    Real_SYM_Count_of_RULE(rewrite_rule) = 1;
+  ISY temp_rhs[2];
+  rewrite_irl = irl_start (g, 2);
+  LHS_of_IRL (rewrite_irl) = lhs_isy;
+  RHS_of_IRL (rewrite_irl, 0) = internal_lhs_isy;
+  RHS_of_IRL (rewrite_irl, 1) = separator_isy;
+  rewrite_rule = irl_finish (g, rewrite_irl);
+  Source_XRL_of_IRL (rewrite_irl) = rule;
+  RULE_has_Virtual_RHS (rewrite_rule) = 1;
+  Real_SYM_Count_of_RULE (rewrite_rule) = 1;
 }
+
 @ The traditional way to write a sequence in BNF is with one
 rule to represent the minimum, and another to deal with iteration.
 That's the core of Marpa's rewrite.
 @<Add the minimum rule for the sequence@> =
 {
-  const IRL rewrite_irl = irl_new (g, internal_lhs_id, &rhs_id, 1);
-  const RULE rewrite_rule = Co_RULE_of_IRL(rewrite_irl);
-  Source_XRL_of_IRL(rewrite_irl) = rule;
+  RULE rewrite_rule;
+  const IRL rewrite_irl = irl_start (g, 1);
+  LHS_of_IRL (rewrite_irl) = internal_lhs_isy;
+  RHS_of_IRL (rewrite_irl, 0) = rhs_isy;
+  rewrite_rule = irl_finish (g, rewrite_irl);
+  Source_XRL_of_IRL (rewrite_irl) = rule;
   RULE_has_Virtual_LHS (rewrite_rule) = 1;
   Real_SYM_Count_of_RULE (rewrite_rule) = 1;
 }
@@ -3006,18 +3075,20 @@ That's the core of Marpa's rewrite.
 {
   RULE rewrite_rule;
   IRL rewrite_irl;
-  SYMID temp_rhs[3];
+  ISY temp_rhs[3];
   int rhs_ix = 0;
-  temp_rhs[rhs_ix++] = internal_lhs_id;
-  if (separator_id >= 0)
-    temp_rhs[rhs_ix++] = separator_id;
-  temp_rhs[rhs_ix++] = rhs_id;
-  rewrite_irl = irl_new (g, internal_lhs_id, temp_rhs, rhs_ix);
-  rewrite_rule = Co_RULE_of_IRL (rewrite_irl);
-  Source_XRL_of_IRL(rewrite_irl) = rule;
+  const int length = separator_isy ? 3 : 2;
+  rewrite_irl = irl_start (g, length);
+  LHS_of_IRL (rewrite_irl) = internal_lhs_isy;
+  RHS_of_IRL (rewrite_irl, rhs_ix++) = internal_lhs_isy;
+  if (separator_isy)
+    RHS_of_IRL (rewrite_irl, rhs_ix++) = separator_isy;
+  RHS_of_IRL (rewrite_irl, rhs_ix) = rhs_isy;
+  rewrite_rule = irl_finish (g, rewrite_irl);
+  Source_XRL_of_IRL (rewrite_irl) = rule;
   RULE_has_Virtual_LHS (rewrite_rule) = 1;
   RULE_has_Virtual_RHS (rewrite_rule) = 1;
-  Real_SYM_Count_of_RULE (rewrite_rule) = rhs_ix - 1;
+  Real_SYM_Count_of_RULE (rewrite_rule) = length - 1;
 }
 
 @** The CHAF rewrite.
@@ -3100,8 +3171,7 @@ the pre-CHAF rule count.
 	   if (factor_count > 0) {
 	     @<Factor the rule into CHAF rules@>@;
 	   } else {
-	       IRL new_irl = irl_clone(g, rule);
-	       Source_XRL_of_IRL(new_irl) = rule;
+	     @<Clone a new IRL from |rule|@>@;
 	   }
 	 }
 	 NEXT_XRL: ;
@@ -3275,7 +3345,7 @@ for the PN rule.
 }
 {
     int real_symbol_count = piece_rhs_length - 1;
-    IRL chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+    IRL chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
     RULE  chaf_rule = Co_RULE_of_IRL(chaf_irl);
     @<Set CHAF rule flags and call back@>@;
 }
@@ -3300,7 +3370,7 @@ for the PN rule.
 {
   int real_symbol_count = remaining_rhs_length;
   IRL chaf_irl =
-    irl_new (g, current_lhs_id, remaining_rhs, remaining_rhs_length);
+    old_irl_new (g, current_lhs_id, remaining_rhs, remaining_rhs_length);
   RULE chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3316,7 +3386,7 @@ for the PN rule.
 }
 {
   int real_symbol_count = piece_rhs_length-1;
-  IRL chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  IRL chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   RULE chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3330,7 +3400,7 @@ Note that |remaining_rhs| was altered above.
 @<Add NN CHAF rule for nullable continuation@> =
 if (piece_start < nullable_suffix_ix) {
   int real_symbol_count = remaining_rhs_length;
-  IRL chaf_irl = irl_new(g, current_lhs_id, remaining_rhs, remaining_rhs_length);
+  IRL chaf_irl = old_irl_new(g, current_lhs_id, remaining_rhs, remaining_rhs_length);
   RULE chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3359,7 +3429,7 @@ if (piece_start < nullable_suffix_ix) {
     piece_rhs[piece_rhs_length] = RHS_ID_of_RULE(rule, piece_start+piece_rhs_length);
   }
   piece_rhs[piece_rhs_length++] = chaf_virtual_symid;
-  chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3374,7 +3444,7 @@ if (piece_start < nullable_suffix_ix) {
   second_factor_isy = nulling_isy_by_xsyid[second_factor_proper_id];
   piece_rhs[second_factor_piece_position] =
       second_factor_alias_id = ID_of_XSY(Buddy_of_ISY(second_factor_isy));
-  chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3390,7 +3460,7 @@ if (piece_start < nullable_suffix_ix) {
   piece_rhs[first_factor_piece_position] =
       first_factor_alias_id = ID_of_XSY(Buddy_of_ISY(first_factor_isy));
   piece_rhs[second_factor_piece_position] = second_factor_proper_id;
-  chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3401,7 +3471,7 @@ if (piece_start < nullable_suffix_ix) {
   RULE chaf_rule;
   IRL chaf_irl;
   piece_rhs[second_factor_piece_position] = second_factor_alias_id;
-  chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3434,7 +3504,7 @@ Open block, declarations and setup.
   for (piece_rhs_length = 0; piece_rhs_length < real_symbol_count; piece_rhs_length++) {
     piece_rhs[piece_rhs_length] = RHS_ID_of_RULE(rule, piece_start+piece_rhs_length);
   }
-  chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3449,7 +3519,7 @@ Open block, declarations and setup.
   second_factor_isy = nulling_isy_by_xsyid[second_factor_proper_id];
   piece_rhs[second_factor_piece_position] =
       second_factor_alias_id = ID_of_XSY(Buddy_of_ISY(second_factor_isy));
-  chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3465,7 +3535,7 @@ Open block, declarations and setup.
   piece_rhs[first_factor_piece_position] =
       first_factor_alias_id = ID_of_XSY(Buddy_of_ISY(first_factor_isy));
   piece_rhs[second_factor_piece_position] = second_factor_proper_id;
-  chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3478,7 +3548,7 @@ a nulling rule.
   IRL chaf_irl;
   if (piece_start < nullable_suffix_ix) {
     piece_rhs[second_factor_piece_position] = second_factor_alias_id;
-    chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+    chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
     @<Set CHAF rule flags and call back@>@;
   }
@@ -3507,7 +3577,7 @@ a nulling rule.
   for (piece_rhs_length = 0; piece_rhs_length < real_symbol_count; piece_rhs_length++) {
     piece_rhs[piece_rhs_length] = RHS_ID_of_RULE(rule, piece_start+piece_rhs_length);
   }
-  chaf_irl = irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
+  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
   chaf_rule = Co_RULE_of_IRL(chaf_irl);
   @<Set CHAF rule flags and call back@>@;
 }
@@ -3525,7 +3595,7 @@ a nulling rule.
       first_factor_isy = nulling_isy_by_xsyid[first_factor_proper_id];
       first_factor_alias_id = ID_of_XSY(Buddy_of_ISY(first_factor_isy));
       piece_rhs[first_factor_piece_position] = first_factor_alias_id;
-      chaf_irl = irl_new (g, current_lhs_id, piece_rhs, piece_rhs_length);
+      chaf_irl = old_irl_new (g, current_lhs_id, piece_rhs, piece_rhs_length);
       chaf_rule = Co_RULE_of_IRL(chaf_irl);
       @<Set CHAF rule flags and call back@>@;
     }
@@ -3576,11 +3646,14 @@ in the literature --- it is called ``augmenting the grammar".
 
   start_xsy->t_is_start = 0;
 
-  new_start_irl = irl_new (g, new_start_xsyid, &start_xsyid, 1);
-  new_start_rule = Co_RULE_of_IRL(new_start_irl);
-  RULE_has_Virtual_LHS(new_start_rule) = 1;
-  Real_SYM_Count_of_RULE(new_start_rule) = 1;
+  new_start_irl = irl_start(g, 1);
+  LHS_of_IRL(new_start_irl) = new_start_isy;
+  RHS_of_IRL(new_start_irl, 0) = primary_isy_by_xsyid[start_xsyid];
+  new_start_rule = irl_finish(g, new_start_irl);
+  RULE_has_Virtual_LHS (new_start_rule) = 1;
+  Real_SYM_Count_of_RULE (new_start_rule) = 1;
   g->t_start_irl = new_start_irl;
+
 }
 
 @** Loops.
