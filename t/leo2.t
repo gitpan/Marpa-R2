@@ -48,17 +48,12 @@ Marpa::R2::Test::is( $grammar->show_symbols(),
     <<'END_OF_STRING', 'Leo166 Symbols' );
 0: a, terminal
 1: S
-2: S[], nulling
-3: S[']
 END_OF_STRING
 
 Marpa::R2::Test::is( $grammar->show_rules,
     <<'END_OF_STRING', 'Leo166 Rules' );
 0: S -> a S
 1: S -> /* empty !used */
-2: S -> a S
-3: S -> a S[]
-4: S['] -> S
 END_OF_STRING
 
 Marpa::R2::Test::is( $grammar->show_AHFA, <<'END_OF_STRING', 'Leo166 AHFA' );

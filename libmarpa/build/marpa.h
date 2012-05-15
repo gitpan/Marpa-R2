@@ -1,8 +1,8 @@
-/*1241:*/
-#line 14086 "./marpa.w"
+/*1252:*/
+#line 14209 "./marpa.w"
 
-/*1237:*/
-#line 14058 "./marpa.w"
+/*1248:*/
+#line 14181 "./marpa.w"
 
 /*
  * Copyright 2012 Jeffrey Kegler
@@ -26,8 +26,8 @@
  * It is not intended to be modified directly
  */
 
-/*:1237*/
-#line 14087 "./marpa.w"
+/*:1248*/
+#line 14210 "./marpa.w"
 
 
 #ifndef __MARPA_H__
@@ -48,16 +48,16 @@ extern const unsigned int marpa_binary_age;
          || (MARPA_MAJOR_VERSION == (major) && MARPA_MINOR_VERSION == (minor) \
           && MARPA_MICRO_VERSION >= (micro)))
 
-/*220:*/
-#line 2005 "./marpa.w"
+/*235:*/
+#line 2061 "./marpa.w"
 
 #define MARPA_KEEP_SEPARATION  0x1
-/*:220*//*224:*/
-#line 2044 "./marpa.w"
+/*:235*//*239:*/
+#line 2100 "./marpa.w"
 
 #define MARPA_PROPER_SEPARATION  0x2
-/*:224*//*1056:*/
-#line 11908 "./marpa.w"
+/*:239*//*1067:*/
+#line 12033 "./marpa.w"
 
 #define marpa_v_semantic_token(v) \
     ((v)->t_semantic_token_id)
@@ -69,7 +69,7 @@ extern const unsigned int marpa_binary_age;
     ((v)->t_tos)
 #define marpa_v_arg_n(v) \
     ((v)->t_arg_n)
-/*:1056*/
+/*:1067*/
 #line 587 "./marpa.w"
 
 /*38:*/
@@ -78,116 +78,116 @@ extern const unsigned int marpa_binary_age;
 struct marpa_g;
 struct marpa_avl_table;
 typedef struct marpa_g*Marpa_Grammar;
-/*:38*//*526:*/
-#line 5712 "./marpa.w"
+/*:38*//*536:*/
+#line 5827 "./marpa.w"
 
 struct marpa_r;
 typedef struct marpa_r*Marpa_Recognizer;
 typedef Marpa_Recognizer Marpa_Recce;
-/*:526*//*927:*/
-#line 10481 "./marpa.w"
+/*:536*//*938:*/
+#line 10606 "./marpa.w"
 
 struct marpa_bocage;
 typedef struct marpa_bocage*Marpa_Bocage;
-/*:927*//*973:*/
-#line 10931 "./marpa.w"
+/*:938*//*984:*/
+#line 11056 "./marpa.w"
 
 struct marpa_order;
 typedef struct marpa_order*Marpa_Order;
-/*:973*//*974:*/
-#line 10934 "./marpa.w"
+/*:984*//*985:*/
+#line 11059 "./marpa.w"
 
 typedef Marpa_Order ORDER;
-/*:974*//*999:*/
-#line 11260 "./marpa.w"
+/*:985*//*1010:*/
+#line 11385 "./marpa.w"
 
 struct marpa_tree;
 typedef struct marpa_tree*Marpa_Tree;
-/*:999*//*1051:*/
-#line 11871 "./marpa.w"
+/*:1010*//*1062:*/
+#line 11996 "./marpa.w"
 
 struct marpa_value;
 typedef struct marpa_value*Marpa_Value;
-/*:1051*/
+/*:1062*/
 #line 588 "./marpa.w"
 
 /*94:*/
-#line 909 "./marpa.w"
+#line 907 "./marpa.w"
 
 struct marpa_event;
 typedef struct marpa_event*Marpa_Event;
 typedef int Marpa_Event_Type;
 /*:94*//*113:*/
-#line 1055 "./marpa.w"
+#line 1053 "./marpa.w"
 
 typedef int Marpa_Error_Code;
 /*:113*//*119:*/
-#line 1085 "./marpa.w"
+#line 1083 "./marpa.w"
 
 typedef int Marpa_Symbol_ID;
-/*:119*//*165:*/
-#line 1394 "./marpa.w"
+/*:119*//*171:*/
+#line 1434 "./marpa.w"
 
 typedef int Marpa_ISY_ID;
-/*:165*//*184:*/
-#line 1534 "./marpa.w"
+/*:171*//*200:*/
+#line 1634 "./marpa.w"
 
 typedef int Marpa_Rule_ID;
-/*:184*//*271:*/
-#line 2369 "./marpa.w"
+/*:200*//*265:*/
+#line 2284 "./marpa.w"
 
 typedef int Marpa_IRL_ID;
-/*:271*//*373:*/
-#line 3911 "./marpa.w"
+/*:265*//*383:*/
+#line 4037 "./marpa.w"
 
 typedef int Marpa_AHFA_Item_ID;
-/*:373*//*413:*/
-#line 4269 "./marpa.w"
+/*:383*//*423:*/
+#line 4392 "./marpa.w"
 
 typedef int Marpa_AHFA_State_ID;
 
-/*:413*//*598:*/
-#line 6148 "./marpa.w"
+/*:423*//*608:*/
+#line 6263 "./marpa.w"
 typedef int Marpa_Earleme;
-/*:598*//*600:*/
-#line 6152 "./marpa.w"
+/*:608*//*610:*/
+#line 6267 "./marpa.w"
 typedef int Marpa_Earley_Set_ID;
-/*:600*//*625:*/
-#line 6356 "./marpa.w"
+/*:610*//*635:*/
+#line 6471 "./marpa.w"
 typedef int Marpa_Earley_Item_ID;
-/*:625*//*851:*/
-#line 9379 "./marpa.w"
+/*:635*//*862:*/
+#line 9506 "./marpa.w"
 
 typedef int Marpa_Or_Node_ID;
-/*:851*//*911:*/
-#line 10293 "./marpa.w"
+/*:862*//*922:*/
+#line 10418 "./marpa.w"
 
 typedef int Marpa_And_Node_ID;
-/*:911*//*1037:*/
-#line 11733 "./marpa.w"
+/*:922*//*1048:*/
+#line 11858 "./marpa.w"
 
 typedef int Marpa_Nook_ID;
-/*:1037*//*1086:*/
-#line 12190 "./marpa.w"
+/*:1048*//*1097:*/
+#line 12315 "./marpa.w"
 
 typedef int Marpa_Value_Type;
-/*:1086*//*1212:*/
-#line 13767 "./marpa.w"
+/*:1097*//*1223:*/
+#line 13890 "./marpa.w"
 
 typedef const char*Marpa_Message_ID;
 
-/*:1212*/
+/*:1223*/
 #line 589 "./marpa.w"
 
 /*95:*/
-#line 913 "./marpa.w"
+#line 911 "./marpa.w"
 
 struct marpa_event{
 Marpa_Event_Type t_type;
 int t_value;
 };
-/*:95*//*1055:*/
-#line 11900 "./marpa.w"
+/*:95*//*1066:*/
+#line 12025 "./marpa.w"
 
 struct marpa_value{
 Marpa_Symbol_ID t_semantic_token_id;
@@ -196,26 +196,26 @@ Marpa_Rule_ID t_semantic_rule_id;
 int t_tos;
 int t_arg_n;
 };
-/*:1055*/
+/*:1066*/
 #line 590 "./marpa.w"
 
-/*1218:*/
-#line 13819 "./marpa.w"
+/*1229:*/
+#line 13942 "./marpa.w"
 
 void marpa_debug_handler_set(int(*debug_handler)(const char*,...));
-/*:1218*//*1220:*/
-#line 13827 "./marpa.w"
+/*:1229*//*1231:*/
+#line 13950 "./marpa.w"
 
 void marpa_debug_level_set(int level);
-/*:1220*/
+/*:1231*/
 #line 591 "./marpa.w"
 
 
 /*:37*/
-#line 14093 "./marpa.w"
+#line 14216 "./marpa.w"
 
 
 #include "marpa_api.h"
 #endif __MARPA_H__
 
-/*:1241*/
+/*:1252*/

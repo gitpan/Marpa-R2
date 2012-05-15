@@ -89,13 +89,7 @@ static inline   XRL xrl_start (GRAMMAR g, const SYMID lhs, const SYMID * rhs, in
 static inline XRL xrl_finish(GRAMMAR g, XRL rule);
 static inline IRL
 irl_start(GRAMMAR g, int length);
-static inline IRL
-old_irl_new(GRAMMAR g,
-const SYMID lhs, const SYMID *rhs, int length);
-static inline IRL
-irl_new( GRAMMAR g,
-const ISY lhs, const ISY *rhs, int length);
-static inline XRL
+static inline void
 irl_finish( GRAMMAR g, IRL irl);
 static inline int
 rule_check (GRAMMAR g, XRL rule);
@@ -114,9 +108,9 @@ assign_AHFA_state (AHFA sought_state, AVL_TREE duplicates);
 static inline AHFA to_ahfa_of_transition_get(TRANS transition);
 static inline int completion_count_of_transition_get(TRANS transition);
 static inline URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix);
-static inline TRANS* transitions_new(GRAMMAR g);
-static inline void transition_add(struct obstack *obstack, AHFA from_ahfa, SYMID symid, AHFA to_ahfa);
-static inline void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, SYMID symid);
+static inline TRANS* transitions_new(GRAMMAR g, int isy_count);
+static inline void transition_add(struct obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA to_ahfa);
+static inline void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, ISYID isyid);
 static inline INPUT
 input_new (GRAMMAR g);
 static inline void
@@ -153,7 +147,7 @@ leo_link_add (RECCE r,
 static inline void trace_source_link_clear(RECCE r);
 static inline int
 alternative_insertion_point (RECCE r, ALT new_alternative);
-static inline int alternative_cmp(const ALT_Const a, const ALT_Const b);
+static inline int alternative_cmp(RECCE r, const ALT_Const a, const ALT_Const b);
 static inline ALT alternative_pop(RECCE r, EARLEME earleme);
 static inline int alternative_insert(RECCE r, ALT new_alternative);
 static inline void earley_set_update_items(RECCE r, ES set);
@@ -171,8 +165,8 @@ static inline int psia_test_and_set(
     struct s_bocage_setup_per_es* per_es_data,
     EIM earley_item,
     AEX ahfa_element_ix);
-static inline AEX lim_base_data_get(LIM leo_item, EIM* p_base);
-static inline AIM base_aim_of_lim(LIM leo_item);
+static inline AEX lim_base_data_get(GRAMMAR g, LIM leo_item, EIM* p_base);
+static inline AIM base_aim_of_lim(GRAMMAR g, LIM leo_item);
 static inline DAND draft_and_node_new(struct obstack *obs, OR predecessor, OR cause);
 static inline void draft_and_node_add(struct obstack *obs, OR parent, OR predecessor, OR cause);
 static inline TOK and_node_token(AND and_node);

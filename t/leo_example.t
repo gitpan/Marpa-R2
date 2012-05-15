@@ -117,7 +117,6 @@ Marpa::R2::Test::is( $show_symbols_output,
 5: MinusAssignOp, terminal
 6: MultiplyAssignOp, terminal
 7: Variable, terminal
-8: Statement[']
 END_SYMBOLS
 
 my $show_rules_output = $grammar->show_rules();
@@ -130,7 +129,6 @@ Marpa::R2::Test::is( $show_rules_output, <<'END_RULES', 'Leo Example Rules' );
 4: Expression -> Lvalue MultiplyAssignOp Expression
 5: Expression -> Variable
 6: Lvalue -> Variable
-7: Statement['] -> Statement
 END_RULES
 
 my $show_AHFA_output = $grammar->show_AHFA();

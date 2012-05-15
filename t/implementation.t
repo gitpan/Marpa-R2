@@ -87,7 +87,6 @@ Marpa::R2::Test::is( $show_symbols_output,
 3: Number, terminal
 4: Add, terminal
 5: Multiply, terminal
-6: Expression[']
 END_SYMBOLS
 
 my $show_rules_output = $grammar->show_rules();
@@ -99,7 +98,6 @@ Marpa::R2::Test::is( $show_rules_output,
 2: Factor -> Number
 3: Term -> Term Add Term
 4: Factor -> Factor Multiply Factor
-5: Expression['] -> Expression
 END_RULES
 
 my $show_AHFA_output = $grammar->show_AHFA();

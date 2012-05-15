@@ -130,10 +130,10 @@ some typing, at a very high cost in readability.
 In |libmarpa|, however, spelling things out usually does
 {\bf not} make them more readable.
 To be sure, when I say
-$$|To_AHFA_of_EIM_by_SYMID|$$
+$$|To_AHFA_of_EIM_by_ISYID|$$
 that is pretty incomprehensible.
 But is
-$$Aycock\_Horspool\_Finite\_Automaton\_To\_State\_of\_Earley\_Item\_by\_Symbol\_ID$$
+$$Aycock\_Horspool\_Finite\_Automaton\_To\_State\_of\_Earley\_Item\_by\_Internal\_Symbol\_ID$$
 really any better?
 \par
 My experience say no.
@@ -693,7 +693,6 @@ with their
 @ Symbol count accesors.
 @d XSY_Count_of_G(g) (DSTACK_LENGTH((g)->t_xsy_stack))
 @d SYM_Count_of_G(g) XSY_Count_of_G(g)
-@d ISY_Count_of_G(g) (DSTACK_LENGTH((g)->t_isy_stack))
 @ @<Function definitions@> =
 int marpa_g_symbol_count(Marpa_Grammar g) {
    @<Return |-2| on failure@>@;
@@ -703,7 +702,6 @@ int marpa_g_symbol_count(Marpa_Grammar g) {
 
 @ Symbol by ID.
 @d XSY_by_ID(id) (*DSTACK_INDEX (g->t_xsy_stack, XSY, (id)))
-@d ISY_by_ID(id) (*DSTACK_INDEX (g->t_isy_stack, ISY, (id)))
 @d SYM_by_ID(id) XSY_by_ID(id)
 
 @ Adds the symbol to the list of symbols kept by the Grammar
@@ -1092,30 +1090,18 @@ struct s_xsy;
 typedef struct s_xsy* XSY;
 typedef XSY SYM;
 typedef const struct s_xsy* XSY_Const;
-@ The initial element is a type |int|,
-and the next element is the symbol ID,
-(the unique identifier for the symbol),
-so that the
-symbol structure may be used
-where token or-nodes are
-expected.
-@d ID_of_XSY(xsy) ((xsy)->t_symbol_id)
-@d ID_of_SYM(sym) ID_of_XSY(sym)
 
-@<Private structures@> =
+@ @<Private structures@> =
 struct s_xsy {
-    int t_or_node_type;
-    XSYID t_symbol_id;
     @<Widely aligned symbol elements@>@;
+    @<Int aligned symbol elements@>@;
     @<Bit aligned symbol elements@>@;
 };
-typedef struct s_symbol SYM_Object;
-@ |t_symbol_id| is initialized when the symbol is
-added to the list of symbols.
-Symbols are used a nulling tokens, and
-|t_or_node_type| is set accordingly.
-@<Initialize symbol elements@> =
-    symbol->t_or_node_type = NULLING_TOKEN_OR_NODE;
+
+@*0 ID.
+@d ID_of_XSY(xsy) ((xsy)->t_symbol_id)
+@d ID_of_SYM(sym) ID_of_XSY(sym)
+@<Int aligned symbol elements@> = XSYID t_symbol_id;
 
 @ @<Function definitions@> =
 PRIVATE SYM
@@ -1333,13 +1319,66 @@ int marpa_g_symbol_is_productive(
 @<Bit aligned symbol elements@> = unsigned int t_is_start:1;
 @ @<Initialize symbol elements@> = symbol->t_is_start = 0;
 @ @<Function definitions@> =
-int _marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID symid) 
+int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID symid) 
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if not precomputed@>@;
     @<Fail if |symid| is invalid@>@;
    return SYM_by_ID(symid)->t_is_start;
+}
+
+@*0 Primary Internal Equivalent.
+This is the internal
+equivalent of the external symbol.
+If the external symbol is nullable
+it is the non-nullable ISY.
+@d ISY_of_XSY(xsy) ((xsy)->t_isy_equivalent)
+@d ISYID_of_XSY(xsy) ID_of_ISY(ISY_of_XSY(xsy))
+@d ISY_by_XSYID(xsyid) (XSY_by_ID(xsyid)->t_isy_equivalent)
+@d ISYID_by_XSYID(xsyid) ID_of_ISY(ISY_of_XSY(XSY_by_ID(xsyid)))
+@d ISYID_by_SYMID(xsyid) ISYID_by_XSYID(xsyid)
+@<Widely aligned symbol elements@> = ISY t_isy_equivalent;
+@ @<Initialize symbol elements@> = ISY_of_XSY(symbol) = NULL;
+@ @<Function definitions@> =
+Marpa_ISY_ID _marpa_g_xsy_isy(
+    Marpa_Grammar g,
+    Marpa_Symbol_ID symid)
+{
+    XSY xsy;
+    ISY isy;
+    @<Return |-2| on failure@>@;
+    @<Fail if |symid| is invalid@>@;
+    xsy = XSY_by_ID(symid);
+    isy = ISY_of_XSY(xsy);
+    return isy ? ID_of_ISY(isy) : -1;
+}
+
+@*0 Nulling Internal Equivalent.
+This is the nulling internal
+equivalent of the external symbol.
+If the external symbol is nullable
+it is the nulling ISY.
+If the external symbol is nulling
+it is the same as the primary internal equivalent.
+If the external symbol is non-nulling,
+there is no nulling internal equivalent.
+@d Nulling_ISY_of_XSY(xsy) ((xsy)->t_nulling_isy)
+@d Nulling_ISY_by_XSYID(xsy) (XSY_by_ID(xsy)->t_nulling_isy)
+@d Nulling_ISYID_by_XSYID(xsy) ID_of_ISY(XSY_by_ID(xsy)->t_nulling_isy)
+@<Widely aligned symbol elements@> = ISY t_nulling_isy;
+@ @<Initialize symbol elements@> = Nulling_ISY_of_XSY(symbol) = NULL;
+@ @<Function definitions@> =
+Marpa_ISY_ID _marpa_g_xsy_nulling_isy(
+    Marpa_Grammar g,
+    Marpa_Symbol_ID symid)
+{
+    XSY xsy;
+    ISY isy;
+    @<Return |-2| on failure@>@;
+    @<Fail if |symid| is invalid@>@;
+    xsy = XSY_by_ID(symid);
+    isy = Nulling_ISY_of_XSY(xsy);
+    return isy ? ID_of_ISY(isy) : -1;
 }
 
 @*0 Source XSY.
@@ -1355,12 +1394,12 @@ because the ``virtual LHS'' flag serves that purpose.
 @ @<Function definitions@> =
 Marpa_Rule_ID _marpa_g_source_xsy(
     Marpa_Grammar g,
-    Marpa_Symbol_ID symid)
+    Marpa_IRL_ID isy_id)
 {
     XSY source_xsy;
     @<Return |-2| on failure@>@;
-    @<Fail if |symid| is invalid@>@;
-    source_xsy = Source_XSY_of_SYM(SYM_by_ID(symid));
+    @<Fail if |isy_id| is invalid@>@;
+    source_xsy = Source_XSY_of_ISY(ISY_by_ID(isy_id));
     return source_xsy ? ID_of_XSY(source_xsy) : -1;
 }
 
@@ -1379,6 +1418,7 @@ ISY symbol_alias_create(GRAMMAR g, SYM symbol)
     SYM_is_Nulling(symbol) = 0;
     XSY_is_Nullable(symbol) = 1;
     SYM_is_Nulling(alias) = 1;
+    ISY_is_Nulling(alias_isy) = 1;
     XSY_is_Nullable(alias) = 1;
     SYM_is_Ask_Me_When_Null(alias)
 	= SYM_is_Ask_Me_When_Null(symbol);
@@ -1398,12 +1438,27 @@ struct s_isy;
 typedef struct s_isy* ISY;
 typedef Marpa_ISY_ID ISYID;
 
-@ @<Private structures@> =
+@ The initial element is a type |int|,
+and the next element is the symbol ID,
+(the unique identifier for the symbol),
+so that the
+symbol structure may be used
+where token or-nodes are
+expected.
+@d Nulling_OR_by_ISYID(isyid) ((OR)ISY_by_ID(isyid))
+@<Private structures@> =
 struct s_isy {
+  int t_or_node_type;
+  ISYID t_isyid;
   @<Widely aligned ISY elements@>@;
-  @<Int aligned ISY elements@>@;
   @<Bit aligned ISY elements@>@;
 };
+@ |t_isyid| is initialized when the symbol is
+added to the list of symbols.
+Symbols are used a nulling tokens, and
+|t_or_node_type| is set accordingly.
+@<Initialize ISY elements@> =
+    isy->t_or_node_type = NULLING_TOKEN_OR_NODE;
 
 @*0 Constructors.
 @ Common logic for creating an ISY.
@@ -1411,10 +1466,11 @@ struct s_isy {
 PRIVATE ISY
 isy_start(GRAMMAR g)
 {
-  const ISY new_isy = my_obstack_new (&g->t_obs, struct s_isy, 1);
-  ID_of_ISY(new_isy) = DSTACK_LENGTH((g)->t_isy_stack);
-  *DSTACK_PUSH((g)->t_isy_stack, ISY) = new_isy;
-  return new_isy;
+  const ISY isy = my_obstack_new (&g->t_obs, struct s_isy, 1);
+  ID_of_ISY(isy) = DSTACK_LENGTH((g)->t_isy_stack);
+  *DSTACK_PUSH((g)->t_isy_stack, ISY) = isy;
+  @<Initialize ISY elements@>@;
+  return isy;
 }
 
 @ Create an ISY from scratch.
@@ -1425,6 +1481,7 @@ isy_new(GRAMMAR g, XSY source)
   const XSY xsy = symbol_new(g, source);
   const ISY new_isy = isy_start(g);
   Buddy_of_ISY(new_isy) = xsy;
+  ISY_of_XSY(xsy) = new_isy;
   return new_isy;
 }
 
@@ -1435,6 +1492,7 @@ isy_clone(GRAMMAR g, XSY xsy)
 {
   const ISY new_isy = isy_start(g);
   Buddy_of_ISY(new_isy) = xsy;
+  ISY_is_Nulling(new_isy) = XSY_is_Nulling(xsy);
   return new_isy;
 }
 
@@ -1443,6 +1501,7 @@ isy_clone(GRAMMAR g, XSY xsy)
 Delete this when division of grammar into
 external and internal is complete.
 @d Buddy_of_ISY(isy) ((isy)->t_buddy)
+@d XSYID_by_ISYID(isyid) ID_of_XSY(Buddy_of_ISY(ISY_by_ID(isyid)))
 @<Widely aligned ISY elements@> =
   XSY t_buddy;
 @ @<Function definitions@> =
@@ -1460,13 +1519,50 @@ The {\bf ISY ID} is a number which
 acts as the unique identifier for an ISY.
 The ISY ID is initialized when the ISY is
 added to the list of rules.
-@d ID_of_ISY(isy) ((isy)->t_isy_id)
-@<Int aligned ISY elements@> = ISYID t_isy_id;
+@d ISY_by_ID(id) (*DSTACK_INDEX (g->t_isy_stack, ISY, (id)))
+@d ID_of_ISY(isy) ((isy)->t_isyid)
+
+@ Symbol count accesors.
+@d ISY_Count_of_G(g) (DSTACK_LENGTH((g)->t_isy_stack))
+@ @<Function definitions@> =
+int _marpa_g_isy_count(Marpa_Grammar g) {
+   @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    return ISY_Count_of_G(g);
+}
+
+@ Is Start?.
+@d ISY_is_Start(isy) ((isy)->t_is_start)
+@<Bit aligned ISY elements@> = unsigned int t_is_start:1;
+@ @<Initialize ISY elements@> = ISY_is_Start(isy) = 0;
+@ @<Function definitions@> =
+int _marpa_g_isy_is_start( Marpa_Grammar g, Marpa_ISY_ID isy_id) 
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |isy_id| is invalid@>@;
+   return ISY_is_Start(ISY_by_ID(isy_id));
+}
+
+@ Is LHS?.
+@d ISY_is_LHS(isy) ((isy)->t_is_lhs)
+@<Bit aligned ISY elements@> = unsigned int t_is_lhs:1;
+@ @<Initialize ISY elements@> = ISY_is_LHS(isy) = 0;
+@ @<Function definitions@> =
+int _marpa_g_isy_is_lhs( Marpa_Grammar g, Marpa_ISY_ID isy_id) 
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |isy_id| is invalid@>@;
+   return ISY_is_LHS(ISY_by_ID(isy_id));
+}
 
 @*0 ISY Is Nulling?.
-Not initialized, because there is no convenient initial value.
-@d ISY_is_Nulling(isy) ((isy)->t_is_nulling)
-@<Bit aligned ISY elements@> = unsigned int t_is_nulling:1;
+@d ISY_is_Nulling(isy) ((isy)->t_isy_is_nulling)
+@<Bit aligned ISY elements@> = unsigned int t_isy_is_nulling:1;
+@ @<Initialize ISY elements@> = ISY_is_Nulling(isy) = 0;
 @ @<Function definitions@> =
 int _marpa_g_isy_is_nulling(Marpa_Grammar g, Marpa_ISY_ID isy_id)
 {
@@ -1483,50 +1579,54 @@ are created to act as the LHS of internal rules.
 The semantics need this information so that they can
 simulate the external ``source'' rule.
 These fields record that information.
-@ @d LHS_XRL_of_SYM(sym) ((sym)->t_lhs_xrl)
-@d XRL_Offset_of_SYM(sym) ((sym)->t_xrl_offset)
-@<Widely aligned symbol elements@> =
+@ @d LHS_XRL_of_ISY(isy) ((isy)->t_lhs_xrl)
+@d XRL_Offset_of_ISY(isy) ((isy)->t_xrl_offset)
+@<Widely aligned ISY elements@> =
 XRL t_lhs_xrl;
 int t_xrl_offset;
-@ @<Initialize symbol elements@> =
-LHS_XRL_of_SYM(symbol) = NULL;
-XRL_Offset_of_SYM(symbol) = -1;
+@ @<Initialize ISY elements@> =
+LHS_XRL_of_ISY(isy) = NULL;
+XRL_Offset_of_ISY(isy) = -1;
 
 @ Virtual LHS trace accessor:
 If this symbol is an internal LHS
-of an external rule, returns the rule ID.
-If there is no external LHS rule, returns |-1|.
+used in the rewrite
+of an external rule,
+returns the XRLID.
+If there is no such external rule, returns |-1|.
 On other failures, returns |-2|.
 @ @<Function definitions@> =
-Marpa_Rule_ID _marpa_g_symbol_lhs_xrl(Marpa_Grammar g, Marpa_Symbol_ID symid)
+Marpa_Rule_ID _marpa_g_isy_lhs_xrl(Marpa_Grammar g, Marpa_ISY_ID isy_id)
 {
   @<Return |-2| on failure@>@;
-  @<Fail if |symid| is invalid@>@;
+  @<Fail if |isy_id| is invalid@>@;
   {
-    const SYM symbol = SYM_by_ID (symid);
-    const XRL lhs_xrl = LHS_XRL_of_SYM (symbol);
+    const ISY isy = ISY_by_ID (isy_id);
+    const XRL lhs_xrl = LHS_XRL_of_ISY (isy);
     if (lhs_xrl)
       return ID_of_XRL (lhs_xrl);
   }
   return -1;
 }
 
-@ If the internal symbol was created as
-the LHS of an external rule,
-returns the offset,
-otherwise -1.
-Note that 0 is also a valid offset,
-and the caller must use other trace
-methods to tell the difference.
+@ If the ISY was created as
+a LHS during the rewrite of an external rule,
+and there is an associated offset within that
+rule,
+this call returns the offset.
+This value is especially relevant for
+the symbols
+used in the CHAF rewrite.
+Otherwise, -1 is returned.
 On other failures, returns |-2|.
 @<Function definitions@> =
-int _marpa_g_symbol_xrl_offset(Marpa_Grammar g, Marpa_Symbol_ID symid)
+int _marpa_g_isy_xrl_offset(Marpa_Grammar g, Marpa_ISY_ID isy_id)
 {
   @<Return |-2| on failure@>@;
-  SYM symbol;
-  @<Fail if |symid| is invalid@>@;
-  symbol = SYM_by_ID (symid);
-  return XRL_Offset_of_SYM(symbol);
+  ISY isy;
+  @<Fail if |isy_id| is invalid@>@;
+  isy = ISY_by_ID (isy_id);
+  return XRL_Offset_of_ISY(isy);
 }
 
 @** External Rule (XRL) Code.
@@ -1535,7 +1635,6 @@ int _marpa_g_symbol_xrl_offset(Marpa_Grammar g, Marpa_Symbol_ID symid)
 typedef int Marpa_Rule_ID;
 @ @<Private structures@> =
 struct s_xrl {
-    @<Widely aligned rule elements@>@/
     @<Int aligned rule elements@>@/
     @<Bit aligned rule elements@>@/
     @<Final rule elements@>@/
@@ -1606,80 +1705,37 @@ const SYMID lhs, const SYMID *rhs, int length)
 PRIVATE IRL
 irl_start(GRAMMAR g, int length)
 {
-  IRL new_irl;
-  const int sizeof_irl = offsetof (struct s_irl, t_isy_array) +
-    (length + 1) * sizeof (new_irl->t_isy_array[0]);
-  new_irl = my_obstack_alloc (&g->t_obs, sizeof_irl);
-  ID_of_IRL(new_irl) = DSTACK_LENGTH((g)->t_irl_stack);
-  Length_of_IRL(new_irl) = length;
-  *DSTACK_PUSH((g)->t_irl_stack, IRL) = new_irl;
-  return new_irl;
+  IRL irl;
+  const int sizeof_irl = offsetof (struct s_irl, t_isyid_array) +
+    (length + 1) * sizeof (irl->t_isyid_array[0]);
+  irl = my_obstack_alloc (&g->t_obs, sizeof_irl);
+  ID_of_IRL(irl) = DSTACK_LENGTH((g)->t_irl_stack);
+  Length_of_IRL(irl) = length;
+  @<Initialize IRL elements@>@;
+  *DSTACK_PUSH((g)->t_irl_stack, IRL) = irl;
+  return irl;
 }
 
-@ Create an IRL from scratch.
-@<Function definitions@> =
-PRIVATE IRL
-old_irl_new(GRAMMAR g,
-const SYMID lhs, const SYMID *rhs, int length)
-{
-  const XRL xrl = rule_new(g, lhs, rhs, length);
-  IRL new_irl = irl_start(g, length);
-  Co_RULE_of_IRL(new_irl) = xrl;
-  g->t_max_rule_length = MAX(Length_of_RULE(xrl), g->t_max_rule_length);
-  return new_irl;
-}
-
-PRIVATE IRL
-irl_new( GRAMMAR g,
-const ISY lhs, const ISY *rhs, int length)
-{
-    IRL new_irl;
-    int symbol_ix;
-    const SYMID new_lhs = ID_of_XSY(Buddy_of_ISY(lhs));
-    // I expect this use of |my_new| to be temporary
-    SYMID* new_rhs = my_new(SYMID, length);
-    for (symbol_ix = 0; symbol_ix < length; symbol_ix++) {
-      new_rhs[symbol_ix] = ID_of_XSY(Buddy_of_ISY(rhs[symbol_ix]));
-    }
-    new_irl = old_irl_new(g, new_lhs, new_rhs, length);
-    LHS_of_IRL(new_irl) = lhs;
-    for (symbol_ix = 0; symbol_ix < length; symbol_ix++)
-      {
-	RHS_of_IRL(new_irl, symbol_ix) = rhs[symbol_ix];
-      }
-    my_free(new_rhs);
-    return new_irl;
-}
-
-PRIVATE XRL
+PRIVATE void
 irl_finish( GRAMMAR g, IRL irl)
 {
-  int rhs_ix;
-  XRL xrl;
-  const int length = Length_of_IRL(irl);
-  // I expect this use of |my_new| to be temporary
-  SYMID* new_rhs = my_new(SYMID, length);
-  SYMID new_lhs = ID_of_XSY(Buddy_of_ISY(LHS_of_IRL(irl)));
-  for (rhs_ix = 0; rhs_ix < length; rhs_ix++) {
-    new_rhs[rhs_ix] = ID_of_XSY(Buddy_of_ISY(RHS_of_IRL(irl, rhs_ix)));
-  }
-  xrl = rule_new(g, new_lhs, new_rhs, length);
-  Co_RULE_of_IRL(irl) = xrl;
-  my_free(new_rhs);
-  return xrl;
+  const ISY lhs_isy = LHS_of_IRL(irl);
+  const XSY lhs_xsy = Buddy_of_ISY(lhs_isy);
+  ISY_is_LHS(lhs_isy) = 1;
+  XSY_is_LHS(lhs_xsy) = 1;
 }
 
 @ @<Clone a new IRL from |rule|@> =
 {
   int symbol_ix;
-  const IRL new_irl = irl_start (g, rule_length);
-  Co_RULE_of_IRL (new_irl) = rule;
+  const IRL new_irl = irl_start (g, rewrite_xrl_length);
   Source_XRL_of_IRL (new_irl) = rule;
-  for (symbol_ix = 0; symbol_ix <= rule_length; symbol_ix++)
+  for (symbol_ix = 0; symbol_ix <= rewrite_xrl_length; symbol_ix++)
     {
-      new_irl->t_isy_array[symbol_ix] =
-	primary_isy_by_xsyid[rule->t_symbols[symbol_ix]];
+      new_irl->t_isyid_array[symbol_ix] =
+	ISYID_by_XSYID(rule->t_symbols[symbol_ix]);
     }
+  irl_finish(g, new_irl);
 }
 
 @ @<Function definitions@> =
@@ -2131,138 +2187,6 @@ _marpa_g_rule_is_used(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
   return XRL_is_Used(XRL_by_ID(xrl_id));
 }
 
-@*0 Rule has virtual LHS?.
-This is for Marpa's ``internal semantics".
-When Marpa rewrites rules, it does so in a way invisible to
-the user's semantics.
-It does this by marking rules so that it can reassemble
-the results of rewritten rules to appear ``as if"
-they were the result of evaluating the original,
-un-rewritten rule.
-\par
-All Marpa's rewrites allow the rewritten rules to be
-``dummied up" to look like the originals.
-That this must be possible for any rewrite was one of
-Marpa's design criteria.
-It was an especially non-negotiable criteria, because
-almost the only reason for parsing a grammar is to apply the
-semantics specified for the original grammar.
-@d RULE_has_Virtual_LHS(rule) ((rule)->t_is_virtual_lhs)
-@d IRL_has_Virtual_LHS(irl) RULE_has_Virtual_LHS(Co_RULE_of_IRL(irl))
-@<Bit aligned rule elements@> = unsigned int t_is_virtual_lhs:1;
-@ @<Initialize rule elements@> =
-RULE_has_Virtual_LHS(rule) = 0;
-@ @<Function definitions@> =
-int _marpa_g_irl_is_virtual_lhs(
-    Marpa_Grammar g,
-    Marpa_IRL_ID irl_id)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if not precomputed@>@;
-    @<Fail if |irl_id| is invalid@>@;
-    return IRL_has_Virtual_LHS(IRL_by_ID(irl_id));
-}
-
-@*0 Rule has Virtual RHS?.
-@d RULE_has_Virtual_RHS(rule) ((rule)->t_is_virtual_rhs)
-@d IRL_has_Virtual_RHS(irl) RULE_has_Virtual_RHS(Co_RULE_of_IRL(irl))
-@<Bit aligned rule elements@> = unsigned int t_is_virtual_rhs:1;
-@ @<Initialize rule elements@> =
-RULE_has_Virtual_RHS(rule) = 0;
-@ @<Function definitions@> =
-int _marpa_g_irl_is_virtual_rhs(
-    Marpa_Grammar g,
-    Marpa_IRL_ID irl_id)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if not precomputed@>@;
-    @<Fail if |irl_id| is invalid@>@;
-    return IRL_has_Virtual_RHS(IRL_by_ID(irl_id));
-}
-
-@*0 Virtual Start Position.
-For a virtual rule,
-this is the RHS position in the original rule
-where this one starts.
-@d Virtual_Start_of_IRL(irl) (Co_RULE_of_IRL(irl)->t_virtual_start)
-@<Int aligned rule elements@> = int t_virtual_start;
-@ @<Initialize rule elements@> = rule->t_virtual_start = -1;
-@ @<Function definitions@> =
-unsigned int _marpa_g_virtual_start(
-    Marpa_Grammar g,
-    Marpa_IRL_ID irl_id)
-{
-    IRL irl;
-    @<Return |-2| on failure@>@;
-    @<Fail if not precomputed@>@;
-    @<Fail if |irl_id| is invalid@>@;
-    irl = IRL_by_ID(irl_id);
-    return Virtual_Start_of_IRL(irl);
-}
-
-@*0 Virtual End Position.
-For a virtual rule,
-this is the RHS position in the original rule
-at which this one ends.
-@d Virtual_End_of_IRL(irl) (Co_RULE_of_IRL(irl)->t_virtual_end)
-@<Int aligned rule elements@> = int t_virtual_end;
-@ @<Initialize rule elements@> = rule->t_virtual_end = -1;
-@ @<Function definitions@> =
-unsigned int _marpa_g_virtual_end(
-    Marpa_Grammar g,
-    Marpa_IRL_ID irl_id)
-{
-    IRL irl;
-    @<Return |-2| on failure@>@;
-    @<Fail if not precomputed@>@;
-    @<Fail if |irl_id| is invalid@>@;
-    irl = IRL_by_ID(irl_id);
-    return Virtual_End_of_IRL(irl);
-}
-
-@*0 Source XRL.
-This is the ``source'' of the internal rule --
-the external rule that it is derived from.
-Currently, there is no dedicated flag for determining
-whether this rule also provides the semantics,
-because the ``virtual LHS'' flag serves that purpose.
-@d Source_XRL_of_IRL(irl) (Co_RULE_of_IRL(irl)->t_source_xrl)
-@d Source_XRL_of_RULE(rule) ((rule)->t_source_xrl)
-@<Int aligned rule elements@> = XRL t_source_xrl;
-@ @<Initialize rule elements@> = Source_XRL_of_RULE(rule) = NULL;
-@ @<Function definitions@> =
-Marpa_Rule_ID _marpa_g_source_xrl(
-    Marpa_Grammar g,
-    Marpa_IRL_ID irl_id)
-{
-    XRL source_xrl;
-    @<Return |-2| on failure@>@;
-    @<Fail if |irl_id| is invalid@>@;
-    source_xrl = Source_XRL_of_IRL(IRL_by_ID(irl_id));
-    return source_xrl ? ID_of_XRL(source_xrl) : -1;
-}
-
-@*0 Rule Real Symbol Count.
-This is another data element used for the ``internal semantics" --
-the logic to reassemble results of rewritten rules so that they
-look as if they came from the original, un-rewritten rules.
-The value of this field is meaningful if and only if
-the rule has a virtual rhs or a virtual lhs.
-@d Real_SYM_Count_of_RULE(rule) ((rule)->t_real_symbol_count)
-@d Real_SYM_Count_of_IRL(irl) Real_SYM_Count_of_RULE(Co_RULE_of_IRL(irl))
-@ @<Int aligned rule elements@> = int t_real_symbol_count;
-@ @<Initialize rule elements@> = Real_SYM_Count_of_RULE(rule) = 0;
-@ @<Function definitions@> =
-int _marpa_g_real_symbol_count(
-    Marpa_Grammar g,
-    Marpa_IRL_ID irl_id)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if not precomputed@>@;
-    @<Fail if |irl_id| is invalid@>@;
-    return Real_SYM_Count_of_IRL(IRL_by_ID(irl_id));
-}
-
 @*0 Rule has semantics?.
 This value describes the rule's semantics.
 Most of the semantics are left up to the higher
@@ -2276,7 +2200,7 @@ the value of a rule to be the value of its
 first child, which under the current implementation
 is a stack no-op.
 @d XRL_is_Ask_Me(rule) ((rule)->t_is_ask_me)
-@<Int aligned rule elements@> = unsigned int t_is_ask_me:1;
+@<Bit aligned rule elements@> = unsigned int t_is_ask_me:1;
 @ @<Initialize rule elements@> =
     XRL_is_Ask_Me(rule) = 0;
 @ @<Function definitions@> =
@@ -2348,22 +2272,13 @@ _marpa_g_irl_semantic_equivalent (Marpa_Grammar g, Marpa_IRL_ID irl_id)
   return ID_of_XRL( Source_XRL_of_IRL(irl) );
 }
 
-@ This is the first AHFA item for a rule.
-There may not be one, in which case it is |NULL|.
-Currently, this is not used after grammar precomputation,
-and there may be an optimization here.
-Perhaps later Marpa objects {\bf should}
-be using it.
-@<Widely aligned rule elements@> = AIM t_first_aim;
-@ @<Initialize rule elements@> =
-    rule->t_first_aim = NULL;
-
 @** Internal Rule (IRL) Code.
 
 @ @<Private structures@> =
 struct s_irl {
   @<Widely aligned IRL elements@>@;
   @<Int aligned IRL elements@>@;
+  @<Bit aligned IRL elements@>@;
   @<Final IRL elements@>@/
 };
 @ @<Public typedefs@> =
@@ -2373,30 +2288,23 @@ struct s_irl;
 typedef struct s_irl* IRL;
 typedef Marpa_IRL_ID IRLID;
 
-@*0 Development stubs.
-@ {\bf To Do}: @^To Do@>
-Delete this when division of grammar into
-external and internal is complete.
-@d Co_RULE_of_IRL(irl) ((irl)->t_co_rule)
-@<Widely aligned IRL elements@> =
-  XRL t_co_rule;
-@ @<Function definitions@> =
-Marpa_Rule_ID _marpa_g_irl_co_rule(
-    Marpa_Grammar g,
-    Marpa_IRL_ID irl_id)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if |irl_id| is invalid@>@;
-    return ID_of_XRL(Co_RULE_of_IRL(IRL_by_ID(irl_id)));
-}
+@*0 ID.
+The {\bf IRL ID} is a number which
+acts as the unique identifier for an IRL.
+The rule ID is initialized when the IRL is
+added to the list of rules.
+@d ID_of_IRL(irl) ((irl)->t_irl_id)
+@<Int aligned IRL elements@> = IRLID t_irl_id;
 
 @*0 Symbols.
 @ The symbols come at the end of the structure,
 so that they can be variable length.
 @<Final IRL elements@> =
-  ISY t_isy_array[1];
+  ISYID t_isyid_array[1];
 
-@ @d LHS_of_IRL(irl) ((irl)->t_isy_array[0])
+@ @d LHSID_of_IRL(irlid) ((irlid)->t_isyid_array[0])
+@ @d LHS_of_IRL(irl) (ISY_by_ID(LHSID_of_IRL(irl)))
+
 @<Function definitions@> =
 Marpa_ISY_ID _marpa_g_irl_lhs(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
     IRL irl;
@@ -2404,10 +2312,11 @@ Marpa_ISY_ID _marpa_g_irl_lhs(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
     @<Fail if fatal error@>@;
     @<Fail if |irl_id| is invalid@>@;
     irl = IRL_by_ID(irl_id);
-    return LHS_ID_of_XRL(Co_RULE_of_IRL(irl));
+    return LHSID_of_IRL(irl);
 }
 
-@ @d RHS_of_IRL(irl, position) ((irl)->t_isy_array[(position)+1])
+@ @d RHSID_of_IRL(irl, position) ((irl)->t_isyid_array[(position)+1])
+@ @d RHS_of_IRL(irl, position) ISY_by_ID(RHSID_of_IRL((irl), (position)))
 @<Function definitions@> =
 Marpa_ISY_ID _marpa_g_irl_rh_symbol(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix) {
     IRL irl;
@@ -2416,7 +2325,7 @@ Marpa_ISY_ID _marpa_g_irl_rh_symbol(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix
     @<Fail if |irl_id| is invalid@>@;
     irl = IRL_by_ID(irl_id);
     if (Length_of_IRL(irl) <= ix) return -1;
-    return RHS_ID_of_XRL(Co_RULE_of_IRL(irl), ix);
+    return RHSID_of_IRL(irl, ix);
 }
 
 @ @d Length_of_IRL(irl) ((irl)->t_length)
@@ -2429,34 +2338,161 @@ int _marpa_g_irl_length(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
     return Length_of_IRL(IRL_by_ID(irl_id));
 }
 
-@*0 ID.
-The {\bf IRL ID} is a number which
-acts as the unique identifier for an IRL.
-The rule ID is initialized when the IRL is
-added to the list of rules.
-@d ID_of_IRL(irl) ((irl)->t_irl_id)
-@<Int aligned IRL elements@> = IRLID t_irl_id;
+@*0 IRL has virtual LHS?.
+This is for Marpa's ``internal semantics".
+When Marpa rewrites rules, it does so in a way invisible to
+the user's semantics.
+It does this by marking rules so that it can reassemble
+the results of rewritten rules to appear ``as if"
+they were the result of evaluating the original,
+un-rewritten rule.
+\par
+All Marpa's rewrites allow the rewritten rules to be
+``dummied up" to look like the originals.
+That this must be possible for any rewrite was one of
+Marpa's design criteria.
+It was an especially non-negotiable criteria, because
+almost the only reason for parsing a grammar is to apply the
+semantics specified for the original grammar.
+@d IRL_has_Virtual_LHS(irl) ((irl)->t_is_virtual_lhs)
+@<Bit aligned IRL elements@> = unsigned int t_is_virtual_lhs:1;
+@ @<Initialize IRL elements@> =
+IRL_has_Virtual_LHS(irl) = 0;
+@ @<Function definitions@> =
+int _marpa_g_irl_is_virtual_lhs(
+    Marpa_Grammar g,
+    Marpa_IRL_ID irl_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |irl_id| is invalid@>@;
+    return IRL_has_Virtual_LHS(IRL_by_ID(irl_id));
+}
+
+@*0 IRL has Virtual RHS?.
+@d IRL_has_Virtual_RHS(irl) ((irl)->t_is_virtual_rhs)
+@<Bit aligned IRL elements@> = unsigned int t_is_virtual_rhs:1;
+@ @<Initialize IRL elements@> =
+IRL_has_Virtual_RHS(irl) = 0;
+@ @<Function definitions@> =
+int _marpa_g_irl_is_virtual_rhs(
+    Marpa_Grammar g,
+    Marpa_IRL_ID irl_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |irl_id| is invalid@>@;
+    return IRL_has_Virtual_RHS(IRL_by_ID(irl_id));
+}
+
+@*0 Rule Real Symbol Count.
+This is another data element used for the ``internal semantics" --
+the logic to reassemble results of rewritten rules so that they
+look as if they came from the original, un-rewritten rules.
+The value of this field is meaningful if and only if
+the rule has a virtual rhs or a virtual lhs.
+@d Real_SYM_Count_of_IRL(irl) ((irl)->t_real_symbol_count)
+@ @<Int aligned IRL elements@> = int t_real_symbol_count;
+@ @<Initialize IRL elements@> = Real_SYM_Count_of_IRL(irl) = 0;
+@ @<Function definitions@> =
+int _marpa_g_real_symbol_count(
+    Marpa_Grammar g,
+    Marpa_IRL_ID irl_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |irl_id| is invalid@>@;
+    return Real_SYM_Count_of_IRL(IRL_by_ID(irl_id));
+}
+
+@*0 Virtual Start Position.
+For an IRL,
+this is the RHS position in the XRL
+where the IRL starts.
+@d Virtual_Start_of_IRL(irl) ((irl)->t_virtual_start)
+@<Int aligned IRL elements@> = int t_virtual_start;
+@ @<Initialize IRL elements@> = irl->t_virtual_start = -1;
+@ @<Function definitions@> =
+unsigned int _marpa_g_virtual_start(
+    Marpa_Grammar g,
+    Marpa_IRL_ID irl_id)
+{
+    IRL irl;
+    @<Return |-2| on failure@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |irl_id| is invalid@>@;
+    irl = IRL_by_ID(irl_id);
+    return Virtual_Start_of_IRL(irl);
+}
+
+@*0 Virtual End Position.
+For an IRL,
+this is the RHS position in the XRL
+where the IRL ends.
+@d Virtual_End_of_IRL(irl) ((irl)->t_virtual_end)
+@<Int aligned IRL elements@> = int t_virtual_end;
+@ @<Initialize IRL elements@> = irl->t_virtual_end = -1;
+@ @<Function definitions@> =
+unsigned int _marpa_g_virtual_end(
+    Marpa_Grammar g,
+    Marpa_IRL_ID irl_id)
+{
+    IRL irl;
+    @<Return |-2| on failure@>@;
+    @<Fail if not precomputed@>@;
+    @<Fail if |irl_id| is invalid@>@;
+    irl = IRL_by_ID(irl_id);
+    return Virtual_End_of_IRL(irl);
+}
+
+@*0 Source XRL.
+This is the ``source'' of the IRL --
+the XRL that it is derived from.
+Currently, there is no dedicated flag for determining
+whether this rule also provides the semantics,
+because the ``virtual LHS'' flag serves that purpose.
+@d Source_XRL_of_IRL(irl) ((irl)->t_source_xrl)
+@<Widely aligned IRL elements@> = XRL t_source_xrl;
+@ @<Initialize IRL elements@> = Source_XRL_of_IRL(irl) = NULL;
+@ @<Function definitions@> =
+Marpa_Rule_ID _marpa_g_source_xrl(
+    Marpa_Grammar g,
+    Marpa_IRL_ID irl_id)
+{
+    XRL source_xrl;
+    @<Return |-2| on failure@>@;
+    @<Fail if |irl_id| is invalid@>@;
+    source_xrl = Source_XRL_of_IRL(IRL_by_ID(irl_id));
+    return source_xrl ? ID_of_XRL(source_xrl) : -1;
+}
+
+@*0 First AIM.
+This is the first AHFA item for a rule.
+There may not be one, in which case it is |NULL|.
+Currently, this is not used after grammar precomputation,
+and there may be an optimization here.
+Perhaps later Marpa objects {\bf should}
+be using it.
+@d First_AIM_of_IRL(irl) ((irl)->t_first_aim)
+@<Widely aligned IRL elements@> = AIM t_first_aim;
+@ @<Initialize IRL elements@> =
+    First_AIM_of_IRL(irl) = NULL;
 
 @** Symbol Instance (SYMI) Code.
 @<Private typedefs@> = typedef int SYMI;
 @ @d SYMI_Count_of_G(g) ((g)->t_symbol_instance_count)
 @<Int aligned grammar elements@> =
 int t_symbol_instance_count;
-@ |SYMI_of_Completed_RULE| assumes that the rule is
-not zero length.
-|SYMI_of_Last_AIM_of_RULE| will return -1 if the
-rule has no proper symbols.
-@d SYMI_of_RULE(rule) ((rule)->t_symbol_instance_base)
-@d SYMI_of_IRL(irl) SYMI_of_RULE(Co_RULE_of_IRL(irl))
-@d Last_Proper_SYMI_of_RULE(rule) ((rule)->t_last_proper_symi)
-@d SYMI_of_Completed_RULE(rule)
-    (SYMI_of_RULE(rule) + Length_of_RULE(rule)-1)
+@ @d SYMI_of_IRL(irl) ((irl)->t_symbol_instance_base)
+@d Last_Proper_SYMI_of_IRL(irl) ((irl)->t_last_proper_symi)
+@d SYMI_of_Completed_IRL(irl)
+    (SYMI_of_IRL(irl) + Length_of_IRL(irl)-1)
 @d SYMI_of_AIM(aim) (symbol_instance_of_ahfa_item_get(aim))
-@<Int aligned rule elements@> =
+@<Int aligned IRL elements@> =
 int t_symbol_instance_base;
 int t_last_proper_symi;
-@ @<Initialize rule elements@> =
-Last_Proper_SYMI_of_RULE(rule) = -1;
+@ @<Initialize IRL elements@> =
+Last_Proper_SYMI_of_IRL(irl) = -1;
 @ Symbol instances are for the {\bf predot} symbol.
 In parsing the emphasis is on what is to come ---
 on what follows the dot.
@@ -2477,9 +2513,9 @@ symbol_instance_of_ahfa_item_get (AIM aim)
   const int null_count = Null_Count_of_AIM(aim);
   if (position < 0 || position - null_count > 0) {
       /* If this AHFA item is not a predictiion */
-      const RULE rule = RULE_of_AIM (aim);
+      const IRL irl = IRL_of_AIM (aim);
       position = Position_of_AIM(aim-1);
-      return SYMI_of_RULE(rule) + position;
+      return SYMI_of_IRL(irl) + position;
   }
   return -1;
 }
@@ -2592,8 +2628,6 @@ a lot of useless diagnostics.
 @ @<Declare precompute variables@> =
   XRLID xrl_count = XRL_Count_of_G(g);
   XSYID pre_census_xsy_count = XSY_Count_of_G(g);
-  ISY* nulling_isy_by_xsyid = NULL;
-  ISY* primary_isy_by_xsyid = NULL;
 
 @ @<Fail if no rules@> =
 if (UNLIKELY(xrl_count <= 0)) {
@@ -3007,22 +3041,28 @@ and productive.
 @<Rewrite sequence |rule| into BNF@> =
 {
   const SYMID lhs_id = LHS_ID_of_RULE (rule);
-  const ISY lhs_isy = primary_isy_by_xsyid[lhs_id];
+  const ISY lhs_isy = ISY_by_XSYID(lhs_id);
+  const ISYID lhs_isyid = ID_of_ISY(lhs_isy);
 
   const ISY internal_lhs_isy = isy_new (g, SYM_by_ID(lhs_id));
+  const ISYID internal_lhs_isyid = ID_of_ISY(internal_lhs_isy);
   const SYM internal_lhs = Buddy_of_ISY(internal_lhs_isy);
 
   const SYMID rhs_id = RHS_ID_of_RULE (rule, 0);
-  const ISY rhs_isy = primary_isy_by_xsyid[rhs_id];
+  const ISY rhs_isy = ISY_by_XSYID(rhs_id);
+  const ISYID rhs_isyid = ID_of_ISY(rhs_isy);
 
   const SYMID separator_id = Separator_of_XRL (rule);
-  const ISY separator_isy = separator_id >= 0 ?
-     primary_isy_by_xsyid[separator_id] : NULL;
+  ISYID separator_isyid = -1;
+  if (separator_id >= 0) {
+    const ISY separator_isy = ISY_by_XSYID(separator_id) ;
+    separator_isyid = ID_of_ISY(separator_isy);
+  }
 
   SYM_is_Semantic(internal_lhs) = 0;
-  LHS_XRL_of_SYM(internal_lhs) = rule;
+  LHS_XRL_of_ISY(internal_lhs_isy) = rule;
   @<Add the top rule for the sequence@>@;
-  if (separator_isy && !XRL_is_Proper_Separation(rule)) {
+  if (separator_isyid >= 0 && !XRL_is_Proper_Separation(rule)) {
       @<Add the alternate top rule for the sequence@>@;
   }
   @<Add the minimum rule for the sequence@>@;
@@ -3031,30 +3071,27 @@ and productive.
 
 @ @<Add the top rule for the sequence@> =
 {
-    RULE rewrite_rule;
     IRL rewrite_irl = irl_start(g, 1);
-    LHS_of_IRL(rewrite_irl) = lhs_isy;
-    RHS_of_IRL(rewrite_irl, 0) = internal_lhs_isy;
-    rewrite_rule = irl_finish(g, rewrite_irl);
+    LHSID_of_IRL(rewrite_irl) = lhs_isyid;
+    RHSID_of_IRL(rewrite_irl, 0) = internal_lhs_isyid;
+    irl_finish(g, rewrite_irl);
     Source_XRL_of_IRL(rewrite_irl) = rule;
     /* Real symbol count remains at default of 0 */
-    RULE_has_Virtual_RHS (rewrite_rule) = 1;
+    IRL_has_Virtual_RHS (rewrite_irl) = 1;
 }
 
 @ This ``alternate" top rule is needed if a final separator is allowed.
 @<Add the alternate top rule for the sequence@> =
 {
-  RULE rewrite_rule;
   IRL rewrite_irl;
-  ISY temp_rhs[2];
   rewrite_irl = irl_start (g, 2);
-  LHS_of_IRL (rewrite_irl) = lhs_isy;
-  RHS_of_IRL (rewrite_irl, 0) = internal_lhs_isy;
-  RHS_of_IRL (rewrite_irl, 1) = separator_isy;
-  rewrite_rule = irl_finish (g, rewrite_irl);
+  LHSID_of_IRL (rewrite_irl) = lhs_isyid;
+  RHSID_of_IRL (rewrite_irl, 0) = internal_lhs_isyid;
+  RHSID_of_IRL (rewrite_irl, 1) = separator_isyid;
+  irl_finish (g, rewrite_irl);
   Source_XRL_of_IRL (rewrite_irl) = rule;
-  RULE_has_Virtual_RHS (rewrite_rule) = 1;
-  Real_SYM_Count_of_RULE (rewrite_rule) = 1;
+  IRL_has_Virtual_RHS (rewrite_irl) = 1;
+  Real_SYM_Count_of_IRL (rewrite_irl) = 1;
 }
 
 @ The traditional way to write a sequence in BNF is with one
@@ -3062,33 +3099,30 @@ rule to represent the minimum, and another to deal with iteration.
 That's the core of Marpa's rewrite.
 @<Add the minimum rule for the sequence@> =
 {
-  RULE rewrite_rule;
   const IRL rewrite_irl = irl_start (g, 1);
-  LHS_of_IRL (rewrite_irl) = internal_lhs_isy;
-  RHS_of_IRL (rewrite_irl, 0) = rhs_isy;
-  rewrite_rule = irl_finish (g, rewrite_irl);
+  LHSID_of_IRL (rewrite_irl) = internal_lhs_isyid;
+  RHSID_of_IRL (rewrite_irl, 0) = rhs_isyid;
+  irl_finish (g, rewrite_irl);
   Source_XRL_of_IRL (rewrite_irl) = rule;
-  RULE_has_Virtual_LHS (rewrite_rule) = 1;
-  Real_SYM_Count_of_RULE (rewrite_rule) = 1;
+  IRL_has_Virtual_LHS (rewrite_irl) = 1;
+  Real_SYM_Count_of_IRL (rewrite_irl) = 1;
 }
 @ @<Add the iterating rule for the sequence@> =
 {
-  RULE rewrite_rule;
   IRL rewrite_irl;
-  ISY temp_rhs[3];
   int rhs_ix = 0;
-  const int length = separator_isy ? 3 : 2;
+  const int length = separator_isyid >= 0 ? 3 : 2;
   rewrite_irl = irl_start (g, length);
-  LHS_of_IRL (rewrite_irl) = internal_lhs_isy;
-  RHS_of_IRL (rewrite_irl, rhs_ix++) = internal_lhs_isy;
-  if (separator_isy)
-    RHS_of_IRL (rewrite_irl, rhs_ix++) = separator_isy;
-  RHS_of_IRL (rewrite_irl, rhs_ix) = rhs_isy;
-  rewrite_rule = irl_finish (g, rewrite_irl);
+  LHSID_of_IRL (rewrite_irl) = internal_lhs_isyid;
+  RHSID_of_IRL (rewrite_irl, rhs_ix++) = internal_lhs_isyid;
+  if (separator_isyid >= 0)
+    RHSID_of_IRL (rewrite_irl, rhs_ix++) = separator_isyid;
+  RHSID_of_IRL (rewrite_irl, rhs_ix) = rhs_isyid;
+  irl_finish (g, rewrite_irl);
   Source_XRL_of_IRL (rewrite_irl) = rule;
-  RULE_has_Virtual_LHS (rewrite_rule) = 1;
-  RULE_has_Virtual_RHS (rewrite_rule) = 1;
-  Real_SYM_Count_of_RULE (rewrite_rule) = length - 1;
+  IRL_has_Virtual_LHS (rewrite_irl) = 1;
+  IRL_has_Virtual_RHS (rewrite_irl) = 1;
+  Real_SYM_Count_of_IRL (rewrite_irl) = length - 1;
 }
 
 @** The CHAF rewrite.
@@ -3158,7 +3192,8 @@ the pre-CHAF rule count.
     for (rule_id = 0; rule_id < pre_chaf_rule_count; rule_id++) {
 
          XRL rule = XRL_by_ID(rule_id);
-	 const int rule_length = Length_of_RULE(rule);
+	 XRL rewrite_xrl = rule;
+	 const int rewrite_xrl_length = Length_of_XRL(rewrite_xrl);
 	 int nullable_suffix_ix = 0;
 	  if (XRL_is_Sequence (rule) && XRL_is_Used (rule))
 	    {
@@ -3187,18 +3222,23 @@ is not already aliased, alias it.
 {
   XSYID xsyid;
   for (xsyid = 0; xsyid < pre_census_xsy_count; xsyid++)
-  {
-    const XSY xsy = XSY_by_ID (xsyid);
-    if (UNLIKELY (!xsy->t_is_accessible))
-      continue;
-    if (UNLIKELY (!xsy->t_is_productive))
-      continue;
-    primary_isy_by_xsyid[xsyid] = isy_clone(g, xsy);
-    if (XSY_is_Nullable (xsy) && !XSY_is_Nulling(xsy))
-      {
-	nulling_isy_by_xsyid[xsyid] = symbol_alias_create (g, xsy);
-      }
-  }
+    {
+      const XSY xsy = XSY_by_ID (xsyid);
+      if (UNLIKELY (!xsy->t_is_accessible))
+	continue;
+      if (UNLIKELY (!xsy->t_is_productive))
+	continue;
+      ISY_of_XSY(xsy) = isy_clone (g, xsy);
+      if (XSY_is_Nulling (xsy))
+	{
+	  Nulling_ISY_of_XSY(xsy) = ISY_of_XSY(xsy);
+	  continue;
+	}
+      if (XSY_is_Nullable (xsy))
+	{
+	  Nulling_ISY_of_XSY(xsy) = symbol_alias_create (g, xsy);
+	}
+    }
 }
 
 @*0 Compute Statistics Needed to Rewrite the Rule.
@@ -3213,7 +3253,7 @@ into multiple CHAF rules.
 {
   int rhs_ix;
   factor_count = 0;
-  for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
+  for (rhs_ix = 0; rhs_ix < rewrite_xrl_length; rhs_ix++)
     {
       Marpa_Symbol_ID symid = RHS_ID_of_RULE (rule, rhs_ix);
       SYM symbol = SYM_by_ID (symid);
@@ -3245,7 +3285,8 @@ factor_positions = my_obstack_new(&obs_precompute, int, g->t_max_rule_length);
     int unprocessed_factor_count;
     /* Current index into the list of factors */
     int factor_position_ix = 0;
-    Marpa_Symbol_ID current_lhs_id = LHS_ID_of_RULE(rule);
+    ISY current_lhs_isy = ISY_by_XSYID(LHS_ID_of_RULE(rule));
+    ISYID current_lhs_isyid = ID_of_ISY(current_lhs_isy);
     /* The positions, in the original rule, where
 	the new (virtual) rule starts and ends */
     int piece_end, piece_start = 0;
@@ -3264,38 +3305,23 @@ factor_positions = my_obstack_new(&obs_precompute, int, g->t_max_rule_length);
 
 @ @<Create a CHAF virtual symbol@> =
 {
+  SYM chaf_virtual_symbol;
   const SYMID chaf_xrl_lhs_id = LHS_ID_of_XRL(chaf_xrl);
-  const ISY chaf_virtual_isy = isy_new (g, SYM_by_ID(chaf_xrl_lhs_id));
-  SYM chaf_virtual_symbol = Buddy_of_ISY(chaf_virtual_isy);
+  chaf_virtual_isy = isy_new (g, SYM_by_ID(chaf_xrl_lhs_id));
+  chaf_virtual_isyid = ID_of_ISY(chaf_virtual_isy);
+  chaf_virtual_symbol = Buddy_of_ISY(chaf_virtual_isy);
   SYM_is_Semantic(chaf_virtual_symbol) = 0;
   chaf_virtual_symbol->t_is_accessible = 1;
   chaf_virtual_symbol->t_is_productive = 1;
-  chaf_virtual_symid = ID_of_SYM (chaf_virtual_symbol);
 }
-
-@*0 Temporary buffers for the CHAF right hand sides.
-Two temporary buffers are used in factoring out CHAF rules.
-|piece_rhs| is for the normal case, where only the symbols
-of the current piece are on the RHS.
-In certain cases, where the remainder of the rule is nulling,
-further factoring is unnecessary and the CHAF rewrite simply
-finishes out the rule with nulling symbols.
-In such cases, the RHS is built in the
-|remaining_rhs| buffer.
-@<CHAF rewrite declarations@> =
-Marpa_Symbol_ID* piece_rhs;
-Marpa_Symbol_ID* remaining_rhs;
-@ @<CHAF rewrite allocations@> =
-piece_rhs = my_obstack_new(&obs_precompute, Marpa_Symbol_ID, g->t_max_rule_length);
-remaining_rhs = my_obstack_new(&obs_precompute, Marpa_Symbol_ID, g->t_max_rule_length);
 
 @*0 Factor A Non-Final Piece.
 @ As long as I have more than 3 unprocessed factors, I am working on a non-final
 rule.
 @<Add non-final CHAF rules@> =
-    SYMID chaf_virtual_symid;
+    ISY chaf_virtual_isy;
+    ISYID chaf_virtual_isyid;
     int first_factor_position = factor_positions[factor_position_ix];
-    int first_factor_piece_position = first_factor_position - piece_start;
     int second_factor_position = factor_positions[factor_position_ix+1];
     if (second_factor_position >= nullable_suffix_ix) {
 	piece_end = second_factor_position-1;
@@ -3304,13 +3330,13 @@ rule.
 	@<Add CHAF rules for nullable continuation@>@;
 	factor_position_ix++;
     } else {
-	int second_factor_piece_position = second_factor_position - piece_start;
 	piece_end = second_factor_position;
 	@<Create a CHAF virtual symbol@>@;
 	@<Add CHAF rules for proper continuation@>@;
 	factor_position_ix += 2;
     }
-    current_lhs_id = chaf_virtual_symid;
+    current_lhs_isy = chaf_virtual_isy;
+    current_lhs_isyid = chaf_virtual_isyid;
     piece_start = piece_end+1;
 
 @*0 Add CHAF Rules for Nullable Continuations.
@@ -3321,74 +3347,40 @@ That means the piece must
 end before the second proper nullable (or factor).
 @<Add CHAF rules for nullable continuation@> =
 {
-    int remaining_rhs_length, piece_rhs_length;
-    @<Add PP CHAF rule for nullable continuation@>;
-    @<Add PN CHAF rule for nullable continuation@>;
-    @<Add NP CHAF rule for nullable continuation@>;
-    @<Add NN CHAF rule for nullable continuation@>;
-}
-
-@ Note that since the first part of |remaining_rhs| is exactly the same
-as the first part of |piece_rhs| so I copy it here in preparation
-for the PN rule.
-@<Add PP CHAF rule for nullable continuation@> =
-{
-  int real_symbol_count = piece_end - piece_start + 1;
-  for (piece_rhs_length = 0; piece_rhs_length < real_symbol_count;
-       piece_rhs_length++)
     {
-      remaining_rhs[piece_rhs_length] =
-	piece_rhs[piece_rhs_length] =
-	RHS_ID_of_RULE (rule, piece_start + piece_rhs_length);
+      const int real_symbol_count = piece_end - piece_start + 1;
+      @<Add PP CHAF rule for proper continuation@>;
     }
-  piece_rhs[piece_rhs_length++] = chaf_virtual_symid;
-}
-{
-    int real_symbol_count = piece_rhs_length - 1;
-    IRL chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-    RULE  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-    @<Set CHAF rule flags and call back@>@;
+    @<Add PN CHAF rule for nullable continuation@>;
+    { 
+      const int real_symbol_count = piece_end - piece_start + 1;
+      @<Add NP CHAF rule for proper continuation@>;
+    }
+    @<Add NN CHAF rule for nullable continuation@>;
 }
 
 @ @<Add PN CHAF rule for nullable continuation@> =
 {
-  int chaf_rule_length = Length_of_RULE(rule) - piece_start;
-  for (remaining_rhs_length = piece_rhs_length - 1;
-       remaining_rhs_length < chaf_rule_length; remaining_rhs_length++)
-    {
-      Marpa_Symbol_ID original_id =
-	RHS_ID_of_RULE (rule, piece_start + remaining_rhs_length);
-      ISY nulling_isy = nulling_isy_by_xsyid[original_id];
-      if (nulling_isy) {
-	SYM alias = Buddy_of_ISY(nulling_isy);
-	remaining_rhs[remaining_rhs_length] = ID_of_SYM(alias);
-      } else {
-	remaining_rhs[remaining_rhs_length] = original_id;
-      }
-    }
-}
-{
-  int real_symbol_count = remaining_rhs_length;
-  IRL chaf_irl =
-    old_irl_new (g, current_lhs_id, remaining_rhs, remaining_rhs_length);
-  RULE chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
-}
+  int piece_ix;
+  const int second_nulling_piece_ix = second_factor_position - piece_start;
+  const int chaf_irl_length = rewrite_xrl_length - piece_start;
+  const int real_symbol_count = chaf_irl_length;
 
-@ Note, while I have the nulling alias for the first factor,
-|remaining_rhs| is altered to be ready for the NN rule.
-@<Add NP CHAF rule for nullable continuation@> = {
-    Marpa_Symbol_ID proper_id = RHS_ID_of_RULE(rule, first_factor_position);
-    SYM alias = Buddy_of_ISY(nulling_isy_by_xsyid[proper_id]);
-    remaining_rhs[first_factor_piece_position] =
-	piece_rhs[first_factor_piece_position] =
-	ID_of_SYM(alias);
-}
-{
-  int real_symbol_count = piece_rhs_length-1;
-  IRL chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  RULE chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < second_nulling_piece_ix; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  for (piece_ix = second_nulling_piece_ix; piece_ix < chaf_irl_length;
+       piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	Nulling_ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @ If this piece is nullable (|piece_start| at or
@@ -3396,24 +3388,52 @@ after |nullable_suffix_ix|), I don't add an NN choice,
 because nulling both factors makes the entire piece nulling,
 and nulling rules cannot be fed directly to
 the Marpa parse engine.
-Note that |remaining_rhs| was altered above.
 @<Add NN CHAF rule for nullable continuation@> =
-if (piece_start < nullable_suffix_ix) {
-  int real_symbol_count = remaining_rhs_length;
-  IRL chaf_irl = old_irl_new(g, current_lhs_id, remaining_rhs, remaining_rhs_length);
-  RULE chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+{
+  if (piece_start < nullable_suffix_ix)
+    {
+      int piece_ix;
+      const int first_nulling_piece_ix = first_factor_position - piece_start;
+      const int second_nulling_piece_ix =
+	second_factor_position - piece_start;
+      const int chaf_irl_length = rewrite_xrl_length - piece_start;
+      const int real_symbol_count = chaf_irl_length;
+ 
+      IRL chaf_irl = irl_start (g, chaf_irl_length);
+      LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+      for (piece_ix = 0; piece_ix < first_nulling_piece_ix; piece_ix++)
+	{
+	  RHSID_of_IRL (chaf_irl, piece_ix) =
+	    ISYID_by_XSYID(RHS_ID_of_RULE
+				 (rule, piece_start + piece_ix));
+	}
+      RHSID_of_IRL (chaf_irl, first_nulling_piece_ix) =
+	Nulling_ISYID_by_XSYID(RHS_ID_of_RULE
+			     (rule, piece_start + first_nulling_piece_ix));
+      for (piece_ix = first_nulling_piece_ix + 1;
+	   piece_ix < second_nulling_piece_ix; piece_ix++)
+	{
+	  RHSID_of_IRL (chaf_irl, piece_ix) =
+	    ISYID_by_XSYID(RHS_ID_of_RULE
+				 (rule, piece_start + piece_ix));
+	}
+      for (piece_ix = second_nulling_piece_ix; piece_ix < chaf_irl_length;
+	   piece_ix++)
+	{
+	  RHSID_of_IRL (chaf_irl, piece_ix) =
+	    Nulling_ISYID_by_XSYID(RHS_ID_of_RULE
+				 (rule, piece_start + piece_ix));
+	}
+      irl_finish (g, chaf_irl);
+      @<Add CHAF IRL@>@;
+    }
 }
 
 @*0 Add CHAF Rules for Proper Continuations.
 @ Open block and declarations.
 @<Add CHAF rules for proper continuation@> =
 {
-  int piece_rhs_length;
-  int real_symbol_count;
-  Marpa_Symbol_ID first_factor_proper_id, second_factor_proper_id,
-    first_factor_alias_id, second_factor_alias_id;
-  real_symbol_count = piece_end - piece_start + 1;
+  const int real_symbol_count = piece_end - piece_start + 1;
   @<Add PP CHAF rule for proper continuation@>@;
   @<Add PN CHAF rule for proper continuation@>@;
   @<Add NP CHAF rule for proper continuation@>@;
@@ -3423,73 +3443,119 @@ if (piece_start < nullable_suffix_ix) {
 @ The PP Rule.
 @<Add PP CHAF rule for proper continuation@> = 
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
-  for (piece_rhs_length = 0; piece_rhs_length < real_symbol_count; piece_rhs_length++) {
-    piece_rhs[piece_rhs_length] = RHS_ID_of_RULE(rule, piece_start+piece_rhs_length);
-  }
-  piece_rhs[piece_rhs_length++] = chaf_virtual_symid;
-  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  int piece_ix;
+  const int chaf_irl_length = (piece_end - piece_start) + 2;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < chaf_irl_length - 1; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, chaf_irl_length - 1) = chaf_virtual_isyid;
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @ The PN Rule.
 @<Add PN CHAF rule for proper continuation@> = 
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
-  ISY second_factor_isy;
-  second_factor_proper_id = RHS_ID_of_RULE(rule, second_factor_position);
-  second_factor_isy = nulling_isy_by_xsyid[second_factor_proper_id];
-  piece_rhs[second_factor_piece_position] =
-      second_factor_alias_id = ID_of_XSY(Buddy_of_ISY(second_factor_isy));
-  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  int piece_ix;
+  const int second_nulling_piece_ix = second_factor_position - piece_start;
+  const int chaf_irl_length = (piece_end - piece_start) + 2;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < second_nulling_piece_ix; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, second_nulling_piece_ix) =
+    Nulling_ISYID_by_XSYID(RHS_ID_of_RULE
+			 (rule, piece_start + second_nulling_piece_ix));
+  for (piece_ix = second_nulling_piece_ix + 1;
+       piece_ix < chaf_irl_length - 1; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, chaf_irl_length - 1) = chaf_virtual_isyid;
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @ The NP Rule.
 @<Add NP CHAF rule for proper continuation@> = 
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
-  ISY first_factor_isy;
-  first_factor_proper_id = RHS_ID_of_RULE(rule, first_factor_position);
-  first_factor_isy = nulling_isy_by_xsyid[first_factor_proper_id];
-  piece_rhs[first_factor_piece_position] =
-      first_factor_alias_id = ID_of_XSY(Buddy_of_ISY(first_factor_isy));
-  piece_rhs[second_factor_piece_position] = second_factor_proper_id;
-  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  int piece_ix;
+  const int first_nulling_piece_ix = first_factor_position - piece_start;
+  const int chaf_irl_length = (piece_end - piece_start) + 2;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < first_nulling_piece_ix; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, first_nulling_piece_ix) =
+    Nulling_ISYID_by_XSYID(RHS_ID_of_RULE
+			 (rule, piece_start + first_nulling_piece_ix));
+  for (piece_ix = first_nulling_piece_ix + 1;
+       piece_ix < chaf_irl_length - 1; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, chaf_irl_length - 1) = chaf_virtual_isyid;
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @ The NN Rule.
 @<Add NN CHAF rule for proper continuation@> = 
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
-  piece_rhs[second_factor_piece_position] = second_factor_alias_id;
-  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  int piece_ix;
+  const int first_nulling_piece_ix = first_factor_position - piece_start;
+  const int second_nulling_piece_ix = second_factor_position - piece_start;
+  const int chaf_irl_length = (piece_end - piece_start) + 2;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < first_nulling_piece_ix; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, first_nulling_piece_ix) =
+    Nulling_ISYID_by_XSYID(RHS_ID_of_RULE
+			 (rule, piece_start + first_nulling_piece_ix));
+  for (piece_ix = first_nulling_piece_ix + 1;
+       piece_ix < second_nulling_piece_ix; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, second_nulling_piece_ix) =
+    Nulling_ISYID_by_XSYID(RHS_ID_of_RULE
+			 (rule, piece_start + second_nulling_piece_ix));
+  for (piece_ix = second_nulling_piece_ix + 1; piece_ix < chaf_irl_length-1;
+       piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, chaf_irl_length-1) = chaf_virtual_isyid;
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @*0 Add Final CHAF Rules for Two Factors.
 Open block, declarations and setup.
 @<Add final CHAF rules for two factors@> =
 {
-  int first_factor_position = factor_positions[factor_position_ix];
-  int first_factor_piece_position = first_factor_position - piece_start;
-  int second_factor_position = factor_positions[factor_position_ix + 1];
-  int second_factor_piece_position = second_factor_position - piece_start;
-  int real_symbol_count;
-  int piece_rhs_length;
-  Marpa_Symbol_ID first_factor_proper_id, second_factor_proper_id,
-    first_factor_alias_id, second_factor_alias_id;
+  const int first_factor_position = factor_positions[factor_position_ix];
+  const int second_factor_position = factor_positions[factor_position_ix + 1];
+  const int real_symbol_count = Length_of_RULE (rule) - piece_start;
   piece_end = Length_of_RULE (rule) - 1;
-  real_symbol_count = piece_end - piece_start + 1;
   @<Add final CHAF PP rule for two factors@>@;
   @<Add final CHAF PN rule for two factors@>@;
   @<Add final CHAF NP rule for two factors@>@;
@@ -3499,70 +3565,116 @@ Open block, declarations and setup.
 @ The PP Rule.
 @<Add final CHAF PP rule for two factors@> = 
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
-  for (piece_rhs_length = 0; piece_rhs_length < real_symbol_count; piece_rhs_length++) {
-    piece_rhs[piece_rhs_length] = RHS_ID_of_RULE(rule, piece_start+piece_rhs_length);
-  }
-  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  int piece_ix;
+  const int chaf_irl_length = (piece_end - piece_start) + 1;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < chaf_irl_length; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @ The PN Rule.
 @<Add final CHAF PN rule for two factors@> =
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
-  ISY second_factor_isy;
-  second_factor_proper_id = RHS_ID_of_RULE(rule, second_factor_position);
-  second_factor_isy = nulling_isy_by_xsyid[second_factor_proper_id];
-  piece_rhs[second_factor_piece_position] =
-      second_factor_alias_id = ID_of_XSY(Buddy_of_ISY(second_factor_isy));
-  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  int piece_ix;
+  const int second_nulling_piece_ix = second_factor_position - piece_start;
+  const int chaf_irl_length = (piece_end - piece_start) + 1;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < second_nulling_piece_ix; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, second_nulling_piece_ix) =
+    Nulling_ISYID_by_XSYID(RHS_ID_of_RULE
+			 (rule, piece_start + second_nulling_piece_ix));
+  for (piece_ix = second_nulling_piece_ix + 1; piece_ix < chaf_irl_length;
+       piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @ The NP Rule.
 @<Add final CHAF NP rule for two factors@> =
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
-  ISY first_factor_isy;
-  first_factor_proper_id = RHS_ID_of_RULE(rule, first_factor_position);
-  first_factor_isy = nulling_isy_by_xsyid[first_factor_proper_id];
-  piece_rhs[first_factor_piece_position] =
-      first_factor_alias_id = ID_of_XSY(Buddy_of_ISY(first_factor_isy));
-  piece_rhs[second_factor_piece_position] = second_factor_proper_id;
-  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  int piece_ix;
+  const int first_nulling_piece_ix = first_factor_position - piece_start;
+  const int chaf_irl_length = (piece_end - piece_start) + 1;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < first_nulling_piece_ix; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  RHSID_of_IRL (chaf_irl, first_nulling_piece_ix) =
+    Nulling_ISYID_by_XSYID(RHS_ID_of_RULE
+			 (rule, piece_start + first_nulling_piece_ix));
+  for (piece_ix = first_nulling_piece_ix + 1; piece_ix < chaf_irl_length;
+       piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @ The NN Rule.  This is added only if it would not turn this into
 a nulling rule.
 @<Add final CHAF NN rule for two factors@> =
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
   if (piece_start < nullable_suffix_ix) {
-    piece_rhs[second_factor_piece_position] = second_factor_alias_id;
-    chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-    @<Set CHAF rule flags and call back@>@;
+      int piece_ix;
+      const int first_nulling_piece_ix = first_factor_position - piece_start;
+      const int second_nulling_piece_ix = second_factor_position - piece_start;
+      const int chaf_irl_length = (piece_end - piece_start) + 1;
+      IRL chaf_irl = irl_start (g, chaf_irl_length);
+      LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+      for (piece_ix = 0; piece_ix < first_nulling_piece_ix; piece_ix++)
+	{
+	  RHSID_of_IRL (chaf_irl, piece_ix) =
+	    ISYID_by_XSYID(RHS_ID_of_RULE
+				 (rule, piece_start + piece_ix));
+	}
+      RHSID_of_IRL (chaf_irl, first_nulling_piece_ix) =
+	Nulling_ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + first_nulling_piece_ix));
+      for (piece_ix = first_nulling_piece_ix + 1; piece_ix < second_nulling_piece_ix;
+	   piece_ix++)
+	{
+	  RHSID_of_IRL (chaf_irl, piece_ix) =
+	    ISYID_by_XSYID(RHS_ID_of_RULE
+				 (rule, piece_start + piece_ix));
+	}
+      RHSID_of_IRL (chaf_irl, second_nulling_piece_ix) =
+	Nulling_ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + second_nulling_piece_ix));
+      for (piece_ix = second_nulling_piece_ix + 1; piece_ix < chaf_irl_length;
+	   piece_ix++)
+	{
+	  RHSID_of_IRL (chaf_irl, piece_ix) =
+	    ISYID_by_XSYID(RHS_ID_of_RULE
+				 (rule, piece_start + piece_ix));
+	}
+      irl_finish (g, chaf_irl);
+      @<Add CHAF IRL@>@;
   }
 }
 
 @*0 Add Final CHAF Rules for One Factor.
 @<Add final CHAF rules for one factor@> =
 {
-  int piece_rhs_length;
-  Marpa_Symbol_ID first_factor_proper_id, first_factor_alias_id;
   int real_symbol_count;
-  int first_factor_position = factor_positions[factor_position_ix];
-  int first_factor_piece_position =
-    factor_positions[factor_position_ix] - piece_start;
+  const int first_factor_position = factor_positions[factor_position_ix];
   piece_end = Length_of_RULE (rule) - 1;
   real_symbol_count = piece_end - piece_start + 1;
   @<Add final CHAF P rule for one factor@>@;
@@ -3572,14 +3684,17 @@ a nulling rule.
 @ The P Rule.
 @<Add final CHAF P rule for one factor@> = 
 {
-  RULE chaf_rule;
-  IRL chaf_irl;
-  for (piece_rhs_length = 0; piece_rhs_length < real_symbol_count; piece_rhs_length++) {
-    piece_rhs[piece_rhs_length] = RHS_ID_of_RULE(rule, piece_start+piece_rhs_length);
-  }
-  chaf_irl = old_irl_new(g, current_lhs_id, piece_rhs, piece_rhs_length);
-  chaf_rule = Co_RULE_of_IRL(chaf_irl);
-  @<Set CHAF rule flags and call back@>@;
+  int piece_ix;
+  const int chaf_irl_length = (piece_end - piece_start) + 1;
+  IRL chaf_irl = irl_start (g, chaf_irl_length);
+  LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+  for (piece_ix = 0; piece_ix < chaf_irl_length; piece_ix++)
+    {
+      RHSID_of_IRL (chaf_irl, piece_ix) =
+	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
+    }
+  irl_finish (g, chaf_irl);
+  @<Add CHAF IRL@>@;
 }
 
 @ The N Rule.  This is added only if it would not turn this into
@@ -3588,16 +3703,28 @@ a nulling rule.
 {
   if (piece_start < nullable_suffix_ix)
     {
-      RULE chaf_rule;
-      IRL chaf_irl;
-      ISY first_factor_isy;
-      first_factor_proper_id = RHS_ID_of_RULE (rule, first_factor_position);
-      first_factor_isy = nulling_isy_by_xsyid[first_factor_proper_id];
-      first_factor_alias_id = ID_of_XSY(Buddy_of_ISY(first_factor_isy));
-      piece_rhs[first_factor_piece_position] = first_factor_alias_id;
-      chaf_irl = old_irl_new (g, current_lhs_id, piece_rhs, piece_rhs_length);
-      chaf_rule = Co_RULE_of_IRL(chaf_irl);
-      @<Set CHAF rule flags and call back@>@;
+      int piece_ix;
+      const int nulling_piece_ix = first_factor_position - piece_start;
+      const int chaf_irl_length = (piece_end - piece_start) + 1;
+      IRL chaf_irl = irl_start (g, chaf_irl_length);
+      LHSID_of_IRL (chaf_irl) = current_lhs_isyid;
+      for (piece_ix = 0; piece_ix < nulling_piece_ix; piece_ix++)
+	{
+	  RHSID_of_IRL (chaf_irl, piece_ix) =
+	    ISYID_by_XSYID(RHS_ID_of_RULE
+				 (rule, piece_start + piece_ix));
+	}
+      RHSID_of_IRL (chaf_irl, nulling_piece_ix) =
+	Nulling_ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + nulling_piece_ix));
+      for (piece_ix = nulling_piece_ix + 1; piece_ix < chaf_irl_length;
+	   piece_ix++)
+	{
+	  RHSID_of_IRL (chaf_irl, piece_ix) =
+	    ISYID_by_XSYID(RHS_ID_of_RULE
+				 (rule, piece_start + piece_ix));
+	}
+      irl_finish (g, chaf_irl);
+      @<Add CHAF IRL@>@;
     }
 }
 
@@ -3605,19 +3732,18 @@ a nulling rule.
 them all.
 This include the setting of many of the elements of the 
 rule structure, and performing the call back.
-@<Set CHAF rule flags and call back@> =
+@<Add CHAF IRL@> =
 {
-  const SYM current_lhs = SYM_by_ID (current_lhs_id);
   const int is_virtual_lhs = (piece_start > 0);
   Source_XRL_of_IRL(chaf_irl) = rule;
-  RULE_has_Virtual_LHS (chaf_rule) = is_virtual_lhs;
-  RULE_has_Virtual_RHS (chaf_rule) =
-    Length_of_RULE (chaf_rule) > real_symbol_count;
+  IRL_has_Virtual_LHS (chaf_irl) = is_virtual_lhs;
+  IRL_has_Virtual_RHS (chaf_irl) =
+    Length_of_IRL (chaf_irl) > real_symbol_count;
   Virtual_Start_of_IRL(chaf_irl) = piece_start;
   Virtual_End_of_IRL(chaf_irl) = piece_start + real_symbol_count - 1;
-  Real_SYM_Count_of_RULE (chaf_rule) = real_symbol_count;
-  LHS_XRL_of_SYM (current_lhs) = chaf_xrl;
-  XRL_Offset_of_SYM (current_lhs) = piece_start;
+  Real_SYM_Count_of_IRL (chaf_irl) = real_symbol_count;
+  LHS_XRL_of_ISY (current_lhs_isy) = chaf_xrl;
+  XRL_Offset_of_ISY (current_lhs_isy) = piece_start;
 }
 
 @** Adding a New Start Symbol.
@@ -3633,11 +3759,11 @@ in the literature --- it is called ``augmenting the grammar".
 
 @ @<Set up a new proper start rule@> = {
   IRL new_start_irl;
-  RULE new_start_rule;
 
   XSYID new_start_xsyid = -1;
   const ISY new_start_isy = isy_new(g, start_xsy);
   const XSY new_start_xsy = Buddy_of_ISY(new_start_isy);
+  ISY_is_Start(new_start_isy) = 1;
   new_start_xsyid = ID_of_SYM(new_start_xsy);
   SYM_is_Semantic(new_start_xsy) = 0;
   new_start_xsy->t_is_accessible = 1;
@@ -3647,11 +3773,11 @@ in the literature --- it is called ``augmenting the grammar".
   start_xsy->t_is_start = 0;
 
   new_start_irl = irl_start(g, 1);
-  LHS_of_IRL(new_start_irl) = new_start_isy;
-  RHS_of_IRL(new_start_irl, 0) = primary_isy_by_xsyid[start_xsyid];
-  new_start_rule = irl_finish(g, new_start_irl);
-  RULE_has_Virtual_LHS (new_start_rule) = 1;
-  Real_SYM_Count_of_RULE (new_start_rule) = 1;
+  LHSID_of_IRL(new_start_irl) = ID_of_ISY(new_start_isy);
+  RHSID_of_IRL(new_start_irl, 0) = ISYID_of_XSY(start_xsy);
+  irl_finish(g, new_start_irl);
+  IRL_has_Virtual_LHS (new_start_irl) = 1;
+  Real_SYM_Count_of_IRL (new_start_irl) = 1;
   g->t_start_irl = new_start_irl;
 
 }
@@ -3959,9 +4085,8 @@ return item_id < (AIMID)AIM_Count_of_G(g) && item_id >= 0;
 
 @*0 Rule.
 @d IRL_of_AIM(aim) ((aim)->t_irl)
-@d RULE_of_AIM(aim) Co_RULE_of_IRL(IRL_of_AIM(aim))
 @d IRLID_of_AIM(item) ID_of_IRL(IRL_of_AIM(item))
-@d LHS_ID_of_AIM(item) LHS_ID_of_RULE(RULE_of_AIM(item))
+@d LHS_ISYID_of_AIM(item) LHSID_of_IRL(IRL_of_AIM(item))
 @<Widely aligned AHFA item elements@> =
     IRL t_irl;
 
@@ -4043,7 +4168,6 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
     unsigned int symbol_instance_of_next_rule = 0;
     for (irl_id = 0; irl_id < irl_count; irl_id++) {
       const IRL irl = IRL_by_ID(irl_id);
-      const RULE rule = Co_RULE_of_IRL(irl);
       @<Count the AHFA items in a rule@>@;
     }
     current_item = base_item = my_new(struct s_AHFA_item, ahfa_item_count);
@@ -4051,9 +4175,8 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
       const IRL irl = IRL_by_ID(irl_id);
       @<Create the AHFA items for |irl|@>@;
       {
-        const RULE rule = Co_RULE_of_IRL(irl);
-	SYMI_of_RULE(rule) = symbol_instance_of_next_rule;
-	symbol_instance_of_next_rule += Length_of_RULE(rule);
+	SYMI_of_IRL(irl) = symbol_instance_of_next_rule;
+	symbol_instance_of_next_rule += Length_of_IRL(irl);
       }
     }
     SYMI_Count_of_G(g) = symbol_instance_of_next_rule;
@@ -4068,14 +4191,14 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
 {
   int leading_nulls = 0;
   int rhs_ix;
-  const XRL xrl = Co_RULE_of_IRL(irl);
-  for (rhs_ix = 0; rhs_ix < Length_of_RULE(xrl); rhs_ix++)
+  for (rhs_ix = 0; rhs_ix < Length_of_IRL(irl); rhs_ix++)
     {
-      SYMID rh_symid = RHS_ID_of_RULE (xrl, rhs_ix);
-      SYM symbol = SYM_by_ID (rh_symid);
-      if (!SYM_is_Nulling(symbol))
+      ISYID rh_isyid = RHSID_of_IRL (irl, rhs_ix);
+      XSY rh_xsy = Buddy_of_ISY(ISY_by_ID(rh_isyid));
+      XSYID rh_xsyid = ID_of_XSY(rh_xsy);
+      if (!SYM_is_Nulling(rh_xsy))
 	{
-	  Last_Proper_SYMI_of_RULE(xrl) = symbol_instance_of_next_rule + rhs_ix;
+	  Last_Proper_SYMI_of_IRL(irl) = symbol_instance_of_next_rule + rhs_ix;
 	  @<Create an AHFA item for a precompletion@>@;
 	  leading_nulls = 0;
 	  current_item++;
@@ -4092,11 +4215,11 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
 @ @<Count the AHFA items in a rule@> =
 {
   int rhs_ix;
-  for (rhs_ix = 0; rhs_ix < Length_of_RULE(rule); rhs_ix++)
+  for (rhs_ix = 0; rhs_ix < Length_of_IRL(irl); rhs_ix++)
     {
-      SYMID rh_symid = RHS_ID_of_RULE (rule, rhs_ix);
-      SYM symbol = SYM_by_ID (rh_symid);
-      if (!SYM_is_Nulling(symbol)) ahfa_item_count++;
+      const ISYID rh_isyid = RHSID_of_IRL (irl, rhs_ix);
+      const ISY isy = ISY_by_ID (rh_isyid);
+      if (!ISY_is_Nulling(isy)) ahfa_item_count++;
     }
   ahfa_item_count++;
 }
@@ -4106,7 +4229,7 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
   IRL_of_AIM (current_item) = irl;
   Sort_Key_of_AIM (current_item) = current_item - base_item;
   Null_Count_of_AIM(current_item) = leading_nulls;
-  Postdot_SYMID_of_AIM (current_item) = rh_symid;
+  Postdot_SYMID_of_AIM (current_item) = rh_xsyid;
   Position_of_AIM (current_item) = rhs_ix;
 }
 
@@ -4131,8 +4254,8 @@ you want to follow the rules.
   for (item_id--; item_id >= 0; item_id--)
     {
       AIM item = items + item_id;
-      RULE rule = RULE_of_AIM (item);
-      rule->t_first_aim = item;
+      IRL irl = IRL_of_AIM (item);
+      First_AIM_of_IRL(irl) = item;
     }
 }
 
@@ -4620,11 +4743,11 @@ NEXT_AHFA_STATE: ;
 {
      int ahfa_id;
      for (ahfa_id = 0; ahfa_id < ahfa_count_of_g; ahfa_id++) {
-	  unsigned int symbol_id;
+	  ISYID isyid;
 	  AHFA ahfa = AHFA_of_G_by_ID(g, ahfa_id);
           TRANS* const transitions = TRANSs_of_AHFA(ahfa);
-	  for (symbol_id = 0; symbol_id < symbol_count_of_g; symbol_id++) {
-	       TRANS working_transition = transitions[symbol_id];
+	  for (isyid = 0; isyid < isy_count; isyid++) {
+	       TRANS working_transition = transitions[isyid];
 	       if (working_transition) {
 		   int completion_count = Completion_Count_of_TRANS(working_transition);
 		   int sizeof_transition =
@@ -4633,7 +4756,7 @@ NEXT_AHFA_STATE: ;
 		   TRANS new_transition = my_obstack_alloc(&g->t_obs, sizeof_transition);
 		   LV_To_AHFA_of_TRANS(new_transition) = To_AHFA_of_TRANS(working_transition);
 		   LV_Completion_Count_of_TRANS(new_transition) = 0;
-		   transitions[symbol_id] = new_transition;
+		   transitions[isyid] = new_transition;
 	       }
 	  }
 	}
@@ -4652,8 +4775,8 @@ NEXT_AHFA_STATE: ;
 	      for (aex = 0; aex < aim_count; aex++) {
 		  AIM ahfa_item = aims[aex];
 		  if (AIM_is_Completion(ahfa_item)) {
-		      SYMID completed_symbol_id = LHS_ID_of_AIM(ahfa_item);
-		      TRANS transition = transitions[completed_symbol_id];
+		      ISYID completed_isyid = LHS_ISYID_of_AIM(ahfa_item);
+		      TRANS transition = transitions[completed_isyid];
 		      AEX* aexes = AEXs_of_TRANS(transition);
 		      int aex_ix = LV_Completion_Count_of_TRANS(transition)++;
 		      aexes[aex_ix] = aex;
@@ -4687,7 +4810,8 @@ You can get the AIM from the AEX, but not vice versa.
 	  SYMID postdot = Postdot_SYMID_of_AIM (ahfa_item);
 	  if (postdot >= 0)
 	    {
-	      TRANS transition = transitions[postdot];
+	      ISYID postdot_isyid = ISYID_by_SYMID(postdot);
+	      TRANS transition = transitions[postdot_isyid];
 	      AHFA to_ahfa = To_AHFA_of_TRANS (transition);
 	      if (AHFA_is_Leo_Completion (to_ahfa))
 		{
@@ -4715,19 +4839,18 @@ _marpa_avl_destroy(duplicates);
 {
   AHFA p_initial_state = DQUEUE_PUSH (states, AHFA_Object);
   const IRL start_irl = g->t_start_irl;
-  const RULE start_rule = Co_RULE_of_IRL(start_irl);
   SYMID *postdot_symbol_ids;
   AIM start_item;
   AIM *item_list = my_obstack_alloc (&g->t_obs, sizeof (AIM));
   /* The start item is the initial item for the start rule */
-  start_item = start_rule->t_first_aim;
+  start_item = First_AIM_of_IRL(start_irl);
   item_list[0] = start_item;
   AHFA_initialize(p_initial_state);
   p_initial_state->t_items = item_list;
   p_initial_state->t_item_count = 1;
   p_initial_state->t_key.t_id = 0;
   AHFA_is_Predicted (p_initial_state) = 0;
-  TRANSs_of_AHFA (p_initial_state) = transitions_new (g);
+  TRANSs_of_AHFA (p_initial_state) = transitions_new (g, isy_count);
   Postdot_SYM_Count_of_AHFA (p_initial_state) = 1;
   postdot_symbol_ids = Postdot_SYMID_Ary_of_AHFA (p_initial_state) =
     my_obstack_alloc (&g->t_obs, sizeof (SYMID));
@@ -4782,7 +4905,7 @@ a start rule completion, and it is a
     p_new_state = singleton_duplicates[single_item_id];
     if (p_new_state)
       {				/* Do not add, this is a duplicate */
-	transition_add (&obs_precompute, p_working_state, working_symbol, p_new_state);
+	transition_add (&obs_precompute, p_working_state, ISYID_by_SYMID(working_symbol), p_new_state);
 	goto NEXT_WORKING_SYMBOL;
       }
     p_new_state = DQUEUE_PUSH (states, AHFA_Object);
@@ -4795,8 +4918,8 @@ a start rule completion, and it is a
     p_new_state->t_item_count = 1;
     AHFA_is_Predicted(p_new_state) = 0;
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE (states, AHFA_Object);
-    TRANSs_of_AHFA(p_new_state) = transitions_new(g);
-    transition_add (&obs_precompute, p_working_state, working_symbol, p_new_state);
+    TRANSs_of_AHFA(p_new_state) = transitions_new(g, isy_count);
+    transition_add (&obs_precompute, p_working_state, ISYID_by_SYMID(working_symbol), p_new_state);
     postdot = Postdot_SYMID_of_AIM(single_item_p);
     if (postdot >= 0)
       {
@@ -4816,11 +4939,11 @@ a start rule completion, and it is a
       }
     else
       {
-	SYMID lhs_id = LHS_ID_of_AIM(single_item_p);
+	SYMID lhs_isyid = LHS_ISYID_of_AIM(single_item_p);
 	SYMID* complete_symids = my_obstack_alloc (&g->t_obs, sizeof (SYMID));
-	*complete_symids = lhs_id;
+	*complete_symids = XSYID_by_ISYID(lhs_isyid);
 	Complete_SYMIDs_of_AHFA(p_new_state) = complete_symids;
-	completion_count_inc(&obs_precompute, p_new_state, lhs_id);
+	completion_count_inc(&obs_precompute, p_new_state, lhs_isyid);
 	Complete_SYM_Count_of_AHFA(p_new_state) = 1;
 	p_new_state->t_postdot_sym_count = 0;
 	p_new_state->t_empty_transition = NULL;
@@ -4863,7 +4986,7 @@ set the Leo completion symbol to |lhs_id|@> =
   SYMID predot_symid = Postdot_SYMID_of_AIM (previous_ahfa_item);
   if (SYM_is_LHS(SYM_by_ID (predot_symid)))
     {
-      Leo_LHS_ID_of_AHFA (p_new_state) = lhs_id;
+      Leo_LHS_ID_of_AHFA (p_new_state) = XSYID_by_ISYID(lhs_isyid);
     }
 }
 
@@ -4887,6 +5010,7 @@ be if written 100\% using indexes.
   const RULEID irl_count = IRL_Count_of_G(g);
   AIM* const item_list_working_buffer
     = my_obstack_alloc(&obs_precompute, irl_count*sizeof(AIM));
+  const ISYID isy_count = ISY_Count_of_G(g);
   const SYMID ins_count = SYM_Count_of_G(g);
   RULEID** irl_list_x_lh_sym = NULL;
 
@@ -4903,14 +5027,7 @@ than its length, as a convenient way to deal with issues
 of minimum sizes.
 @<Initialize ISY stack@> =
 {
-  XSYID xsyid;
   DSTACK_INIT (g->t_isy_stack, ISY, 2 * DSTACK_CAPACITY (g->t_xsy_stack));
-  nulling_isy_by_xsyid = my_obstack_new(&obs_precompute, ISY, pre_census_xsy_count);
-  primary_isy_by_xsyid = my_obstack_new(&obs_precompute, ISY, pre_census_xsy_count);
-  for (xsyid = 0; xsyid < pre_census_xsy_count; xsyid++) {
-    nulling_isy_by_xsyid[xsyid] = NULL;
-    primary_isy_by_xsyid[xsyid] = NULL;
-  }
 }
 
 @ @<Calculate Rule by LHS lists@> =
@@ -4925,8 +5042,9 @@ of minimum sizes.
   for (irl_id = 0; irl_id < irl_count; irl_id++)
     {
       const IRL irl = IRL_by_ID (irl_id);
-      const XRL xrl = Co_RULE_of_IRL(irl);
-      p_sym_rule_pairs->t_symid = LHS_ID_of_RULE (xrl);
+      const ISYID lhs_isyid = LHSID_of_IRL(irl);
+      const XSY lhs_xsy = Buddy_of_ISY(ISY_by_ID(lhs_isyid));
+      p_sym_rule_pairs->t_symid = ID_of_XSY(lhs_xsy);
       p_sym_rule_pairs->t_ruleid = irl_id;
       _marpa_avl_insert (lhs_avl_tree, p_sym_rule_pairs);
       p_sym_rule_pairs++;
@@ -4990,7 +5108,7 @@ of minimum sizes.
     {				// The new state would be a duplicate
 // Back it out and go on to the next in the queue
       (void) DQUEUE_POP (states, AHFA_Object);
-      transition_add (&obs_precompute, p_working_state, working_symbol,
+      transition_add (&obs_precompute, p_working_state, ISYID_by_SYMID(working_symbol),
 		      queued_AHFA_state);
       goto NEXT_WORKING_SYMBOL;
     }
@@ -5006,10 +5124,10 @@ of minimum sizes.
   }
   AHFA_initialize (p_new_state);
   AHFA_is_Predicted (p_new_state) = 0;
-  TRANSs_of_AHFA (p_new_state) = transitions_new (g);
+  TRANSs_of_AHFA (p_new_state) = transitions_new (g, isy_count);
   @<Calculate complete and postdot symbols for discovered
     state@>@;
-  transition_add (&obs_precompute, p_working_state, working_symbol,
+  transition_add (&obs_precompute, p_working_state, ISYID_by_SYMID(working_symbol),
 		  p_new_state);
   @<Calculate the predicted rule vector for this
     state and add the predicted AHFA state@>@;
@@ -5029,10 +5147,10 @@ of minimum sizes.
       Marpa_Symbol_ID postdot = Postdot_SYMID_of_AIM (item);
       if (postdot < 0)
 	{
-	  int complete_symbol_id = LHS_ID_of_AIM (item);
-	  completion_count_inc (&obs_precompute, p_new_state,
-				complete_symbol_id);
-	  bv_bit_set (complete_v, (unsigned int) complete_symbol_id);
+	  ISYID complete_symbol_isyid = LHS_ISYID_of_AIM (item);
+	  XSYID complete_symbol_xsyid = XSYID_by_ISYID(complete_symbol_isyid);
+	  completion_count_inc (&obs_precompute, p_new_state, complete_symbol_isyid);
+	  bv_bit_set (complete_v, (unsigned int) complete_symbol_xsyid);
 	}
       else
 	{
@@ -5164,38 +5282,39 @@ The symbol-by-rule matrix will be used in constructing the prediction
 states.
 
 @ @<Construct prediction matrix@> = {
-    Bit_Matrix symbol_by_symbol_matrix =
-	matrix_obs_create (&obs_precompute, symbol_count_of_g, symbol_count_of_g);
+    Bit_Matrix isy_by_isy_matrix =
+	matrix_obs_create (&obs_precompute, isy_count, isy_count);
     @<Initialize the symbol-by-symbol matrix@>@/
-    transitive_closure(symbol_by_symbol_matrix);
+    transitive_closure(isy_by_isy_matrix);
     @<Create the prediction matrix from the symbol-by-symbol matrix@>@/
 }
 
 @ @<Initialize the symbol-by-symbol matrix@> =
 {
   IRLID irl_id;
-  SYMID symid;
-  for (symid = 0; symid < (SYMID) symbol_count_of_g; symid++)
+  ISYID isyid;
+  for (isyid = 0; isyid < isy_count; isyid++)
     {
       /* If a symbol appears on a LHS, it predicts itself. */
-      SYM symbol = SYM_by_ID (symid);
-      if (!SYM_is_LHS(symbol)) continue;
-      matrix_bit_set (symbol_by_symbol_matrix, (unsigned int) symid, (unsigned int) symid);
+      ISY isy = ISY_by_ID (isyid);
+      if (!ISY_is_LHS(isy)) continue;
+      matrix_bit_set (isy_by_isy_matrix, (unsigned int) isyid, (unsigned int) isyid);
     }
   for (irl_id = 0; irl_id < irl_count; irl_id++)
     {
-      SYMID from, to;
+      XSYID to_xsyid;
+      ISYID from, to;
       const IRL irl = IRL_by_ID(irl_id);
-      const XRL xrl = Co_RULE_of_IRL(irl);
       /* Get the initial item for the rule */
-      const AIM item = xrl->t_first_aim;
-      from = LHS_ID_of_AIM (item);
-      to = Postdot_SYMID_of_AIM (item);
+      const AIM item = First_AIM_of_IRL(irl);
+      to_xsyid = Postdot_SYMID_of_AIM (item);
       /* There is no symbol-to-symbol transition for a completion item */
-      if (to < 0)
+      if (to_xsyid < 0)
 	continue;
       /* Set a bit in the matrix */
-      matrix_bit_set (symbol_by_symbol_matrix, (unsigned int) from, (unsigned int) to);
+      from = LHS_ISYID_of_AIM (item);
+      to = ISYID_by_XSYID(to_xsyid);
+      matrix_bit_set (isy_by_isy_matrix, (unsigned int) from, (unsigned int) to);
     }
 }
 
@@ -5206,7 +5325,6 @@ Specifically, if symbol |S1| predicts symbol |S2|, then symbol |S1|
 predicts every rule
 with |S2| on its LHS.
 @<Create the prediction matrix from the symbol-by-symbol matrix@> = {
-    SYMID from_symid;
     unsigned int* sort_key_by_irl_id = my_new(unsigned int, irl_count);
     @<Populate |irl_by_sort_key|@>@/
     @<Populate |sort_key_by_irl_id| with second pass value@>@/
@@ -5224,8 +5342,7 @@ final result we want the keys to be unique integers
 in a sequence start from 0,
 so that they can be used as the indices of a bit vector.
 @d SET_1ST_PASS_SORT_KEY_FOR_IRL(sort_key, irl) {
-  const XRL xrl = Co_RULE_of_IRL(irl);
-  const AIM aim = xrl->t_first_aim;
+  const AIM aim = First_AIM_of_IRL(irl);
   (sort_key) = Postdot_SYMID_of_AIM (aim);
 }
 
@@ -5274,24 +5391,27 @@ which can be used to index the rules in a bit vector.
 
 @ @<Populate the prediction matrix@> =
 {
+  ISYID from_isyid;
   prediction_matrix =
     matrix_obs_create (&obs_precompute, symbol_count_of_g,
 		       irl_count);
-  for (from_symid = 0; from_symid < (SYMID) symbol_count_of_g; from_symid++)
+  for (from_isyid = 0; from_isyid < isy_count; from_isyid++)
     {
+      XSYID from_xsyid = XSYID_by_ISYID(from_isyid);
       // for every row of the symbol-by-symbol matrix
       unsigned int min, max, start;
       for (start = 0;
 	   bv_scan (matrix_row
-		    (symbol_by_symbol_matrix, (unsigned int) from_symid),
+		    (isy_by_isy_matrix, (unsigned int) from_isyid),
 		    start, &min, &max); start = max + 2)
 	{
-	  Marpa_Symbol_ID to_symid;
-	  for (to_symid = min; to_symid <= (Marpa_Symbol_ID) max; to_symid++)
+	  ISYID to_isyid;
+	  for (to_isyid = min; to_isyid <= (ISYID)max; to_isyid++)
 	    {
+	      XSYID to_xsyid = XSYID_by_ISYID(to_isyid);
 	      // for every predicted symbol
-	      RULEID *p_irl_x_lh_sym = irl_list_x_lh_sym[to_symid];
-	      const RULEID *p_one_past_rules = irl_list_x_lh_sym[to_symid + 1];
+	      RULEID *p_irl_x_lh_sym = irl_list_x_lh_sym[to_xsyid];
+	      const RULEID *p_one_past_rules = irl_list_x_lh_sym[to_xsyid + 1];
 	      for (; p_irl_x_lh_sym < p_one_past_rules; p_irl_x_lh_sym++)
 		{
 		  // For every rule with that symbol on its LHS
@@ -5299,7 +5419,7 @@ which can be used to index the rules in a bit vector.
 		  unsigned int sort_ordinal =
 		    sort_key_by_irl_id[rule_with_this_lhs_symbol];
 		  matrix_bit_set (prediction_matrix,
-				  (unsigned int) from_symid, sort_ordinal);
+				  (unsigned int) from_xsyid, sort_ordinal);
 		  // Set the $(symbol, rule sort key)$ bit in the matrix
 		}
 	    }
@@ -5333,8 +5453,7 @@ create_predicted_AHFA_state(
 	  {
 	    /* Add the initial item for the predicted rule */
 	    const IRL irl = irl_by_sort_key[sort_ordinal];
-	    XRL xrl = Co_RULE_of_IRL(irl);
-	    item_list_working_buffer[item_list_ix++] = xrl->t_first_aim;
+	    item_list_working_buffer[item_list_ix++] = First_AIM_of_IRL(irl);
 	  }
       }
   }
@@ -5366,7 +5485,7 @@ create_predicted_AHFA_state(
   }
   AHFA_is_Predicted (p_new_state) = 1;
   p_new_state->t_empty_transition = NULL;
-  TRANSs_of_AHFA (p_new_state) = transitions_new (g);
+  TRANSs_of_AHFA (p_new_state) = transitions_new (g, ISY_Count_of_G(g));
   Complete_SYM_Count_of_AHFA (p_new_state) = 0;
   @<Calculate postdot symbols for predicted state@>@;
   return p_new_state;
@@ -5420,8 +5539,6 @@ Speed is probably optimal.
 Time complexity is fine --- $O(1)$ in the length of the input.
 @ But this solution is is very space-intensive---%
 perhaps $O(\v g\v^2)$.
-Ordinarily, for code which is executed this heavily,
-I would worry about a speed versus space tradeoff of this kind.
 But these arrays are extremely sparse,
 Many rows of the array have only one or two entries.
 There are alternatives
@@ -5447,7 +5564,7 @@ This would be a good issue to run some benchmarks on,
 once I stabilize the C code implemention.
 
 @d TRANS_of_AHFA_by_SYMID(from_ahfa, id)
-    (*(TRANSs_of_AHFA(from_ahfa)+(id)))
+    (*(TRANSs_of_AHFA(from_ahfa)+ISYID_by_SYMID(id)))
 @d TRANS_of_EIM_by_SYMID(eim, id) TRANS_of_AHFA_by_SYMID(AHFA_of_EIM(eim), (id))
 @d To_AHFA_of_TRANS(trans) (to_ahfa_of_transition_get(trans))
 @d LV_To_AHFA_of_TRANS(trans) ((trans)->t_ur.t_to_ahfa)
@@ -5456,8 +5573,6 @@ once I stabilize the C code implemention.
 @d LV_Completion_Count_of_TRANS(trans) ((trans)->t_ur.t_completion_count)
 @d To_AHFA_of_AHFA_by_SYMID(from_ahfa, id)
      (To_AHFA_of_TRANS(TRANS_of_AHFA_by_SYMID((from_ahfa), (id))))
-@d Completion_Count_of_AHFA_by_SYMID(from_ahfa, id)
-     (Completion_Count_of_TRANS(TRANS_of_AHFA_by_SYMID((from ahfa), (id))))
 @d To_AHFA_of_EIM_by_SYMID(eim, id) To_AHFA_of_AHFA_by_SYMID(AHFA_of_EIM(eim), (id))
 @d AEXs_of_TRANS(trans) ((trans)->t_aex)
 @d Leo_Base_AEX_of_TRANS(trans) ((trans)->t_leo_base_aex)
@@ -5467,7 +5582,8 @@ struct s_transition;
 typedef struct s_transition* TRANS;
 struct s_ur_transition;
 typedef struct s_ur_transition* URTRANS;
-@ @<Private typedefs@> = typedef int AEX;
+@ @s AEX int
+@<Private typedefs@> = typedef int AEX;
 @ @<Private structures@> =
 struct s_ur_transition {
     AHFA t_to_ahfa;
@@ -5506,12 +5622,11 @@ URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix)
 }
 
 @ @<Function definitions@> =
-PRIVATE TRANS* transitions_new(GRAMMAR g)
+PRIVATE TRANS* transitions_new(GRAMMAR g, int isy_count)
 {
-    int symbol_count = SYM_Count_of_G(g);
-    int symid = 0;
-    TRANS* transitions = my_obstack_new(&g->t_obs, TRANS, symbol_count);
-    while (symid < symbol_count) transitions[symid++] = NULL; /*
+    int isyid = 0;
+    TRANS* transitions = my_obstack_new(&g->t_obs, TRANS, isy_count);
+    while (isyid < isy_count) transitions[isyid++] = NULL; /*
         |malloc0| will not work because NULL is not guaranteed
 	to be a bitwise zero. */
     return transitions;
@@ -5519,12 +5634,12 @@ PRIVATE TRANS* transitions_new(GRAMMAR g)
 
 @ @<Function definitions@> =
 PRIVATE
-void transition_add(struct obstack *obstack, AHFA from_ahfa, SYMID symid, AHFA to_ahfa)
+void transition_add(struct obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA to_ahfa)
 {
     TRANS* transitions = TRANSs_of_AHFA(from_ahfa);
-    TRANS transition = transitions[symid];
+    TRANS transition = transitions[isyid];
     if (!transition) {
-        transitions[symid] = (TRANS)transition_new(obstack, to_ahfa, 0);
+        transitions[isyid] = (TRANS)transition_new(obstack, to_ahfa, 0);
 	return;
     }
     LV_To_AHFA_of_TRANS(transition) = to_ahfa;
@@ -5533,12 +5648,12 @@ void transition_add(struct obstack *obstack, AHFA from_ahfa, SYMID symid, AHFA t
 
 @ @<Function definitions@> =
 PRIVATE
-void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, SYMID symid)
+void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, ISYID isyid)
 {
     TRANS* transitions = TRANSs_of_AHFA(from_ahfa);
-    TRANS transition = transitions[symid];
+    TRANS transition = transitions[isyid];
     if (!transition) {
-        transitions[symid] = (TRANS)transition_new(obstack, NULL, 1);
+        transitions[isyid] = (TRANS)transition_new(obstack, NULL, 1);
 	return;
     }
     LV_Completion_Count_of_TRANS(transition)++;
@@ -5556,8 +5671,8 @@ int _marpa_g_AHFA_state_transitions(Marpa_Grammar g,
     @<Return |-2| on failure@>@;
     AHFA from_ahfa_state;
     TRANS* transitions;
-    SYMID symid;
-    int symbol_count;
+    SYMID isyid;
+    int isy_count;
     int ix = 0;
     const int max_ix = buffer_size / sizeof(*buffer);
     const int max_results = max_ix / 2;
@@ -5571,11 +5686,11 @@ int _marpa_g_AHFA_state_transitions(Marpa_Grammar g,
     if (max_results <= 0) return 0;
     from_ahfa_state = AHFA_of_G_by_ID(g, AHFA_state_id);
     transitions = TRANSs_of_AHFA(from_ahfa_state); 
-    symbol_count = SYM_Count_of_G(g);
-    for (symid = 0; symid < symbol_count; symid++) {
-        AHFA to_ahfa_state = To_AHFA_of_TRANS(transitions[symid]);
+    isy_count = ISY_Count_of_G(g);
+    for (isyid = 0; isyid < isy_count; isyid++) {
+        AHFA to_ahfa_state = To_AHFA_of_TRANS(transitions[isyid]);
 	if (!to_ahfa_state) continue;
-	buffer[ix++] = symid;
+	buffer[ix++] = isyid;
 	buffer[ix++] = ID_of_AHFA(to_ahfa_state);
 	if (ix/2 >= max_results) break;
     }
@@ -7818,12 +7933,13 @@ typedef struct s_token* TOK;
 @ The |t_type| field is to allow |TOK|
 objects to act as or-nodes.
 @d Type_of_TOK(tok) ((tok)->t_unvalued.t_type)
-@d SYMID_of_TOK(tok) ((tok)->t_unvalued.t_symbol_id)
+@d ISYID_of_TOK(tok) ((tok)->t_unvalued.t_isyid)
+@d SYMID_of_TOK(tok) ID_of_XSY(Source_XSY_of_ISY(ISY_by_ID(ISYID_of_TOK(tok))))
 @d Value_of_TOK(tok) ((tok)->t_value)
 @<Private structures@> =
 struct s_token_unvalued {
     int t_type;
-    SYMID t_symbol_id;
+    ISYID t_isyid;
 };
 struct s_token {
     struct s_token_unvalued t_unvalued;
@@ -7831,7 +7947,6 @@ struct s_token {
 };
 
 @ @d TOK_Obs_of_R(r) TOK_Obs_of_I(I_of_R(r))
-@d TOK_by_SYMID(symbol_id) (SYM_by_ID(symbol_id))
 @ @<Initialize recognizer elements@> =
 {
   I_of_R(r) = input_new(g);
@@ -7891,7 +8006,7 @@ alternative_insertion_point (RECCE r, ALT new_alternative)
     {
       int outcome;
       trial = lo + (hi - lo) / 2;
-      outcome = alternative_cmp (new_alternative, alternative+trial);
+      outcome = alternative_cmp (r, new_alternative, alternative+trial);
       if (outcome == 0)
 	return -1;
       if (outcome > 0)
@@ -7919,8 +8034,9 @@ Of the remaining two keys,
 the more minor key is the start earleme, because that way its slightly
 costlier evaluation can sometimes be avoided.
 @<Function definitions@> =
-PRIVATE int alternative_cmp(const ALT_Const a, const ALT_Const b)
+PRIVATE int alternative_cmp(RECCE r, const ALT_Const a, const ALT_Const b)
 {
+     GRAMMAR g = G_of_R(r);
      int subkey = End_Earleme_of_ALT(b) - End_Earleme_of_ALT(a);
      if (subkey) return subkey;
      subkey = SYMID_of_ALT(a) - SYMID_of_ALT(b);
@@ -8059,7 +8175,7 @@ treated by the application as fatal errors.
 @<Function definitions@> =
 Marpa_Earleme marpa_r_alternative(
     Marpa_Recognizer r,
-    Marpa_Symbol_ID token_id,
+    Marpa_Symbol_ID token_xsyid,
     int value,
     int length)
 {
@@ -8070,6 +8186,7 @@ Marpa_Earleme marpa_r_alternative(
     ES current_earley_set;
     const EARLEME current_earleme = Current_Earleme_of_R(r);
     EARLEME target_earleme;
+    ISYID token_isyid;
     @<Fail if recognizer not accepting input@>@;
     @<|marpa_alternative| initial check for failure conditions@>@;
     @<Set |current_earley_set|, failing if token is unexpected@>@;
@@ -8079,7 +8196,7 @@ Marpa_Earleme marpa_r_alternative(
 }
 
 @ @<|marpa_alternative| initial check for failure conditions@> = {
-    const XSY_Const token = SYM_by_ID(token_id);
+    const XSY_Const token = SYM_by_ID(token_xsyid);
     if (!SYM_is_Terminal(token)) {
 	MARPA_ERROR(MARPA_ERR_TOKEN_IS_NOT_TERMINAL);
 	return failure_indicator;
@@ -8109,10 +8226,20 @@ The application can also use this as a mechanism to test alternatives,
 in which case, returning |unexpected_token_indicator| is a perfectly normal data path.
 This last is part of an important technique:
 ``Ruby Slippers" parsing.
+@ Another case of an ``unexpected'' token is an inaccessible one.
+(A terminal must be productive but can be inaccessible.)
+Inaccessible tokens will not have an ISY and,
+since they don't derive from the start symbol,
+are always unexpected.
 @<Set |current_earley_set|, failing if token is unexpected@> = {
+    ISY token_isy = ISY_by_XSYID(token_xsyid);
+    if (UNLIKELY(!token_isy)) {
+	return unexpected_token_indicator;
+    }
+    token_isyid = ID_of_ISY(token_isy);
     current_earley_set = Current_ES_of_R (r);
     if (!current_earley_set) return unexpected_token_indicator;
-    if (!First_PIM_of_ES_by_SYMID (current_earley_set, token_id))
+    if (!First_PIM_of_ES_by_SYMID (current_earley_set, token_xsyid))
 	return unexpected_token_indicator;
 }
 
@@ -8141,7 +8268,7 @@ altered by the attempt.
     {
       my_obstack_blank (TOK_Obs_of_I (input), sizeof (*token));
       token = my_obstack_base (token_obstack);
-      SYMID_of_TOK (token) = token_id;
+      ISYID_of_TOK (token) = token_isyid;
       Type_of_TOK (token) = VALUED_TOKEN_OR_NODE;
       Value_of_TOK (token) = value;
     }
@@ -8149,7 +8276,7 @@ altered by the attempt.
     {
       my_obstack_blank (TOK_Obs_of_I (input), sizeof (token->t_unvalued));
       token = my_obstack_base (token_obstack);
-      SYMID_of_TOK (token) = token_id;
+      ISYID_of_TOK (token) = token_isyid;
       Type_of_TOK (token) = UNVALUED_TOKEN_OR_NODE;
     }
   if (Furthest_Earleme_of_R (r) < target_earleme)
@@ -9465,7 +9592,6 @@ Position is the dot position.
 @d OR_is_Token(or) (Type_of_OR(or) <= MAX_TOKEN_OR_NODE)
 @d Position_of_OR(or) ((or)->t_final.t_position)
 @d Type_of_OR(or) ((or)->t_final.t_position)
-@d RULE_of_OR(or) Co_RULE_of_IRL(IRL_of_OR(or))
 @d IRL_of_OR(or) ((or)->t_final.t_irl)
 @d Origin_Ord_of_OR(or) ((or)->t_final.t_start_set_ordinal)
 @d ID_of_OR(or) ((or)->t_final.t_id)
@@ -9497,6 +9623,7 @@ struct s_final_or_node
 @
 @d TOK_of_OR(or) (&(or)->t_token)
 @d SYMID_of_OR(or) SYMID_of_TOK(TOK_of_OR(or))
+@d ISYID_of_OR(or) ISYID_of_TOK(TOK_of_OR(or))
 @d Value_of_OR(or) Value_of_TOK(TOK_of_OR(or))
 @<Private structures@> =
 union u_or_node {
@@ -9678,7 +9805,6 @@ and this is the case if |Position_of_OR(or_node) == 0|.
   if (null_count > 0)
     {
       const IRL irl = IRL_of_AIM (ahfa_item);
-      const RULE rule = Co_RULE_of_IRL(irl);
       const int symbol_instance_of_rule = SYMI_of_IRL(irl);
       const int first_null_symbol_instance =
 	  ahfa_item_symbol_instance < 0 ? symbol_instance_of_rule : ahfa_item_symbol_instance + 1;
@@ -9691,7 +9817,7 @@ and this is the case if |Position_of_OR(or_node) == 0|.
 		DAND draft_and_node;
 		const int rhs_ix = symbol_instance - symbol_instance_of_rule;
 		const OR predecessor = rhs_ix ? last_or_node : NULL;
-		const OR cause = (OR)TOK_by_SYMID( RHS_ID_of_RULE (rule, rhs_ix ) );
+		const OR cause = Nulling_OR_by_ISYID( RHSID_of_IRL (irl, rhs_ix ) );
 		@<Set |last_or_node| to a new or-node@>@;
 		or_node = PSL_Datum (or_psl, symbol_instance) = last_or_node ;
 		Origin_Ord_of_OR (or_node) = work_origin_ordinal;
@@ -9759,7 +9885,6 @@ requirements in the process.
 	const int ordinal_of_set_of_this_leo_item = Ord_of_ES(ES_of_LIM(this_leo_item));
           const AIM path_ahfa_item = Path_AIM_of_LIM(previous_leo_item);
 	  const IRL path_irl = IRL_of_AIM(path_ahfa_item);
-	  const RULE path_rule = Co_RULE_of_IRL(path_irl);
 	  const int symbol_instance_of_path_ahfa_item = SYMI_of_AIM(path_ahfa_item);
 	@<Add main Leo path or-node@>@;
 	@<Add Leo path nulling token or-nodes@>@;
@@ -9770,7 +9895,7 @@ requirements in the process.
 @ Get the base data for a Leo item -- its base Earley item
 and the index of the relevant AHFA item.
 @<Function definitions@> =
-PRIVATE AEX lim_base_data_get(LIM leo_item, EIM* p_base)
+PRIVATE AEX lim_base_data_get(GRAMMAR g, LIM leo_item, EIM* p_base)
 {
       const SYMID postdot = Postdot_SYMID_of_LIM (leo_item);
       const EIM base = Base_EIM_of_LIM(leo_item);
@@ -9779,13 +9904,13 @@ PRIVATE AEX lim_base_data_get(LIM leo_item, EIM* p_base)
       return Leo_Base_AEX_of_TRANS (transition);
 }
 
-@ @d Path_AIM_of_LIM(lim) (base_aim_of_lim(lim)+1)
-@d Base_AIM_of_LIM(lim) (base_aim_of_lim(lim))
+@ @d Path_AIM_of_LIM(lim) (base_aim_of_lim(g, lim)+1)
+@d Base_AIM_of_LIM(lim) (base_aim_of_lim(g, lim))
 @<Function definitions@> =
-PRIVATE AIM base_aim_of_lim(LIM leo_item)
+PRIVATE AIM base_aim_of_lim(GRAMMAR g, LIM leo_item)
 {
       EIM base;
-      const AEX base_aex = lim_base_data_get(leo_item, &base);
+      const AEX base_aex = lim_base_data_get(g, leo_item, &base);
       return AIM_of_EIM_by_AEX(base, base_aex);
 }
 
@@ -9832,9 +9957,9 @@ or-nodes follow a completion.
 	{
 	  DAND draft_and_node;
 	  const int rhs_ix = symbol_instance - SYMI_of_IRL(path_irl);
-	    const OR predecessor = rhs_ix ? last_or_node : NULL;
-	  const OR cause = (OR)TOK_by_SYMID( RHS_ID_of_RULE (path_rule, rhs_ix)) ;
-	  MARPA_ASSERT (symbol_instance < Length_of_RULE (path_rule)) @;
+	  const OR predecessor = rhs_ix ? last_or_node : NULL;
+	  const OR cause = Nulling_OR_by_ISYID( RHSID_of_IRL (path_irl, rhs_ix ) );
+	  MARPA_ASSERT (symbol_instance < Length_of_IRL (path_irl)) @;
 	  MARPA_ASSERT (symbol_instance >= 0) @;
 	  @<Set |last_or_node| to a new or-node@>@;
 	  PSL_Datum (this_earley_set_psl, symbol_instance) = or_node = last_or_node;
@@ -9848,8 +9973,8 @@ MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 	  Next_DAND_of_DAND (draft_and_node) = NULL;
 	}
       MARPA_ASSERT (Position_of_OR (or_node) <=
-		    SYMI_of_IRL (path_irl) + Length_of_RULE (path_rule)) @;
-      MARPA_ASSERT (Position_of_OR (or_node) >= SYMI_of_RULE (path_rule)) @;
+		    SYMI_of_IRL (path_irl) + Length_of_IRL (path_irl)) @;
+      MARPA_ASSERT (Position_of_OR (or_node) >= SYMI_of_IRL (path_irl)) @;
     }
 }
 
@@ -10017,9 +10142,9 @@ predecessor.  Set |or_node| to 0 if there is none.
 @<Add draft and-nodes for chain starting with |leo_predecessor|@> =
 {
     /* The rule for the Leo path Earley item */
-    RULE path_rule = NULL;
+    IRL path_irl = NULL;
     /* The rule for the previous Leo path Earley item */
-    RULE previous_path_rule;
+    IRL previous_path_irl;
     LIM path_leo_item = leo_predecessor;
     LIM higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
     /* A boolean to indicate whether is true is there is some
@@ -10027,19 +10152,19 @@ predecessor.  Set |or_node| to 0 if there is none.
     OR dand_predecessor;
     OR path_or_node;
     EIM base_earley_item;
-    AEX base_aex = lim_base_data_get(path_leo_item, &base_earley_item);
+    AEX base_aex = lim_base_data_get(g, path_leo_item, &base_earley_item);
     Set_OR_from_EIM_and_AEX(dand_predecessor, base_earley_item, base_aex);
     @<Set |path_or_node|@>@;
     @<Add draft and-nodes to the bottom or-node@>@;
-    previous_path_rule = path_rule;
+    previous_path_irl = path_irl;
     while (higher_path_leo_item) {
 	path_leo_item = higher_path_leo_item;
 	higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
-	base_aex = lim_base_data_get(path_leo_item, &base_earley_item);
+	base_aex = lim_base_data_get(g, path_leo_item, &base_earley_item);
 	Set_OR_from_EIM_and_AEX(dand_predecessor, base_earley_item, base_aex);
 	@<Set |path_or_node|@>@;
 	@<Add the draft and-nodes to an upper Leo path or-node@>@;
-	previous_path_rule = path_rule;
+	previous_path_irl = path_irl;
     }
 }
 
@@ -10092,15 +10217,15 @@ predecessor.  Set |or_node| to 0 if there is none.
   int symbol_instance;
   const int origin_ordinal = Origin_Ord_of_EIM (base_earley_item);
   const AIM aim = AIM_of_EIM_by_AEX (base_earley_item, base_aex);
-  path_rule = RULE_of_AIM (aim);
-  symbol_instance = Last_Proper_SYMI_of_RULE (path_rule);
+  path_irl = IRL_of_AIM (aim);
+  symbol_instance = Last_Proper_SYMI_of_IRL (path_irl);
   Set_OR_from_Ord_and_SYMI (path_or_node, origin_ordinal, symbol_instance);
 }
 
 @ @<Add the draft and-nodes to an upper Leo path or-node@> =
 {
   OR dand_cause;
-  const SYMI symbol_instance = SYMI_of_Completed_RULE(previous_path_rule);
+  const SYMI symbol_instance = SYMI_of_Completed_IRL(previous_path_irl);
   const int origin_ordinal = Ord_of_ES(ES_of_LIM(path_leo_item));
   Set_OR_from_Ord_and_SYMI(dand_cause, origin_ordinal, symbol_instance);
   draft_and_node_add (&bocage_setup_obs, path_or_node,
@@ -10203,7 +10328,7 @@ predecessor.  Set |or_node| to 0 if there is none.
   const int middle_ordinal = Origin_Ord_of_EIM(cause_earley_item);
   const AIM cause_ahfa_item = AIM_of_EIM_by_AEX(cause_earley_item, cause_aex);
   const SYMI cause_symbol_instance =
-      SYMI_of_Completed_RULE(RULE_of_AIM(cause_ahfa_item));
+      SYMI_of_Completed_IRL(IRL_of_AIM(cause_ahfa_item));
   @<Set |dand_predecessor|@>@;
   Set_OR_from_Ord_and_SYMI(dand_cause, middle_ordinal, cause_symbol_instance);
   draft_and_node_add (&bocage_setup_obs, work_proper_or_node,
@@ -10437,13 +10562,13 @@ int _marpa_b_and_node_symbol(Marpa_Bocage b,
   AND and_node;
   @<Return |-2| on failure@>@;
   @<Unpack bocage objects@>@;
-    @<Check |and_node_id|; set |and_node|@>@;
-    {
-      const OR cause_or = Cause_OR_of_AND (and_node);
-      const SYMID symbol_id =
-	OR_is_Token(cause_or) ? SYMID_of_OR(cause_or) : -1;
-      return symbol_id;
-    }
+  @<Check |and_node_id|; set |and_node|@>@;
+  {
+    const OR cause_or = Cause_OR_of_AND (and_node);
+    const SYMID symbol_id =
+      OR_is_Token (cause_or) ? ISYID_of_OR (cause_or) : -1;
+    return symbol_id;
+  }
 }
 
 @ @<Function definitions@> =
@@ -12281,7 +12406,6 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 
     while (1) {
 	OR or;
-	RULE nook_rule;
 	IRL nook_irl;
 	Token_Value_of_V(v) = -1;
 	RULEID_of_V(v) = -1;
@@ -12338,14 +12462,13 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 	  }
 	}
 	nook_irl = IRL_of_OR(or);
-	nook_rule = Co_RULE_of_IRL(nook_irl);
-	if (Position_of_OR(or) == Length_of_RULE(nook_rule)) {
-	    int virtual_rhs = RULE_has_Virtual_RHS(nook_rule);
+	if (Position_of_OR(or) == Length_of_IRL(nook_irl)) {
+	    int virtual_rhs = IRL_has_Virtual_RHS(nook_irl);
 	    int virtual_lhs = IRL_has_Virtual_LHS(nook_irl);
 	    int real_symbol_count;
 	    const DSTACK virtual_stack = &VStack_of_V(v);
 	    if (virtual_lhs) {
-	        real_symbol_count = Real_SYM_Count_of_RULE(nook_rule);
+	        real_symbol_count = Real_SYM_Count_of_IRL(nook_irl);
 		if (virtual_rhs) {
 		    *(DSTACK_TOP(*virtual_stack, int)) += real_symbol_count;
 		} else {
@@ -12354,10 +12477,10 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 	    } else {
 
 		if (virtual_rhs) {
-		    real_symbol_count = Real_SYM_Count_of_RULE(nook_rule);
+		    real_symbol_count = Real_SYM_Count_of_IRL(nook_irl);
 		    real_symbol_count += *DSTACK_POP(*virtual_stack, int);
 		} else {
-		    real_symbol_count = Length_of_RULE(nook_rule);
+		    real_symbol_count = Length_of_IRL(nook_irl);
 		}
 		{
 		  // Currently all rules with a non-virtual LHS are

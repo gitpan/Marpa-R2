@@ -113,7 +113,6 @@ Marpa::R2::Test::is( ${$actual_ref},
 0: E
 1: Op, terminal
 2: Number, terminal
-3: E[']
 END_SYMBOLS
 
 $actual_ref = save_stdout();
@@ -130,7 +129,6 @@ Marpa::R2::Test::is( ${$actual_ref},
     <<'END_RULES', 'Ambiguous Equation Rules' );
 0: E -> E Op E
 1: E -> Number
-2: E['] -> E
 END_RULES
 
 # Alternative tests: AHFA items if XS, NFA items if PP

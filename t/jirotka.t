@@ -138,14 +138,6 @@ Marpa::R2::Test::is(
 21: Filter
 22: WithPf
 23: FilterExpr
-24: ByClause[], nulling
-25: Match[], nulling
-26: Filter[], nulling
-27: WithPf[], nulling
-28: Input[Seq], unproductive inaccessible
-29: MetricSelect[R3:3]
-30: MetricSelect[R3:4]
-31: Input[']
 END_OF_SYMBOLS
 
 Marpa::R2::Test::is( $grammar->show_rules(),
@@ -165,21 +157,6 @@ Marpa::R2::Test::is( $grammar->show_rules(),
 12: FilterExpr -> FALSE
 13: WithPf -> /* empty !used */
 14: WithPf -> WITH PF
-15: Input -> Input[Seq]
-16: Input -> Input[Seq] SEPARATOR
-17: Input[Seq] -> Statement
-18: Input[Seq] -> Input[Seq] SEPARATOR Statement
-19: MetricSelect -> SELECT MetricExpr ByClause MetricSelect[R3:3]
-20: MetricSelect -> SELECT MetricExpr ByClause Match[] Filter[] WithPf[]
-21: MetricSelect -> SELECT MetricExpr ByClause[] MetricSelect[R3:3]
-22: MetricSelect -> SELECT MetricExpr ByClause[] Match[] Filter[] WithPf[]
-23: MetricSelect[R3:3] -> Match MetricSelect[R3:4]
-24: MetricSelect[R3:3] -> Match Filter[] WithPf[]
-25: MetricSelect[R3:3] -> Match[] MetricSelect[R3:4]
-26: MetricSelect[R3:4] -> Filter WithPf
-27: MetricSelect[R3:4] -> Filter WithPf[]
-28: MetricSelect[R3:4] -> Filter[] WithPf
-29: Input['] -> Input
 END_OF_RULES
 
 Marpa::R2::Test::is( $grammar->show_AHFA(),
@@ -558,14 +535,14 @@ R5:3@1-4S0@3
 R5:4@1-8C8@4
 R8:1@4-5S7@4
 R8:2@4-6C16@5
-R8:3@4-6S24@6
+R8:3@4-6S20@6
 R8:4@4-8C12@6
 R16:1@5-6S13@5
-R12:1@6-6S25@6
+R12:1@6-6S22@6
 R19:1@6-7S9@6
 R12:2@6-8C14@6
 R14:1@6-8C19@6
-R14:2@6-8S27@8
+R14:2@6-8S26@8
 R19:2@6-8C20@7
 R20:1@7-8S8@7
 END_OF_AND_NODES
