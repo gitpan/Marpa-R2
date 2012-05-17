@@ -70,14 +70,14 @@ static inline GRAMMAR
 grammar_ref (GRAMMAR g);
 static inline void grammar_free(GRAMMAR g);
 static inline void symbol_add( GRAMMAR g, SYM symbol);
-static inline int symbol_is_valid(GRAMMAR g, SYMID symid);
+static inline int symbol_is_valid(GRAMMAR g, XSYID xsyid);
 static inline int isy_is_valid(GRAMMAR g, ISYID isyid);
 static inline void
 rule_add (GRAMMAR g, RULE rule);
 static inline void event_new(GRAMMAR g, int type);
 static inline void int_event_new(GRAMMAR g, int type, int value);
 static inline SYM
-symbol_new (GRAMMAR g, XSY source);
+symbol_new (GRAMMAR g);
 static inline ISY symbol_alias_create(GRAMMAR g, SYM symbol);
 static inline ISY
 isy_start(GRAMMAR g);
@@ -130,10 +130,10 @@ static inline EIM earley_item_create(const RECCE r,
 static inline EIM
 earley_item_assign (const RECCE r, const ES set, const ES origin,
 		    const AHFA state);
-static inline void trace_earley_item_clear(struct marpa_r* r);
+static inline void trace_earley_item_clear(RECCE r);
 static inline PIM*
-pim_sym_p_find (ES set, SYMID symid);
-static inline PIM first_pim_of_es_by_symid(ES set, SYMID symid);
+pim_isy_p_find (ES set, ISYID isyid);
+static inline PIM first_pim_of_es_by_isyid(ES set, ISYID isyid);
 static inline void
 completion_link_add (RECCE r,
 		EIM item,
@@ -147,7 +147,7 @@ leo_link_add (RECCE r,
 static inline void trace_source_link_clear(RECCE r);
 static inline int
 alternative_insertion_point (RECCE r, ALT new_alternative);
-static inline int alternative_cmp(RECCE r, const ALT_Const a, const ALT_Const b);
+static inline int alternative_cmp(const ALT_Const a, const ALT_Const b);
 static inline ALT alternative_pop(RECCE r, EARLEME earleme);
 static inline int alternative_insert(RECCE r, ALT new_alternative);
 static inline void earley_set_update_items(RECCE r, ES set);
@@ -165,8 +165,8 @@ static inline int psia_test_and_set(
     struct s_bocage_setup_per_es* per_es_data,
     EIM earley_item,
     AEX ahfa_element_ix);
-static inline AEX lim_base_data_get(GRAMMAR g, LIM leo_item, EIM* p_base);
-static inline AIM base_aim_of_lim(GRAMMAR g, LIM leo_item);
+static inline AEX lim_base_data_get(LIM leo_item, EIM* p_base);
+static inline AIM base_aim_of_lim(LIM leo_item);
 static inline DAND draft_and_node_new(struct obstack *obs, OR predecessor, OR cause);
 static inline void draft_and_node_add(struct obstack *obs, OR parent, OR predecessor, OR cause);
 static inline TOK and_node_token(AND and_node);

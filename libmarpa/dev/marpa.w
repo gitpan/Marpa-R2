@@ -692,12 +692,11 @@ with their
 
 @ Symbol count accesors.
 @d XSY_Count_of_G(g) (DSTACK_LENGTH((g)->t_xsy_stack))
-@d SYM_Count_of_G(g) XSY_Count_of_G(g)
 @ @<Function definitions@> =
 int marpa_g_symbol_count(Marpa_Grammar g) {
    @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    return SYM_Count_of_G(g);
+    return XSY_Count_of_G(g);
 }
 
 @ Symbol by ID.
@@ -717,9 +716,9 @@ void symbol_add( GRAMMAR g, SYM symbol)
 
 @ Check that external symbol is in valid range.
 @<Function definitions@> =
-PRIVATE int symbol_is_valid(GRAMMAR g, SYMID symid)
+PRIVATE int symbol_is_valid(GRAMMAR g, XSYID xsyid)
 {
-    return symid >= 0 && symid < SYM_Count_of_G(g);
+    return xsyid >= 0 && xsyid < XSY_Count_of_G(g);
 }
 
 @ Check that internal symbol is in valid range.
@@ -889,10 +888,8 @@ that point.
 At grammar initialization, this vector cannot be sized.
 It is initialized to |NULL| so that the destructor
 can tell if there is a bit vector to be freed.
-@<Widely aligned grammar elements@> = Bit_Vector t_bv_symid_is_terminal;
-@ @<Initialize grammar elements@> = g->t_bv_symid_is_terminal = NULL;
-@ @<Destroy grammar elements@> =
-if (g->t_bv_symid_is_terminal) { bv_free(g->t_bv_symid_is_terminal); }
+@<Widely aligned grammar elements@> = Bit_Vector t_bv_isyid_is_terminal;
+@ @<Initialize grammar elements@> = g->t_bv_isyid_is_terminal = NULL;
 
 @*0 The event stack.
 Events are designed to be fast,
@@ -1105,11 +1102,10 @@ struct s_xsy {
 
 @ @<Function definitions@> =
 PRIVATE SYM
-symbol_new (GRAMMAR g, XSY source)
+symbol_new (GRAMMAR g)
 {
   SYM symbol = my_obstack_new (&g->t_obs, struct s_xsy, 1);
   @<Initialize symbol elements @>@;
-  Source_XSY_of_SYM(symbol) = source ? source: symbol;
   symbol_add (g, symbol);
   return symbol;
 }
@@ -1118,7 +1114,7 @@ symbol_new (GRAMMAR g, XSY source)
 Marpa_Symbol_ID
 marpa_g_symbol_new (Marpa_Grammar g)
 {
-  const SYM symbol = symbol_new (g, 0);
+  const SYM symbol = symbol_new (g);
   return ID_of_SYM(symbol);
 }
 
@@ -1163,10 +1159,10 @@ where the application
 does not care about the value of 
 a symbol -- that is, the semantics
 is arbitrary.
-@d SYM_is_Ask_Me_When_Null(symbol) ((symbol)->t_is_ask_me_when_null)
+@d XSY_is_Ask_Me_When_Null(symbol) ((symbol)->t_is_ask_me_when_null)
 @<Bit aligned symbol elements@> = unsigned int t_is_ask_me_when_null:1;
 @ @<Initialize symbol elements@> =
-    SYM_is_Ask_Me_When_Null(symbol) = 0;
+    XSY_is_Ask_Me_When_Null(symbol) = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_ask_me_when_null(
     Marpa_Grammar g,
@@ -1174,7 +1170,7 @@ int marpa_g_symbol_is_ask_me_when_null(
 {
     @<Return |-2| on failure@>@;
     @<Fail if |symid| is invalid@>@;
-    return SYM_is_Ask_Me_When_Null(SYM_by_ID(symid));
+    return XSY_is_Ask_Me_When_Null(SYM_by_ID(symid));
 }
 int marpa_g_symbol_ask_me_when_null_set(
     Marpa_Grammar g, Marpa_Symbol_ID symid, int value)
@@ -1183,7 +1179,7 @@ int marpa_g_symbol_ask_me_when_null_set(
     @<Return |-2| on failure@>@;
     @<Fail if |symid| is invalid@>@;
     symbol = SYM_by_ID(symid);
-    return SYM_is_Ask_Me_When_Null(symbol) = value ? 1 : 0;
+    return XSY_is_Ask_Me_When_Null(symbol) = value ? 1 : 0;
 }
 
 @ Symbol Is Accessible Boolean
@@ -1381,28 +1377,6 @@ Marpa_ISY_ID _marpa_g_xsy_nulling_isy(
     return isy ? ID_of_ISY(isy) : -1;
 }
 
-@*0 Source XSY.
-This is the ``source'' of the internal symbol --
-the external symbol that it is derived from.
-Currently, there is no dedicated flag for determining
-whether this symbol also provides the semantics,
-because the ``virtual LHS'' flag serves that purpose.
-@d Source_XSY_of_ISY(isy) (Buddy_of_ISY(isy)->t_source_xsy)
-@d Source_XSY_of_SYM(symbol) ((symbol)->t_source_xsy)
-@<Widely aligned symbol elements@> = XSY t_source_xsy;
-@ @<Initialize symbol elements@> = Source_XSY_of_SYM(symbol) = NULL;
-@ @<Function definitions@> =
-Marpa_Rule_ID _marpa_g_source_xsy(
-    Marpa_Grammar g,
-    Marpa_IRL_ID isy_id)
-{
-    XSY source_xsy;
-    @<Return |-2| on failure@>@;
-    @<Fail if |isy_id| is invalid@>@;
-    source_xsy = Source_XSY_of_ISY(ISY_by_ID(isy_id));
-    return source_xsy ? ID_of_XSY(source_xsy) : -1;
-}
-
 @ Given a proper nullable symbol as its argument,
 converts the argument into two ``aliases".
 The proper (non-nullable) alias will have the same symbol ID
@@ -1414,16 +1388,9 @@ PRIVATE
 ISY symbol_alias_create(GRAMMAR g, SYM symbol)
 {
     ISY alias_isy = isy_new(g, symbol);
-    SYM alias = Buddy_of_ISY(alias_isy);
     SYM_is_Nulling(symbol) = 0;
     XSY_is_Nullable(symbol) = 1;
-    SYM_is_Nulling(alias) = 1;
     ISY_is_Nulling(alias_isy) = 1;
-    XSY_is_Nullable(alias) = 1;
-    SYM_is_Ask_Me_When_Null(alias)
-	= SYM_is_Ask_Me_When_Null(symbol);
-    alias->t_is_productive = 1;
-    alias->t_is_accessible = symbol->t_is_accessible;
     return alias_isy;
 }
 
@@ -1478,10 +1445,8 @@ isy_start(GRAMMAR g)
 PRIVATE ISY
 isy_new(GRAMMAR g, XSY source)
 {
-  const XSY xsy = symbol_new(g, source);
   const ISY new_isy = isy_start(g);
-  Buddy_of_ISY(new_isy) = xsy;
-  ISY_of_XSY(xsy) = new_isy;
+  Source_XSY_of_ISY(new_isy) = source;
   return new_isy;
 }
 
@@ -1491,27 +1456,9 @@ PRIVATE ISY
 isy_clone(GRAMMAR g, XSY xsy)
 {
   const ISY new_isy = isy_start(g);
-  Buddy_of_ISY(new_isy) = xsy;
+  Source_XSY_of_ISY(new_isy) = xsy;
   ISY_is_Nulling(new_isy) = XSY_is_Nulling(xsy);
   return new_isy;
-}
-
-@*0 Development stubs.
-@ {\bf To Do}: @^To Do@>
-Delete this when division of grammar into
-external and internal is complete.
-@d Buddy_of_ISY(isy) ((isy)->t_buddy)
-@d XSYID_by_ISYID(isyid) ID_of_XSY(Buddy_of_ISY(ISY_by_ID(isyid)))
-@<Widely aligned ISY elements@> =
-  XSY t_buddy;
-@ @<Function definitions@> =
-Marpa_Symbol_ID _marpa_g_isy_buddy(
-    Marpa_Grammar g,
-    Marpa_ISY_ID isy_id)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if |isy_id| is invalid@>@;
-    return ID_of_XSY(Buddy_of_ISY(ISY_by_ID(isy_id)));
 }
 
 @*0 ID.
@@ -1571,6 +1518,25 @@ int _marpa_g_isy_is_nulling(Marpa_Grammar g, Marpa_ISY_ID isy_id)
   @<Fail if not precomputed@>@;
   @<Fail if |isy_id| is invalid@>@;
   return ISY_is_Nulling(ISY_by_ID(isy_id));
+}
+
+@*0 Source XSY.
+This is the external
+``source'' of the internal symbol --
+the external symbol that it is derived from.
+@d Source_XSY_of_ISY(isy) ((isy)->t_source_xsy)
+@<Widely aligned ISY elements@> = XSY t_source_xsy;
+@ @<Initialize ISY elements@> = Source_XSY_of_ISY(isy) = NULL;
+@ @<Function definitions@> =
+Marpa_Rule_ID _marpa_g_source_xsy(
+    Marpa_Grammar g,
+    Marpa_IRL_ID isy_id)
+{
+    XSY source_xsy;
+    @<Return |-2| on failure@>@;
+    @<Fail if |isy_id| is invalid@>@;
+    source_xsy = Source_XSY_of_ISY(ISY_by_ID(isy_id));
+    return source_xsy ? ID_of_XSY(source_xsy) : -1;
 }
 
 @*0 Source rule and offset.
@@ -1720,9 +1686,7 @@ PRIVATE void
 irl_finish( GRAMMAR g, IRL irl)
 {
   const ISY lhs_isy = LHS_of_IRL(irl);
-  const XSY lhs_xsy = Buddy_of_ISY(lhs_isy);
   ISY_is_LHS(lhs_isy) = 1;
-  XSY_is_LHS(lhs_xsy) = 1;
 }
 
 @ @<Clone a new IRL from |rule|@> =
@@ -3046,7 +3010,6 @@ and productive.
 
   const ISY internal_lhs_isy = isy_new (g, SYM_by_ID(lhs_id));
   const ISYID internal_lhs_isyid = ID_of_ISY(internal_lhs_isy);
-  const SYM internal_lhs = Buddy_of_ISY(internal_lhs_isy);
 
   const SYMID rhs_id = RHS_ID_of_RULE (rule, 0);
   const ISY rhs_isy = ISY_by_XSYID(rhs_id);
@@ -3059,7 +3022,6 @@ and productive.
     separator_isyid = ID_of_ISY(separator_isy);
   }
 
-  SYM_is_Semantic(internal_lhs) = 0;
   LHS_XRL_of_ISY(internal_lhs_isy) = rule;
   @<Add the top rule for the sequence@>@;
   if (separator_isyid >= 0 && !XRL_is_Proper_Separation(rule)) {
@@ -3305,14 +3267,9 @@ factor_positions = my_obstack_new(&obs_precompute, int, g->t_max_rule_length);
 
 @ @<Create a CHAF virtual symbol@> =
 {
-  SYM chaf_virtual_symbol;
   const SYMID chaf_xrl_lhs_id = LHS_ID_of_XRL(chaf_xrl);
   chaf_virtual_isy = isy_new (g, SYM_by_ID(chaf_xrl_lhs_id));
   chaf_virtual_isyid = ID_of_ISY(chaf_virtual_isy);
-  chaf_virtual_symbol = Buddy_of_ISY(chaf_virtual_isy);
-  SYM_is_Semantic(chaf_virtual_symbol) = 0;
-  chaf_virtual_symbol->t_is_accessible = 1;
-  chaf_virtual_symbol->t_is_productive = 1;
 }
 
 @*0 Factor A Non-Final Piece.
@@ -3760,15 +3717,8 @@ in the literature --- it is called ``augmenting the grammar".
 @ @<Set up a new proper start rule@> = {
   IRL new_start_irl;
 
-  XSYID new_start_xsyid = -1;
   const ISY new_start_isy = isy_new(g, start_xsy);
-  const XSY new_start_xsy = Buddy_of_ISY(new_start_isy);
   ISY_is_Start(new_start_isy) = 1;
-  new_start_xsyid = ID_of_SYM(new_start_xsy);
-  SYM_is_Semantic(new_start_xsy) = 0;
-  new_start_xsy->t_is_accessible = 1;
-  new_start_xsy->t_is_productive = 1;
-  new_start_xsy->t_is_start = 1;
 
   start_xsy->t_is_start = 0;
 
@@ -4098,9 +4048,9 @@ int t_position;
 
 @*0 Postdot Symbol.
 |-1| if the item is a completion.
-@d Postdot_SYMID_of_AIM(item) ((item)->t_postdot)
-@d AIM_is_Completion(aim) (Postdot_SYMID_of_AIM(aim) < 0)
-@<Int aligned AHFA item elements@> = Marpa_Symbol_ID t_postdot;
+@d Postdot_ISYID_of_AIM(item) ((item)->t_postdot_isyid)
+@d AIM_is_Completion(aim) (Postdot_ISYID_of_AIM(aim) < 0)
+@<Int aligned AHFA item elements@> = ISYID t_postdot_isyid;
 
 @*0 Leading Nulls.
 In libmarpa's AHFA items, the dot position is never in front
@@ -4146,7 +4096,7 @@ Marpa_Symbol_ID _marpa_g_AHFA_item_postdot(Marpa_Grammar g,
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
     @<Fail if |item_id| is invalid@>@/
-    return Postdot_SYMID_of_AIM(AIM_by_ID(item_id));
+    return Postdot_ISYID_of_AIM(AIM_by_ID(item_id));
 }
 
 @ @<Function definitions@> =
@@ -4194,9 +4144,7 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
   for (rhs_ix = 0; rhs_ix < Length_of_IRL(irl); rhs_ix++)
     {
       ISYID rh_isyid = RHSID_of_IRL (irl, rhs_ix);
-      XSY rh_xsy = Buddy_of_ISY(ISY_by_ID(rh_isyid));
-      XSYID rh_xsyid = ID_of_XSY(rh_xsy);
-      if (!SYM_is_Nulling(rh_xsy))
+      if (!ISY_is_Nulling(ISY_by_ID(rh_isyid)))
 	{
 	  Last_Proper_SYMI_of_IRL(irl) = symbol_instance_of_next_rule + rhs_ix;
 	  @<Create an AHFA item for a precompletion@>@;
@@ -4229,7 +4177,7 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
   IRL_of_AIM (current_item) = irl;
   Sort_Key_of_AIM (current_item) = current_item - base_item;
   Null_Count_of_AIM(current_item) = leading_nulls;
-  Postdot_SYMID_of_AIM (current_item) = rh_xsyid;
+  Postdot_ISYID_of_AIM (current_item) = rh_isyid;
   Position_of_AIM (current_item) = rhs_ix;
 }
 
@@ -4238,7 +4186,7 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
   IRL_of_AIM (current_item) = irl;
   Sort_Key_of_AIM (current_item) = current_item - base_item;
   Null_Count_of_AIM(current_item) = leading_nulls;
-  Postdot_SYMID_of_AIM (current_item) = -1;
+  Postdot_ISYID_of_AIM (current_item) = -1;
   Position_of_AIM (current_item) = -1;
 }
 
@@ -4287,8 +4235,8 @@ PRIVATE_NOT_INLINE int cmp_by_postdot_and_aimid (const void* ap,
 {
     AIM a = *(AIM*)ap;
     AIM b = *(AIM*)bp;
-    int a_postdot = Postdot_SYMID_of_AIM(a);
-    int b_postdot = Postdot_SYMID_of_AIM(b);
+    int a_postdot = Postdot_ISYID_of_AIM(a);
+    int b_postdot = Postdot_ISYID_of_AIM(b);
     if (a_postdot == b_postdot)
       return Sort_Key_of_AIM (a) - Sort_Key_of_AIM (b);
     if (a_postdot < 0) return 1;
@@ -4439,12 +4387,12 @@ PRIVATE void AHFA_initialize(AHFA ahfa)
 }
 
 @*0 Complete Symbols Container.
-@ @d Complete_SYMIDs_of_AHFA(state) ((state)->t_complete_symbols)
-@d Complete_SYM_Count_of_AHFA(state) ((state)->t_complete_symbol_count)
+@ @d Complete_ISYIDs_of_AHFA(state) ((state)->t_complete_isyids)
+@d Complete_ISY_Count_of_AHFA(state) ((state)->t_complete_isy_count)
 @<Int aligned AHFA state elements@> =
-unsigned int t_complete_symbol_count;
+unsigned int t_complete_isy_count;
 @ @<Widely aligned AHFA state elements@> =
-SYMID* t_complete_symbols;
+ISYID* t_complete_isyids;
 
 @*0 AHFA Item Container.
 @ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
@@ -4539,10 +4487,10 @@ PRIVATE int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id)
 
     
 @*0 Postdot Symbols.
-@d Postdot_SYM_Count_of_AHFA(state) ((state)->t_postdot_sym_count)
-@d Postdot_SYMID_Ary_of_AHFA(state) ((state)->t_postdot_symid_ary)
-@<Widely aligned AHFA state elements@> = Marpa_Symbol_ID* t_postdot_symid_ary;
-@ @<Int aligned AHFA state elements@> = unsigned int t_postdot_sym_count;
+@d Postdot_ISY_Count_of_AHFA(state) ((state)->t_postdot_isy_count)
+@d Postdot_ISYIDAry_of_AHFA(state) ((state)->t_postdot_isyidary)
+@<Widely aligned AHFA state elements@> = Marpa_Symbol_ID* t_postdot_isyidary;
+@ @<Int aligned AHFA state elements@> = unsigned int t_postdot_isy_count;
 
 @*0 AHFA State External Accessors.
 @<Function definitions@> =
@@ -4601,10 +4549,10 @@ Otherwise it is |-1|.
 The value of the Leo completion symbol is used to
 determine if an Earley item
 with this AHFA state is eligible to be a Leo completion.
-@d Leo_LHS_ID_of_AHFA(state) ((state)->t_leo_lhs_sym)
-@d AHFA_is_Leo_Completion(state) (Leo_LHS_ID_of_AHFA(state) >= 0)
-@ @<Int aligned AHFA state elements@> = SYMID t_leo_lhs_sym;
-@ @<Initialize AHFA@> = Leo_LHS_ID_of_AHFA(ahfa) = -1;
+@d Leo_LHS_ISYID_of_AHFA(state) ((state)->t_leo_lhs_isyid)
+@d AHFA_is_Leo_Completion(state) (Leo_LHS_ISYID_of_AHFA(state) >= 0)
+@ @<Int aligned AHFA state elements@> = ISYID t_leo_lhs_isyid;
+@ @<Initialize AHFA@> = Leo_LHS_ISYID_of_AHFA(ahfa) = -1;
 @ @<Function definitions@> =
 Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol(Marpa_Grammar g,
 	Marpa_AHFA_State_ID AHFA_state_id) {
@@ -4613,7 +4561,7 @@ Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol(Marpa_Grammar g,
     @<Fail if not precomputed@>@;
     @<Fail if |AHFA_state_id| is invalid@>@;
     state = AHFA_of_G_by_ID(g, AHFA_state_id);
-    return Leo_LHS_ID_of_AHFA(state);
+    return Leo_LHS_ISYID_of_AHFA(state);
 }
 
 @*0 Internal Accessors.
@@ -4682,9 +4630,10 @@ PRIVATE_NOT_INLINE int AHFA_state_cmp(
    AHFA p_working_state;
    const unsigned int initial_no_of_states = 2*AIM_Count_of_G(g);
    AIM AHFA_item_0_p = g->t_AHFA_items;
-   const unsigned int symbol_count_of_g = SYM_Count_of_G(g);
    Bit_Matrix prediction_matrix;
    IRL* irl_by_sort_key = my_new(IRL, irl_count);
+  Bit_Vector per_ahfa_complete_v = bv_obs_create (&obs_precompute, isy_count);
+  Bit_Vector per_ahfa_postdot_v = bv_obs_create (&obs_precompute, isy_count);
     AVL_TREE duplicates;
     AHFA* singleton_duplicates;
    DQUEUE_DECLARE(states);
@@ -4707,36 +4656,46 @@ PRIVATE_NOT_INLINE int AHFA_state_cmp(
     }
 }
 
-@ @<Process an AHFA state from the working stack@> = {
-unsigned int no_of_items = p_working_state->t_item_count;
-unsigned int current_item_ix=0;
-AIM*item_list;
-Marpa_Symbol_ID working_symbol;
-item_list = p_working_state->t_items;
-working_symbol = Postdot_SYMID_of_AIM(item_list[0]); /*
-    Every AHFA has at least one item */
-if (working_symbol < 0) goto NEXT_AHFA_STATE; /*
-    All items in this state are completions */
-    while (1) { /* Loop over all items for this state */
-	int first_working_item_ix = current_item_ix;
-	int no_of_items_in_new_state;
-	for (current_item_ix++;
-		current_item_ix < no_of_items;
-		current_item_ix++) {
-	    if (Postdot_SYMID_of_AIM(item_list[current_item_ix]) != working_symbol) break;
+@ @<Process an AHFA state from the working stack@> =
+{
+  unsigned int no_of_items = p_working_state->t_item_count;
+  unsigned int current_item_ix = 0;
+  AIM *item_list;
+  ISYID working_isyid;
+  item_list = p_working_state->t_items;
+  working_isyid = Postdot_ISYID_of_AIM (item_list[0]);	/*
+							   Every AHFA has at least one item */
+  if (working_isyid < 0)
+    goto NEXT_AHFA_STATE;	/*
+				   All items in this state are completions */
+  while (1)
+    {				/* Loop over all items for this state */
+      int first_working_item_ix = current_item_ix;
+      int no_of_items_in_new_state;
+      for (current_item_ix++;
+	   current_item_ix < no_of_items; current_item_ix++)
+	{
+	  if (Postdot_ISYID_of_AIM (item_list[current_item_ix]) !=
+	      working_isyid)
+	    break;
 	}
-	no_of_items_in_new_state = current_item_ix - first_working_item_ix;
-	if (no_of_items_in_new_state == 1) {
-	    @<Create a 1-item discovered AHFA state@>@/
-	} else {
-	    @<Create a discovered AHFA state with 2+ items@>@/
+      no_of_items_in_new_state = current_item_ix - first_working_item_ix;
+      if (no_of_items_in_new_state == 1)
+	{
+	@<Create a 1-item discovered AHFA state@>@;
 	}
-	NEXT_WORKING_SYMBOL: ;
-	if (current_item_ix >= no_of_items) break;
-	working_symbol = Postdot_SYMID_of_AIM(item_list[current_item_ix]);
-	if (working_symbol < 0) break;
-    }@#
-NEXT_AHFA_STATE: ;
+      else
+	{
+	@<Create a discovered AHFA state with 2+ items@>@;
+	}
+    NEXT_WORKING_SYMBOL:;
+      if (current_item_ix >= no_of_items)
+	break;
+      working_isyid = Postdot_ISYID_of_AIM (item_list[current_item_ix]);
+      if (working_isyid < 0)
+	break;
+    }
+NEXT_AHFA_STATE:;
 }
 
 @ @<Resize the transitions@> =
@@ -4768,7 +4727,7 @@ NEXT_AHFA_STATE: ;
      for (ahfa_id = 0; ahfa_id < ahfa_count_of_g; ahfa_id++) {
 	  const AHFA ahfa = AHFA_of_G_by_ID(g, ahfa_id);
           TRANS* const transitions = TRANSs_of_AHFA(ahfa);
-	  if (Complete_SYM_Count_of_AHFA(ahfa) > 0) {
+	  if (Complete_ISY_Count_of_AHFA(ahfa) > 0) {
 	      AIM* aims = AIMs_of_AHFA(ahfa);
 	      int aim_count = AIM_Count_of_AHFA(ahfa);
 	      AEX aex;
@@ -4807,10 +4766,9 @@ You can get the AIM from the AEX, but not vice versa.
       for (aex = 0; aex < aim_count; aex++)
 	{
 	  AIM ahfa_item = aims[aex];
-	  SYMID postdot = Postdot_SYMID_of_AIM (ahfa_item);
-	  if (postdot >= 0)
+	  ISYID postdot_isyid = Postdot_ISYID_of_AIM (ahfa_item);
+	  if (postdot_isyid >= 0)
 	    {
-	      ISYID postdot_isyid = ISYID_by_SYMID(postdot);
 	      TRANS transition = transitions[postdot_isyid];
 	      AHFA to_ahfa = To_AHFA_of_TRANS (transition);
 	      if (AHFA_is_Leo_Completion (to_ahfa))
@@ -4839,8 +4797,9 @@ _marpa_avl_destroy(duplicates);
 {
   AHFA p_initial_state = DQUEUE_PUSH (states, AHFA_Object);
   const IRL start_irl = g->t_start_irl;
-  SYMID *postdot_symbol_ids;
+  ISYID *postdot_isyidary;
   AIM start_item;
+  ISYID postdot_isyid;
   AIM *item_list = my_obstack_alloc (&g->t_obs, sizeof (AIM));
   /* The start item is the initial item for the start rule */
   start_item = First_AIM_of_IRL(start_irl);
@@ -4851,19 +4810,17 @@ _marpa_avl_destroy(duplicates);
   p_initial_state->t_key.t_id = 0;
   AHFA_is_Predicted (p_initial_state) = 0;
   TRANSs_of_AHFA (p_initial_state) = transitions_new (g, isy_count);
-  Postdot_SYM_Count_of_AHFA (p_initial_state) = 1;
-  postdot_symbol_ids = Postdot_SYMID_Ary_of_AHFA (p_initial_state) =
-    my_obstack_alloc (&g->t_obs, sizeof (SYMID));
-  *postdot_symbol_ids = Postdot_SYMID_of_AIM (start_item);
-  Complete_SYM_Count_of_AHFA (p_initial_state) = 0;
-  p_initial_state->t_empty_transition =
-    create_predicted_AHFA_state (g,
-				 matrix_row (prediction_matrix,
-					     (unsigned int)
-					     Postdot_SYMID_of_AIM
-					     (start_item)), irl_by_sort_key,
-				 &states, duplicates, item_list_working_buffer
-				 );
+  Postdot_ISY_Count_of_AHFA (p_initial_state) = 1;
+  postdot_isyidary = Postdot_ISYIDAry_of_AHFA (p_initial_state) =
+    my_obstack_alloc (&g->t_obs, sizeof (ISYID));
+  postdot_isyid = Postdot_ISYID_of_AIM (start_item);
+  *postdot_isyidary = postdot_isyid;
+  Complete_ISY_Count_of_AHFA (p_initial_state) = 0;
+  p_initial_state->t_empty_transition = create_predicted_AHFA_state (g,
+			       matrix_row (prediction_matrix,
+					   (unsigned int) postdot_isyid),
+			       irl_by_sort_key, &states, duplicates,
+			       item_list_working_buffer);
 }
 
 @* Discovered AHFA States.
@@ -4899,13 +4856,13 @@ a start rule completion, and it is a
     AIM* new_state_item_list;
     AIM single_item_p = item_list[first_working_item_ix];
     Marpa_AHFA_Item_ID single_item_id;
-    Marpa_Symbol_ID postdot;
+    ISYID postdot_isyid;
     single_item_p++;		// Transition to next item for this rule
     single_item_id = single_item_p - AHFA_item_0_p;
     p_new_state = singleton_duplicates[single_item_id];
     if (p_new_state)
       {				/* Do not add, this is a duplicate */
-	transition_add (&obs_precompute, p_working_state, ISYID_by_SYMID(working_symbol), p_new_state);
+	transition_add (&obs_precompute, p_working_state, working_isyid, p_new_state);
 	goto NEXT_WORKING_SYMBOL;
       }
     p_new_state = DQUEUE_PUSH (states, AHFA_Object);
@@ -4919,33 +4876,33 @@ a start rule completion, and it is a
     AHFA_is_Predicted(p_new_state) = 0;
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE (states, AHFA_Object);
     TRANSs_of_AHFA(p_new_state) = transitions_new(g, isy_count);
-    transition_add (&obs_precompute, p_working_state, ISYID_by_SYMID(working_symbol), p_new_state);
-    postdot = Postdot_SYMID_of_AIM(single_item_p);
-    if (postdot >= 0)
+    transition_add (&obs_precompute, p_working_state, working_isyid, p_new_state);
+    postdot_isyid = Postdot_ISYID_of_AIM(single_item_p);
+    if (postdot_isyid >= 0)
       {
-	Complete_SYM_Count_of_AHFA(p_new_state) = 0;
-	p_new_state->t_postdot_sym_count = 1;
-	p_new_state->t_postdot_symid_ary =
-	  my_obstack_alloc (&g->t_obs, sizeof (SYMID));
-	*(p_new_state->t_postdot_symid_ary) = postdot;
+	ISYID* p_postdot_isyidary = Postdot_ISYIDAry_of_AHFA(p_new_state) =
+	  my_obstack_alloc (&g->t_obs, sizeof (ISYID));
+	Complete_ISY_Count_of_AHFA(p_new_state) = 0;
+	Postdot_ISY_Count_of_AHFA(p_new_state) = 1;
+	*p_postdot_isyidary = postdot_isyid;
     /* If the sole item is not a completion
      attempt to create a predicted AHFA state as well */
     p_new_state->t_empty_transition =
     create_predicted_AHFA_state (g,
 				 matrix_row (prediction_matrix,
-					     (unsigned int) postdot),
+					     (unsigned int) postdot_isyid),
 				 irl_by_sort_key, &states, duplicates,
 				 item_list_working_buffer);
       }
     else
       {
-	SYMID lhs_isyid = LHS_ISYID_of_AIM(single_item_p);
-	SYMID* complete_symids = my_obstack_alloc (&g->t_obs, sizeof (SYMID));
-	*complete_symids = XSYID_by_ISYID(lhs_isyid);
-	Complete_SYMIDs_of_AHFA(p_new_state) = complete_symids;
+	ISYID lhs_isyid = LHS_ISYID_of_AIM(single_item_p);
+	ISYID* complete_isyids = my_obstack_alloc (&g->t_obs, sizeof (ISYID));
+	*complete_isyids = lhs_isyid;
+	Complete_ISYIDs_of_AHFA(p_new_state) = complete_isyids;
 	completion_count_inc(&obs_precompute, p_new_state, lhs_isyid);
-	Complete_SYM_Count_of_AHFA(p_new_state) = 1;
-	p_new_state->t_postdot_sym_count = 0;
+	Complete_ISY_Count_of_AHFA(p_new_state) = 1;
+	Postdot_ISY_Count_of_AHFA(p_new_state) = 0;
 	p_new_state->t_empty_transition = NULL;
 	@<If this state can be a Leo completion,
 	set the Leo completion symbol to |lhs_id|@>@;
@@ -4983,10 +4940,10 @@ then that state is a Leo completion.
 set the Leo completion symbol to |lhs_id|@> =
 {
   AIM previous_ahfa_item = single_item_p - 1;
-  SYMID predot_symid = Postdot_SYMID_of_AIM (previous_ahfa_item);
-  if (SYM_is_LHS(SYM_by_ID (predot_symid)))
+  ISYID predot_isyid = Postdot_ISYID_of_AIM (previous_ahfa_item);
+  if (ISY_is_LHS(ISY_by_ID (predot_isyid)))
     {
-      Leo_LHS_ID_of_AHFA (p_new_state) = XSYID_by_ISYID(lhs_isyid);
+      Leo_LHS_ISYID_of_AHFA (p_new_state) = lhs_isyid;
     }
 }
 
@@ -5011,8 +4968,8 @@ be if written 100\% using indexes.
   AIM* const item_list_working_buffer
     = my_obstack_alloc(&obs_precompute, irl_count*sizeof(AIM));
   const ISYID isy_count = ISY_Count_of_G(g);
-  const SYMID ins_count = SYM_Count_of_G(g);
-  RULEID** irl_list_x_lh_sym = NULL;
+  const XSYID xsy_count = XSY_Count_of_G(g);
+  IRLID** irl_list_x_lh_isy = NULL;
 
 @ Initialized based on the capacity of the XRL stack, rather
 than its length, as a convenient way to deal with issues
@@ -5043,8 +5000,7 @@ of minimum sizes.
     {
       const IRL irl = IRL_by_ID (irl_id);
       const ISYID lhs_isyid = LHSID_of_IRL(irl);
-      const XSY lhs_xsy = Buddy_of_ISY(ISY_by_ID(lhs_isyid));
-      p_sym_rule_pairs->t_symid = ID_of_XSY(lhs_xsy);
+      p_sym_rule_pairs->t_symid = lhs_isyid;
       p_sym_rule_pairs->t_ruleid = irl_id;
       _marpa_avl_insert (lhs_avl_tree, p_sym_rule_pairs);
       p_sym_rule_pairs++;
@@ -5052,26 +5008,26 @@ of minimum sizes.
   {
     struct avl_traverser traverser;
     struct sym_rule_pair *pair;
-    SYMID seen_symid = -1;
+    ISYID seen_isyid = -1;
     IRLID *const rule_data_base =
       my_obstack_new (&obs_precompute, IRLID, irl_count);
     IRLID *p_rule_data = rule_data_base;
     _marpa_avl_t_init (&traverser, lhs_avl_tree);
     /* One extra "symbol" as an end marker */
-    irl_list_x_lh_sym =
-      my_obstack_new (&obs_precompute, IRLID *, ins_count + 1);
+    irl_list_x_lh_isy =
+      my_obstack_new (&obs_precompute, IRLID *, isy_count + 1);
     for (pair =
 	 (struct sym_rule_pair *) _marpa_avl_t_first (&traverser,
 						      lhs_avl_tree); pair;
 	 pair = (struct sym_rule_pair *) _marpa_avl_t_next (&traverser))
       {
-	const SYMID current_symid = pair->t_symid;
-	while (seen_symid < current_symid)
-	  irl_list_x_lh_sym[++seen_symid] = p_rule_data;
+	const ISYID current_isyid = pair->t_symid;
+	while (seen_isyid < current_isyid)
+	  irl_list_x_lh_isy[++seen_isyid] = p_rule_data;
 	*p_rule_data++ = pair->t_ruleid;
       }
-    while (seen_symid <= ins_count)
-      irl_list_x_lh_sym[++seen_symid] = p_rule_data;
+    while (seen_isyid <= isy_count)
+      irl_list_x_lh_isy[++seen_isyid] = p_rule_data;
   }
   _marpa_avl_destroy (lhs_avl_tree);
 }
@@ -5108,7 +5064,7 @@ of minimum sizes.
     {				// The new state would be a duplicate
 // Back it out and go on to the next in the queue
       (void) DQUEUE_POP (states, AHFA_Object);
-      transition_add (&obs_precompute, p_working_state, ISYID_by_SYMID(working_symbol),
+      transition_add (&obs_precompute, p_working_state, working_isyid,
 		      queued_AHFA_state);
       goto NEXT_WORKING_SYMBOL;
     }
@@ -5127,7 +5083,7 @@ of minimum sizes.
   TRANSs_of_AHFA (p_new_state) = transitions_new (g, isy_count);
   @<Calculate complete and postdot symbols for discovered
     state@>@;
-  transition_add (&obs_precompute, p_working_state, ISYID_by_SYMID(working_symbol),
+  transition_add (&obs_precompute, p_working_state, working_isyid,
 		  p_new_state);
   @<Calculate the predicted rule vector for this
     state and add the predicted AHFA state@>@;
@@ -5135,67 +5091,63 @@ of minimum sizes.
 
 @ @<Calculate complete and postdot symbols for discovered state@> =
 {
-  int symbol_count = SYM_Count_of_G (g);
   int item_ix;
-  int no_of_postdot_symbols;
+  int no_of_postdot_isys;
   int no_of_complete_symbols;
-  Bit_Vector complete_v = bv_create (symbol_count);
-  Bit_Vector postdot_v = bv_create (symbol_count);
+  bv_clear(per_ahfa_complete_v);
+  bv_clear(per_ahfa_postdot_v);
   for (item_ix = 0; item_ix < no_of_items_in_new_state; item_ix++)
     {
       AIM item = item_list_working_buffer[item_ix];
-      Marpa_Symbol_ID postdot = Postdot_SYMID_of_AIM (item);
-      if (postdot < 0)
+      ISYID postdot_isyid = Postdot_ISYID_of_AIM (item);
+      if (postdot_isyid < 0)
 	{
 	  ISYID complete_symbol_isyid = LHS_ISYID_of_AIM (item);
-	  XSYID complete_symbol_xsyid = XSYID_by_ISYID(complete_symbol_isyid);
 	  completion_count_inc (&obs_precompute, p_new_state, complete_symbol_isyid);
-	  bv_bit_set (complete_v, (unsigned int) complete_symbol_xsyid);
+	  bv_bit_set (per_ahfa_complete_v, (unsigned int) complete_symbol_isyid);
 	}
       else
 	{
-	  bv_bit_set (postdot_v, (unsigned int) postdot);
+	  bv_bit_set (per_ahfa_postdot_v, (unsigned int) postdot_isyid);
 	}
     }
-  if ((no_of_postdot_symbols = p_new_state->t_postdot_sym_count =
-       bv_count (postdot_v)))
+  if ((no_of_postdot_isys = Postdot_ISY_Count_of_AHFA(p_new_state) =
+       bv_count (per_ahfa_postdot_v)))
     {
       unsigned int min, max, start;
-      Marpa_Symbol_ID *p_symbol = p_new_state->t_postdot_symid_ary =
+      ISYID *p_isyid = Postdot_ISYIDAry_of_AHFA(p_new_state) =
 	my_obstack_alloc (&g->t_obs,
-			  no_of_postdot_symbols * sizeof (SYMID));
-      for (start = 0; bv_scan (postdot_v, start, &min, &max); start = max + 2)
+			  no_of_postdot_isys * sizeof (ISYID));
+      for (start = 0; bv_scan (per_ahfa_postdot_v, start, &min, &max); start = max + 2)
 	{
-	  Marpa_Symbol_ID postdot;
-	  for (postdot = (Marpa_Symbol_ID) min;
-	       postdot <= (Marpa_Symbol_ID) max; postdot++)
+	  ISYID postdot_isyid;
+	  for (postdot_isyid = (ISYID) min;
+	       postdot_isyid <= (ISYID) max; postdot_isyid++)
 	    {
-	      *p_symbol++ = postdot;
+	      *p_isyid++ = postdot_isyid;
 	    }
 	}
     }
   if ((no_of_complete_symbols =
-       Complete_SYM_Count_of_AHFA (p_new_state) = bv_count (complete_v)))
+       Complete_ISY_Count_of_AHFA (p_new_state) = bv_count (per_ahfa_complete_v)))
     {
       unsigned int min, max, start;
-      SYMID *complete_symids = my_obstack_alloc (&g->t_obs,
+      ISYID *complete_isyids = my_obstack_alloc (&g->t_obs,
 						 no_of_complete_symbols *
-						 sizeof (SYMID));
-      SYMID *p_symbol = complete_symids;
-      Complete_SYMIDs_of_AHFA (p_new_state) = complete_symids;
-      for (start = 0; bv_scan (complete_v, start, &min, &max);
+						 sizeof (ISYID));
+      ISYID *p_isyid = complete_isyids;
+      Complete_ISYIDs_of_AHFA (p_new_state) = complete_isyids;
+      for (start = 0; bv_scan (per_ahfa_complete_v, start, &min, &max);
 	   start = max + 2)
 	{
-	  SYMID complete_symbol_id;
-	  for (complete_symbol_id = (SYMID) min;
-	       complete_symbol_id <= (SYMID) max; complete_symbol_id++)
+	  ISYID complete_isyid;
+	  for (complete_isyid = (ISYID) min;
+	       complete_isyid <= (ISYID) max; complete_isyid++)
 	    {
-	      *p_symbol++ = complete_symbol_id;
+	      *p_isyid++ = complete_isyid;
 	    }
 	}
     }
-  bv_free (postdot_v);
-  bv_free (complete_v);
 }
 
 @ Find the AHFA state in the argument,
@@ -5216,27 +5168,26 @@ assign_AHFA_state (AHFA sought_state, AVL_TREE duplicates)
 and add the predicted AHFA state@> =
 {
   int item_ix;
-  Marpa_Symbol_ID postdot = -1;	// Initialized to prevent GCC warning
+  ISYID postdot_isyid = -1;	// Initialized to prevent GCC warning
   for (item_ix = 0; item_ix < no_of_items_in_new_state; item_ix++)
     {
-      postdot = Postdot_SYMID_of_AIM (item_list_working_buffer[item_ix]);
-      if (postdot >= 0)
+      postdot_isyid = Postdot_ISYID_of_AIM (item_list_working_buffer[item_ix]);
+      if (postdot_isyid >= 0)
 	break;
     }
   p_new_state->t_empty_transition = NULL;
-  if (postdot >= 0)
+  if (postdot_isyid >= 0)
     {				/* If any item is not a completion ... */
       Bit_Vector predicted_rule_vector
-	= bv_shadow (matrix_row (prediction_matrix, (unsigned int) postdot));
+	= bv_shadow (matrix_row (prediction_matrix, postdot_isyid));
       for (item_ix = 0; item_ix < no_of_items_in_new_state; item_ix++)
 	{
 	  /* ``or" the other non-complete items into the prediction rule vector */
-	  postdot = Postdot_SYMID_of_AIM (item_list_working_buffer[item_ix]);
-	  if (postdot < 0)
+	  postdot_isyid = Postdot_ISYID_of_AIM (item_list_working_buffer[item_ix]);
+	  if (postdot_isyid < 0)
 	    continue;
 	  bv_or_assign (predicted_rule_vector,
-			matrix_row (prediction_matrix,
-				    (unsigned int) postdot));
+			matrix_row (prediction_matrix, postdot_isyid));
 	}
       /* Add the predicted rule */
       p_new_state->t_empty_transition = create_predicted_AHFA_state (g,
@@ -5302,19 +5253,17 @@ states.
     }
   for (irl_id = 0; irl_id < irl_count; irl_id++)
     {
-      XSYID to_xsyid;
-      ISYID from, to;
+      ISYID from_isyid, to_isyid;
       const IRL irl = IRL_by_ID(irl_id);
       /* Get the initial item for the rule */
       const AIM item = First_AIM_of_IRL(irl);
-      to_xsyid = Postdot_SYMID_of_AIM (item);
+      to_isyid = Postdot_ISYID_of_AIM (item);
       /* There is no symbol-to-symbol transition for a completion item */
-      if (to_xsyid < 0)
+      if (to_isyid < 0)
 	continue;
       /* Set a bit in the matrix */
-      from = LHS_ISYID_of_AIM (item);
-      to = ISYID_by_XSYID(to_xsyid);
-      matrix_bit_set (isy_by_isy_matrix, (unsigned int) from, (unsigned int) to);
+      from_isyid = LHS_ISYID_of_AIM (item);
+      matrix_bit_set (isy_by_isy_matrix, (unsigned int) from_isyid, (unsigned int) to_isyid);
     }
 }
 
@@ -5341,10 +5290,6 @@ but in the
 final result we want the keys to be unique integers
 in a sequence start from 0,
 so that they can be used as the indices of a bit vector.
-@d SET_1ST_PASS_SORT_KEY_FOR_IRL(sort_key, irl) {
-  const AIM aim = First_AIM_of_IRL(irl);
-  (sort_key) = Postdot_SYMID_of_AIM (aim);
-}
 
 @ @<Populate |irl_by_sort_key|@> =
 {
@@ -5357,7 +5302,12 @@ so that they can be used as the indices of a bit vector.
 	 sizeof (RULE), cmp_by_irl_sort_key);
 }
 
-@ @<Function definitions@> =
+@
+@d SET_1ST_PASS_SORT_KEY_FOR_IRL(sort_key, irl) {
+  const AIM aim = First_AIM_of_IRL(irl);
+  (sort_key) = Postdot_ISYID_of_AIM (aim);
+}
+@<Function definitions@> =
 PRIVATE_NOT_INLINE int
 cmp_by_irl_sort_key(const void* ap, const void* bp)
 {
@@ -5393,11 +5343,10 @@ which can be used to index the rules in a bit vector.
 {
   ISYID from_isyid;
   prediction_matrix =
-    matrix_obs_create (&obs_precompute, symbol_count_of_g,
+    matrix_obs_create (&obs_precompute, isy_count,
 		       irl_count);
   for (from_isyid = 0; from_isyid < isy_count; from_isyid++)
     {
-      XSYID from_xsyid = XSYID_by_ISYID(from_isyid);
       // for every row of the symbol-by-symbol matrix
       unsigned int min, max, start;
       for (start = 0;
@@ -5408,18 +5357,17 @@ which can be used to index the rules in a bit vector.
 	  ISYID to_isyid;
 	  for (to_isyid = min; to_isyid <= (ISYID)max; to_isyid++)
 	    {
-	      XSYID to_xsyid = XSYID_by_ISYID(to_isyid);
 	      // for every predicted symbol
-	      RULEID *p_irl_x_lh_sym = irl_list_x_lh_sym[to_xsyid];
-	      const RULEID *p_one_past_rules = irl_list_x_lh_sym[to_xsyid + 1];
-	      for (; p_irl_x_lh_sym < p_one_past_rules; p_irl_x_lh_sym++)
+	      RULEID *p_irl_x_lh_isy = irl_list_x_lh_isy[to_isyid];
+	      const RULEID *p_one_past_rules = irl_list_x_lh_isy[to_isyid + 1];
+	      for (; p_irl_x_lh_isy < p_one_past_rules; p_irl_x_lh_isy++)
 		{
 		  // For every rule with that symbol on its LHS
-		  const RULEID rule_with_this_lhs_symbol = *p_irl_x_lh_sym;
+		  const IRLID irl_with_this_lhs = *p_irl_x_lh_isy;
 		  unsigned int sort_ordinal =
-		    sort_key_by_irl_id[rule_with_this_lhs_symbol];
+		    sort_key_by_irl_id[irl_with_this_lhs];
 		  matrix_bit_set (prediction_matrix,
-				  (unsigned int) from_xsyid, sort_ordinal);
+				  (unsigned int) from_isyid, sort_ordinal);
 		  // Set the $(symbol, rule sort key)$ bit in the matrix
 		}
 	    }
@@ -5486,42 +5434,42 @@ create_predicted_AHFA_state(
   AHFA_is_Predicted (p_new_state) = 1;
   p_new_state->t_empty_transition = NULL;
   TRANSs_of_AHFA (p_new_state) = transitions_new (g, ISY_Count_of_G(g));
-  Complete_SYM_Count_of_AHFA (p_new_state) = 0;
+  Complete_ISY_Count_of_AHFA (p_new_state) = 0;
   @<Calculate postdot symbols for predicted state@>@;
   return p_new_state;
 }
 
 @ @<Calculate postdot symbols for predicted state@> =
 {
-  SYMID symbol_count = SYM_Count_of_G (g);
+  ISYID isy_count = ISY_Count_of_G (g);
   int item_ix;
-  SYMID no_of_postdot_symbols;
-  Bit_Vector postdot_v = bv_create (symbol_count);
+  ISYID no_of_postdot_isys;
+  Bit_Vector postdot_v = bv_create ( isy_count );
     for (item_ix = 0; item_ix < no_of_items_in_new_state; item_ix++)
       {
 	AIM item = item_list_working_buffer[item_ix];
-	SYMID postdot = Postdot_SYMID_of_AIM (item);
-	if (postdot >= 0)
-	  bv_bit_set (postdot_v, (unsigned int) postdot);
+	ISYID postdot_isyid = Postdot_ISYID_of_AIM (item);
+	if (postdot_isyid >= 0)
+	  bv_bit_set (postdot_v, (unsigned int) postdot_isyid);
       }
-    if ((no_of_postdot_symbols = p_new_state->t_postdot_sym_count =
+    if ((no_of_postdot_isys = Postdot_ISY_Count_of_AHFA(p_new_state) =
      bv_count (postdot_v)))
   {
     unsigned int min, max, start;
-    Marpa_Symbol_ID *p_symbol = p_new_state->t_postdot_symid_ary =
+    ISYID *p_isyid = Postdot_ISYIDAry_of_AHFA(p_new_state) =
       my_obstack_alloc (&g->t_obs,
-		     no_of_postdot_symbols * sizeof (SYMID));
+		     no_of_postdot_isys * sizeof (ISYID));
     for (start = 0; bv_scan (postdot_v, start, &min, &max); start = max + 2)
       {
-	Marpa_Symbol_ID postdot;
-	for (postdot = (Marpa_Symbol_ID) min;
-	     postdot <= (Marpa_Symbol_ID) max; postdot++)
+	ISYID postdot_isyid;
+	for (postdot_isyid = (ISYID) min;
+	     postdot_isyid <= (ISYID) max; postdot_isyid++)
 	  {
-	    *p_symbol++ = postdot;
+	    *p_isyid++ = postdot_isyid;
 	  }
       }
   }
-    bv_free (postdot_v);
+  bv_free(postdot_v);
 }
 
 @** Transition (TRANS) Code.
@@ -5563,9 +5511,12 @@ But I expect the trend will also be for grammars to get larger.
 This would be a good issue to run some benchmarks on,
 once I stabilize the C code implemention.
 
+@d TRANS_of_AHFA_by_ISYID(from_ahfa, isyid)
+    (*(TRANSs_of_AHFA(from_ahfa)+(isyid)))
 @d TRANS_of_AHFA_by_SYMID(from_ahfa, id)
-    (*(TRANSs_of_AHFA(from_ahfa)+ISYID_by_SYMID(id)))
+  TRANS_of_AHFA_by_ISYID(from_ahfa, ISYID_by_SYMID(id))
 @d TRANS_of_EIM_by_SYMID(eim, id) TRANS_of_AHFA_by_SYMID(AHFA_of_EIM(eim), (id))
+@d TRANS_of_EIM_by_ISYID(eim, isyid) TRANS_of_AHFA_by_ISYID(AHFA_of_EIM(eim), (isyid))
 @d To_AHFA_of_TRANS(trans) (to_ahfa_of_transition_get(trans))
 @d LV_To_AHFA_of_TRANS(trans) ((trans)->t_ur.t_to_ahfa)
 @d Completion_Count_of_TRANS(trans)
@@ -5573,7 +5524,10 @@ once I stabilize the C code implemention.
 @d LV_Completion_Count_of_TRANS(trans) ((trans)->t_ur.t_completion_count)
 @d To_AHFA_of_AHFA_by_SYMID(from_ahfa, id)
      (To_AHFA_of_TRANS(TRANS_of_AHFA_by_SYMID((from_ahfa), (id))))
+@d To_AHFA_of_AHFA_by_ISYID(from_ahfa, id)
+     (To_AHFA_of_TRANS(TRANS_of_AHFA_by_ISYID((from_ahfa), (id))))
 @d To_AHFA_of_EIM_by_SYMID(eim, id) To_AHFA_of_AHFA_by_SYMID(AHFA_of_EIM(eim), (id))
+@d To_AHFA_of_EIM_by_ISYID(eim, id) To_AHFA_of_AHFA_by_ISYID(AHFA_of_EIM(eim), (id))
 @d AEXs_of_TRANS(trans) ((trans)->t_aex)
 @d Leo_Base_AEX_of_TRANS(trans) ((trans)->t_leo_base_aex)
 @ @s TRANS int
@@ -5719,14 +5673,23 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
 
 
 @** Populating the Terminal Boolean Vector.
-@<Populate the Terminal Boolean Vector@> = {
-    int symbol_count = SYM_Count_of_G(g);
-    int symid;
-    Bit_Vector bv_is_terminal = bv_create( (unsigned int)symbol_count );
-    g->t_bv_symid_is_terminal = bv_is_terminal;
-    for (symid = 0; symid < symbol_count; symid++) {
-      if (!SYMID_is_Terminal(symid)) continue;
-      bv_bit_set(bv_is_terminal, (unsigned int)symid);
+@<Populate the Terminal Boolean Vector@> =
+{
+  int xsyid;
+  g->t_bv_isyid_is_terminal = bv_obs_create (&g->t_obs, isy_count);
+  for (xsyid = 0; xsyid < xsy_count; xsyid++)
+    {
+      if (SYMID_is_Terminal (xsyid))
+	{
+	  /* A terminal might have no corresponding ISY.
+	    Currently that can happen if it is not accessible */
+	  const ISY isy = ISY_of_XSY (XSY_by_ID (xsyid));
+	  if (isy)
+	    {
+	      bv_bit_set (g->t_bv_isyid_is_terminal,
+			  (unsigned int) ID_of_ISY (isy));
+	    }
+	}
     }
 }
 
@@ -5849,11 +5812,9 @@ For this reason, the grammar is not |const|.
 Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
 {
     RECCE r;
-    int symbol_count_of_g;
     @<Return |NULL| on failure@>@;
     @<Fail if not precomputed@>@;
     r = my_slice_new(struct marpa_r);
-    symbol_count_of_g = SYM_Count_of_G(g);
     @<Initialize recognizer obstack@>@;
     @<Initialize recognizer elements@>@;
    return r;
@@ -5904,9 +5865,6 @@ void recce_free(struct marpa_r *r)
     @<Unpack recognizer objects@>@;
     @<Destroy recognizer elements@>@;
     grammar_unref(g);
-    my_free(r->t_sym_workarea);
-    my_free(r->t_workarea2);
-    @<Free working bit vectors for symbols@>@;
     @<Destroy recognizer obstack@>@;
     my_slice_free(struct marpa_r, r);
 }
@@ -5949,7 +5907,7 @@ r->t_current_earleme = -1;
 @d Latest_ES_of_R(r) ((r)->t_latest_earley_set)
 @d Current_Earleme_of_R(r) ((r)->t_current_earleme)
 @<Function definitions@> =
-unsigned int marpa_r_current_earleme(struct marpa_r* r)
+unsigned int marpa_r_current_earleme(Marpa_Recognizer r)
 { return Current_Earleme_of_R(r); }
 
 @ @d Current_ES_of_R(r) current_es_of_r(r)
@@ -5967,7 +5925,7 @@ PRIVATE ES current_es_of_r(RECCE r)
 @ @<Initialize recognizer elements@> =
 r->t_earley_item_warning_threshold = MAX(DEFAULT_EIM_WARNING_THRESHOLD, AIM_Count_of_G(g)*2);
 @ @<Function definitions@> =
-int marpa_r_earley_item_warning_threshold(struct marpa_r* r)
+int marpa_r_earley_item_warning_threshold(Marpa_Recognizer r)
 { return r->t_earley_item_warning_threshold; }
 
 @ Returns true on success,
@@ -5989,61 +5947,8 @@ No complete or predicted Earley item will be found after the current earleme.
 @<Int aligned recognizer elements@> = EARLEME t_furthest_earleme;
 @ @<Initialize recognizer elements@> = r->t_furthest_earleme = 0;
 @ @<Function definitions@> =
-unsigned int marpa_r_furthest_earleme(struct marpa_r* r)
+unsigned int marpa_r_furthest_earleme(Marpa_Recognizer r)
 { return Furthest_Earleme_of_R(r); }
-
-@*0 Symbol Workarea.
-This is used in the completion
-phase for each Earley set.
-It is used in building the list of postdot items,
-and when building the Leo items.
-It is sized to hold one |void *| for
-every symbol.
-@ @<Widely aligned recognizer elements@> = void ** t_sym_workarea;
-@ @<Initialize recognizer elements@> = r->t_sym_workarea = NULL;
-@ @<Allocate symbol workarea@> =
-    r->t_sym_workarea = my_malloc(sym_workarea_size);
-
-@*0 Workarea 2.
-This is used in the completion
-phase for each Earley set.
-when building the Leo items.
-It is sized to hold two |void *|'s for
-every symbol.
-@ @<Widely aligned recognizer elements@> = void ** t_workarea2;
-@ @<Initialize recognizer elements@> = r->t_workarea2 = NULL;
-@ @<Allocate recognizer workareas@> =
-{
-  const unsigned int sym_workarea_size = sizeof (void *) * symbol_count_of_g;
-  @<Allocate symbol workarea@>@;
-  r->t_workarea2 = my_malloc(2u * sym_workarea_size);
-}
-
-@*0 Working Bit Vectors for Symbols.
-These are two bit vectors, sized to the number of symbols
-in the grammar,
-for utility purposes.
-They are used in the completion
-phase for each Earley set,
-to keep track of the new postdot items and
-Leo items.
-@ @<Widely aligned recognizer elements@> =
-Bit_Vector t_bv_sym;
-Bit_Vector t_bv_sym2;
-Bit_Vector t_bv_sym3;
-@ @<Initialize recognizer elements@> =
-r->t_bv_sym = NULL;
-r->t_bv_sym2 = NULL;
-r->t_bv_sym3 = NULL;
-@ @<Allocate recognizer's bit vectors for symbols@> = {
-  r->t_bv_sym = bv_create( (unsigned int)symbol_count_of_g );
-  r->t_bv_sym2 = bv_create( (unsigned int)symbol_count_of_g );
-  r->t_bv_sym3 = bv_create( (unsigned int)symbol_count_of_g );
-}
-@ @<Free working bit vectors for symbols@> =
-if (r->t_bv_sym) bv_free(r->t_bv_sym);
-if (r->t_bv_sym2) bv_free(r->t_bv_sym2);
-if (r->t_bv_sym3) bv_free(r->t_bv_sym3);
 
 @*0 Expected Symbol Boolean Vector.
 A boolean vector by symbol ID,
@@ -6053,12 +5958,10 @@ This vector is not size until input starts.
 When the recognizer is created,
 this bit vector is initialized to |NULL| so that the destructor
 can tell if there is a bit vector to be freed.
-@<Widely aligned recognizer elements@> = Bit_Vector t_bv_symid_is_expected;
-@ @<Initialize recognizer elements@> = r->t_bv_symid_is_expected = NULL;
-@ @<Allocate recognizer's bit vectors for symbols@> = 
-    r->t_bv_symid_is_expected = bv_create( (unsigned int)symbol_count_of_g );
-@ @<Free working bit vectors for symbols@> =
-if (r->t_bv_symid_is_expected) { bv_free(r->t_bv_symid_is_expected); }
+@<Widely aligned recognizer elements@> = Bit_Vector t_bv_isyid_is_expected;
+@ @<Initialize recognizer elements@> = r->t_bv_isyid_is_expected = NULL;
+@ @<Allocate recognizer containers used in setup@> = 
+    r->t_bv_isyid_is_expected = bv_obs_create( &r->t_obs, (unsigned int)isy_count );
 @ Returns |-2| if there was a failure.
 There is a check that the expectations of this
 function and its caller about size of the |GArray| elements match.
@@ -6069,11 +5972,11 @@ and if I do not ``fail fast" here the ultimate problem
 could be very hard to debug.
 @ The buffer is expected to be large enough to hold
 the result.
-This will be the case is the length of the buffer
+This will be the case if the length of the buffer
 is greater than or equal to the number of symbols
 in the grammar.
 @<Function definitions@> =
-int marpa_r_terminals_expected(struct marpa_r* r, Marpa_Symbol_ID* buffer)
+int marpa_r_terminals_expected(Marpa_Recognizer r, Marpa_Symbol_ID* buffer)
 {
     @<Return |-2| on failure@>@;
       @<Unpack recognizer objects@>@;
@@ -6081,13 +5984,15 @@ int marpa_r_terminals_expected(struct marpa_r* r, Marpa_Symbol_ID* buffer)
     int ix = 0;
     @<Fail if fatal error@>@;
     @<Fail if recognizer not started@>@;
-    for (start = 0; bv_scan (r->t_bv_symid_is_expected, start, &min, &max);
+    for (start = 0; bv_scan (r->t_bv_isyid_is_expected, start, &min, &max);
 	 start = max + 2)
       {
-	SYMID symid;
-	for (symid = (SYMID) min; symid <= (SYMID) max; symid++)
+	ISYID isyid;
+	for (isyid = (ISYID) min; isyid <= (ISYID) max; isyid++)
 	  {
-	    buffer[ix++] = symid;
+	    const ISY isy = ISY_by_ID(isyid);
+	    const XSY xsy = Source_XSY_of_ISY(isy);
+	    buffer[ix++] = ID_of_XSY(xsy);
 	  }
       }
     return ix;
@@ -6202,7 +6107,7 @@ earleme at which the parse became exhausted.
 Once exhausted a parse stays exhausted,
 even though the phase may change.
 @<Function definitions@> =
-int marpa_r_is_exhausted(struct marpa_r* r)
+int marpa_r_is_exhausted(Marpa_Recognizer r)
 {
    @<Unpack recognizer objects@>@;
    @<Return |-2| on failure@>@/
@@ -6268,8 +6173,8 @@ able to handle.
 @ @<Private typedefs@> = typedef Marpa_Earley_Set_ID ESID;
 @ @d Next_ES_of_ES(set) ((set)->t_next_earley_set)
 @d Postdot_SYM_Count_of_ES(set) ((set)->t_postdot_sym_count)
-@d First_PIM_of_ES_by_SYMID(set, symid) (first_pim_of_es_by_symid((set), (symid)))
-@d PIM_SYM_P_of_ES_by_SYMID(set, symid) (pim_sym_p_find((set), (symid)))
+@d First_PIM_of_ES_by_ISYID(set, isyid) (first_pim_of_es_by_isyid((set), (isyid)))
+@d PIM_ISY_P_of_ES_by_ISYID(set, isyid) (pim_isy_p_find((set), (isyid)))
 @<Private incomplete structures@> =
 struct s_earley_set;
 typedef struct s_earley_set *ES;
@@ -6336,16 +6241,6 @@ earley_set_new( RECCE r, EARLEME id)
   return set;
 }
 
-@*0 Destructor.
-@<Destroy recognizer elements@> =
-{
-  ES set;
-  for (set = First_ES_of_R (r); set; set = Next_ES_of_ES (set))
-    {
-	my_free (EIMs_of_ES(set));
-    }
-}
-
 @*0 ID of Earley Set.
 @d Earleme_of_ES(set) ((set)->t_key.t_earleme)
 
@@ -6363,7 +6258,7 @@ struct s_earley_set* t_trace_earley_set;
 r->t_trace_earley_set = NULL;
 
 @ @<Function definitions@> =
-Marpa_Earley_Set_ID marpa_r_trace_earley_set(struct marpa_r *r)
+Marpa_Earley_Set_ID _marpa_r_trace_earley_set(Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
   @<Unpack recognizer objects@>@;
@@ -6377,7 +6272,7 @@ Marpa_Earley_Set_ID marpa_r_trace_earley_set(struct marpa_r *r)
 }
 
 @ @<Function definitions@> =
-Marpa_Earley_Set_ID marpa_r_latest_earley_set(struct marpa_r *r)
+Marpa_Earley_Set_ID _marpa_r_latest_earley_set(Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
   @<Unpack recognizer objects@>@;
@@ -6386,7 +6281,7 @@ Marpa_Earley_Set_ID marpa_r_latest_earley_set(struct marpa_r *r)
 }
 
 @ @<Function definitions@> =
-Marpa_Earleme marpa_r_earleme(struct marpa_r* r, Marpa_Earley_Set_ID set_id)
+Marpa_Earleme marpa_r_earleme(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
 {
     const int es_does_not_exist = -1;
   @<Unpack recognizer objects@>@;
@@ -6410,7 +6305,7 @@ Marpa_Earleme marpa_r_earleme(struct marpa_r* r, Marpa_Earley_Set_ID set_id)
 @ Note that this trace function returns the earley set size
 of the {\bf current earley set}.
 @ @<Function definitions@> =
-int marpa_r_earley_set_size(struct marpa_r *r, Marpa_Earley_Set_ID set_id)
+int _marpa_r_earley_set_size(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
 {
     @<Return |-2| on failure@>@;
     ES earley_set;
@@ -6459,15 +6354,15 @@ The only awkwardness takes place
 when the second source is added, and the first one must
 be recopied to make way for pointers to the linked lists.
 @d EIM_FATAL_THRESHOLD (INT_MAX/4)
-@d Complete_SYMIDs_of_EIM(item) 
-    Complete_SYMIDs_of_AHFA(AHFA_of_EIM(item))
-@d Complete_SYM_Count_of_EIM(item)
-    Complete_SYM_Count_of_AHFA(AHFA_of_EIM(item))
-@d Leo_LHS_ID_of_EIM(eim) Leo_LHS_ID_of_AHFA(AHFA_of_EIM(eim))
+@d Complete_ISYIDs_of_EIM(item) 
+    Complete_ISYIDs_of_AHFA(AHFA_of_EIM(item))
+@d Complete_ISY_Count_of_EIM(item)
+    Complete_ISY_Count_of_AHFA(AHFA_of_EIM(item))
+@d Leo_LHS_ISYID_of_EIM(eim) Leo_LHS_ISYID_of_AHFA(AHFA_of_EIM(eim))
 @ It might be slightly faster if this boolean is memoized in the Earley item
 when the Earley item is initialized.
 @d Earley_Item_is_Completion(item)
-    (Complete_SYM_Count_of_EIM(item) > 0)
+    (Complete_ISY_Count_of_EIM(item) > 0)
 @<Public typedefs@> = typedef int Marpa_Earley_Item_ID;
 @ The ID of the Earley item is per-Earley-set, so that
 to uniquely specify the Earley item you must also specify
@@ -6663,7 +6558,7 @@ or for other failures, |-2| is returned.
 The upper levels may choose to treat these as hard failures.
 @ @<Function definitions@> =
 Marpa_Earleme
-marpa_r_earley_set_trace (struct marpa_r *r, Marpa_Earley_Set_ID set_id)
+_marpa_r_earley_set_trace (Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
 {
   ES earley_set;
   const int es_does_not_exist = -1;
@@ -6700,7 +6595,7 @@ marpa_r_earley_set_trace (struct marpa_r *r, Marpa_Earley_Set_ID set_id)
 
 @ @<Function definitions@> =
 Marpa_AHFA_State_ID
-marpa_r_earley_item_trace (struct marpa_r *r, Marpa_Earley_Item_ID item_id)
+_marpa_r_earley_item_trace (Marpa_Recognizer r, Marpa_Earley_Item_ID item_id)
 {
   const int eim_does_not_exist = -1;
   @<Return |-2| on failure@>@;
@@ -6742,14 +6637,14 @@ also clears the source link.
       r->t_trace_earley_item = NULL;
 
 @ @<Function definitions@> =
-PRIVATE void trace_earley_item_clear(struct marpa_r* r)
+PRIVATE void trace_earley_item_clear(RECCE r)
 {
     @<Clear trace Earley item data@>@/
     trace_source_link_clear(r);
 }
 
 @ @<Function definitions@> =
-Marpa_Earley_Set_ID marpa_r_earley_item_origin(struct marpa_r *r)
+Marpa_Earley_Set_ID _marpa_r_earley_item_origin(Marpa_Recognizer r)
 {
     @<Return |-2| on failure@>@;
     EIM item = r->t_trace_earley_item;
@@ -6773,7 +6668,7 @@ support the chain of postdot items for
 a postdot symbol.
 @d Next_PIM_of_EIX(eix) ((eix)->t_next)
 @d EIM_of_EIX(eix) ((eix)->t_earley_item)
-@d Postdot_SYMID_of_EIX(eix) ((eix)->t_postdot_symid)
+@d Postdot_ISYID_of_EIX(eix) ((eix)->t_postdot_isyid)
 @<Private incomplete structures@> =
 struct s_earley_ix;
 typedef struct s_earley_ix* EIX;
@@ -6781,7 +6676,7 @@ union u_postdot_item;
 @ @<Private structures@> =
 struct s_earley_ix {
      union u_postdot_item* t_next;
-     SYMID t_postdot_symid;
+     ISYID t_postdot_isyid;
      EIM t_earley_item; // Never NULL if this is an index item
 };
 typedef struct s_earley_ix EIX_Object;
@@ -6800,7 +6695,7 @@ the fields to maintain the chain of postdot items.
 For this reason, Leo items contain an Earley index,
 but one
 with a |NULL| Earley item pointer.
-@d Postdot_SYMID_of_LIM(leo) (Postdot_SYMID_of_EIX(EIX_of_LIM(leo)))
+@d Postdot_ISYID_of_LIM(leo) (Postdot_ISYID_of_EIX(EIX_of_LIM(leo)))
 @d Next_PIM_of_LIM(leo) (Next_PIM_of_EIX(EIX_of_LIM(leo)))
 @d Origin_of_LIM(leo) ((leo)->t_origin)
 @d Top_AHFA_of_LIM(leo) ((leo)->t_top_ahfa)
@@ -6830,7 +6725,7 @@ The trace Leo item is selected by setting the trace postdot item
 to a Leo item.
 
 @ @<Function definitions@> =
-Marpa_Symbol_ID marpa_r_leo_predecessor_symbol(struct marpa_r *r)
+Marpa_Symbol_ID _marpa_r_leo_predecessor_symbol(Marpa_Recognizer r)
 {
   const Marpa_Symbol_ID no_predecessor = -1;
   @<Return |-2| on failure@>@;
@@ -6848,11 +6743,11 @@ Marpa_Symbol_ID marpa_r_leo_predecessor_symbol(struct marpa_r *r)
   }
   predecessor_leo_item = Predecessor_LIM_of_LIM(LIM_of_PIM(postdot_item));
   if (!predecessor_leo_item) return no_predecessor;
-  return Postdot_SYMID_of_LIM(predecessor_leo_item);
+  return Postdot_ISYID_of_LIM(predecessor_leo_item);
 }
 
 @ @<Function definitions@> =
-Marpa_Earley_Set_ID marpa_r_leo_base_origin(struct marpa_r *r)
+Marpa_Earley_Set_ID _marpa_r_leo_base_origin(Marpa_Recognizer r)
 {
   const EARLEME pim_is_not_a_leo_item = -1;
   @<Return |-2| on failure@>@;
@@ -6870,7 +6765,7 @@ Marpa_Earley_Set_ID marpa_r_leo_base_origin(struct marpa_r *r)
 }
 
 @ @<Function definitions@> =
-Marpa_AHFA_State_ID marpa_r_leo_base_state(struct marpa_r *r)
+Marpa_AHFA_State_ID _marpa_r_leo_base_state(Marpa_Recognizer r)
 {
   const EARLEME pim_is_not_a_leo_item = -1;
   @<Return |-2| on failure@>@;
@@ -6912,7 +6807,7 @@ if a Leo item is the predecessor in
 a Leo source for a Leo completion item,
 the Leo completion item is the expansion of that Leo item.
 @ @<Function definitions@> =
-Marpa_AHFA_State_ID marpa_r_leo_expansion_ahfa(struct marpa_r *r)
+Marpa_AHFA_State_ID _marpa_r_leo_expansion_ahfa(Marpa_Recognizer r)
 {
     const EARLEME pim_is_not_a_leo_item = -1;
     @<Return |-2| on failure@>@;
@@ -6928,8 +6823,8 @@ Marpa_AHFA_State_ID marpa_r_leo_expansion_ahfa(struct marpa_r *r)
       {
 	const LIM leo_item = LIM_of_PIM (postdot_item);
 	const EIM base_earley_item = Base_EIM_of_LIM (leo_item);
-	const SYMID postdot_symbol = Postdot_SYMID_of_LIM (leo_item);
-	const AHFA to_ahfa = To_AHFA_of_EIM_by_SYMID (base_earley_item, postdot_symbol);
+	const ISYID postdot_isyid = Postdot_ISYID_of_LIM (leo_item);
+	const AHFA to_ahfa = To_AHFA_of_EIM_by_ISYID (base_earley_item, postdot_isyid);
 	return ID_of_AHFA(to_ahfa);
       }
     return pim_is_not_a_leo_item;
@@ -6942,7 +6837,7 @@ by postdot symbol, of both the Earley items and the Leo items
 for each Earley set.
 @d LIM_of_PIM(pim) ((LIM)(pim))
 @d EIX_of_PIM(pim) ((EIX)(pim))
-@d Postdot_SYMID_of_PIM(pim) (Postdot_SYMID_of_EIX(EIX_of_PIM(pim)))
+@d Postdot_ISYID_of_PIM(pim) (Postdot_ISYID_of_EIX(EIX_of_PIM(pim)))
 @d EIM_of_PIM(pim) (EIM_of_EIX(EIX_of_PIM(pim)))
 @d Next_PIM_of_PIM(pim) (Next_PIM_of_EIX(EIX_of_PIM(pim)))
 
@@ -6958,9 +6853,6 @@ union u_postdot_item {
 };
 typedef union u_postdot_item* PIM;
 
-@*0 Symbol of a Postdot Item.
-@d SYMID_of_Postdot_Item(postdot) ((postdot)->t_earley.transition_symid)
-
 @ This function searches for the
 first postdot item for an Earley set
 and a symbol ID.
@@ -6969,7 +6861,7 @@ returns that postdot item.
 If it fails, it returns |NULL|.
 @<Function definitions@> =
 PRIVATE PIM*
-pim_sym_p_find (ES set, SYMID symid)
+pim_isy_p_find (ES set, ISYID isyid)
 {
   int lo = 0;
   int hi = Postdot_SYM_Count_of_ES(set) - 1;
@@ -6977,9 +6869,9 @@ pim_sym_p_find (ES set, SYMID symid)
   while (hi >= lo) { // A binary search
        int trial = lo+(hi-lo)/2; // guards against overflow
        PIM trial_pim = postdot_array[trial];
-       SYMID trial_symid = Postdot_SYMID_of_PIM(trial_pim);
-       if (trial_symid == symid) return postdot_array+trial;
-       if (trial_symid < symid) {
+       ISYID trial_isyid = Postdot_ISYID_of_PIM(trial_pim);
+       if (trial_isyid == isyid) return postdot_array+trial;
+       if (trial_isyid < isyid) {
            lo = trial+1;
        } else {
            hi = trial-1;
@@ -6988,10 +6880,10 @@ pim_sym_p_find (ES set, SYMID symid)
   return NULL;
 }
 @ @<Function definitions@> =
-PRIVATE PIM first_pim_of_es_by_symid(ES set, SYMID symid)
+PRIVATE PIM first_pim_of_es_by_isyid(ES set, ISYID isyid)
 {
-   PIM* pim_sym_p = pim_sym_p_find(set, symid);
-   return pim_sym_p ? *pim_sym_p : NULL;
+   PIM* pim_isy_p = pim_isy_p_find(set, isyid);
+   return pim_isy_p ? *pim_isy_p : NULL;
 }
 
 @*0 Trace Functions.
@@ -7001,10 +6893,10 @@ a ``trace postdot item".
 This is
 tracked on a per-recognizer basis.
 @<Widely aligned recognizer elements@> =
-union u_postdot_item** t_trace_pim_sym_p;
+union u_postdot_item** t_trace_pim_isy_p;
 union u_postdot_item* t_trace_postdot_item;
 @ @<Initialize recognizer elements@> =
-r->t_trace_pim_sym_p = NULL;
+r->t_trace_pim_isy_p = NULL;
 r->t_trace_postdot_item = NULL;
 @ |marpa_r_postdot_symbol_trace|
 takes a recognizer and a symbol ID
@@ -7019,12 +6911,12 @@ it returns |-2|
 and clears the trace postdot item.
 @<Function definitions@> =
 Marpa_Symbol_ID
-marpa_r_postdot_symbol_trace (struct marpa_r *r,
+_marpa_r_postdot_symbol_trace (Marpa_Recognizer r,
     Marpa_Symbol_ID symid)
 {
   @<Return |-2| on failure@>@;
   ES current_es = r->t_trace_earley_set;
-  PIM* pim_sym_p;
+  PIM* pim_isy_p;
   PIM pim;
   @<Unpack recognizer objects@>@;
   @<Clear trace postdot item data@>@;
@@ -7034,16 +6926,16 @@ marpa_r_postdot_symbol_trace (struct marpa_r *r,
       MARPA_ERROR(MARPA_ERR_NO_TRACE_ES);
       return failure_indicator;
   }
-  pim_sym_p = PIM_SYM_P_of_ES_by_SYMID(current_es, symid);
-  pim = *pim_sym_p;
+  pim_isy_p = PIM_ISY_P_of_ES_by_ISYID(current_es, ISYID_by_XSYID(symid));
+  pim = *pim_isy_p;
   if (!pim) return -1;
-  r->t_trace_pim_sym_p = pim_sym_p;
+  r->t_trace_pim_isy_p = pim_isy_p;
   r->t_trace_postdot_item = pim;
   return symid;
 }
 
 @ @<Clear trace postdot item data@> =
-r->t_trace_pim_sym_p = NULL;
+r->t_trace_pim_isy_p = NULL;
 r->t_trace_postdot_item = NULL;
 
 @ Set trace postdot item to the first in the trace Earley set,
@@ -7054,13 +6946,13 @@ On other failures, return -2 and clear the trace
 postdot item.
 @<Function definitions@> =
 Marpa_Symbol_ID
-marpa_r_first_postdot_item_trace (struct marpa_r *r)
+_marpa_r_first_postdot_item_trace (Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
   ES current_earley_set = r->t_trace_earley_set;
   PIM pim;
   @<Unpack recognizer objects@>@;
-  PIM* pim_sym_p;
+  PIM* pim_isy_p;
   @<Clear trace postdot item data@>@;
   @<Fail if not trace-safe@>@;
   if (!current_earley_set) {
@@ -7069,11 +6961,11 @@ marpa_r_first_postdot_item_trace (struct marpa_r *r)
       return failure_indicator;
   }
   if (current_earley_set->t_postdot_sym_count <= 0) return -1;
-  pim_sym_p = current_earley_set->t_postdot_ary+0;
-  pim = pim_sym_p[0];
-  r->t_trace_pim_sym_p = pim_sym_p;
+  pim_isy_p = current_earley_set->t_postdot_ary+0;
+  pim = pim_isy_p[0];
+  r->t_trace_pim_isy_p = pim_isy_p;
   r->t_trace_postdot_item = pim;
-  return Postdot_SYMID_of_PIM(pim);
+  return Postdot_ISYID_of_PIM(pim);
 }
 
 @ Set the trace postdot item to the one after
@@ -7085,19 +6977,19 @@ On other failures, return -2 and clear the trace
 postdot item.
 @<Function definitions@> =
 Marpa_Symbol_ID
-marpa_r_next_postdot_item_trace (struct marpa_r *r)
+_marpa_r_next_postdot_item_trace (Marpa_Recognizer r)
 {
   const SYMID no_more_postdot_symbols = -1;
   @<Return |-2| on failure@>@;
   ES current_set = r->t_trace_earley_set;
   PIM pim;
-  PIM* pim_sym_p;
+  PIM* pim_isy_p;
   @<Unpack recognizer objects@>@;
 
-  pim_sym_p = r->t_trace_pim_sym_p;
+  pim_isy_p = r->t_trace_pim_isy_p;
   pim = r->t_trace_postdot_item;
   @<Clear trace postdot item data@>@;
-  if (!pim_sym_p || !pim) {
+  if (!pim_isy_p || !pim) {
       MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
       return failure_indicator;
   }
@@ -7109,20 +7001,20 @@ marpa_r_next_postdot_item_trace (struct marpa_r *r)
   pim = Next_PIM_of_PIM(pim);
   if (!pim) { /* If no next postdot item for this symbol,
        then look at next symbol */
-       pim_sym_p++;
-       if (pim_sym_p - current_set->t_postdot_ary
+       pim_isy_p++;
+       if (pim_isy_p - current_set->t_postdot_ary
 	   >= current_set->t_postdot_sym_count) {
 	   return no_more_postdot_symbols;
        }
-      pim = *pim_sym_p;
+      pim = *pim_isy_p;
   }
-  r->t_trace_pim_sym_p = pim_sym_p;
+  r->t_trace_pim_isy_p = pim_isy_p;
   r->t_trace_postdot_item = pim;
-  return Postdot_SYMID_of_PIM(pim);
+  return Postdot_ISYID_of_PIM(pim);
 }
 
 @ @<Function definitions@> =
-Marpa_AHFA_State_ID marpa_r_postdot_item_symbol(struct marpa_r *r)
+Marpa_AHFA_State_ID _marpa_r_postdot_item_symbol(Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
   PIM postdot_item = r->t_trace_postdot_item;
@@ -7132,7 +7024,7 @@ Marpa_AHFA_State_ID marpa_r_postdot_item_symbol(struct marpa_r *r)
       MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
       return failure_indicator;
   }
-  return Postdot_SYMID_of_PIM(postdot_item);
+  return Postdot_ISYID_of_PIM(postdot_item);
 }
 
 
@@ -7240,15 +7132,15 @@ union u_source_container {
 @d TOK_of_SRC(source) TOK_of_Source(*(source))
 @d TOK_of_EIM(eim) TOK_of_Source(Source_of_EIM(eim))
 @d TOK_of_SRCL(link) TOK_of_Source(Source_of_SRCL(link))
-@d SYMID_of_Source(srcd) SYMID_of_TOK(TOK_of_Source(srcd))
-@d SYMID_of_SRC(source) SYMID_of_Source(*(source))
-@d SYMID_of_EIM(eim) SYMID_of_Source(Source_of_EIM(eim))
-@d SYMID_of_SRCL(link) SYMID_of_Source(Source_of_SRCL(link))
+@d ISYID_of_Source(srcd) ISYID_of_TOK(TOK_of_Source(srcd))
+@d ISYID_of_SRC(source) ISYID_of_Source(*(source))
+@d ISYID_of_EIM(eim) ISYID_of_Source(Source_of_EIM(eim))
+@d ISYID_of_SRCL(link) ISYID_of_Source(Source_of_SRCL(link))
 
 @ @d Cause_AHFA_State_ID_of_SRC(source)
     AHFAID_of_EIM((EIM)Cause_of_SRC(source))
-@d Leo_Transition_SYMID_of_SRC(leo_source)
-    Postdot_SYMID_of_LIM((LIM)Predecessor_of_SRC(leo_source))
+@d Leo_Transition_ISYID_of_SRC(leo_source)
+    Postdot_ISYID_of_LIM((LIM)Predecessor_of_SRC(leo_source))
 
 @
 @d First_Completion_Link_of_EIM(item) ((item)->t_container.t_ambiguous.t_completion)
@@ -7474,7 +7366,7 @@ Returns the symbol ID if there was a token source link,
 |-1| if there was none,
 and |-2| on some other kind of failure.
 @<Function definitions@> =
-Marpa_Symbol_ID marpa_r_first_token_link_trace(struct marpa_r *r)
+Marpa_Symbol_ID _marpa_r_first_token_link_trace(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@;
    SRC source;
@@ -7491,7 +7383,7 @@ Marpa_Symbol_ID marpa_r_first_token_link_trace(struct marpa_r *r)
 	source = &(item->t_container.t_unique);
 	r->t_trace_source = source;
 	r->t_trace_next_source_link = NULL;
-	return SYMID_of_SRC (source);
+	return ISYID_of_SRC (source);
       case SOURCE_IS_AMBIGUOUS:
 	{
 	  SRCL full_link =
@@ -7501,7 +7393,7 @@ Marpa_Symbol_ID marpa_r_first_token_link_trace(struct marpa_r *r)
 	      r->t_trace_source_type = SOURCE_IS_TOKEN;
 	      r->t_trace_next_source_link = Next_SRCL_of_SRCL (full_link);
 	      r->t_trace_source = &(full_link->t_source);
-	      return SYMID_of_SRCL (full_link);
+	      return ISYID_of_SRCL (full_link);
 	    }
 	}
       }
@@ -7518,7 +7410,7 @@ a next token source link,
 |-1| if there was none,
 and |-2| on some other kind of failure.
 @<Function definitions@> =
-Marpa_Symbol_ID marpa_r_next_token_link_trace(struct marpa_r *r)
+Marpa_Symbol_ID _marpa_r_next_token_link_trace(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@;
    SRCL full_link;
@@ -7538,7 +7430,7 @@ Marpa_Symbol_ID marpa_r_next_token_link_trace(struct marpa_r *r)
     full_link = r->t_trace_next_source_link;
     r->t_trace_next_source_link = Next_SRCL_of_SRCL (full_link);
     r->t_trace_source = &(full_link->t_source);
-    return SYMID_of_SRCL (full_link);
+    return ISYID_of_SRCL (full_link);
 }
 
 @*1 Trace First Completion Link.
@@ -7549,7 +7441,7 @@ if there was a completion source link,
 |-1| if there was none,
 and |-2| on some other kind of failure.
 @<Function definitions@> =
-Marpa_Symbol_ID marpa_r_first_completion_link_trace(struct marpa_r *r)
+Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@;
    SRC source;
@@ -7592,7 +7484,7 @@ a next completion source link,
 |-1| if there was none,
 and |-2| on some other kind of failure.
 @<Function definitions@> =
-Marpa_Symbol_ID marpa_r_next_completion_link_trace(struct marpa_r *r)
+Marpa_Symbol_ID _marpa_r_next_completion_link_trace(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@;
    SRC source;
@@ -7626,7 +7518,7 @@ if there was a Leo source link,
 and |-2| on some other kind of failure.
 @<Function definitions@> =
 Marpa_Symbol_ID
-marpa_r_first_leo_link_trace (struct marpa_r *r)
+_marpa_r_first_leo_link_trace (Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
   SRC source;
@@ -7672,7 +7564,7 @@ a next Leo source link,
 and |-2| on some other kind of failure.
 @<Function definitions@> =
 Marpa_Symbol_ID
-marpa_r_next_leo_link_trace (struct marpa_r *r)
+_marpa_r_next_leo_link_trace (Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@/
   SRCL full_link;
@@ -7726,7 +7618,7 @@ the trace source link is a Leo source,
 or there is some other failure,
 |-2| is returned.
 @<Function definitions@> =
-AHFAID marpa_r_source_predecessor_state(struct marpa_r *r)
+AHFAID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@/
    unsigned int source_type;
@@ -7767,7 +7659,7 @@ which means the symbol ID comes at virtually zero cost.
 Second, whenever the token value is
 wanted, the symbol ID is almost always wanted as well.
 @<Function definitions@> =
-Marpa_Symbol_ID marpa_r_source_token(struct marpa_r *r, int *value_p)
+Marpa_Symbol_ID _marpa_r_source_token(Marpa_Recognizer r, int *value_p)
 {
    @<Return |-2| on failure@>@;
    unsigned int source_type;
@@ -7779,7 +7671,7 @@ Marpa_Symbol_ID marpa_r_source_token(struct marpa_r *r, int *value_p)
     if (source_type == SOURCE_IS_TOKEN) {
 	const TOK token = TOK_of_SRC(source);
         if (value_p) *value_p = Value_of_TOK(token);
-	return SYMID_of_TOK(token);
+	return ISYID_of_TOK(token);
     }
     MARPA_ERROR(invalid_source_type_code(source_type));
     return failure_indicator;
@@ -7799,7 +7691,7 @@ if the trace source link is not a Leo source,
 or there is some other failure,
 |-2| is returned.
 @<Function definitions@> =
-Marpa_Symbol_ID marpa_r_source_leo_transition_symbol(struct marpa_r *r)
+Marpa_Symbol_ID _marpa_r_source_leo_transition_symbol(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@/
    unsigned int source_type;
@@ -7811,7 +7703,7 @@ Marpa_Symbol_ID marpa_r_source_leo_transition_symbol(struct marpa_r *r)
     switch (source_type)
     {
     case SOURCE_IS_LEO:
-	return Leo_Transition_SYMID_of_SRC(source);
+	return Leo_Transition_ISYID_of_SRC(source);
     }
     MARPA_ERROR(invalid_source_type_code(source_type));
     return failure_indicator;
@@ -7845,7 +7737,7 @@ If there are other failures, such as
 there being no source link,
 |-2| is returned.
 @<Function definitions@> =
-Marpa_Earley_Set_ID marpa_r_source_middle(struct marpa_r* r)
+Marpa_Earley_Set_ID _marpa_r_source_middle(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@/
    const EARLEME no_predecessor = -1;
@@ -7934,7 +7826,6 @@ typedef struct s_token* TOK;
 objects to act as or-nodes.
 @d Type_of_TOK(tok) ((tok)->t_unvalued.t_type)
 @d ISYID_of_TOK(tok) ((tok)->t_unvalued.t_isyid)
-@d SYMID_of_TOK(tok) ID_of_XSY(Source_XSY_of_ISY(ISY_by_ID(ISYID_of_TOK(tok))))
 @d Value_of_TOK(tok) ((tok)->t_value)
 @<Private structures@> =
 struct s_token_unvalued {
@@ -7961,7 +7852,7 @@ typedef struct s_alternative* ALT;
 typedef const struct s_alternative* ALT_Const;
 @
 @d TOK_of_ALT(alt) ((alt)->t_token)
-@d SYMID_of_ALT(alt) SYMID_of_TOK(TOK_of_ALT(alt))
+@d ISYID_of_ALT(alt) ISYID_of_TOK(TOK_of_ALT(alt))
 @d Start_ES_of_ALT(alt) ((alt)->t_start_earley_set)
 @d Start_Earleme_of_ALT(alt) Earleme_of_ES(Start_ES_of_ALT(alt))
 @d End_Earleme_of_ALT(alt) ((alt)->t_end_earleme)
@@ -8006,7 +7897,7 @@ alternative_insertion_point (RECCE r, ALT new_alternative)
     {
       int outcome;
       trial = lo + (hi - lo) / 2;
-      outcome = alternative_cmp (r, new_alternative, alternative+trial);
+      outcome = alternative_cmp (new_alternative, alternative+trial);
       if (outcome == 0)
 	return -1;
       if (outcome > 0)
@@ -8034,12 +7925,11 @@ Of the remaining two keys,
 the more minor key is the start earleme, because that way its slightly
 costlier evaluation can sometimes be avoided.
 @<Function definitions@> =
-PRIVATE int alternative_cmp(RECCE r, const ALT_Const a, const ALT_Const b)
+PRIVATE int alternative_cmp(const ALT_Const a, const ALT_Const b)
 {
-     GRAMMAR g = G_of_R(r);
      int subkey = End_Earleme_of_ALT(b) - End_Earleme_of_ALT(a);
      if (subkey) return subkey;
-     subkey = SYMID_of_ALT(a) - SYMID_of_ALT(b);
+     subkey = ISYID_of_ALT(a) - ISYID_of_ALT(b);
      if (subkey) return subkey;
      return Start_Earleme_of_ALT(a) - Start_Earleme_of_ALT(b);
 }
@@ -8085,14 +7975,14 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
 }
 
 @** Starting Recognizer Input.
-@<Function definitions@> = int marpa_r_start_input(struct marpa_r *r)
+@<Function definitions@> = int marpa_r_start_input(Marpa_Recognizer r)
 {
     ES set0;
     EIM item;
     EIK_Object key;
     AHFA state;
   @<Unpack recognizer objects@>@;
-    const int symbol_count_of_g = SYM_Count_of_G(g);
+    const ISYID isy_count = ISY_Count_of_G(g);
     @<Return |-2| on failure@>@;
     @<Fail if recognizer started@>@;
     Current_Earleme_of_R(r) = 0;
@@ -8101,9 +7991,8 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
 	return 1;
     }
     Input_Phase_of_R(r) = R_DURING_INPUT;
-    @<Allocate recognizer workareas@>@;
     psar_reset(Dot_PSAR_of_R(r));
-    @<Allocate recognizer's bit vectors for symbols@>@;
+    @<Allocate recognizer containers used in setup@>@;
     @<Initialize Earley item work stacks@>@;
     set0 = earley_set_new(r, 0);
     Latest_ES_of_R(r) = set0;
@@ -8239,7 +8128,7 @@ are always unexpected.
     token_isyid = ID_of_ISY(token_isy);
     current_earley_set = Current_ES_of_R (r);
     if (!current_earley_set) return unexpected_token_indicator;
-    if (!First_PIM_of_ES_by_SYMID (current_earley_set, token_xsyid))
+    if (!First_PIM_of_ES_by_ISYID (current_earley_set, token_isyid))
 	return unexpected_token_indicator;
 }
 
@@ -8345,7 +8234,7 @@ they must explicitly check the phase whenever this function
 returns zero.
 @<Function definitions@> =
 Marpa_Earleme
-marpa_r_earleme_complete(struct marpa_r* r)
+marpa_r_earleme_complete(Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
   @<Unpack recognizer objects@>@;
@@ -8356,7 +8245,7 @@ marpa_r_earleme_complete(struct marpa_r* r)
     @<Fail if recognizer not accepting input@>@;
     G_EVENTS_CLEAR(g);
   psar_dealloc(Dot_PSAR_of_R(r));
-    bv_clear (r->t_bv_symid_is_expected);
+    bv_clear (r->t_bv_isyid_is_expected);
     @<Initialize |current_earleme|@>@;
     @<Return 0 if no alternatives@>@;
     @<Initialize |current_earley_set|@>@;
@@ -8368,7 +8257,7 @@ marpa_r_earleme_complete(struct marpa_r* r)
     }
     postdot_items_create(r, current_earley_set);
 
-    count_of_expected_terminals = bv_count (r->t_bv_symid_is_expected);
+    count_of_expected_terminals = bv_count (r->t_bv_isyid_is_expected);
     if (count_of_expected_terminals <= 0
 	&& Earleme_of_ES (current_earley_set) >= Furthest_Earleme_of_R (r))
       { /* If no terminals are expected, and there are no Earley items in
@@ -8423,15 +8312,15 @@ this means that the parse is exhausted.
 {
   ES start_earley_set = Start_ES_of_ALT (alternative);
   TOK token = TOK_of_ALT (alternative);
-  SYMID token_id = SYMID_of_TOK(token);
-  PIM pim = First_PIM_of_ES_by_SYMID (start_earley_set, token_id);
+  ISYID token_isyid = ISYID_of_TOK(token);
+  PIM pim = First_PIM_of_ES_by_ISYID (start_earley_set, token_isyid);
   for ( ; pim ; pim = Next_PIM_of_PIM (pim)) {
       AHFA scanned_AHFA, prediction_AHFA;
       EIM scanned_earley_item;
       EIM predecessor = EIM_of_PIM (pim);
       if (!predecessor)
 	continue;		// Ignore Leo items when scanning
-      scanned_AHFA = To_AHFA_of_EIM_by_SYMID (predecessor, token_id);
+      scanned_AHFA = To_AHFA_of_EIM_by_ISYID (predecessor, token_isyid);
       scanned_earley_item = earley_item_assign (r,
 						current_earley_set,
 						Origin_of_EIM (predecessor),
@@ -8467,21 +8356,21 @@ this means that the parse is exhausted.
 add those Earley items it ``causes".
 @<Add new Earley items for |cause|@> =
 {
-  Marpa_Symbol_ID *complete_symbols = Complete_SYMIDs_of_EIM (cause);
-  int count = Complete_SYM_Count_of_EIM (cause);
+  ISYID *complete_isyids = Complete_ISYIDs_of_EIM (cause);
+  int count = Complete_ISY_Count_of_EIM (cause);
   ES middle = Origin_of_EIM (cause);
-  int symbol_ix;
-  for (symbol_ix = 0; symbol_ix < count; symbol_ix++)
+  int isy_ix;
+  for (isy_ix = 0; isy_ix < count; isy_ix++)
     {
-      Marpa_Symbol_ID complete_symbol = complete_symbols[symbol_ix];
-      @<Add new Earley items for |complete_symbol| and |cause|@>@;
+      ISYID complete_isyid = complete_isyids[isy_ix];
+      @<Add new Earley items for |complete_isyid| and |cause|@>@;
     }
 }
 
-@ @<Add new Earley items for |complete_symbol| and |cause|@> =
+@ @<Add new Earley items for |complete_isyid| and |cause|@> =
 {
   PIM postdot_item;
-  for (postdot_item = First_PIM_of_ES_by_SYMID (middle, complete_symbol);
+  for (postdot_item = First_PIM_of_ES_by_ISYID (middle, complete_isyid);
        postdot_item; postdot_item = Next_PIM_of_PIM (postdot_item))
     {
       EIM predecessor = EIM_of_PIM (postdot_item);
@@ -8504,7 +8393,7 @@ add those Earley items it ``causes".
 @ @<Add effect, plus any prediction, for non-Leo predecessor@> =
 {
     ES origin = Origin_of_EIM(predecessor);
-     effect_AHFA_state = To_AHFA_of_EIM_by_SYMID(predecessor, complete_symbol);
+     effect_AHFA_state = To_AHFA_of_EIM_by_ISYID(predecessor, complete_isyid);
      effect = earley_item_assign(r, current_earley_set,
           origin, effect_AHFA_state);
      if (Earley_Item_has_No_Source(effect)) {
@@ -8555,7 +8444,7 @@ PRIVATE void earley_set_update_items(RECCE r, ES set)
     EIM* finished_earley_items;
     int working_earley_item_count;
     int i;
-    EIMs_of_ES(set) = my_renew(EIM, EIMs_of_ES(set), EIM_Count_of_ES(set));
+    EIMs_of_ES(set) = my_obstack_new(&r->t_obs, EIM, EIM_Count_of_ES(set));
     finished_earley_items = EIMs_of_ES(set);
     working_earley_items = Work_EIMs_of_R(r);
     working_earley_item_count = Work_EIM_Count_of_R(r);
@@ -8591,7 +8480,7 @@ PRIVATE void r_update_earley_sets(RECCE r)
 @** Create the Postdot Items.
 @ This function inserts regular (non-Leo) postdot items into
 the postdot list.
-@ Not inlined, because of its size, and because it is used
+Not inlined, because of its size, and because it is used
 twice -- once in initializing the Earley set 0,
 and once for completing later Earley sets.
 Earley set 0 is very much a special case, and it
@@ -8605,7 +8494,7 @@ These have been eliminated with the special-casing of the
 null parse.
 But Leo items are always optional,
 and may not be worth it for Earley set 0.
-@ @ {\bf Further Research}: @^Further Research@>
+@ {\bf Further Research}: @^Further Research@>
 Another look at the degree and kind
 of memoization here will be in order
 once the question of when to use Leo items
@@ -8613,24 +8502,35 @@ once the question of when to use Leo items
 is completely settled.
 This will require making the Leo behavior configurable
 and running benchmarks.
-@<Function definitions@> =
+@<Widely aligned recognizer elements@> =
+  Bit_Vector t_bv_lim_symbols;
+  Bit_Vector t_bv_pim_symbols;
+  void** t_pim_workarea;
+@ @<Allocate recognizer containers used in setup@> = 
+  r->t_bv_lim_symbols = bv_obs_create(&r->t_obs, isy_count);
+  r->t_bv_pim_symbols = bv_obs_create(&r->t_obs, isy_count);
+  r->t_pim_workarea = my_obstack_new(&r->t_obs, void*, isy_count);
+@ @<Reinitialize containers used in PIM setup@> =
+  bv_clear(r->t_bv_lim_symbols);
+  bv_clear(r->t_bv_pim_symbols);
+@ @<Function definitions@> =
 PRIVATE_NOT_INLINE void
 postdot_items_create (RECCE r, ES current_earley_set)
 {
-    void * * const pim_workarea = r->t_sym_workarea;
+    struct obstack obs_local;
+    const ISYID isy_count = ISY_Count_of_G(G_of_R(r));
   @<Unpack recognizer objects@>@;
     EARLEME current_earley_set_id = Earleme_of_ES(current_earley_set);
-    Bit_Vector bv_pim_symbols = r->t_bv_sym;
-    Bit_Vector bv_lim_symbols = r->t_bv_sym2;
-    bv_clear (bv_pim_symbols);
-    bv_clear (bv_lim_symbols);
+    my_obstack_init(&obs_local);
+    @<Reinitialize containers used in PIM setup@>@;
     @<Start EIXes in PIM workarea@>@;
     if (r->t_is_using_leo) {
 	@<Start LIMs in PIM workarea@>@;
 	@<Add predecessors to LIMs@>@;
     }
     @<Copy PIM workarea to postdot item array@>@;
-    bv_and(r->t_bv_symid_is_expected, bv_pim_symbols, g->t_bv_symid_is_terminal);
+    bv_and(r->t_bv_isyid_is_expected, r->t_bv_pim_symbols, g->t_bv_isyid_is_terminal);
+    my_obstack_free(&obs_local);
 }
 
 @ This code creates the Earley indexes in the PIM workarea.
@@ -8644,25 +8544,25 @@ At this point there are no Leo items.
 	 ix++) {
 	EIM earley_item = work_earley_items[ix];
       AHFA state = AHFA_of_EIM (earley_item);
-      int symbol_ix;
-      int postdot_symbol_count = Postdot_SYM_Count_of_AHFA (state);
-      Marpa_Symbol_ID *postdot_symbols =
-	Postdot_SYMID_Ary_of_AHFA (state);
-      for (symbol_ix = 0; symbol_ix < postdot_symbol_count; symbol_ix++)
+      int isy_ix;
+      ISYID postdot_isy_count = Postdot_ISY_Count_of_AHFA (state);
+      ISYID *postdot_isyidary =
+	Postdot_ISYIDAry_of_AHFA (state);
+      for (isy_ix = 0; isy_ix < postdot_isy_count; isy_ix++)
 	{
 	  PIM old_pim = NULL;
 	  PIM new_pim;
-	  Marpa_Symbol_ID symid;
+	  ISYID isyid;
 	  new_pim = my_obstack_alloc (&r->t_obs, sizeof (EIX_Object));
-	  symid = postdot_symbols[symbol_ix];
-	  Postdot_SYMID_of_PIM(new_pim) = symid;
+	  isyid = postdot_isyidary[isy_ix];
+	  Postdot_ISYID_of_PIM(new_pim) = isyid;
 	  EIM_of_PIM(new_pim) = earley_item;
-	  if (bv_bit_test(bv_pim_symbols, (unsigned int)symid))
-	      old_pim = pim_workarea[symid];
+	  if (bv_bit_test(r->t_bv_pim_symbols, (unsigned int)isyid))
+	      old_pim = r->t_pim_workarea[isyid];
 	  Next_PIM_of_PIM(new_pim) = old_pim;
 	  if (!old_pim) current_earley_set->t_postdot_sym_count++;
-	  pim_workarea[symid] = new_pim;
-	  bv_bit_set(bv_pim_symbols, (unsigned int)symid);
+	  r->t_pim_workarea[isyid] = new_pim;
+	  bv_bit_set(r->t_bv_pim_symbols, (unsigned int)isyid);
 	}
     }
 }
@@ -8696,13 +8596,13 @@ Leo item have not been fully populated.
 @<Start LIMs in PIM workarea@> =
 {
   unsigned int min, max, start;
-  for (start = 0; bv_scan (bv_pim_symbols, start, &min, &max);
+  for (start = 0; bv_scan (r->t_bv_pim_symbols, start, &min, &max);
        start = max + 2)
     {
-      SYMID symid;
-      for (symid = (SYMID) min; symid <= (SYMID) max; symid++)
+      ISYID isyid;
+      for (isyid = (ISYID) min; isyid <= (ISYID) max; isyid++)
 	{
-	  PIM this_pim = pim_workarea[symid];
+	  PIM this_pim = r->t_pim_workarea[isyid];
 	  if (!Next_PIM_of_PIM (this_pim))
 	    {			/* Do not create a Leo item if there is more
 				   than one EIX */
@@ -8710,7 +8610,7 @@ Leo item have not been fully populated.
 	      if (EIM_is_Potential_Leo_Base (leo_base))
 		{
 		  AHFA base_to_ahfa =
-		    To_AHFA_of_EIM_by_SYMID (leo_base, symid);
+		    To_AHFA_of_EIM_by_ISYID (leo_base, isyid);
 		  if (AHFA_is_Leo_Completion (base_to_ahfa))
 		    {
 		      @<Create a new, unpopulated, LIM@>@;
@@ -8730,7 +8630,7 @@ once it is populated.
 @<Create a new, unpopulated, LIM@> = {
     LIM new_lim;
     new_lim = my_obstack_alloc(&r->t_obs, sizeof(*new_lim));
-    Postdot_SYMID_of_LIM(new_lim) = symid;
+    Postdot_ISYID_of_LIM(new_lim) = isyid;
     EIM_of_PIM(new_lim) = NULL;
     Predecessor_LIM_of_LIM(new_lim) = NULL;
     Origin_of_LIM(new_lim) = NULL;
@@ -8739,8 +8639,8 @@ once it is populated.
     Base_EIM_of_LIM(new_lim) = leo_base;
     ES_of_LIM(new_lim) = current_earley_set;
     Next_PIM_of_LIM(new_lim) = this_pim;
-    pim_workarea[symid] = new_lim;
-    bv_bit_set(bv_lim_symbols, (unsigned int)symid);
+    r->t_pim_workarea[isyid] = new_lim;
+    bv_bit_set(r->t_bv_lim_symbols, (unsigned int)isyid);
 }
 
 @ This code fully populates the data in the LIMs.
@@ -8773,7 +8673,7 @@ resolved by arranging those LIMs in chain link order,
 and processing them in that order.
 This is the business of the inner loop.
 @ When a LIM is encountered which cannot be populated immediately,
-its chain is followed and copied into |lim_chain|, which is in
+its chain is followed and copied into |t_lim_chain|, which is in
 effect a stack.  The chain ends when it reaches
 a LIM which can be populated immediately.
 @ A special case is when the LIM chain cycles back to the LIM
@@ -8813,21 +8713,21 @@ ID must
 \li Must not have already been added to a LIM chain for this
 Earley set.\par
 @<Add predecessors to LIMs@> = {
-  const Bit_Vector bv_ok_for_chain = r->t_bv_sym3;
+  const Bit_Vector bv_ok_for_chain = bv_obs_create(&obs_local, isy_count);
   unsigned int min, max, start;
 
-  bv_copy(bv_ok_for_chain, bv_lim_symbols);
-  for (start = 0; bv_scan (bv_lim_symbols, start, &min, &max);
+  bv_copy(bv_ok_for_chain, r->t_bv_lim_symbols);
+  for (start = 0; bv_scan (r->t_bv_lim_symbols, start, &min, &max);
        start = max + 2)
     { /* This is the outer loop.  It loops over the symbols IDs,
 	  visiting only the symbols with LIMs. */
-      SYMID main_loop_symbol_id;
-      for (main_loop_symbol_id = (SYMID) min;
-	  main_loop_symbol_id <= (SYMID) max;
-	  main_loop_symbol_id++)
+      ISYID main_loop_isyid;
+      for (main_loop_isyid = (ISYID) min;
+	  main_loop_isyid <= (ISYID) max;
+	  main_loop_isyid++)
 	{
 	  LIM predecessor_lim;
-	  LIM lim_to_process = pim_workarea[main_loop_symbol_id];
+	  LIM lim_to_process = r->t_pim_workarea[main_loop_isyid];
           if (LIM_is_Populated(lim_to_process)) continue; /* LIM may
 	      have already been populated in the LIM chain loop */
 	    @<Find predecessor LIM of unpopulated LIM@>@;
@@ -8875,19 +8775,23 @@ In a populated LIM, this will not necessarily be the case.
     const EIM base_eim = Base_EIM_of_LIM(lim_to_process);
     const ES predecessor_set = Origin_of_EIM(base_eim);
     const AHFA base_to_ahfa = Top_AHFA_of_LIM(lim_to_process);
-    const SYMID predecessor_transition_symbol = Leo_LHS_ID_of_AHFA(base_to_ahfa);
+    const ISYID predecessor_transition_isyid =
+      Leo_LHS_ISYID_of_AHFA(base_to_ahfa);
     PIM predecessor_pim;
     if (Earleme_of_ES(predecessor_set) < current_earley_set_id) {
 	predecessor_pim
-	= First_PIM_of_ES_by_SYMID (predecessor_set, predecessor_transition_symbol);
+	= First_PIM_of_ES_by_ISYID (predecessor_set, predecessor_transition_isyid);
     } else {
-        predecessor_pim = pim_workarea[predecessor_transition_symbol];
+        predecessor_pim = r->t_pim_workarea[predecessor_transition_isyid];
     }
     predecessor_lim = PIM_is_LIM(predecessor_pim) ? LIM_of_PIM(predecessor_pim) : NULL;
 }
 
+@ @<Widely aligned recognizer elements@> =
+  void** t_lim_chain;
+@ @<Allocate recognizer containers used in setup@> = 
+  r->t_lim_chain = my_obstack_new(&r->t_obs, void*, 2*isy_count);
 @ @<Create and populate a LIM chain@> = {
-  void ** const lim_chain = r->t_workarea2;
   int lim_chain_ix;
   @<Create a LIM chain@>@;
   @<Populate the LIMs in the LIM chain@>@;
@@ -8907,54 +8811,59 @@ chain at that point.  The top of chain will then have no LIM predecesor,
 instead of being part of a cycle.  Since the LIM information is always optional,
 and in that case would be useless, breaking the chain in this way causes no
 problems.
-@<Create a LIM chain@> = {
-     SYMID postdot_symid_of_lim_to_process
-	 = Postdot_SYMID_of_LIM(lim_to_process);
-    lim_chain_ix = 0;
-    lim_chain[lim_chain_ix++] = LIM_of_PIM(lim_to_process);
-	bv_bit_clear(bv_ok_for_chain, (unsigned int)postdot_symid_of_lim_to_process);
-	/* Make sure this LIM
-	is not added to a LIM chain again for this Earley set */ @#
-    while (1) {
-	 lim_to_process = predecessor_lim; /* I know at this point that
-	     |predecessor_lim| is unpopulated, so I also know that
-	     |lim_to_process| is unpopulated.  This means I also know that
-	     |lim_to_process| is in the current Earley set, because all LIMs
-	     in previous Earley sets are already
-	     populated. */ @#
-
-	 postdot_symid_of_lim_to_process = Postdot_SYMID_of_LIM(lim_to_process);
-	if (!bv_bit_test(bv_ok_for_chain, (unsigned int)postdot_symid_of_lim_to_process)) {
-	/* If I am about to add a previously added LIM to the LIM chain, I
-	   break the LIM chain at this point.
+@<Create a LIM chain@> =
+{
+  ISYID postdot_isyid_of_lim_to_process
+    = Postdot_ISYID_of_LIM (lim_to_process);
+  lim_chain_ix = 0;
+  r->t_lim_chain[lim_chain_ix++] = LIM_of_PIM (lim_to_process);
+  bv_bit_clear (bv_ok_for_chain,
+		(unsigned int) postdot_isyid_of_lim_to_process);
+  /* Make sure this LIM
+     is not added to a LIM chain again for this Earley set */
+  while (1)
+    {
+      lim_to_process = predecessor_lim;	/* I know at this point that
+					   |predecessor_lim| is unpopulated, so I also know that
+					   |lim_to_process| is unpopulated.  This means I also know that
+					   |lim_to_process| is in the current Earley set, because all LIMs
+					   in previous Earley sets are already
+					   populated. */
+      postdot_isyid_of_lim_to_process = Postdot_ISYID_of_LIM (lim_to_process);
+      if (!bv_bit_test
+	  (bv_ok_for_chain, (unsigned int) postdot_isyid_of_lim_to_process))
+	{
+	  /* If I am about to add a previously added LIM to the LIM chain, I
+	     break the LIM chain at this point.
 	     The predecessor LIM has not yet been changed,
 	     so that it is still appropriate for
 	     the LIM at the top of the chain.  */
-	    break;
+	  break;
 	}
 
-        @<Find predecessor LIM of unpopulated LIM@>@;
+      @<Find predecessor LIM of unpopulated LIM@>@;
 
-	lim_chain[lim_chain_ix++] = LIM_of_PIM(lim_to_process); /* 
-	    |lim_to_process| is not populated, as shown above */
+      r->t_lim_chain[lim_chain_ix++] = LIM_of_PIM (lim_to_process);
+      /* |lim_to_process| is not populated, as shown above */
 
-	bv_bit_clear(bv_ok_for_chain, (unsigned int)postdot_symid_of_lim_to_process);
-	/* Make sure this LIM
-	is not added to a LIM chain again for this Earley set */ @#
-
-	if (!predecessor_lim) break; /* |predecesssor_lim = NULL|,
-	so that we are forced to break the LIM chain before it */ @#
-
-	if (LIM_is_Populated(predecessor_lim)) break;
-	/* |predecesssor_lim| is populated, so that if we
-	break before |predecessor_lim|, we are ready to populate the entire LIM
-	   chain. */
+      bv_bit_clear (bv_ok_for_chain,
+		    (unsigned int) postdot_isyid_of_lim_to_process);
+      /* Make sure this LIM
+         is not added to a LIM chain again for this Earley set */
+      if (!predecessor_lim)
+	break;			/* |predecesssor_lim = NULL|,
+				   so that we are forced to break the LIM chain before it */
+      if (LIM_is_Populated (predecessor_lim))
+	break;
+      /* |predecesssor_lim| is populated, so that if we
+         break before |predecessor_lim|, we are ready to populate the entire LIM
+         chain. */
     }
 }
 
 @ @<Populate the LIMs in the LIM chain@> =
 for (lim_chain_ix--; lim_chain_ix >= 0; lim_chain_ix--) {
-    lim_to_process = lim_chain[lim_chain_ix];
+    lim_to_process = r->t_lim_chain[lim_chain_ix];
     if (predecessor_lim && LIM_is_Populated(predecessor_lim)) {
 	@<Populate |lim_to_process| from |predecessor_lim|@>@;
     } else {
@@ -8997,10 +8906,10 @@ of the base EIM.
 	       current_earley_set->t_postdot_sym_count * sizeof (PIM));
     unsigned int min, max, start;
     int postdot_array_ix = 0;
-    for (start = 0; bv_scan (bv_pim_symbols, start, &min, &max); start = max + 2) {
-	SYMID symid;
-	for (symid = (SYMID)min; symid <= (SYMID) max; symid++) {
-            PIM this_pim = pim_workarea[symid];
+    for (start = 0; bv_scan (r->t_bv_pim_symbols, start, &min, &max); start = max + 2) {
+	ISYID isyid;
+	for (isyid = (ISYID)min; isyid <= (ISYID) max; isyid++) {
+            PIM this_pim = r->t_pim_workarea[isyid];
 	    if (this_pim) postdot_array[postdot_array_ix++] = this_pim;
 	}
     }
@@ -9029,7 +8938,7 @@ If an Earley item in a Leo path already exists, a new Earley
 item is not created ---
 instead a source link is added to the present Earley item.
 
-@** Evaluation --- Preliminary Notes.
+@** Some notes on evaluation.
 
 @*0 Alternate Start Rules.
 Note that a start symbol only works if it is
@@ -9383,7 +9292,7 @@ no other descendants.
   SRCL source_link = NULL;
   EIM predecessor_earley_item = NULL;
   EIM cause_earley_item = NULL;
-  const SYMID transition_symbol_id = Postdot_SYMID_of_AIM(predecessor_aim);
+  const ISYID transition_symbol_isyid = Postdot_ISYID_of_AIM(predecessor_aim);
   switch (source_type)
     {
     case SOURCE_IS_COMPLETION:
@@ -9419,7 +9328,7 @@ no other descendants.
 	  }
     {
       const TRANS cause_completion_data =
-	TRANS_of_EIM_by_SYMID (cause_earley_item, transition_symbol_id);
+	TRANS_of_EIM_by_ISYID (cause_earley_item, transition_symbol_isyid);
       const int aex_count = Completion_Count_of_TRANS (cause_completion_data);
       const AEX * const aexes = AEXs_of_TRANS (cause_completion_data);
       const EIM ur_earley_item = cause_earley_item;
@@ -9460,9 +9369,9 @@ no other descendants.
     }
   while (cause_earley_item)
     {
-      const SYMID transition_symbol_id = Postdot_SYMID_of_LIM(leo_predecessor);
+      const ISYID transition_isyid = Postdot_ISYID_of_LIM(leo_predecessor);
       const TRANS cause_completion_data =
-	TRANS_of_EIM_by_SYMID (cause_earley_item, transition_symbol_id);
+	TRANS_of_EIM_by_ISYID (cause_earley_item, transition_isyid);
       const int aex_count = Completion_Count_of_TRANS (cause_completion_data);
       const AEX * const aexes = AEXs_of_TRANS (cause_completion_data);
       int ix;
@@ -9473,9 +9382,9 @@ no other descendants.
 	  @<Push ur-node if new@>@;
       }
     while (leo_predecessor) {
-      SYMID postdot = Postdot_SYMID_of_LIM (leo_predecessor);
+      ISYID postdot_isyid = Postdot_ISYID_of_LIM (leo_predecessor);
       EIM leo_base = Base_EIM_of_LIM (leo_predecessor);
-      TRANS transition = TRANS_of_EIM_by_SYMID (leo_base, postdot);
+      TRANS transition = TRANS_of_EIM_by_ISYID (leo_base, postdot_isyid);
       const AEX ur_aex = Leo_Base_AEX_of_TRANS (transition);
       const AIM ur_aim = AIM_of_EIM_by_AEX(leo_base, ur_aex);
       ur_earley_item = leo_base;
@@ -9622,7 +9531,6 @@ struct s_final_or_node
 };
 @
 @d TOK_of_OR(or) (&(or)->t_token)
-@d SYMID_of_OR(or) SYMID_of_TOK(TOK_of_OR(or))
 @d ISYID_of_OR(or) ISYID_of_TOK(TOK_of_OR(or))
 @d Value_of_OR(or) Value_of_TOK(TOK_of_OR(or))
 @<Private structures@> =
@@ -9895,22 +9803,22 @@ requirements in the process.
 @ Get the base data for a Leo item -- its base Earley item
 and the index of the relevant AHFA item.
 @<Function definitions@> =
-PRIVATE AEX lim_base_data_get(GRAMMAR g, LIM leo_item, EIM* p_base)
+PRIVATE AEX lim_base_data_get(LIM leo_item, EIM* p_base)
 {
-      const SYMID postdot = Postdot_SYMID_of_LIM (leo_item);
+      const ISYID postdot_isyid = Postdot_ISYID_of_LIM (leo_item);
       const EIM base = Base_EIM_of_LIM(leo_item);
-      const TRANS transition = TRANS_of_EIM_by_SYMID (base, postdot);
+      const TRANS transition = TRANS_of_EIM_by_ISYID (base, postdot_isyid);
       *p_base = base;
       return Leo_Base_AEX_of_TRANS (transition);
 }
 
-@ @d Path_AIM_of_LIM(lim) (base_aim_of_lim(g, lim)+1)
-@d Base_AIM_of_LIM(lim) (base_aim_of_lim(g, lim))
+@ @d Path_AIM_of_LIM(lim) (base_aim_of_lim(lim)+1)
+@d Base_AIM_of_LIM(lim) (base_aim_of_lim(lim))
 @<Function definitions@> =
-PRIVATE AIM base_aim_of_lim(GRAMMAR g, LIM leo_item)
+PRIVATE AIM base_aim_of_lim(LIM leo_item)
 {
       EIM base;
-      const AEX base_aex = lim_base_data_get(g, leo_item, &base);
+      const AEX base_aex = lim_base_data_get(leo_item, &base);
       return AIM_of_EIM_by_AEX(base, base_aex);
 }
 
@@ -9986,12 +9894,12 @@ and the completed rules.
 Note that this puts a limit on the number of symbols
 and internal rules in a grammar --- their total must fit in an
 int.
-@d WHEID_of_SYMID(symid) (irl_count+(symid))
+@d WHEID_of_ISYID(isyid) (irl_count+(isyid))
 @d WHEID_of_IRLID(irlid) (irlid)
 @d WHEID_of_IRL(irl) WHEID_of_IRLID(ID_of_IRL(irl))
 @d WHEID_of_OR(or) (
     wheid = OR_is_Token(or) ?
-        WHEID_of_SYMID(SYMID_of_OR(or)) :
+        WHEID_of_ISYID(ISYID_of_OR(or)) :
         WHEID_of_IRL(IRL_of_OR(or))
     )
 
@@ -10152,7 +10060,7 @@ predecessor.  Set |or_node| to 0 if there is none.
     OR dand_predecessor;
     OR path_or_node;
     EIM base_earley_item;
-    AEX base_aex = lim_base_data_get(g, path_leo_item, &base_earley_item);
+    AEX base_aex = lim_base_data_get(path_leo_item, &base_earley_item);
     Set_OR_from_EIM_and_AEX(dand_predecessor, base_earley_item, base_aex);
     @<Set |path_or_node|@>@;
     @<Add draft and-nodes to the bottom or-node@>@;
@@ -10160,7 +10068,7 @@ predecessor.  Set |or_node| to 0 if there is none.
     while (higher_path_leo_item) {
 	path_leo_item = higher_path_leo_item;
 	higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
-	base_aex = lim_base_data_get(g, path_leo_item, &base_earley_item);
+	base_aex = lim_base_data_get(path_leo_item, &base_earley_item);
 	Set_OR_from_EIM_and_AEX(dand_predecessor, base_earley_item, base_aex);
 	@<Set |path_or_node|@>@;
 	@<Add the draft and-nodes to an upper Leo path or-node@>@;
@@ -10184,9 +10092,9 @@ predecessor.  Set |or_node| to 0 if there is none.
 
 @ @<Add draft and-nodes to the bottom or-node@> =
 {
-  const SYMID transition_symbol_id = Postdot_SYMID_of_LIM (leo_predecessor);
+  const ISYID transition_isyid = Postdot_ISYID_of_LIM (leo_predecessor);
   const TRANS cause_completion_data =
-    TRANS_of_EIM_by_SYMID (cause_earley_item, transition_symbol_id);
+    TRANS_of_EIM_by_ISYID (cause_earley_item, transition_isyid);
   const int aex_count = Completion_Count_of_TRANS (cause_completion_data);
   const AEX *const aexes = AEXs_of_TRANS (cause_completion_data);
   int ix;
@@ -10286,7 +10194,7 @@ predecessor.  Set |or_node| to 0 if there is none.
   SRCL source_link = NULL;
   EIM predecessor_earley_item = NULL;
   EIM cause_earley_item = NULL;
-  const SYMID transition_symbol_id = Postdot_SYMID_of_AIM(work_predecessor_aim);
+  const ISYID transition_symbol_isyid = Postdot_ISYID_of_AIM(work_predecessor_aim);
   switch (work_source_type)
     {
     case SOURCE_IS_COMPLETION:
@@ -10306,7 +10214,7 @@ predecessor.  Set |or_node| to 0 if there is none.
   while (cause_earley_item)
     {
       const TRANS cause_completion_data =
-	TRANS_of_EIM_by_SYMID (cause_earley_item, transition_symbol_id);
+	TRANS_of_EIM_by_ISYID (cause_earley_item, transition_symbol_isyid);
       const int aex_count = Completion_Count_of_TRANS (cause_completion_data);
       const AEX * const aexes = AEXs_of_TRANS (cause_completion_data);
       int ix;
@@ -10342,7 +10250,7 @@ predecessor.  Set |or_node| to 0 if there is none.
   PSAR_Object and_per_es_arena;
   const PSAR and_psar = &and_per_es_arena;
   int or_node_id = 0;
-  psar_init (and_psar, irl_count+symbol_count_of_g);
+  psar_init (and_psar, irl_count+isy_count);
   while (or_node_id < or_node_count_of_b) {
       const OR work_or_node = or_nodes_of_b[or_node_id];
     @<Mark the duplicate draft and-nodes for |work_or_node|@>@;
@@ -10584,7 +10492,7 @@ Marpa_Symbol_ID _marpa_b_and_node_token(Marpa_Bocage b,
     if (token) {
       if (value_p)
 	*value_p = Value_of_TOK (token);
-      return SYMID_of_TOK (token);
+      return ISYID_of_TOK (token);
     }
     return -1;
 }
@@ -10701,7 +10609,7 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
 
 @ @<Declare bocage locals@> =
 const GRAMMAR g = G_of_R(r);
-const int symbol_count_of_g = SYM_Count_of_G(g);
+const int isy_count = ISY_Count_of_G(g);
 const IRLID irl_count = IRL_Count_of_G(g);
 BOCAGE b = NULL;
 ES end_of_parse_earley_set;
@@ -12041,14 +11949,14 @@ struct marpa_value {
     ((v)->t_tos)
 #define marpa_v_arg_n(v) \
     ((v)->t_arg_n)
-@ @d SYMID_of_V(val) ((val)->public.t_semantic_token_id)
+@ @d XSYID_of_V(val) ((val)->public.t_semantic_token_id)
 @d RULEID_of_V(val) ((val)->public.t_semantic_rule_id)
 @d Token_Value_of_V(val) ((val)->public.t_token_value)
 @d Token_Type_of_V(val) ((val)->t_token_type)
 @d TOS_of_V(val) ((val)->public.t_tos)
 @d Arg_N_of_V(val) ((val)->public.t_arg_n)
 @<Pre-initialize value elements@> =
-SYMID_of_V(v) = -1;
+XSYID_of_V(v) = -1;
 RULEID_of_V(v) = -1;
 Token_Value_of_V(v) = -1;
 Token_Type_of_V(v) = DUMMY_OR_NODE;
@@ -12251,12 +12159,12 @@ Marpa_Nook_ID _marpa_v_nook(Marpa_Value public_v)
     Bit_Vector t_nulling_ask_bv;
 @ @<Pre-initialize value elements@> =
 {
-    const SYMID symbol_count_of_g = SYM_Count_of_G(g);
-    SYMID ix;
-    Nulling_Ask_BV_of_V(v) = bv_create (symbol_count_of_g);
-    for (ix = 0; ix < symbol_count_of_g; ix++) {
-	const SYM symbol = SYM_by_ID(ix);
-	if (SYM_is_Ask_Me_When_Null(symbol))
+    const XSYID xsy_count = XSY_Count_of_G(g);
+    XSYID ix;
+    Nulling_Ask_BV_of_V(v) = bv_create (xsy_count);
+    for (ix = 0; ix < xsy_count; ix++) {
+	const XSY xsy = XSY_by_ID(ix);
+	if (XSY_is_Ask_Me_When_Null(xsy))
 	{
 	    bv_bit_set(Nulling_Ask_BV_of_V(v), ix);
 	}
@@ -12342,7 +12250,7 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 	      Next_Value_Type_of_V (v) = MARPA_VALUE_RULE;
 	      if (token_type == NULLING_TOKEN_OR_NODE)
 	      {
-		  if (bv_bit_test(Nulling_Ask_BV_of_V(v), SYMID_of_V(v)))
+		  if (bv_bit_test(Nulling_Ask_BV_of_V(v), XSYID_of_V(v)))
 		      return MARPA_VALUE_NULLING_SYMBOL;
 	      }
 	      else if (token_type != DUMMY_OR_NODE)
@@ -12380,9 +12288,9 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 	  case V_GET_DATA:
 	    {
 	      Next_Value_Type_of_V(v) = MARPA_VALUE_INACTIVE;
-	      SYMID_of_V(v) = g->t_start_xsyid;
+	      XSYID_of_V(v) = g->t_start_xsyid;
 	      TOS_of_V(v) = Arg_N_of_V(v) = 0;
-	      if (bv_bit_test(Nulling_Ask_BV_of_V(v), SYMID_of_V(v)))
+	      if (bv_bit_test(Nulling_Ask_BV_of_V(v), XSYID_of_V(v)))
 		      return MARPA_VALUE_NULLING_SYMBOL;
 	    }
 	    /* fall through */
@@ -12429,22 +12337,22 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 	  Token_Type_of_V (v) = token_type;
 	  if (token_type != DUMMY_OR_NODE)
 	  {
-	    const SYMID token_id = SYMID_of_TOK (token);
+	    const ISYID token_isyid = ISYID_of_TOK (token);
 	    TOS_of_V (v) = ++Arg_N_of_V (v);
 	    if (token_type == VALUED_TOKEN_OR_NODE)
 	      {
-		const SYM token_symbol = SYM_by_ID (token_id);
-		SYMID_of_V (v) = ID_of_XSY (Source_XSY_of_SYM (token_symbol));
+		const ISY token_isy = ISY_by_ID (token_isyid);
+		XSYID_of_V (v) = ID_of_XSY (Source_XSY_of_ISY (token_isy));
 		Token_Value_of_V (v) = Value_of_TOK (token);
 	      }
 	    else if (token_type == NULLING_TOKEN_OR_NODE)
 	      {
-		const SYM token_symbol = SYM_by_ID (token_id);
-		const XSY source_symbol = Source_XSY_of_SYM(token_symbol);
-		const SYMID source_symid = ID_of_SYM(source_symbol);
-		if (bv_bit_test (Nulling_Ask_BV_of_V (v), source_symid))
+		const ISY token_isy = ISY_by_ID (token_isyid);
+		const XSY source_xsy = Source_XSY_of_ISY(token_isy);
+		const XSYID source_xsyid = ID_of_XSY(source_xsy);
+		if (bv_bit_test (Nulling_Ask_BV_of_V (v), source_xsyid))
 		  {
-		    SYMID_of_V (v) = source_symid;
+		    XSYID_of_V (v) = source_xsyid;
 		  }
 		else
 		  {
@@ -12896,8 +12804,8 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
 {
   unsigned int min, max, start = 0;
   Marpa_Symbol_ID *top_of_stack = NULL;
-  FSTACK_DECLARE (stack, Marpa_Symbol_ID) @;
-  FSTACK_INIT (stack, Marpa_Symbol_ID, SYM_Count_of_G (g));
+  FSTACK_DECLARE (stack, XSYID) @;
+  FSTACK_INIT (stack, XSYID, XSY_Count_of_G (g));
   while (bv_scan (bv, start, &min, &max))
     {
       unsigned int symid;
@@ -14027,7 +13935,7 @@ static char*
 lim_tag_safe (char *buffer, LIM lim)
 {
   sprintf (buffer, "L%d@@%d",
-	   Postdot_SYMID_of_LIM (lim), Earleme_of_LIM (lim));
+	   Postdot_ISYID_of_LIM (lim), Earleme_of_LIM (lim));
 	return buffer;
 }
 

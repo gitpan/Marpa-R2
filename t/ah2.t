@@ -73,15 +73,15 @@ EOS
 
 Marpa::R2::Test::is( $grammar->show_ISYs,
     <<'EOS', 'Aycock/Horspool ISYs' );
-0: S, buddy=0
-1: S[], nulling buddy=4
-2: A, buddy=1
-3: A[], nulling buddy=5
-4: a, buddy=2
-5: E[], nulling buddy=3
-6: S[R0:1], buddy=6
-7: S[R0:2], buddy=7
-8: S['], buddy=8
+0: S
+1: S[], nulling
+2: A
+3: A[], nulling
+4: a
+5: E[], nulling
+6: S[R0:1]
+7: S[R0:2]
+8: S[']
 EOS
 
 Marpa::R2::Test::is(
@@ -274,11 +274,11 @@ S8@1-3 [p=S11@1-2; c=S5@2-3]
 S5@2-3 [p=S12@2-2; s=a; t=\'a']
 S13@2-3 [p=S12@2-2; c=S5@2-3]
 S14@3-3
-L1@3 ["A"; L7@2; S13@2-3]
+L2@3 ["A"; L7@2; S13@2-3]
 END_OF_SET3
 Earley Set 4
 S2@0-4 [p=S0@0-0; c=S9@0-4]
-S9@0-4 [l=L1@3; c=S5@3-4]
+S9@0-4 [l=L2@3; c=S5@3-4]
 S5@3-4 [p=S14@3-3; s=a; t=\'a']
 END_OF_SET4
 

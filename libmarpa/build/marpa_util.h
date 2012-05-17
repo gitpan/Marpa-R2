@@ -1,8 +1,8 @@
-/*1253:*/
-#line 14223 "./marpa.w"
+/*1236:*/
+#line 14131 "./marpa.w"
 
-/*1248:*/
-#line 14181 "./marpa.w"
+/*1231:*/
+#line 14089 "./marpa.w"
 
 /*
  * Copyright 2012 Jeffrey Kegler
@@ -26,22 +26,22 @@
  * It is not intended to be modified directly
  */
 
-/*:1248*/
-#line 14224 "./marpa.w"
+/*:1231*/
+#line 14132 "./marpa.w"
 
 
 #ifndef __MARPA_UTIL_H__
 #define __MARPA_UTIL_H__
 
-/*1197:*/
-#line 13658 "./marpa.w"
+/*1180:*/
+#line 13566 "./marpa.w"
 
 #define my_new(type, count) ((type *)my_malloc((sizeof(type)*(count))))
 #define my_renew(type, p, count) \
     ((type *)my_realloc((p), (sizeof(type)*(count))))
 
-/*:1197*//*1224:*/
-#line 13901 "./marpa.w"
+/*:1180*//*1207:*/
+#line 13809 "./marpa.w"
 
 #define MARPA_OFF_DEBUG1(a)
 #define MARPA_OFF_DEBUG2(a, b)
@@ -49,8 +49,8 @@
 #define MARPA_OFF_DEBUG4(a, b, c, d)
 #define MARPA_OFF_DEBUG5(a, b, c, d, e)
 #define MARPA_OFF_ASSERT(expr)
-/*:1224*//*1254:*/
-#line 14240 "./marpa.w"
+/*:1207*//*1237:*/
+#line 14148 "./marpa.w"
 
 
 #if     __GNUC__ >  2 || (__GNUC__ == 2 && __GNUC_MINOR__ >  4)
@@ -105,11 +105,11 @@
 # define alignof(type) (offsetof (struct { char __slot1; type __slot2; }, __slot2))
 #endif
 
-/*:1254*/
-#line 14229 "./marpa.w"
+/*:1237*/
+#line 14137 "./marpa.w"
 
-/*1233:*/
-#line 13958 "./marpa.w"
+/*1216:*/
+#line 13866 "./marpa.w"
 
 #if MARPA_DEBUG
 
@@ -144,21 +144,21 @@
        (*_marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
 #endif
 
-/*:1233*/
-#line 14230 "./marpa.w"
+/*:1216*/
+#line 14138 "./marpa.w"
 
-/*1186:*/
-#line 13527 "./marpa.w"
+/*1169:*/
+#line 13435 "./marpa.w"
 
 extern void*(*_marpa_out_of_memory)(void);
 
-/*:1186*//*1226:*/
-#line 13922 "./marpa.w"
+/*:1169*//*1209:*/
+#line 13830 "./marpa.w"
 
 extern int(*_marpa_debug_handler)(const char*,...);
 extern int _marpa_debug_level;
-/*:1226*//*1227:*/
-#line 13929 "./marpa.w"
+/*:1209*//*1210:*/
+#line 13837 "./marpa.w"
 
 #if MARPA_DEBUG >  0
 extern int _marpa_default_debug_handler(const char*format,...);
@@ -167,11 +167,11 @@ extern int _marpa_default_debug_handler(const char*format,...);
 #define MARPA_DEFAULT_DEBUG_HANDLER NULL
 #endif
 
-/*:1227*/
-#line 14231 "./marpa.w"
+/*:1210*/
+#line 14139 "./marpa.w"
 
-/*1195:*/
-#line 13616 "./marpa.w"
+/*1178:*/
+#line 13524 "./marpa.w"
 
 static inline
 void my_free(void*p)
@@ -179,8 +179,8 @@ void my_free(void*p)
 free(p);
 }
 
-/*:1195*//*1196:*/
-#line 13625 "./marpa.w"
+/*:1178*//*1179:*/
+#line 13533 "./marpa.w"
 
 #define MALLOC_VIA_TEMP(size, temp) \
   (UNLIKELY(!((temp) =  malloc(size))) ? (*_marpa_out_of_memory)() : (temp))
@@ -212,10 +212,10 @@ return newmem;
 return my_malloc(size);
 }
 
-/*:1196*/
-#line 14232 "./marpa.w"
+/*:1179*/
+#line 14140 "./marpa.w"
 
 
 #endif __MARPA__UTIL_H__
 
-/*:1253*/
+/*:1236*/

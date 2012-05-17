@@ -21,7 +21,7 @@ use strict;
 use integer;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_044';
+$VERSION        = '0.001_045';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -568,7 +568,7 @@ sub rank_chaf_rules {
                 $grammar_c->_marpa_g_irl_rhs( $irl_id, $rhs_ix - $virtual_start );
             last RHS_IX if not defined $rhs_id;
             $rank *= 2;
-            $rank += ( $grammar_c->symbol_is_nulling($rhs_id) ? 0 : 1 );
+            $rank += ( $grammar_c->_marpa_g_isy_is_nulling($rhs_id) ? 0 : 1 );
 
             last RHS_IX if ++$proper_nullable_count >= 2;
         } ## end for ( my $rhs_ix = $virtual_start; $rhs_ix < ...)
