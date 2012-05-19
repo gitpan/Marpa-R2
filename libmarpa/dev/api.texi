@@ -39,34 +39,34 @@ This manual is for Libmarpa, version @value{VERSION}.
 @menu
 * How to read this document::   
 * About Libmarpa::              What is Libmarpa?
-* Time objects::                
+* Libmarpa objects::            
 * The architecture of Marpa::   
 * Threads::                     
-* Terminals concepts::          
-* Semantics::                   
-* Version checking::            Checking the Libmarpa version.
-* Grammars::                    Grammar time objects
-* Events::                      Libmarpa Events
+* Terminal and tokens::         
+* Error handling concepts::     
+* Introduction to the External Interface::  
+* Static Methods::              
+* Grammar objects::             
 * Recognizers::                 Recognizers.
 * Bocage::                      Bocage objects.
-* Order::                       Order objects.
+* Ordering objects::            
 * Tree::                        Parse Trees.
 * Value::                       Value objects.
-* Error handling::              
+* Events::                      Libmarpa Events
+* Error macros and code::       
 * Design considerations::       
 * Things To Do::                
+* Internal Interface::          
 
 @detailmenu
  --- The Detailed Node Listing ---
 
 How to read this document
 
-* What is this document::       What is this document?
 * Prerequisites::               Prerequisites.
-* Which chapters to read first::  Which chapters to read first.
 * Parsing theory::              Parsing theory.
 
-Time objects
+Libmarpa objects
 
 * The sequence of time objects::  
 * Base grammars::               
@@ -88,18 +88,28 @@ Recognition versus parsing
 
 Threads
 
-* Grammars not shared between threads::  
+* C89 and thread-safety::       
+* Base grammars cannot be shared between threads::  
+
+C89 and thread-safety
+
 * C89 and thread-safety::       
 
-Terminals
+Terminal and tokens
 
 * LHS Terminals::               
-
-Semantics
-
 * Token values::                
 
-Grammars
+Error handling
+
+* Memory allocation failures::  
+* Soft and hard errors::        
+
+Introduction to the External Interface
+
+* Return value descriptions::   
+
+Grammar objects
 
 * Grammar constructor::         Creating a new grammar.
 * Grammar reference counting::  Tracking the reference count of the grammar.
@@ -108,53 +118,63 @@ Grammars
 * Rules::                       
 * Sequences::                   
 * Grammar precomputation::      Precomputing the Grammar.
-* Symbol internals::            Methods that deal with symbol internals.
-* Rule internals::              
-* Grammar internals::           Methods that deal with grammar internals.
-
-Events
-
-* Event accessor::              Event accessor.
-* Event codes::                 Event codes.
+* Grammar events::              
 
 Recognizer objects
 
 * Recognizer constructor::      Creating a new recognizer.
 * Recognizer reference counting::  Keeping the reference count of a recognizer.
 * Recognizer life::             Taking a recognizer through its life cycle.
-* Recognizer internals::        Meddling with the recognizer internals.
+* Recognizer events::           
 
 Bocage objects
 
 * Bocage reference counting::   
-* Bocage internals::            Bocage internals.
 
-Orderings
+Ordering objects
 
 * Ordering constructor::        
 * Ordering reference counting::  
-* Ordering internals::          
 
 Tree iterators
 
 * Tree constructor::            
 * Tree reference counting::     
 * Tree iteration::              
-* Tree internals::              Internals.
 
 Value objects
 
 * About the valuator::          
 * Valuator constructor::        
-* Valuator access macros::      
 * Valuator reference counting::  
 * Valuator stepping::           
-* Valuator tracing::            
+* Step accessors::              
+
+Events
+
+* Event codes::                 Event codes.
+
+Error macros and code
+
+* Methods::                     
+* Error Macros::                
+* Error Codes::                 
 
 Design considerations
 
 * Why so many time objects::    
 * Design of numbered objects::  
+
+Internal Interface
+
+* Symbol internal methods::     
+* Rule internals::              
+* Grammar internals::           
+* Recognizer internals::        
+* Bocage internals::            
+* Ordering internals::          
+* Tree internals::              
+* Valuator internals::          
 
 @end detailmenu
 @end menu
@@ -163,25 +183,11 @@ Design considerations
 @chapter How to read this document
 
 @menu
-* What is this document::       What is this document?
 * Prerequisites::               Prerequisites.
-* Which chapters to read first::  Which chapters to read first.
 * Parsing theory::              Parsing theory.
 @end menu 
 
-@node What is this document, Prerequisites, How to read this document, How to read this document
-@section What is this document?
-
-This document is intended as a reference manual
-for a complex low-level tool.
-The reader might compare it to the GNU C Language
-manual,
-which makes no attempt to teach
-the C language itself,
-much less all the technical knowledge required
-to fully understand its contents.
-
-@node Prerequisites, Which chapters to read first, What is this document, How to read this document
+@node Prerequisites, Parsing theory, How to read this document, How to read this document
 @section Prerequisites
 
 This document is very far from self-contained.
@@ -197,26 +203,10 @@ The reader knows some parsing theory.
 @xref{Parsing theory}.
 @end itemize
 
-@node Which chapters to read first, Parsing theory, Prerequisites, How to read this document
-@section Which chapters to read first
-
-Early chapters of this document lay out concepts,
-while later chapters describe Libmarpa's object in
-detail,
-or deal with optional topics.
-This document expects the reader will read its
-"concept" chapters first, and in the order of
-presentation.
-With those as background, the reader should
-then be able to read the rest of the material
-in the order,
-and to the extent,
-of his interest.
-
-@node Parsing theory,  , Which chapters to read first, How to read this document
+@node Parsing theory,  , Prerequisites, How to read this document
 @section Parsing theory
 
-This document also assumes an acquaintance
+This document assumes an acquaintance
 with parsing theory.
 As a test of whether he needs to refresh
 his knowledge before tackling
@@ -252,14 +242,13 @@ by regular expressions, and is now considered
 an advanced skill,
 BNF is in fact as easy (or easier) to learn
 and manipulation than regular expressions.
-If a reader who has learned how to use
+If a reader has learned how to use
 one of the packages that extend
 regular expressions,
 he should have no trouble with BNF.
 
-@node About Libmarpa, Time objects, How to read this document, Top
+@node About Libmarpa, Libmarpa objects, How to read this document, Top
 @chapter About Libmarpa
-This is the reference manual for Libmarpa.
 Libmarpa implements the Marpa parsing algorithm.
 Marpa is named
 after the legendary 11th century Tibetan translator,
@@ -276,8 +265,8 @@ and produces parse trees.
 It also supports the ordering and evaluation of the parse
 trees.
 
-However, it is very low-level.
-Libmarpa, for example, has no strings.
+Libmarpa is very low-level.
+For example, it has no strings.
 Rules, symbols, and token values are all represented
 by integers.
 This, of course, will not suffice for most applications.
@@ -286,11 +275,11 @@ at a minimum,
 names for the symbols and non-integer values for
 tokens.
 Typically, an application will use arrays to
-translate Libmarpa's integer IDs to strings or other
+translate Libmarpa's integer ID's to strings or other
 values as required.
 
-Libmarpa also does NOT implement most of the semantics.
-Libmarpa does have an evaluator, but it does NOT
+Libmarpa also does @strong{not} implement most of the semantics.
+Libmarpa does have an evaluator, but it does @strong{not}
 manipulate the stack directly.
 Instead, Libmarpa,
 based on its traversal of the parse tree,
@@ -308,19 +297,19 @@ implemented in the application.
 This allows the application total flexibility.
 It also puts
 the application is in a much better position to prevent errors,
-to catch errors at runtime or
+to catch errors at runtime or,
 failing all else,
 to successfully debug the logic.
 
-@node Time objects, The architecture of Marpa, About Libmarpa, Top
-@chapter Time objects
+@node Libmarpa objects, The architecture of Marpa, About Libmarpa, Top
+@chapter Libmarpa objects
 
 Libmarpa's most important objects are time objects.
 Time objects are so called for two related reasons.
-First, they relate to a "time" in the progress of a parse.
+First, they relate to a ``time'' in the progress of a parse.
 Second, each time object has a lifetime and is reference counted.
 
-Libmarpa's major objects are called "time" objects instead
+Libmarpa's major objects are called ``time'' objects instead
 of phase objects,
 because phases are exclusive and non-simultaneous
 -- when one phase ends, another begins.
@@ -345,7 +334,7 @@ The time objects are, in sequence:
 * Numbered objects::            
 @end menu
 
-@node The sequence of time objects, Base grammars, Time objects, Time objects
+@node The sequence of time objects, Base grammars, Libmarpa objects, Libmarpa objects
 @section The sequence of time objects
 
 While time objects do not correspond to phases,
@@ -357,7 +346,7 @@ A recognizer cannot be created without a precomputed grammar;
 a bocage cannot be created without a recognizer;
 and so on.
 
-@node Base grammars, The lifetime of time objects, The sequence of time objects, Time objects
+@node Base grammars, The lifetime of time objects, The sequence of time objects, Libmarpa objects
 @section Every time object has a base grammar
 
 When one time object is used to create a second
@@ -388,7 +377,7 @@ the base grammar of a bocage is the base
 grammar of the recognizer that it was created
 with.
 
-@node The lifetime of time objects, Numbered objects, Base grammars, Time objects
+@node The lifetime of time objects, Numbered objects, Base grammars, Libmarpa objects
 @section The lifetime of time objects
 
 Time objects are reference-counted.
@@ -404,10 +393,10 @@ When the reference count of a time object reaches
 0, that time object is destroyed.
 
 In ordinary circumstances, all an application has to
-do is keep in mind that it "owns" the time objects
+do is keep in mind that it ``owns'' the time objects
 it has created,
 and that it must call a method
-to "unreference" that object when it is finished.
+to ``unreference'' that object when it is finished.
 
 In some applications, multiple parts of it
 may need to share ownership of an object.
@@ -415,10 +404,10 @@ For such situations,
 every time object has a method to increment
 the reference count.
 
-@node Numbered objects,  , The lifetime of time objects, Time objects
+@node Numbered objects,  , The lifetime of time objects, Libmarpa objects
 @section Numbered objects
 
-In addition to its major, "time" objects, Libmarpa also has
+In addition to its major, ``time'' objects, Libmarpa also has
 numbered objects.
 Numbered objects do not have lifetimes of their own.
 Every numbered object belongs to a timed object,
@@ -428,7 +417,7 @@ Rules and symbols are numbered objects.
 Tokens values are
 another examples of numbered objects.
 
-@node The architecture of Marpa, Threads, Time objects, Top
+@node The architecture of Marpa, Threads, Libmarpa objects, Top
 @chapter The architecture of Marpa
 
 @menu
@@ -488,27 +477,49 @@ of facts about the grammar to allow
 the recognizer to proceed more efficiently.
 Marpa makes aggressive use of grammar precomputation.
 
-Precomputation "freezes" a grammar.
+Precomputation ``freezes'' a grammar.
 New symbols, rules and sequences cannot be added
 to a precomputed grammar
 are disallowed,
 as are most other changes.
 
-@node Threads, Terminals concepts, The architecture of Marpa, Top
+@node Threads, Terminal and tokens, The architecture of Marpa, Top
 @chapter Threads
 
-Libmarpa is C89-compliant
-and uses no global data.
-This means that it is thread-safe,
-with restrictions.
+Libmarpa is thread-safe,
+if used as described below.
+The Libmarpa methods are not reentrant.
 
 @menu
-* Grammars not shared between threads::  
+* C89 and thread-safety::       
+* Base grammars cannot be shared between threads::  
+@end menu
+
+@node C89 and thread-safety, Base grammars cannot be shared between threads, Threads, Threads
+@section C89 and thread-safety
+
+Libmarpa is C89-compliant.
+It uses no global data,
+and it does not use those C library functions which
+are inherently thread-unsafe.
+
+Libmarpa calls only the routines
+that are defined in the C89 standard
+and that can be made thread-safe.
+In most modern implementations these are thread-safe.
+But the C89 standard does not require thread-safety,
+and even most modern environments allow the user
+to turn thread safety off.
+To be thread-safe, Libmarpa must be compiled
+and linked in an environment that provides
+thread-safety.
+
+@menu
 * C89 and thread-safety::       
 @end menu
 
-@node Grammars not shared between threads, C89 and thread-safety, Threads, Threads
-@section Grammars cannot be shared between threads
+@node Base grammars cannot be shared between threads,  , C89 and thread-safety, Threads
+@section Base grammars cannot be shared between threads
 While Libmarpa can be used safely across
 multiple threads,
 a Libmarpa grammar cannot be.
@@ -521,26 +532,18 @@ from that base grammar.
 
 To work around this limitation,
 the same grammar definition can be
-used to a Libmarpa grammar
+used to a create a new
+Libmarpa grammar
 time object in each thread.
 If there is sufficient interest, future versions of
-Libmarpa could allow cloning of grammars and other
+Libmarpa could allow thread-safe
+cloning of grammars and other
 time objects.
 
-@node C89 and thread-safety,  , Grammars not shared between threads, Threads
-@section C89 and thread-safety
-Libmarpa calls only routines defined in the C89 standard,
-and in most modern implementations these are thread-safe.
-But the C89 standard does not require thread-safety,
-and even the most modern environments allow the user
-to turn thread safety off.
-Libmarpa's thread-safety relies on an environment
-that guarantees the thread-safety of C89 function calls.
+@node Terminal and tokens, Error handling concepts, Threads, Top
+@chapter Terminal and tokens
 
-@node Terminals concepts, Semantics, Threads, Top
-@chapter Terminals
-
-A terminal symbol is symbol which
+A terminal symbol is a symbol which
 may appear in the input.
 Traditionally,
 all LHS symbols, as well as
@@ -559,9 +562,10 @@ and Marpa does not allow it.
 
 @menu
 * LHS Terminals::               
+* Token values::                
 @end menu
 
-@node LHS Terminals,  , Terminals concepts, Terminals concepts
+@node LHS Terminals, Token values, Terminal and tokens, Terminal and tokens
 @section Uses for LHS terminals
 
 Marpa's idea
@@ -571,7 +575,7 @@ while helpful for proving theorems,
 is not essential in practice.
 If LHS symbols 
 appear in the input they, in effect,
-"short circuiting" the rules in which they occur.
+``short circuiting'' the rules in which they occur.
 This may
 be helpful in debugging, or have other applications.
 
@@ -584,14 +588,7 @@ For this reason,
 the traditional behavior is the default
 in Marpa.
 
-@node Semantics, Version checking, Terminals concepts, Top
-@chapter Semantics
-
-@menu
-* Token values::                
-@end menu
-
-@node Token values,  , Semantics, Semantics
+@node Token values,  , LHS Terminals, Terminal and tokens
 @section Token values
 
 Token values are @code{int}'s.
@@ -603,22 +600,120 @@ pointers because their validity can be safely checked.
 It is hard or impossible
 to check the validity of pointers
 without risking an abend.
-
 Integers can be used to access any kind of data
 using an array,
 so that the higher levels can translate integers back
 and forth into whatever the application requires.
-A future version of Libmarpa may allow
-pointer values,
-for those circumstances in which some
-programmers find that the minor
-efficiencies from the direct use of pointers,
-outweigh the safety
-issues advanced by this author.
 
-@node Version checking, Grammars, Semantics, Top
-@chapter Checking the Libmarpa version
-@cindex version checking
+@node Error handling concepts, Introduction to the External Interface, Terminal and tokens, Top
+@chapter Error handling
+
+@menu
+* Memory allocation failures::  
+* Soft and hard errors::        
+@end menu
+
+@node Memory allocation failures, Soft and hard errors, Error handling concepts, Error handling concepts
+@section Memory allocation failures
+
+Libmarpa leaves the decision of what is a fatal
+error up to the application,
+with one exception.
+Currently, if @code{malloc} fails to allocate memory,
+Libmarpa terminates the program with a fatal error.
+
+While this is in keeping with current practice,
+future versions of Libmarpa are likely to both allow
+an alternative memory allocator to be specificied,
+and to allow the user to specifier a handler to
+be called when an out-of-memory condition occurs.
+
+@node Soft and hard errors,  , Memory allocation failures, Error handling concepts
+@section Soft and hard errors
+
+Soft errors are errors which may be a result of normal processing.
+Soft errors often do not disrupt the flow of processing,
+and applications typically do not treat soft errors
+as fatal errors.
+When a soft error is an interruption of normal processing,
+the disruption is usually recoverable.
+
+Hard errors are errors which are never the result of
+normal processing.
+They almost always disrupt the flow of processing.
+Recovery from a hard error is usually not possible,
+and an application will usually treat a hard error
+as a fatal error.
+
+The difference between hard and soft errors can
+depend, to a certain extent,
+on the application.
+Libmarpa has its own idea of what is a hard
+and soft error but,
+whenever possible,
+it does not enforce this on the application.
+An application is also free to treat a soft
+error as a hard error.
+And Libmarpa makes
+every attempt to allow an application to
+reinterpret a hard error as a soft error.
+
+@node Introduction to the External Interface, Static Methods, Error handling concepts, Top
+@chapter Introduction to the External Interface
+
+The following chapters describe Libmarpa's external
+interface in detail.
+
+@menu
+* Return value descriptions::   
+@end menu
+
+@node Return value descriptions,  , Introduction to the External Interface, Introduction to the External Interface
+@section Return value descriptions
+
+Most function descriptions have a section describing their
+return values.
+In these sections, @dfn{success} means that the method
+successfully accomplished its primary purpose.
+A @dfn{hard failure}, or sometimes simply a @dfn{failure}
+means that the method failed in a way that
+is usually not part of the normal processing.
+A @dfn{soft failure} means that
+the method accomplished a secondary purpose,
+one which can be considered either a failure
+or a success depending on the circumstances.
+Where function return an integer value,
+unless otherwise stated,
+-1 will indicate a soft failure
+and -2 will indicate a hard failure.
+
+Soft failures are always recoverable.
+An example of a soft failure
+is when @code{marpa_r_alternative}'s
+finds that token is unexpected.
+In some cases,
+this error will also be unexpected by the
+application
+and will be an unrecoverable failure.
+But the ``Ruby slippers'' parsing method can
+incorporate this return value into its normal processing,
+as a means of testing alternative inputs and/or
+checking the state of the parse.
+
+@dfn{Hard failures} are not always recoverable.
+Libmarpa attempts to allow applications to,
+on one hand, reclass failures from hard to
+soft and proceed whenever possible.
+On the other hand, Libmarpa is liberal in
+classing problems as soft failures,
+and there are many cases that
+Libmarpa treats as successes
+or soft failures, that an application
+will want to escalate to hard
+failures.
+
+@node Static Methods, Grammar objects, Introduction to the External Interface, Top
+@chapter Static Methods
 
 @deftypefun Marpa_Error_Code marpa_check_version @
     (unsigned int @var{required_major}, @
@@ -636,8 +731,17 @@ a check that the library in use is compatible with
 the version of Libmarpa the application or module was compiled
 against.
 
-Once we are beyond alpha releases,
-compatibility will be defined by three things:
+Currently Libmarpa is undergoing rapid development,
+and backward compatibility is not maintained.
+This will be the case as long as Libmarpa stays
+alpha.
+While Libmarpa is still alpha, much stricter compatibility
+will be enforced.
+While Libmarpa is alpha 
+the major, minor and micro numbers must match exactly.
+
+Once Libmarpa is beyond alpha releases,
+compatibility will be defined by two things:
 first the version
 of the running library is newer than the version
 @var{required_major}.@var{required_minor}.@var{required_micro}.
@@ -646,18 +750,6 @@ the running library must be binary compatible with the
 version
 @var{required_major}.@var{required_minor}.@var{required_micro}
 (same major version.)
-
-Currently Libmarpa is undergoing rapid development,
-and backward compatibility is not maintained.
-This will be the case as long as Libmarpa stays
-alpha.
-
-While Libmarpa is still alpha, much stricter compatibility
-will be enforced.
-While Libmarpa is alpha 
-the major, minor and micro numbers must match exactly.
-Technically, the post-alpha rules can be said to apply
-because the very strict alpha rules imply them.
 
 Return value: @code{MARPA_ERR_NONE} if the Marpa library is compatible with the
   requested version.  If the library is not compatible,
@@ -668,8 +760,8 @@ Return value: @code{MARPA_ERR_NONE} if the Marpa library is compatible with the
 
 @end deftypefun
 
-@node Grammars, Events, Version checking, Top
-@chapter Grammars
+@node Grammar objects, Recognizers, Static Methods, Top
+@chapter Grammar objects
 @cindex grammars
 
 @menu
@@ -680,12 +772,10 @@ Return value: @code{MARPA_ERR_NONE} if the Marpa library is compatible with the
 * Rules::                       
 * Sequences::                   
 * Grammar precomputation::      Precomputing the Grammar.
-* Symbol internals::            Methods that deal with symbol internals.
-* Rule internals::              
-* Grammar internals::           Methods that deal with grammar internals.
+* Grammar events::              
 @end menu 
 
-@node Grammar constructor, Grammar reference counting, Grammars, Grammars
+@node Grammar constructor, Grammar reference counting, Grammar objects, Grammar objects
 @section Creating a new grammar
 @cindex grammar constructor
 
@@ -695,11 +785,11 @@ Return value: @code{MARPA_ERR_NONE} if the Marpa library is compatible with the
     unsigned int @var{required_micro})
 
 Creates a new grammar time object.
-The returned grammar object not be precomputed,
+The returned grammar object is not yet precomputed,
 and will have no symbols and rules.
 Its reference count will be 1.
 
-After a marpa_g_new call, the next step is
+After a @code{marpa_g_new} call, the next step is
 usually the addition of rules and symbols
 in preparation for grammar precomputation.
 
@@ -714,27 +804,18 @@ On failure, @code{NULL}.
 
 @end deftypefun
 
-@node Grammar reference counting, Symbols, Grammar constructor, Grammars
+@node Grammar reference counting, Symbols, Grammar constructor, Grammar objects
 @section Tracking the reference count of the grammar
 @cindex grammar destructor
 @cindex grammar reference
 @cindex grammar reference count
 
-Grammar time objects are created by
-@code{marpa_g_new} with a reference count of 1.
-@code{marpa_r_new} and @code{marpa_g_ref} increment the
-reference count by 1.
-@code{marpa_g_unref} decrements the reference count by 1.
-
 @deftypefun void marpa_g_unref (Marpa_Grammar @var{g})
-
 Decreases the reference count by 1,
 destroying @var{g} once the reference count reaches
 zero.
 Libmarpa time objects have no explicit destructor.
 They are destroyed by reducing their reference count to zero.
-
-Return value: None
 
 @end deftypefun
 
@@ -748,14 +829,14 @@ On success, the grammar object it was called with;
 
 @end deftypefun
 
-@node Symbols, Terminals, Grammar reference counting, Grammars
+@node Symbols, Terminals, Grammar reference counting, Grammar objects
 @section Symbols
 
 @deftypefun Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar @var{g})
 
 Creates a new symbol.
 
-Return value: On success, the ID of the new symbol; 
+Return value: On success, the ID of a new symbol; 
 On failure, -2.
 
 @end deftypefun
@@ -776,7 +857,7 @@ On failure, -2.
 
 Returns current value of the start symbol of grammar @var{g}.
 The value is that of the user's start
-symbol, as specified in the @var{marpa_g_start_symbol_set} call,
+symbol, as specified in the @code{marpa_g_start_symbol_set} call,
 if there has been one.
 
 Return value:
@@ -791,7 +872,7 @@ On success, the symbol count of the grammar.
 On failure, -2.
 @end deftypefun
 
-@node Terminals, Rules, Symbols, Grammars
+@node Terminals, Rules, Symbols, Grammar objects
 @section Methods for terminal symbols
 
 @deftypefun int marpa_g_symbol_is_terminal ( @
@@ -808,6 +889,8 @@ On failure, -2.
 This function flags symbol @var{symid} as a terminal if
 @var{value} is 1,
 or flags it as a non-terminal if @var{value} is 0.
+By default, a symbol is a terminal if and only if it
+does not appear on the LHS of any rule.
 This setting overrides the default.
 An attempt to flag a nulling symbol
 as a terminal is a fatal error,
@@ -815,10 +898,9 @@ but this is not necesssarily detected before precomputation.
 
 Return value: On success, 1 if @var{symid} is a terminal symbol after the
 call, 0 otherwise.
--2 if symbol @var{symid} is internal;
-if @var{value} is not 0 or 1;
+If @var{value} is not 0 or 1;
 if the grammar @var{g} is precomputed;
-or on some other failure.
+or on some other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_accessible (Marpa_Grammar @var{g}, @
@@ -827,7 +909,7 @@ A symbol is @dfn{accessible} if it can be reached from the start symbol.
 This is not known until the grammar is precomputed.
 
 Return value: On success, 1 if accessible, 0 if not.  If the grammar
-is not precomputed, or on failure, -2.
+is not precomputed, or on other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_productive (Marpa_Grammar @var{g}, @
@@ -837,7 +919,7 @@ All nullable symbols are considered productive.
 This is not known until the grammar is precomputed.
 
 Return value: On success, 1 if productive, 0 if not.  If the grammar
-is not precomputed, or on failure, -2.
+is not precomputed, or on other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_start ( Marpa_Grammar @var{g}, @
@@ -858,18 +940,18 @@ A symbol is @dfn{nulling} if it always produces the empty string.
 This is not determined until the grammar is precomputed.
 
 Return value: On success, 1 if symbol is nulling, 0 if not.
-If the grammar is not precomputed, or on failure, -2.
+If the grammar is not precomputed, or on other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_nullable ( @
   Marpa_Grammar g, Marpa_Symbol_ID symid)
 A symbol is @dfn{nullable} if it sometimes produces the empty string.
-A nulling symbol is always a nullable symbol,
-but not all nullable symbols are nulling symbols.
+A @strong{nulling} symbol is always a @strong{nullable} symbol,
+but not all @strong{nullable} symbols are @strong{nulling} symbols.
 This is not determined until the grammar is precomputed.
 
 Return value: On success, 1 if symbol is nullable, 0 if not.
-If the grammar is not precomputed, or on failure, -2.
+If the grammar is not precomputed, or on other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_ask_me_when_null_set ( @
@@ -883,30 +965,30 @@ If the grammar is not precomputed, or on failure, -2.
 In Marpa,
 most of the semantics is usually be implemented by the
 higher layers.
-This is called @dfn{"ask me" semantics}.
-The "ask me when null"
+This is called @dfn{``ask me'' semantics}.
+The ``ask me when null''
 calls deal with the handling of semantics
 in case when the symbol is nulling.
 For proper nullables,
-the "Ask me when null" setting is relevant
+the ``Ask me when null'' setting is relevant
 only in cases where the symbol is nulled.
 
 Marpa's default is to assume that the
 value of nulled symbols will be ignored,
-and to let that value be arbitrary.
-"Arbitrary" here means it may not be relied
+and to let that value be ``whatever''.
+``Whatever'' here means it may not be relied
 and may change from instance to instance.
 Marpa optimizes for cases where symbols
-have arbitrary values.
+have ``whatever'' values.
 
-Return value: -2 if there was an error.
-  On success, 1 if the resulting semantics after
-  the function call is the "ask me" semantics.
-  Otherise, 0 otherwise.
+Return value: On success, 1 if the resulting semantics after
+  the function call is the ``ask me'' semantics,
+  0 if not.
+On failure, -2.
 
 @end deftypefun
 
-@node Rules, Sequences, Terminals, Grammars
+@node Rules, Sequences, Terminals, Grammar objects
 @section Rules
 
 @deftypefun int marpa_g_rule_count (Marpa_Grammar @var{g})
@@ -931,10 +1013,6 @@ A rule is also considered a duplicate if it has
 the same LHS symbol as a sequence rule,
 regardless of the right hand sides of the
 two rules.
-
-On success,
-this call creates a new external rule,
-whose ID is the return value.
 
 Return value:  On success, the ID of new external rule.
 On failure, -2.
@@ -989,14 +1067,14 @@ On other failures, -2.
 Usually,
 most of the semantics must be implemented by Marpa's
 higher layers.
-This is called @dfn{"ask me" semantics}.
+This is called @dfn{``ask me'' semantics}.
 In two special but common cases, however,
 Marpa can implement the semantics internally,
 eliminating an evaluation step.
 This can be an considerable efficiency.
 
-The two optimizable cases are "whatever semantics
-and "first child" semantics.
+The two optimizable cases are ``whatever'' semantics
+and ``first child'' semantics.
 If a rule has
 @dfn{whatever semantics}, that means
 that the higher layers
@@ -1013,12 +1091,12 @@ It is possible that a future implementation will
 be unable to implement first child semantics as a stack
 no-op.
 At that point first child semantics will made equivalent
-to "ask me" semantics.
+to ``ask me'' semantics.
 
-Return value: -2 if there was an error.
-  On success, 1 if the resulting semantics after
-  the function call is the "ask me" semantics.
-  Otherise, 0 otherwise.
+Return value: On success, 1 if the resulting semantics after
+  the function call is the ``ask me'' semantics;
+  0 otherwise.
+  On failure, -2.
 
 @end deftypefun
 
@@ -1064,7 +1142,7 @@ Return value: On success, 1 if this is a loop rule, 0 if not.  If the grammar
 is not precomputed, or on other failure, -2.
 @end deftypefun
 
-@node Sequences, Grammar precomputation, Rules, Grammars
+@node Sequences, Grammar precomputation, Rules, Grammar objects
 @section Sequences
 
 @deftypefun Marpa_Rule_ID marpa_g_sequence_new (Marpa_Grammar @var{g}, @
@@ -1076,8 +1154,7 @@ is not precomputed, or on other failure, -2.
 Adds a new sequence rule to grammar @var{g}.
 Internally, Libmarpa translates sequences into BNF
 rules, but it also optimizes their evaluation.
-In practice this speedup can be considerable --
-25% or more.
+In practice this speedup can be considerable.
 
 The sequence is @var{lhs_id},
 and the item to be repeated in the sequence is @var{rhs_id}.
@@ -1096,29 +1173,23 @@ The sequence RHS, or item,
 is restricted to a single symbol,
 but almost arbitrary semantics can be expressed by having
 @var{rhs_id} be the LHS of another rule.
-A restrictions is that @var{rhs_id},
-cannot be a nullable symbol.
-
+@var{rhs_id} cannot be a nullable symbol.
 If @var{separator_id} is a symbol, it also cannot
 be a nullable symbol.
+
 Nullables on the RHS of sequences are restricted
 because they lead to highly ambiguous grammars.
 Such grammars are allowed by Libmarpa, but
-sequence optimizations would not work
-for in the presence of nullables.
-Also it is not clearly clear what
+they must be expressed using BNF rules, not sequence rules.
+This is for two reasons:
+First, sequence optimizations would not work
+in the presence of nullables.
+Second, it is not completely clear what
 an application intends
-when it asks for a sequence of items, some of which
-may be null.
-In such a case,
-the user's intent is most clearly expressed
+when it asks for a sequence of identical items,
+some of which are nullable,
+the user's intent can be more clearly expressed
 directly in BNF.
-
-On success,
-this call creates a new external rule,
-whose ID is its return value.
-It also creates zero or more internal rules,
-and zero or more internal symbols.
 
 Return value:  On success, the ID of the external rule.
 If the rule duplicates another rule,
@@ -1128,7 +1199,7 @@ or on other failure, -2.
 @deftypefun int marpa_g_rule_is_sequence ( @
     Marpa_Grammar @var{g}, @
     Marpa_Rule_ID @var{rule_id})
-Return value:  1 if |rule_id| is a sequence rule,
+Return value:  1 if @var{rule_id} is a sequence rule,
 0 otherwise.
 On failure, -2.
 @end deftypefun
@@ -1156,13 +1227,11 @@ Returns 0 if
 On hard failure, returns -2.
 @end deftypefun
 
-@node Grammar precomputation, Symbol internals, Sequences, Grammars
+@node Grammar precomputation, Grammar events, Sequences, Grammar objects
 @section Precomputing the Grammar
 
 @deftypefun int marpa_g_precompute (Marpa_Grammar @var{g})
 This function precomputes the grammar.
-In the process it may create one or more internal symbols,
-and one or more internal rules.
 
 In the process, precomputation creates events which
 the user can access.
@@ -1170,8 +1239,9 @@ On success, this function returns the number of events
 generated,
 but it is important to note that events may be
 created whether precomputation fails or succeeds.
-Applications which fail must call @code{marpa_g_event}
-if they want to determine if any events occurred.
+When the method fails,
+the application must call @code{marpa_g_event}
+if it want to determine if any events occurred.
 Since the reason for failure to precompute is often
 detailed in the events, failed applications will often
 be at least as interested in the events as those
@@ -1180,19 +1250,19 @@ which succeeded.
 Each @code{MARPA_EVENT_LOOP_RULES} event is a rule
 which is part of an cycle (infinite loop) in the grammar.
 Cycles 
-are useless in current (and currently foreseen)
+are useless in current
 practice.
 Cycles make a grammar infinitely ambiguous
 and their presence makes processing the grammar less
 efficient, sometimes considerably so.
-Nonetheless, they are not errors,
+Nonetheless, they are not errors in Libmarpa,
 although most applications will wish to treat them
 as such.
 
 Each @code{MARPA_EVENT_COUNTED_NULLABLE} event is a symbol
 which is a nullable on the right hand side of a sequence
 rule -- a ``counted'' symbol.
-The presence of one or more of these is a fatal error.
+The presence of one or more of these is a hard failure.
 So that the programmer can fix several at once,
 the failure is delayed until events are created
 for all of the counted nullables.
@@ -1201,20 +1271,20 @@ Each @code{MARPA_EVENT_NULLING_TERMINAL} event is a nulling
 symbol which is also flagged as a terminal.
 Since terminals cannot be of zero length, this is a logical
 impossibility, and
-the presence of one or more of these is a fatal error.
+the presence of one or more of these is a hard failure.
 So that the programmer can fix several at once,
 the failure is delayed until events are created
 for all of the counted nullables.
 
 Precomputation involves freezing 
 and then thoroughly checking the grammar,
-and it is at this point that many hard errors
+and it is at this point that many failures
 are caught and reported.
 Counted nullables and nulling terminals have
 already been mentioned.
 Grammars without rules and those
 with invalid start symbols also produce
-hard errors.
+hard failures.
 
 Return value: On success, the number of events generated.
 If the grammar is already precomputed,
@@ -1241,240 +1311,822 @@ Return value: On success, 1 if the grammar has a cycle,
 On failure, -2.
 @end deftypefun
 
-@node Symbol internals, Rule internals, Grammar precomputation, Grammars
-@section Symbol internals
+@node Grammar events,  , Grammar precomputation, Grammar objects
+@section Events
 
-Internal methods are only for testing and development of libmarpa.
-They are listed here (and sometimes describes) for the convenient
-of those working on libmarpa's internals.
-Applications should not use them,
-and should treat them as ``undocumented''.
+@deftypefun int marpa_g_event (Marpa_Grammar @var{g}, @
+    Marpa_Event* @var{event}, @
+	       int @var{ix})
+This method provides access to the events generated
+by the @code{marpa_g_precompute} method.
+The @var{ix}'th event (numbered from 0) is placed
+in the @var{public_event} value.
 
-@deftypefun int _marpa_g_isy_is_start ( Marpa_Grammar @var{g}, @
-    Marpa_ISY_ID @var{isy_id})
-@end deftypefun
-@deftypefun int _marpa_g_isy_is_nulling ( @
-  Marpa_Grammar @var{g}, @
-  Marpa_ISY_ID @var{isy_id})
-@end deftypefun
-@deftypefun int _marpa_g_isy_is_lhs ( @
-  Marpa_Grammar @var{g}, @
-  Marpa_ISY_ID @var{isy_id})
-@end deftypefun
-@deftypefun Marpa_ISY_ID _marpa_g_xsy_nulling_isy ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun Marpa_ISY_ID _marpa_g_xsy_isy ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun Marpa_Symbol_ID _marpa_g_symbol_proper_alias ( @
-  Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun Marpa_Symbol_ID _marpa_g_symbol_null_alias ( @
-  Marpa_Grammar @var{g}, @
-  Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun int _marpa_g_symbol_is_semantic ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-@end deftypefun
-@deftypefun Marpa_Rule_ID _marpa_g_source_xsy ( @
-  Marpa_Grammar @var{g}, @
-  Marpa_ISY_ID @var{isy_id})
-@end deftypefun
-@deftypefun Marpa_Rule_ID _marpa_g_isy_lhs_xrl ( @
-  Marpa_Grammar @var{g}, @
-  Marpa_ISY_ID @var{isy_id})
-@end deftypefun
-@deftypefun int _marpa_g_isy_xrl_offset ( @
-  Marpa_Grammar @var{g}, @
-  Marpa_ISY_ID @var{isy_id} )
-@end deftypefun
+It is a soft failure if there is no such event.
+This can be used as the termination condition
+in a loop over the events.
 
-@node Rule internals, Grammar internals, Symbol internals, Grammars
-@section Rule internals
-
-@deftypefun int marpa_g_rule_is_keep_separation ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-This function does nothing but return an undocumented flag.
-At some point,
-I may optimize cases where separators are discarded,
-in which case this flag will be used.
-I may also remove this call entirely.
-Return value:
-Returns 1 if
-the keep separation flag is set,
-0 if not.
-Returns 0 if
-@var{rule_id} is not a sequence rule.
+Return value:  On success, returns the type of event @var{ix},
+and places the data for the event in @var{public_event}.
+If there is no such event, returns -1.
 On hard failure, returns -2.
 @end deftypefun
 
-Internal methods are only for testing and development of libmarpa.
-They are listed here (and sometimes describes) for the convenient
-of those working on libmarpa's internals.
-Applications should not use them,
-and should treat them as ``undocumented''.
+@deftypefn {Macro} void* marpa_g_event_value (Marpa_Event* @var{event})
+This macro provides access to the ``value'' of the event.
+The semantics of the value varies according to the type
+of the event, and is described in the section on event
+codes.
+@xref{Events}.
+@end deftypefn
 
-@deftypefun int _marpa_g_isy_count ( @
-  Marpa_Grammar @var{g})
-@end deftypefun
-@deftypefun int _marpa_g_irl_count ( @
-  Marpa_Grammar @var{g})
+@node Recognizers, Bocage, Grammar objects, Top
+@chapter Recognizer objects
+
+@menu
+* Recognizer constructor::      Creating a new recognizer.
+* Recognizer reference counting::  Keeping the reference count of a recognizer.
+* Recognizer life::             Taking a recognizer through its life cycle.
+* Recognizer events::           
+@end menu 
+
+@node Recognizer constructor, Recognizer reference counting, Recognizers, Recognizers
+@section Creating a new recognizer
+
+@deftypefun Marpa_Recognizer marpa_r_new ( Marpa_Grammar @var{g} )
+Creates a new recognizer.
+In order to allow settings to be changed before input starts,
+the new recognizer is @strong{not} ready for input.
+The @code{marpa_r_start_input} method will make the
+recognizer ready for input.
+
+Return value:  On success, the newly created recognizer.
+If @var{g} is not precomputed, or on other failure, @code{NULL}.
 @end deftypefun
 
-@deftypefun Marpa_Symbol_ID _marpa_g_irl_lhs ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
-Return value: On success, the LHS symbol of the IRL.
+@node Recognizer reference counting, Recognizer life, Recognizer constructor, Recognizers
+@section Keeping the reference count of a recognizer
+
+@deftypefun Marpa_Recognizer marpa_r_ref (Marpa_Recognizer @var{r})
+Increases the reference count.
+
+Return value:
+On success, the @var{r};
+@code{NULL} on failure.
+@end deftypefun
+
+@deftypefun void marpa_r_unref (Marpa_Recognizer @var{r})
+Decreases the reference count by 1,
+destroying @var{r} once the reference count reaches
+zero.
+Libmarpa time objects have no explicit destructor.
+They are destroyed by reducing their reference count to zero.
+
+@end deftypefun
+
+@node Recognizer life, Recognizer events, Recognizer reference counting, Recognizers
+@section Taking a recognizer through its life cycle
+
+@deftypefun int marpa_r_start_input (Marpa_Recognizer @var{r})
+Makes @var{r} ready to accept input.
+
+Return value:  On success, a non-negative value.
 On failure, -2.
 @end deftypefun
 
-@deftypefun int _marpa_g_irl_length ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
-The length of a IRL is the number of symbols on its RHS.
+@deftypefun int marpa_r_alternative (Marpa_Recognizer @var{r}, @
+    Marpa_Symbol_ID @var{token_id}, @
+    int @var{value}, @
+    int @var{length})
+Reads a token into @var{r}.
+The token will start at the current earleme.
+Libmarpa allows tokens to be ambiguous, to be of
+variable length and to overlap.
+@var{token_id} is the symbol of the token,
+which must be a terminal.
+@var{length} is the length of the token.
 
-Return value: On success, the IRL length.
+@var{value} is a integer which represents the value of the
+token.
+In applications where the token's value is not an integer, it is
+expected that the application will use this value to 
+find the application's value, perhaps by using @var{value}
+to index an array.
+@var{value} is not used inside Libmarpa -- it is simply
+stored to be returned by the valuator
+as a convenience for the application.
+Some applications will not want to use Libmarpa's token
+values, instead tracking their own, perhaps based on
+the earleme location, and @var{token_id}.
+
+A @var{value} of 0 has special significance -- it indicates
+that the token's value is ``whatever'' -- that it may take an
+arbitrary value.
+This usually means that the application simply does not
+care what the value of the token is.
+The value of tokens with a ``whatever'' value 
+does not need to be stored, tracked or computed either
+by Libmarpa or by the application.
+
+Note that if a ``whatever'' value is specified,
+it must be the case that @strong{the application}
+also does not care about the value of the token.
+When a token has a ``whatever'' value, Libmarpa not
+only does not store a value itself,
+it also optimizes away the valuator steps which
+signal to the application that it needs to provide
+a value for that token.
+Applications which do not use Libmarpa's token values,
+but which do care about a token value,
+should make @var{value} an arbitrary, non-zero, constant
+in order to
+tell Libmarpa that the token does need a value
+and prevent the valuator from optimizing away those
+steps which tell the application that a token needs
+to be given a value.
+
+@end deftypefun
+
+@deftypefun Marpa_Earleme marpa_r_earleme_complete (Marpa_Recognizer @var{r})
+This method does the final processing for the current earleme.
+It then advances the current earleme by one.
+Note that @code{marpa_r_earleme_complete} may be called
+even when no tokens have been read at the current earleme --
+in the character-per-earleme input model, for example, tokens
+can span many characters and, if the input is unambiguous over that
+span, there will be no other tokens that start inside it.
+
+During this method, one or more events may occur.
+On success, this function returns the number of events
+generated,
+but it is important to note that events may be
+created whether earleme completion fails or succeeds.
+When this method fails,
+the application must call @code{marpa_r_event}
+if it wants to determine if any events occurred.
+Since the reason for failure to complete an earleme is often
+detailed in the events, failed applications will often
+be at least as interested in the events as those
+which succeeded.
+
+@code{MARPA_EVENT_EXHAUSTED} indicates that the parse is
+exhausted -- that no input will be accepted at later earlemes.
+Note that an exhausted parse can be a successful one -- it
+just cannot succeed at a later earleme than the current one.
+
+The @code{MARPA_EVENT_EARLEY_ITEM_THRESHOLD} event
+indicates that an application-settable threshold
+on the number of Earley items has been reached or exceeded.
+What this means depends on the application,
+but when the default threshold is exceeded,
+it means that it is very likely
+that the time and space resources consumed by
+the parse are going to be excessive.
+
+Return value:  On success, the number of events generated.
 On failure, -2.
 @end deftypefun
 
-@deftypefun Marpa_Symbol_ID _marpa_g_irl_rh_symbol ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id}, @
-    int @var{ix})
-The position in the IRL, @var{ix}, is zero-based.
-If @var{ix} is greater than or equal the length of the
-IRL, it is a soft failure.
-This can be used in loops, to avoid having to determine
-the IRL's length explicitly.
+@deftypefun Marpa_Earleme marpa_r_earleme ( @
+    Marpa_Recognizer @var{r}, @
+    Marpa_Earley_Set_ID @var{set_id})
 
-Return value: On success, the symbol in position @var{ix}
-on the IRL's RHS.
-If @var{ix} is greater than or equal to the length of
-the IRL, -1.
-On other failures, -2.
-@end deftypefun
-@deftypefun int _marpa_g_rule_is_used (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-@end deftypefun
-@deftypefun int _marpa_g_irl_is_virtual_lhs (Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
-@end deftypefun
-@deftypefun int _marpa_g_irl_is_virtual_rhs (Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
-@end deftypefun
-@deftypefun unsigned int _marpa_g_virtual_start (Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
-@end deftypefun
-@deftypefun unsigned int _marpa_g_virtual_end (Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
-@end deftypefun
-@deftypefun Marpa_Rule_ID _marpa_g_source_xrl (Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
-@end deftypefun
-@deftypefun int _marpa_g_real_symbol_count (Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
-@end deftypefun
-@deftypefun Marpa_Rule_ID _marpa_g_irl_semantic_equivalent (Marpa_Grammar @var{g}, @
-    Marpa_IRL_ID @var{irl_id})
+In the default, token-stream model, Earley set ID and earleme
+are always equal, but this is not the case in other input
+models.
+
+Return value:
+On success,
+returns the earleme corresponding to Earley
+set @var{set_id}.
+If @var{set_id} is out of bounds,
+returns -1.
+On other failures, returns -2.
 @end deftypefun
 
-@node Grammar internals,  , Rule internals, Grammars
-@section Methods that deal with grammar internals
+@deftypefun @code{unsigned int} marpa_r_current_earleme (Marpa_Recognizer @var{r})
+Return value: On success, the current earleme.
+If input has not started, -1.
+Always succeeds or fails softly.
+@end deftypefun
 
-Internal methods are only for testing and development of libmarpa.
-They are listed here (and sometimes describes) for the convenient
-of those working on libmarpa's internals.
-Applications should not use them,
-and should treat them as ``undocumented''.
+@deftypefun int marpa_r_earley_item_warning_threshold (Marpa_Recognizer @var{r})
+@deftypefunx int marpa_r_earley_item_warning_threshold_set (Marpa_Recognizer @var{r}, @
+    int @var{threshold})
+These methods, respectively, report and set the earley item warning threshold.
+The @dfn{Earley item warning threshold}
+is a number that is compared with
+the count of Earley items in each Earley set.
+When it is matched or exceeded,
+a @code{MARPA_EVENT_EARLEY_ITEM_THRESHOLD} event is created.
 
-The methods in this section are accessors for Libmarpa's
-AHFA items and states.
-Their use requires familiarity with
-Marpa's internals, as described in
-@cite{Marpa: The Program}.
+If @var{threshold} is zero or less,
+an unlimited number of Earley items
+will be allowed without warning.
+This will rarely be what the user wants.
+By default, Libmarpa calculates a value based on the grammar.
+This default value is the result of a considerable amount of experience,
+and most applications will
+be happy with it.
 
-@deftypefun int _marpa_g_AHFA_item_count (Marpa_Grammar @var{g})
+Return value:
+The value that the Earley item warning threshold has
+after the method call is finished.
+Always succeeds.
 @end deftypefun
-@deftypefun Marpa_Rule_ID _marpa_g_AHFA_item_irl (Marpa_Grammar @var{g}, @
-    Marpa_AHFA_Item_ID @var{item_id})
+
+@deftypefun @code{unsigned int} marpa_r_furthest_earleme (Marpa_Recognizer @var{r})
+The ``furthest'' or highest-numbered earleme.
+This is the earleme of the last Earley set that contains anything.
+Marpa allows variable length tokens,
+and in input models which use them,
+it may be necessary to track how far out tokens might be found.
+
+Return value: On success, the furthest earleme.
+Always succeeds.
 @end deftypefun
-@deftypefun int _marpa_g_AHFA_item_position (Marpa_Grammar @var{g}, @
-    Marpa_AHFA_Item_ID @var{item_id})
+
+@deftypefun int marpa_r_terminals_expected ( @
+    Marpa_Recognizer @var{r}, @
+    Marpa_Symbol_ID* @var{buffer})
+Returns a list of the ID's of the symbols
+which are acceptable as tokens
+at the current earleme.
+@var{buffer} is expected to be large enough to hold
+the result.
+This is guaranteed to be the case if the buffer
+is large enough to hold a number of
+@code{Marpa_Symbol_ID}'s that
+is greater than or equal to the number of symbols
+in the grammar.
+
+Return value:  On success, the number of @code{Marpa_Symbol_ID}'s
+in @var{buffer}.
+On failure, -2.
 @end deftypefun
-@deftypefun Marpa_Symbol_ID _marpa_g_AHFA_item_postdot (Marpa_Grammar @var{g}, @
-    Marpa_AHFA_Item_ID @var{item_id})
+
+@deftypefun int marpa_r_is_exhausted (Marpa_Recognizer @var{r})
+A parser is ``exhausted'' if it cannot accept any more input.
+Both successful and failed parses can be ``exhausted''.
+In many grammars,
+the parse is always exhausted as soon as it succeeds.
+And even if the parse is exhausted at a point
+where there is no good parse, 
+there may be good parses at earlemes prior to the
+earleme at which the parse became exhausted.
+
+Return value:
+1 if the parser is exhausted, 0 otherwise.
+Always succeeds.
 @end deftypefun
-@deftypefun int _marpa_g_AHFA_item_sort_key (Marpa_Grammar @var{g}, @
-    Marpa_AHFA_Item_ID @var{item_id})
+
+@node Recognizer events,  , Recognizer life, Recognizers
+@section Events
+
+@deftypefun int marpa_r_event (Marpa_Recognizer @var{r}, @
+    Marpa_Event* @var{event}, @
+	       int @var{ix})
+This method provides access to the events generated
+by the @code{marpa_r_earleme_complete} method.
+The @var{ix}'th event (numbered from 0) is placed
+in the @var{public_event} value.
+
+It is a soft failure if there is no
+@var{ix}'th event.
+This can be used as the termination condition
+in a loop over the events.
+
+Return value:  On success, returns the type of event @var{ix},
+and places the data for the event in @var{public_event}.
+If there is no such event (a soft failure),
+-1 is returned.
+On hard failure, -2 is returned.
 @end deftypefun
-@deftypefun int _marpa_g_AHFA_state_count (Marpa_Grammar @var{g})
+
+@deftypefn {Macro} void* marpa_r_event_value (Marpa_Event* @var{event})
+This macro provides access to the ``value'' of the event.
+The semantics of the value varies according to the type
+of the event, and is described in the section on event
+codes.
+@xref{Events}.
+@end deftypefn
+
+@node Bocage, Ordering objects, Recognizers, Top
+@chapter Bocage objects
+
+@menu
+* Bocage reference counting::   
+@end menu
+
+In Libmarpa, recognition and parsing are separate phases.
+Once recognition is complete, a parse ``bocage'' must be created
+from the recognizer.
+(For those familiar with parse forests, a bocage is a
+a specialized and extended form of a parse forest.)
+
+@deftypefun Marpa_Bocage marpa_b_new (Marpa_Recognizer @var{r}, @
+    Marpa_Earley_Set_ID @var{ordinal_arg})
+Return value: On success, the new bocage object.
+On soft failure, returns @code{NULL} and sets the error
+code to @code{MARPA_ERR_NO_PARSE}.
+On other failure, returns @code{NULL} and sets the error
+appropriately.
 @end deftypefun
-@deftypefun int _marpa_g_AHFA_state_item_count (Marpa_Grammar @var{g}, @
-    Marpa_AHFA_State_ID @var{AHFA_state_id})
+
+@deftypefun Marpa_Grammar marpa_b_g (Marpa_Bocage @var{b})
+Return value: The base grammar of @var{b}.
+Always succeeds.
 @end deftypefun
-@deftypefun Marpa_AHFA_Item_ID _marpa_g_AHFA_state_item (Marpa_Grammar @var{g}, @
-     Marpa_AHFA_State_ID @var{AHFA_state_id}, @
- int @var{item_ix})
+
+@node Bocage reference counting,  , Bocage, Bocage
+@section  Reference counting
+@deftypefun Marpa_Bocage marpa_b_ref (Marpa_Bocage @var{b})
+Increases the reference count.
+
+Return value:
+On success, @var{b}.
+On failure, @code{NULL}.
 @end deftypefun
-@deftypefun int _marpa_g_AHFA_state_is_predict (Marpa_Grammar @var{g}, @
- Marpa_AHFA_State_ID @var{AHFA_state_id})
+
+@deftypefun void marpa_b_unref (Marpa_Bocage @var{b})
+Decreases the reference count by 1,
+destroying @var{b} once the reference count reaches
+zero.
+Libmarpa time objects have no explicit destructor.
+They are destroyed by reducing their reference count to zero.
+
 @end deftypefun
-@deftypefun Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_AHFA_State_ID @var{AHFA_state_id})
+
+@node Ordering objects, Tree, Bocage, Top
+@chapter Ordering objects
+
+@menu
+* Ordering constructor::        
+* Ordering reference counting::  
+@end menu
+
+@node Ordering constructor, Ordering reference counting, Ordering objects, Ordering objects
+@section Creating an ordering
+
+Libmarpa allows ambiguous parses.
+In many applications it is necessary or desirable to
+control the order in which these are traversed.
+For this reason,
+Libmarpa requires all parse series to be turned
+into an ``ordering'' object before traversing
+and evaluating them.
+
+In many cases, the ordering is trivial.
+Either the parse is unambiguous, or the
+application does not care about the order in
+which parses are returned.
+In such cases,
+the creation of the ordering object is a useless
+overhead.
+Future versions of libmarpa might allow this phase
+to be bypassed, but there is little to be gained.
+The overhead amounts to little more than two or three
+extra subroutine calls.
+
+@deftypefun Marpa_Order marpa_o_new ( @
+    Marpa_Bocage @var{b})
+Return value: On success, the new ordering object.
+On failure, @code{NULL}.
 @end deftypefun
-@deftypefun int _marpa_g_AHFA_state_transitions ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_AHFA_State_ID @var{AHFA_state_id}, @
-    int *@var{buffer}, @
-    int @var{buffer_size} @
+
+@deftypefun Marpa_Grammar marpa_o_g ( @
+    Marpa_Order @var{o})
+Return value: The base grammar of @var{o}.
+Always succeeds.
+@end deftypefun
+
+@node Ordering reference counting,  , Ordering constructor, Ordering objects
+@section Reference counting
+
+@deftypefun Marpa_Order marpa_o_ref ( @
+    Marpa_Order @var{o})
+Increases the reference count.
+
+Return value:
+On success, @var{o}.
+On failure, @code{NULL}.
+@end deftypefun
+
+@deftypefun void marpa_o_unref ( @
+    Marpa_Order @var{o})
+Decreases the reference count by 1,
+destroying @var{o} once the reference count reaches
+zero.
+Libmarpa time objects have no explicit destructor.
+They are destroyed by reducing their reference count to zero.
+
+@end deftypefun
+
+@node Tree, Value, Ordering objects, Top
+@chapter Tree iterators
+
+Once the bocage has an ordering, the parses can be iterated.
+Marpa's tree objects are also bocage iterators.
+Within Marpa,
+when it makes sense in context,
+``tree'' means a parse tree.
+
+@menu
+* Tree constructor::            
+* Tree reference counting::     
+* Tree iteration::              
+@end menu
+
+@node Tree constructor, Tree reference counting, Tree, Tree
+@section Creating a new tree iterator
+
+@deftypefun Marpa_Tree marpa_t_new (Marpa_Order @var{o})
+When created, a tree object is not initialized to
+an iteration.
+To position the tree to the first parse,
+the application must call @code{marpa_t_next}.
+(Tree objects are created uninitialized to allow for
+future extensions that require the setting of
+flags and parameters to control
+the iteration.)
+When a tree is created from an ordering, that ordering
+is ``frozen'', so that it cannot be changed.
+
+Return value:  On success, a newly created tree.
+On failure, returns @code{NULL} and sets the error code.
+@end deftypefun
+
+@deftypefun Marpa_Grammar marpa_t_g (Marpa_Tree @var{t})
+Return value: The base grammar of @var{t}.
+Always succeeds.
+@end deftypefun
+
+@node Tree reference counting, Tree iteration, Tree constructor, Tree
+@section Reference counting
+
+@deftypefun Marpa_Tree marpa_t_ref (Marpa_Tree @var{t})
+Increases the reference count.
+
+Return value:
+On success, @var{t}.
+On failure, @code{NULL}.
+@end deftypefun
+
+@deftypefun void marpa_t_unref (Marpa_Tree @var{t})
+Decreases the reference count by 1,
+destroying @var{t} once the reference count reaches
+zero.
+Libmarpa time objects have no explicit destructor.
+They are destroyed by reducing their reference count to zero.
+
+@end deftypefun
+
+@node Tree iteration,  , Tree reference counting, Tree
+@section Iterating through the trees
+
+@deftypefun int marpa_t_next ( @
+	Marpa_Tree @var{t})
+Iterates the tree to a parse.
+Trees are created uninitialized, so
+this method must be called before creating a valuator
+from a tree.
+A tree which has finished its iterations is said to
+be ``exhausted''.
+It is a soft failure if the tree is exhausted.
+
+Return value: On success, returns a non-negatve value.
+If the tree is exhausted, returns -1.
+On other failure, returns -2 and sets the error code.
+@end deftypefun
+
+@deftypefun int marpa_t_parse_count ( @
+	Marpa_Tree @var{t})
+The parse counter counts the number of parses
+traversed so far.
+The count includes the current iteration of the
+tree, so that a value of 0 indicates a tree
+which is not yet initialized.
+
+Return value: The number of parses traversed so far.
+Always succeeds.
+@end deftypefun
+
+@node Value, Events, Tree, Top
+@chapter Value objects
+
+@menu
+* About the valuator::          
+* Valuator constructor::        
+* Valuator reference counting::  
+* Valuator stepping::           
+* Step accessors::              
+@end menu
+
+@node About the valuator, Valuator constructor, Value, Value
+@section About the valuator
+While Libmarpa passes instructions
+(called ``steps'')
+for stack manipulation,
+it does not actually maintain a stack.
+This leaves the upper layer in total control of the
+stack and the values which are placed on it.
+
+As example may make this clearer.
+Suppose the evalution is at a place in the parse tree
+where an addition is being performed.
+Libmarpa does not know that the operation
+is an addition.
+It will tell the application that rule number @math{R}
+is to be applied to the arguments at stack locations
+@math{N} and @math{N+1}, and that the result is to placed in
+stack location @math{N}.
+
+In this system
+the application keeps track of the semantics for all
+rules, so it looks up rule @math{R} and determines that it
+is an addition.
+The application can do this by using @math{R} as an index
+into an array of callbacks, or by any other method
+it chooses.
+Let's assume a callback implements the semantics
+for rule @math{R}.
+Libmarpa has told the application that two arguments
+are available for this operation, and that they are
+at locations @math{N} and @math{N+1} in the stack.
+They might be the numbers 42 and 711.
+So the callback is called with its two arguments,
+and produces a return value, let's say, 753.
+Libmarpa has told the application that the result
+belongs at location @math{N} in the stack,
+so the application writes 753 to location @math{N}.
+
+Since Libmarpa knows nothing about the semantics,
+the operation for rule R could be string concatenation
+instead of addition.
+Or, if it is addition, it could allow for its arguments
+to be floating point or complex numbers.
+Since the application maintains the stack, it is up
+to the application whether the stack contains integers,
+strings, complex numbers, or polymorphic objects which are
+capable of being any of these things and more.
+
+This technique
+hides Libmarpa's grammar rewrites from the application,
+and is actually quite efficient.
+Libmarpa knows which rules are sequences
+and optimizes stack manipulations based on this knowledge.
+Many practical grammars use long sequences heavily
+and, for these,
+the series of steps
+suggest by Libmarpa will be significantly faster than the standard 
+stack evaluation algorithm in the textbooks.
+
+To make it clear,
+we are under no illusion that direct use of Libmarpa's evaluator will be found
+satisfactory even to most application programmers.
+I certainly avoid using it directly.
+It is intended to be used via an upper layer,
+one which does know about semantics.
+
+To see the advantage
+of isolating Libmarpa from semantics,
+suppose
+that Libmarpa is used as the basis
+for a higher-level language which needs callbacks in that higher level language.
+For generality, Libmarpa would have to deal in C callback,
+which wrapper the callbacks in the higher level language.
+This is complex to code and inefficient,
+but that is not its worst aspect.
+The worst aspect happens when there is a programming error.
+This error will occur inside Libmarpa,
+and inside code about which Libmarpa can make no assumptions.
+
+@node Valuator constructor, Valuator reference counting, About the valuator, Value
+@section Creating a new valuator
+
+@deftypefun Marpa_Value marpa_v_new ( @
+    Marpa_Tree @var{t} @
+)
+Creates a new valuator from the tree @var{t},
+and ``Pauses'' the tree,
+so that the tree cannot move on to a new iteration
+until the valuator is destroyed.
+Many valuators of the same tree
+can exist at once.
+A tree is ``unpaused'' when
+all of its valuators are destroyed.
+
+Return value:  On success, the newly created valuator.
+On failure, returns @code{NULL} and sets the error code.
+@end deftypefun
+
+@deftypefun Marpa_Grammar marpa_v_g ( @
+    Marpa_Value @var{v} @
     )
-@end deftypefun
-@deftypefun Marpa_AHFA_State_ID _marpa_g_AHFA_state_empty_transition ( @
-    Marpa_Grammar @var{g}, @
-     Marpa_AHFA_Item_ID @var{AHFA_item_id})
+Return value: The base grammar of @var{v}.
+Always succeeds.
 @end deftypefun
 
-@node Events, Recognizers, Grammars, Top
+@deftypefun Marpa_Value marpa_v_ref (Marpa_Value @var{v})
+Increases the reference count.
+
+Return value:
+On success, @var{v}.
+On failure, @code{NULL}.
+@end deftypefun
+
+@deftypefun void marpa_v_unref ( @
+    Marpa_Value @var{v})
+Decreases the reference count by 1,
+destroying @var{v} once the reference count reaches
+zero.
+Libmarpa time objects have no explicit destructor.
+They are destroyed by reducing their reference count to zero.
+
+@end deftypefun
+
+@deftypefun int marpa_v_symbol_is_ask_me_when_null ( @
+    Marpa_Value @var{v}, @
+    Marpa_Symbol_ID @var{symid} )
+@deftypefunx int marpa_v_symbol_ask_me_when_null_set ( @
+    Marpa_Value @var{v}, @
+    Marpa_Symbol_ID @var{symid}, @
+    int @var{value} )
+These methods, respectively, report and set to @var{value}
+the ``ask me
+when null'' flag for symbol @var{symid}.
+When this flag is 1,
+the valuator asks the application
+to supply a value for a null symbol.
+When this flag is 0 (its default value),
+the behavior is for a null symbol to have a
+``whatever'' value.
+Any setting in the valuator overrides the one chosen
+in the grammar.
+
+@var{value} should be 1 or 0.
+If @var{symid} is non-nullable,
+an attempt to set its @var{value} to 1 is
+a hard error.
+
+Return value:  On success, the value of the flag after the
+call.
+On failure, -2.
+@end deftypefun
+
+@node Valuator reference counting, Valuator stepping, Valuator constructor, Value
+@section Reference counting
+
+@node Valuator stepping, Step accessors, Valuator reference counting, Value
+@section Stepping through the valuator
+
+@deftypefun Marpa_Step_Type marpa_v_step ( @
+    Marpa_Value @var{v})
+This method ``steps through'' the valuator.
+The return value is a @code{Marpa_Step_Type},
+a integer which indicates the type of step.
+How the application is expected to act on
+each step is described below.
+
+Return value:  On success, the type of the step
+to be performed.
+On soft failure, @code{MARPA_STEP_INACTIVE}.
+On other failure, -2.
+@end deftypefun
+
+@deftypevr Macro Marpa_Step_Type MARPA_STEP_RULE
+The semantics of a rule should be performed.
+The application can find the value of the rule's
+children in the stack locations from
+@code{marpa_v_arg_0(v)}
+to @code{marpa_v_arg_n(v)}.
+The semantics for the rule whose ID is
+@code{marpa_v_rule(v)} should be executed
+on these child values,
+and the result placed in
+@code{marpa_v_result(v)}.
+@end deftypevr
+
+@deftypevr Macro Marpa_Step_Type MARPA_STEP_TOKEN
+The semantics of a non-null token should be performed.
+The value of the token whose ID is
+@code{marpa_v_token(v)} should be 
+placed in
+stack location @code{marpa_v_result(v)}.
+The token is non-nulling.
+Its value
+will not be the ``whatever''
+value and will be in
+@code{marpa_v_token_value(v)}.
+@end deftypevr
+
+@deftypevr Macro Marpa_Step_Type MARPA_STEP_NULLING_SYMBOL
+The semantics for a nulling symbol should be performed.
+The ID of the symbol is
+@code{marpa_v_symbol(v)} and its value should
+be placed in
+stack location @code{marpa_v_result(v)}.
+@end deftypevr
+
+@deftypevr Macro Marpa_Step_Type MARPA_STEP_INACTIVE
+The valuator has gone through all of its steps
+and is now inactive.
+The value of the parse will be in stack location 0.
+
+Because of ``whatever'' semantics and nulling
+parses, it is quite possible for valuator to immediately
+became inactive -- @code{MARPA_STEP_INACTIVE} could
+be the first and last step.
+For similar reasons, the application
+may need, on its own initiative,
+to initialize the stack
+to ensure there is a stack with a location 0 --
+there will not necessarily be a valuator step that
+prompts to do so.
+@end deftypevr
+
+@deftypevr Macro Marpa_Step_Type MARPA_STEP_INTERNAL1
+@deftypevrx Macro Marpa_Step_Type MARPA_STEP_INTERNAL2
+@deftypevrx Macro Marpa_Step_Type MARPA_STEP_TRACE
+These step types are reserved for internal purposes.
+@end deftypevr
+
+@node Step accessors,  , Valuator stepping, Value
+@section Step accessors
+
+Step accessors are implemented as macros.  They always succeed.
+
+@deftypefn {Macro} Marpa_Symbol_ID marpa_v_token (Marpa_Value @var{v})
+Return value: Returns the ID of the token
+for the @code{MARPA_STEP_TOKEN} step.
+@end deftypefn
+
+@deftypefn {Macro} Marpa_Symbol_ID marpa_v_symbol (Marpa_Value @var{v})
+Return value: Returns the ID of the symbol
+for the @code{MARPA_STEP_NULLING_SYMBOL} step.
+The value is always the same as that for the @code{marpa_v_token}
+macro.
+@end deftypefn
+
+@deftypefn {Macro} void* marpa_v_token_value (Marpa_Value @var{v})
+Return value: Returns the integer which is (or represents)
+the value of the token for the
+@code{MARPA_STEP_TOKEN} step.
+@end deftypefn
+
+@deftypefn {Macro} Marpa_Rule_ID marpa_v_rule (Marpa_Value @var{v})
+Return value: Returns the ID of the rule
+token for the
+@code{MARPA_STEP_RULE} step.
+@end deftypefn
+
+@deftypefn {Macro} int marpa_v_result (Marpa_Value @var{v})
+Return the stack location where the result of the semantics
+should be placed.
+@end deftypefn
+
+@deftypefn {Macro} int marpa_v_arg_0 (Marpa_Value @var{v})
+For a @code{MARPA_STEP_RULE} step,
+returns the stack location where the value of first child
+can be found.
+The value is always the same as that for the @code{marpa_v_result}
+macro.
+@end deftypefn
+
+@deftypefn {Macro} int marpa_v_arg_n (Marpa_Value @var{v})
+For a @code{MARPA_STEP_RULE} step,
+returns the stack location where the value of the last child
+can be found.
+@end deftypefn
+
+@node Events, Error macros and code, Value, Top
 @chapter Events
 
 @menu
-* Event accessor::              Event accessor.
 * Event codes::                 Event codes.
 @end menu
 
-@node Event accessor, Event codes, Events, Events
-@section Accessing events
-
-@deftypefun int marpa_g_event (Marpa_Grammar @var{g}, @
-    Marpa_Event @var{public_event}, @
-	       int @var{ix})
-@end deftypefun
-
-@node Event codes,  , Event accessor, Events
+@node Event codes,  , Events, Events
 @section Event codes
 
 @deftypevr Macro int MARPA_EVENT_NONE
+Applications should never see this event.
 Suggested message: "No event."
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_EXHAUSTED
+The event value is undefined.
 Suggested message: "Recognizer is exhausted."
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_EARLEY_ITEM_THRESHOLD
+The event value is undefined.
 Suggested message: "Too many Earley items."
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_LOOP_RULES
 A rule is part of a cycle.
-Cycles are pathological cases of recursions,
+Cycles are pathological cases of recursion,
 in which the same symbol string derives itself
 a potentially infinite number of times.
 Nonetheless, Marpa parses in the presence of these,
@@ -1498,728 +2150,53 @@ The value of the event is the ID of the symbol.
 Suggested message: "Grammar has a nulling terminal."
 @end deftypevr
 
-@node Recognizers, Bocage, Events, Top
-@chapter Recognizer objects
+@node Error macros and code, Design considerations, Events, Top
+@chapter Error macros and code
 
 @menu
-* Recognizer constructor::      Creating a new recognizer.
-* Recognizer reference counting::  Keeping the reference count of a recognizer.
-* Recognizer life::             Taking a recognizer through its life cycle.
-* Recognizer internals::        Meddling with the recognizer internals.
-@end menu 
-
-@node Recognizer constructor, Recognizer reference counting, Recognizers, Recognizers
-@section Creating a new recognizer
-
-@deftypefun Marpa_Recognizer marpa_r_new ( Marpa_Grammar @var{g} )
-@end deftypefun
-
-@node Recognizer reference counting, Recognizer life, Recognizer constructor, Recognizers
-@section Keeping the reference count of a recognizer
-
-@deftypefun Marpa_Recognizer marpa_r_ref (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun void marpa_r_unref (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@node Recognizer life, Recognizer internals, Recognizer reference counting, Recognizers
-@section Taking a recognizer through its life cycle
-
-@deftypefun int marpa_r_start_input (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun int marpa_r_alternative (Marpa_Recognizer r, @
-    Marpa_Symbol_ID @var{token_id}, @
-    int @var{value}, @
-    int @var{length})
-@end deftypefun
-
-@deftypefun Marpa_Earleme marpa_r_earleme_complete (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Error_Code marpa_r_error @
-    (Marpa_Recognizer @var{r}, @
-    const char** @var{p_error_string})
-@end deftypefun
-
-@deftypefun Marpa_Earleme marpa_r_earleme ( @
-    Marpa_Recognizer @var{r}, @
-    Marpa_Earley_Set_ID @var{set_id})
-
-Given the ID (ordinal) of an Earley set,
-return the earleme.
-In the default, token-stream model, ID and earleme
-are the same, but this is not the case in other input
-models.
-If the ordinal is out of bounds, this function
-returns -1, which can be treated as a soft failure.
-On other problems, it returns -2.
-@end deftypefun
-
-@deftypefun unsigned int marpa_r_current_earleme (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun int marpa_r_earley_item_warning_threshold (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun int marpa_r_earley_item_warning_threshold_set (Marpa_Recognizer @var{r}, @
-    int @var{threshold})
-@end deftypefun
-
-@deftypefun unsigned int marpa_r_furthest_earleme (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun int marpa_r_terminals_expected ( @
-    Marpa_Recognizer @var{r}, @
-    Marpa_Symbol_ID* @var{buffer})
-@end deftypefun
-
-@deftypefun int marpa_r_is_use_leo (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun int marpa_r_is_use_leo_set ( Marpa_Recognizer @var{r}, @
-    int @var{value})
-@end deftypefun
-
-@deftypefun int marpa_r_is_exhausted (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun int marpa_r_event (Marpa_Recognizer @var{r}, @
-    Marpa_Event @var{public_event}, @
-    int @var{ix})
-@end deftypefun
-
-@node Recognizer internals,  , Recognizer life, Recognizers
-@section Meddling with the recognizer internals
-
-@deftypefun Marpa_Earley_Set_ID _marpa_r_trace_earley_set (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Earley_Set_ID _marpa_r_latest_earley_set (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun int _marpa_r_earley_set_size (Marpa_Recognizer r, Marpa_Earley_Set_ID @var{set_id})
-@end deftypefun
-
-@deftypefun Marpa_Earleme _marpa_r_earley_set_trace (Marpa_Recognizer r, Marpa_Earley_Set_ID @var{set_id})
-@end deftypefun
-
-@deftypefun Marpa_AHFA_State_ID _marpa_r_earley_item_trace (Marpa_Recognizer r, Marpa_Earley_Item_ID @var{item_id})
-@end deftypefun
-
-@deftypefun Marpa_Earley_Set_ID _marpa_r_earley_item_origin (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_leo_predecessor_symbol (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Earley_Set_ID _marpa_r_leo_base_origin (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_AHFA_State_ID _marpa_r_leo_base_state (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_AHFA_State_ID _marpa_r_leo_expansion_ahfa (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_postdot_symbol_trace (Marpa_Recognizer r, Marpa_Symbol_ID @var{symid})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_first_postdot_item_trace (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_next_postdot_item_trace (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_AHFA_State_ID _marpa_r_postdot_item_symbol (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_first_token_link_trace (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_next_token_link_trace (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_first_completion_link_trace (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_next_completion_link_trace (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_first_leo_link_trace (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_next_leo_link_trace (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_AHFA_State_ID _marpa_r_source_predecessor_state (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_source_token (Marpa_Recognizer r, int *@var{value_p})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_r_source_leo_transition_symbol (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@deftypefun Marpa_Earley_Set_ID _marpa_r_source_middle (Marpa_Recognizer @var{r})
-@end deftypefun
-
-@node Bocage, Order, Recognizers, Top
-@chapter Bocage objects
-
-@menu
-* Bocage reference counting::   
-* Bocage internals::            Bocage internals.
+* Methods::                     
+* Error Macros::                
+* Error Codes::                 
 @end menu
 
-@deftypefun Marpa_Bocage marpa_b_new (Marpa_Recognizer @var{r}, @
-    Marpa_Earley_Set_ID @var{ordinal_arg})
-@end deftypefun
-
-@deftypefun Marpa_Grammar marpa_b_g (Marpa_Bocage @var{b})
-@end deftypefun
-
-@node Bocage reference counting, Bocage internals, Bocage, Bocage
-@section  Reference counting
-@deftypefun Marpa_Bocage marpa_b_ref (Marpa_Bocage @var{b})
-@end deftypefun
-
-@deftypefun void marpa_b_unref (Marpa_Bocage @var{b})
-@end deftypefun
-
-@node Bocage internals,  , Bocage reference counting, Bocage
-@section Internals
-
-@deftypefun int _marpa_b_and_node_count ( @
-    Marpa_Bocage @var{b})
-@end deftypefun
-
-@deftypefun int _marpa_b_and_node_parent ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_And_Node_ID @var{and_node_id})
-@end deftypefun
-
-@deftypefun int _marpa_b_and_node_predecessor ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_And_Node_ID @var{and_node_id})
-@end deftypefun
-
-@deftypefun int _marpa_b_and_node_cause ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_And_Node_ID @var{and_node_id})
-@end deftypefun
-
-@deftypefun int _marpa_b_and_node_symbol ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_And_Node_ID @var{and_node_id})
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID _marpa_b_and_node_token ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_And_Node_ID @var{and_node_id}, @
-    int* @var{value_p})
-
-Returns the data for the token of the and-node.
-The symbol id is the return value,
-and the token value is placed
-in the location pointed
-to by @var{value_p}, if that is non-null.
-If @var{and_node_id} is not the ID of an and-node
-whose cause is a token,
-returns -1,
-without changing @var{value_p}.
-On hard failure, returns -2 without changing
-@var{value_p}.
-
-There is no function to simply return the token value --
-because of the need to indicate errors, it is just as
-easy to return the symbol ID as well.
-@end deftypefun
-
-@deftypefun Marpa_Or_Node_ID _marpa_b_top_or_node ( @
-    Marpa_Bocage @var{b})
-
-Return the ID of the top or-node.
-@end deftypefun
-
-@deftypefun int _marpa_b_or_node_set ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_Or_Node_ID @var{or_node_id})
-
-Return the ordinal of the current (final) Earley set of
-the or-node.
-@end deftypefun
-
-@deftypefun int _marpa_b_or_node_origin ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_Or_Node_ID @var{or_node_id})
-@end deftypefun
-
-@deftypefun Marpa_IRL_ID _marpa_b_or_node_irl ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_Or_Node_ID @var{or_node_id})
-@end deftypefun
-
-@deftypefun int _marpa_b_or_node_position ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_Or_Node_ID @var{or_node_id})
-@end deftypefun
-
-@deftypefun int _marpa_b_or_node_first_and ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_Or_Node_ID @var{or_node_id})
-@end deftypefun
-
-@deftypefun int _marpa_b_or_node_last_and ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_Or_Node_ID @var{or_node_id})
-@end deftypefun
-
-@deftypefun int _marpa_b_or_node_and_count ( @
-    Marpa_Bocage @var{b}, @
-    Marpa_Or_Node_ID @var{or_node_id})
-@end deftypefun
-
-@node Order, Tree, Bocage, Top
-@chapter Orderings
-
-@menu
-* Ordering constructor::        
-* Ordering reference counting::  
-* Ordering internals::          
-@end menu
-
-@node Ordering constructor, Ordering reference counting, Order, Order
-@section Creating an ordering
-
-@deftypefun Marpa_Order marpa_o_new ( @
-    Marpa_Bocage @var{b})
-@end deftypefun
-
-@deftypefun Marpa_Grammar marpa_o_g ( @
-    Marpa_Order @var{o})
-@end deftypefun
-
-@node Ordering reference counting, Ordering internals, Ordering constructor, Order
-@section Reference counting
-
-@deftypefun void marpa_o_unref ( @
-    Marpa_Order @var{o})
-@end deftypefun
-
-@deftypefun Marpa_Order marpa_o_ref ( @
-    Marpa_Order @var{o})
-@end deftypefun
-
-@node Ordering internals,  , Ordering reference counting, Order
-@section Internals
-
-@deftypefun int _marpa_o_and_order_set ( @
-    Marpa_Order @var{o}, @
-    Marpa_Or_Node_ID @var{or_node_id}, @
-    Marpa_And_Node_ID* @var{and_node_ids}, @
-    int @var{length})
-@end deftypefun
-
-@deftypefun Marpa_And_Node_ID _marpa_o_and_order_get ( @
-    Marpa_Order @var{o}, @
-    Marpa_Or_Node_ID @var{or_node_id}, @
-    int @var{ix})
-@end deftypefun
-
-@node Tree, Value, Order, Top
-@chapter Tree iterators
-
-Within Marpa,
-when it makes sense in context,
-"tree" means a parse tree.
-Marpa's parse trees are also bocage iterators.
-
-@menu
-* Tree constructor::            
-* Tree reference counting::     
-* Tree iteration::              
-* Tree internals::              Internals.
-@end menu
-
-@node Tree constructor, Tree reference counting, Tree, Tree
-@section Creating a new tree iterator
-
-@deftypefun Marpa_Tree marpa_t_new (Marpa_Order @var{o})
-@end deftypefun
-
-@deftypefun Marpa_Grammar marpa_t_g (Marpa_Tree @var{o})
-
-This function returns the grammar of the tree.
-It never returns an error.
-The grammar is always set when the tree is initialized,
-and is never changed while the tree exists.
-Fatal state is not reported,
-because it is kept in the grammar,
-so that
-either we can return the grammar in spite of
-its fatal state,
-or the problem is so severe than no
-errors can be properly reported.
-
-@end deftypefun
-
-@node Tree reference counting, Tree iteration, Tree constructor, Tree
-@section Reference counting
-
-@deftypefun Marpa_Tree marpa_t_ref (Marpa_Tree @var{t})
-@end deftypefun
-
-@deftypefun void marpa_t_unref (Marpa_Tree @var{t})
-@end deftypefun
-
-@node Tree iteration, Tree internals, Tree reference counting, Tree
-@section Iterating through the trees
-
-@deftypefun int marpa_t_next ( @
-	Marpa_Tree @var{t})
-@end deftypefun
-
-@deftypefun int marpa_t_parse_count ( @
-	Marpa_Tree @var{t})
-@end deftypefun
-
-@node Tree internals,  , Tree iteration, Tree
-@section Internals
-
-In Marpa, a nook is any node of a parse tree.
-The usual term is "node",
-but within Marpa,
-the word "node" is already heavily overloaded.
-So what most texts call "tree nodes" are here
-called "nooks".
-"Nook" can be thought of as a pun on both
-"node" and "fork".
-
-@deftypefun int _marpa_t_size ( @
-	Marpa_Tree @var{t})
-
-Return the size of the parse tree.
-This is the number of nooks in its stack.
-If there is a serioius error,
-or if the tree is uninitialized, return -2.
-If the tree is exhausted, return -1.
-@end deftypefun
-
-@deftypefun Marpa_Or_Node_ID _marpa_t_nook_or_node ( @
-    Marpa_Tree @var{t}, @
-    Marpa_Nook_ID @var{nook_id})
-
-Return the ID of the or-node for @var{nook_id}.
-@end deftypefun
-
-@deftypefun int _marpa_t_nook_choice ( @
-	Marpa_Tree @var{t}, @
-	Marpa_Nook_ID @var{nook_id} @
-	)
-
-Return the current choice for @var{nook_id}.
-@end deftypefun
-
-@deftypefun int _marpa_t_nook_parent ( @
-	Marpa_Tree @var{t}, @
-	Marpa_Nook_ID @var{nook_id} @
-	)
-
-Return the parent nook's ID for @var{nook_id}.
-As with the other nook trace functions,
--1 is returned if @var{nook_id} is not the ID of
-a nook on the stack,
-but -1 can also be a valid value.
-If that's an issue, the @var{nook_id} needs
-to be checked with one of the trace functions
-where -1 is never a valid value ---
-for example, @code{_marpa_t_nook_or_node}.
-@end deftypefun 
-
-@deftypefun int _marpa_t_nook_cause_is_ready ( @
-	Marpa_Tree @var{t}, @
-	Marpa_Nook_ID @var{nook_id} @
-	)
-
-Return the cause-is-ready bit for @var{nook_id}.
-@end deftypefun
-
-@deftypefun int _marpa_t_nook_predecessor_is_ready ( @
-	Marpa_Tree @var{t}, @
-	Marpa_Nook_ID @var{nook_id} @
-	)
-
-Return the predecessor-is-ready bit for @var{nook_id}.
-@end deftypefun
-
-@deftypefun int _marpa_t_nook_is_cause ( @
-	Marpa_Tree @var{t}, @
-	Marpa_Nook_ID @var{nook_id} @
-	)
-
-Return the is-cause bit for @var{nook_id}.
-@end deftypefun
-
-@deftypefun int _marpa_t_nook_is_predecessor ( @
-	Marpa_Tree @var{t}, @
-	Marpa_Nook_ID @var{nook_id} @
-	)
-
-Return the is-predecessor bit for @var{nook_id}.
-@end deftypefun
-
-@node Value, Error handling, Tree, Top
-@chapter Value objects
-
-@menu
-* About the valuator::          
-* Valuator constructor::        
-* Valuator access macros::      
-* Valuator reference counting::  
-* Valuator stepping::           
-* Valuator tracing::            
-@end menu
-
-@node About the valuator, Valuator constructor, Value, Value
-@section About the valuator
-While Libmarpa passes instruction for stack manipulation,
-it does not actually maintain a stack.
-This leaves the upper layer in total control of the
-stack and the values which are placed on it.
-
-As example may make this clearer.
-Suppose the evalution is at a place in the parse tree
-where an addition is being performed.
-Libmarpa does not know that the operation
-is an addition.
-It will tell the application that rule number R
-is to be applied to the arguments at stack locations
-N and N+, and that the result is to placed in
-stack location N.
-
-In this system,
-The application keeps track of the semantics for all
-rules, so it looks up rule R and determines that it
-is an addition.
-The application can do this by using R as an index
-into an array of callbacks, or by any other method
-it chooses.
-Let's assume a callback implements the semantics
-for rule R.
-Libmarpa has told the application that two arguments
-are available for this operation, and that they are
-at locations N and N+1 in the stack.
-They might be the numbers 42 and 711.
-So the callback is called with its two arguments,
-and produces a return value, let's say, 753.
-Libmarpa has told the application that the result
-belongs at location N in the stack,
-so the application writes 752 to location N.
-
-Since Libmarpa knows nothing about the semantics,
-the operation for rule R could be string concatenation
-instead of addition.
-Or, if it is addition, it could allow for its arguments
-to be floating point or complex numbers.
-Since the application maintains the stack, it is up
-to the application whether the stack contains integers,
-strings, complex numbers; or objects which may be any
-or all of these and more.
-
-This technique
-hides Libmarpa's grammar rewrites from the application,
-and is actually quite efficient.
-Libmarpa knows which rules are sequences
-and optimizes stack manipulations based on this knowledge.
-Many practical grammars use long sequences heavily,
-and for these Libmarpa the series of steps
-suggest by Libmarpa will be significantly faster than the standard 
-stack evaluation algorithm in the textbooks.
-
-To make it clear,
-I am under no illusion that Libmarpa's evaluator will be found
-satisfactory even to most application programmers.
-I certainly avoid using it directly.
-It is intended to be used via an upper layer,
-one which does know about semantics.
-
-But, by isolating Libmarpa from semantics, Libmarpa avoids
-imposing any arbitrary restrictions on the semantics used
-with the Marpa algorithm.
-To see the advantage suppose, as I expect will often be the case,
-Libmarpa is used as the basis
-for a higher-level language which needs callbacks in that higher level language.
-For generality, Libmarpa would have to deal in C callback,
-which wrapper the callbacks in the higher level language.
-This is complex to code and inefficient,
-but that is not its worst aspect.
-The worst aspect happens when there is a programming error.
-This error will occur inside Libmarpa,
-and inside code about which Libmarpa can make no assumptions.
-
-@node Valuator constructor, Valuator access macros, About the valuator, Value
-@section Creating a new valuator
-
-@deftypefun Marpa_Value marpa_v_new ( @
-    Marpa_Tree @var{t} @
-)
-
-@end deftypefun
-
-@deftypefun Marpa_Grammar marpa_v_g ( @
-    Marpa_Value @var{v} @
-    )
-
-@end deftypefun
-
-@deftypefun void marpa_v_unref ( @
-    Marpa_Value @var{v})
-@end deftypefun
-
-@deftypefun int marpa_v_symbol_ask_me_when_null_set ( @
-    Marpa_Value @var{v}, @
-    Marpa_Symbol_ID @var{symid}, @
-    int @var{value} )
-@end deftypefun
-
-@deftypefun int marpa_v_symbol_is_ask_me_when_null ( @
-    Marpa_Value @var{v}, @
-    Marpa_Symbol_ID @var{symid} )
-@end deftypefun
-
-@node Valuator access macros, Valuator reference counting, Valuator constructor, Value
-@section Valuator access macros
-
-Accessors which are implemented as macros.
-
-@defmac Marpa_Symbol_ID marpa_v_semantic_token(Marpa_Value @var{v})
-@end defmac
-
-@defmac void* marpa_v_token_value(Marpa_Value @var{v})
-@end defmac
-
-@defmac Marpa_Rule_ID marpa_v_semantic_rule(Marpa_Value @var{v})
-@end defmac
-
-@defmac int marpa_v_arg_0(Marpa_Value @var{v})
-@end defmac
-
-@defmac int marpa_v_arg_n(Marpa_Value @var{v})
-@end defmac
-
-@node Valuator reference counting, Valuator stepping, Valuator access macros, Value
-@section Reference counting
-
-@deftypefun Marpa_Value marpa_v_ref (Marpa_Value @var{v})
-
-Returns the grammar of the value.
-It never returns an error.
-The grammar is always set when the value is initialized,
-and is never changed while the value exists.
-Fatal state is not reported,
-because it is kept in the grammar,
-so that
-either we can return the grammar in spite of
-its fatal state,
-or the problem is so severe than no
-errors can be properly reported.
-
-@end deftypefun
-
-@node Valuator stepping, Valuator tracing, Valuator reference counting, Value
-@section Stepping through the valuator
-
-@deftypevr Macro Marpa_Value_Type MARPA_VALUE_TRACE
-The data for tracing is ready.
-@end deftypevr
-
-@deftypevr Macro Marpa_Value_Type MARPA_VALUE_TOKEN
-The data for a semantic token is ready.
-The token is non-nulling and will have a value.
-@end deftypevr
-
-@deftypevr Macro Marpa_Value_Type MARPA_VALUE_NULLING_SYMBOL
-The data for a nulling symbol with semantics is ready.
-It is up to the application
-to provide the value, if one is needed.
-@end deftypevr
-
-@deftypevr Macro Marpa_Value_Type MARPA_VALUE_RULE
-The data for a semantic rule is ready.
-@end deftypevr
-
-@deftypevr Macro Marpa_Value_Type MARPA_VALUE_INACTIVE
-The valuator is inactive.
-@end deftypevr
-
-@deftypevr Macro Marpa_Value_Type MARPA_VALUE_INTERNAL1
-@deftypevrx Macro Marpa_Value_Type MARPA_VALUE_INTERNAL2
-These value types are reserved for internal purposes
-@end deftypevr
-
-@deftypefun Marpa_Value_Type marpa_v_step ( @
-    Marpa_Value @var{v})
-@end deftypefun
-
-@node Valuator tracing,  , Valuator stepping, Value
-@section Tracing the valuator
-
-@deftypefun int _marpa_v_trace ( @
-    Marpa_Value @var{v}, @
-    int @var{flag})
-@end deftypefun
-
-@deftypefun Marpa_Nook_ID _marpa_v_nook ( @
-    Marpa_Value @var{v})
-@end deftypefun
-
-@node Error handling, Design considerations, Value, Top
-@chapter Error handling
-
-@section Soft and hard errors
-
-Soft errors are errors which may be a result of normal processing.
-Soft errors often do not disrupt the flow of processing,
-and applications typically do not treat soft errors
-as fatal errors.
-When a soft error is an interruption of normal processing,
-the disruption is usually recoverable.
-
-Hard errors are errors which are never the result of
-normal processing.
-They almost always disrupt the flow of processing.
-Recovery from a hard error is usually not possible,
-and an application will usually treat a hard error
-as a fatal error.
-
-The difference between hard and soft errors can
-depend, to a certain extent,
-on the application.
-Libmarpa has its own idea of what is a hard
-and soft error but,
-whenever possible,
-it does not enforce this on the application.
-An application is also free to treat a soft
-error as a hard error.
-And Libmarpa makes
-every attempt to allow an application to
-reinterpret a hard error as a soft error.
-
+@node Methods, Error Macros, Error macros and code, Error macros and code
 @section Methods
 
 @deftypefun Marpa_Error_Code marpa_g_error @
     ( Marpa_Grammar @var{g}, @
     const char** @var{p_error_string})
+When a method fails,
+this method allows the application to read
+the error code.
+@var{p_error_string} is reserved for use by
+the internals.
+Applications should set it to @code{NULL}.
+
+Return value: The last error code from a Libmarpa method.
+Always succeeds.
 @end deftypefun
 
+@deftypefun Marpa_Error_Code marpa_r_error @
+    (Marpa_Recognizer @var{r}, @
+    const char** @var{p_error_string})
+All errors are tracked in the grammar object.
+This method is a convenience wrapper for @code{marpa_g_error}.
+@var{p_error_string} is reserved for use by
+the internals.
+Applications should set it to @code{NULL}.
+
+Return value: The last error code from a Libmarpa method.
+Always succeeds.
+@end deftypefun
+
+@node Error Macros, Error Codes, Methods, Error macros and code
 @section Error Macros
 
 @deftypevr Macro int MARPA_ERRCODE_COUNT
 The number of error codes.
 @end deftypevr
 
+@node Error Codes,  , Error Macros, Error macros and code
 @section Error Codes
 
 @deftypevr Macro int MARPA_ERR_NONE
@@ -2607,7 +2584,7 @@ should not be the case.
 Suggested message: "Valuator inactive."
 @end deftypevr
 
-@node Design considerations, Things To Do, Error handling, Top
+@node Design considerations, Things To Do, Error macros and code, Top
 @chapter Design considerations
 
 This section details some of the design choices
@@ -2692,7 +2669,7 @@ modern architectures is
 a small price to pay for
 safe, portable validity checking.
 
-@node Things To Do,  , Design considerations, Top
+@node Things To Do, Internal Interface, Design considerations, Top
 @chapter Things to do
 
 @itemize
@@ -2700,5 +2677,491 @@ safe, portable validity checking.
 There should be an interface in the valuator that allows the user to 
 determine the start and end earlemes of a token.
 @end itemize
+
+@node Internal Interface,  , Things To Do, Top
+@chapter Internal Interface
+
+@menu
+* Symbol internal methods::     
+* Rule internals::              
+* Grammar internals::           
+* Recognizer internals::        
+* Bocage internals::            
+* Ordering internals::          
+* Tree internals::              
+* Valuator internals::          
+@end menu
+
+@node Symbol internal methods, Rule internals, Internal Interface, Internal Interface
+@section Symbol internal methods
+
+Internal methods are only for testing and development of libmarpa.
+They are listed here (and sometimes described) for the convenience
+of those working on libmarpa's internals.
+
+Internal methods are subject to change.
+Applications should not use internal methods.
+Where a description exists and may be helpful,
+it may be included below,
+but all applications
+should treat these methods as ``undocumented''.
+
+@deftypefun int _marpa_g_isy_is_start ( Marpa_Grammar @var{g}, @
+    Marpa_ISY_ID @var{isy_id})
+@end deftypefun
+@deftypefun int _marpa_g_isy_is_nulling ( @
+  Marpa_Grammar @var{g}, @
+  Marpa_ISY_ID @var{isy_id})
+@end deftypefun
+@deftypefun int _marpa_g_isy_is_lhs ( @
+  Marpa_Grammar @var{g}, @
+  Marpa_ISY_ID @var{isy_id})
+@end deftypefun
+@deftypefun Marpa_ISY_ID _marpa_g_xsy_nulling_isy ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun Marpa_ISY_ID _marpa_g_xsy_isy ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun Marpa_Symbol_ID _marpa_g_symbol_proper_alias ( @
+  Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun Marpa_Symbol_ID _marpa_g_symbol_null_alias ( @
+  Marpa_Grammar @var{g}, @
+  Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun int _marpa_g_symbol_is_semantic ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+@end deftypefun
+@deftypefun Marpa_Rule_ID _marpa_g_source_xsy ( @
+  Marpa_Grammar @var{g}, @
+  Marpa_ISY_ID @var{isy_id})
+@end deftypefun
+@deftypefun Marpa_Rule_ID _marpa_g_isy_lhs_xrl ( @
+  Marpa_Grammar @var{g}, @
+  Marpa_ISY_ID @var{isy_id})
+@end deftypefun
+@deftypefun int _marpa_g_isy_xrl_offset ( @
+  Marpa_Grammar @var{g}, @
+  Marpa_ISY_ID @var{isy_id} )
+@end deftypefun
+
+@node Rule internals, Grammar internals, Symbol internal methods, Internal Interface
+@section Rule internals
+
+@deftypefun int marpa_g_rule_is_keep_separation ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+This function does nothing but return an undocumented flag.
+At some point,
+I may optimize cases where separators are discarded,
+in which case this flag will be used.
+I may also remove this call entirely.
+Return value:
+Returns 1 if
+the keep separation flag is set,
+0 if not.
+Returns 0 if
+@var{rule_id} is not a sequence rule.
+On hard failure, returns -2.
+@end deftypefun
+
+@deftypefun int _marpa_g_isy_count ( @
+  Marpa_Grammar @var{g})
+@end deftypefun
+@deftypefun int _marpa_g_irl_count ( @
+  Marpa_Grammar @var{g})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_g_irl_lhs ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+Return value: On success, the LHS symbol of the IRL.
+On failure, -2.
+@end deftypefun
+
+@deftypefun int _marpa_g_irl_length ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+The length of a IRL is the number of symbols on its RHS.
+
+Return value: On success, the IRL length.
+On failure, -2.
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_g_irl_rh_symbol ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id}, @
+    int @var{ix})
+The position in the IRL, @var{ix}, is zero-based.
+If @var{ix} is greater than or equal the length of the
+IRL, it is a soft failure.
+This can be used in loops, to avoid having to determine
+the IRL's length explicitly.
+
+Return value: On success, the symbol in position @var{ix}
+on the IRL's RHS.
+If @var{ix} is greater than or equal to the length of
+the IRL, -1.
+On other failures, -2.
+@end deftypefun
+@deftypefun int _marpa_g_rule_is_used (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+@end deftypefun
+@deftypefun int _marpa_g_irl_is_virtual_lhs (Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+@end deftypefun
+@deftypefun int _marpa_g_irl_is_virtual_rhs (Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+@end deftypefun
+@deftypefun @code{unsigned int} _marpa_g_virtual_start (Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+@end deftypefun
+@deftypefun @code{unsigned int} _marpa_g_virtual_end (Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+@end deftypefun
+@deftypefun Marpa_Rule_ID _marpa_g_source_xrl (Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+@end deftypefun
+@deftypefun int _marpa_g_real_symbol_count (Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+@end deftypefun
+@deftypefun Marpa_Rule_ID _marpa_g_irl_semantic_equivalent (Marpa_Grammar @var{g}, @
+    Marpa_IRL_ID @var{irl_id})
+@end deftypefun
+
+@node Grammar internals, Recognizer internals, Rule internals, Internal Interface
+@section Grammar internal methods
+
+The methods in this section are accessors for Libmarpa's
+AHFA items and states.
+Their use requires familiarity with
+Marpa's internals, as described in
+@cite{Marpa: The Program}.
+
+@deftypefun int _marpa_g_AHFA_item_count (Marpa_Grammar @var{g})
+@end deftypefun
+@deftypefun Marpa_Rule_ID _marpa_g_AHFA_item_irl (Marpa_Grammar @var{g}, @
+    Marpa_AHFA_Item_ID @var{item_id})
+@end deftypefun
+@deftypefun int _marpa_g_AHFA_item_position (Marpa_Grammar @var{g}, @
+    Marpa_AHFA_Item_ID @var{item_id})
+@end deftypefun
+@deftypefun Marpa_Symbol_ID _marpa_g_AHFA_item_postdot (Marpa_Grammar @var{g}, @
+    Marpa_AHFA_Item_ID @var{item_id})
+@end deftypefun
+@deftypefun int _marpa_g_AHFA_item_sort_key (Marpa_Grammar @var{g}, @
+    Marpa_AHFA_Item_ID @var{item_id})
+@end deftypefun
+@deftypefun int _marpa_g_AHFA_state_count (Marpa_Grammar @var{g})
+@end deftypefun
+@deftypefun int _marpa_g_AHFA_state_item_count (Marpa_Grammar @var{g}, @
+    Marpa_AHFA_State_ID @var{AHFA_state_id})
+@end deftypefun
+@deftypefun Marpa_AHFA_Item_ID _marpa_g_AHFA_state_item (Marpa_Grammar @var{g}, @
+     Marpa_AHFA_State_ID @var{AHFA_state_id}, @
+ int @var{item_ix})
+@end deftypefun
+@deftypefun int _marpa_g_AHFA_state_is_predict (Marpa_Grammar @var{g}, @
+ Marpa_AHFA_State_ID @var{AHFA_state_id})
+@end deftypefun
+@deftypefun Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_AHFA_State_ID @var{AHFA_state_id})
+@end deftypefun
+@deftypefun int _marpa_g_AHFA_state_transitions ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_AHFA_State_ID @var{AHFA_state_id}, @
+    int *@var{buffer}, @
+    int @var{buffer_size} @
+    )
+@end deftypefun
+@deftypefun Marpa_AHFA_State_ID _marpa_g_AHFA_state_empty_transition ( @
+    Marpa_Grammar @var{g}, @
+     Marpa_AHFA_Item_ID @var{AHFA_item_id})
+@end deftypefun
+
+@node Recognizer internals, Bocage internals, Grammar internals, Internal Interface
+@section Recognizer internals
+
+
+@deftypefun int _marpa_r_is_use_leo (Marpa_Recognizer @var{r})
+@deftypefunx int _marpa_r_is_use_leo_set ( Marpa_Recognizer @var{r}, @
+    int @var{value})
+Reports and sets, respectively, the ``use Leo'' flag.
+This flag controls whether Joop Leo's method for fast parsing
+of right recursion is used.
+By default, this value is 1 and Leo parsing is in use.
+This default should be used except for testing, debugging
+and development.
+@end deftypefun
+
+@deftypefun Marpa_Earley_Set_ID _marpa_r_trace_earley_set (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Earley_Set_ID _marpa_r_latest_earley_set (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun int _marpa_r_earley_set_size (Marpa_Recognizer r, Marpa_Earley_Set_ID @var{set_id})
+@end deftypefun
+
+@deftypefun Marpa_Earleme _marpa_r_earley_set_trace (Marpa_Recognizer r, Marpa_Earley_Set_ID @var{set_id})
+@end deftypefun
+
+@deftypefun Marpa_AHFA_State_ID _marpa_r_earley_item_trace (Marpa_Recognizer r, Marpa_Earley_Item_ID @var{item_id})
+@end deftypefun
+
+@deftypefun Marpa_Earley_Set_ID _marpa_r_earley_item_origin (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_leo_predecessor_symbol (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Earley_Set_ID _marpa_r_leo_base_origin (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_AHFA_State_ID _marpa_r_leo_base_state (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_AHFA_State_ID _marpa_r_leo_expansion_ahfa (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_postdot_symbol_trace (Marpa_Recognizer r, Marpa_Symbol_ID @var{symid})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_first_postdot_item_trace (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_next_postdot_item_trace (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_AHFA_State_ID _marpa_r_postdot_item_symbol (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_first_token_link_trace (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_next_token_link_trace (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_first_completion_link_trace (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_next_completion_link_trace (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_first_leo_link_trace (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_next_leo_link_trace (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_AHFA_State_ID _marpa_r_source_predecessor_state (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_source_token (Marpa_Recognizer r, int *@var{value_p})
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID _marpa_r_source_leo_transition_symbol (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@deftypefun Marpa_Earley_Set_ID _marpa_r_source_middle (Marpa_Recognizer @var{r})
+@end deftypefun
+
+@node Bocage internals, Ordering internals, Recognizer internals, Internal Interface
+@section Bocage internals
+
+@deftypefun int _marpa_b_and_node_count ( @
+    Marpa_Bocage @var{b})
+@end deftypefun
+@deftypefun int _marpa_b_and_node_parent ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_And_Node_ID @var{and_node_id})
+@end deftypefun
+@deftypefun int _marpa_b_and_node_predecessor ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_And_Node_ID @var{and_node_id})
+@end deftypefun
+@deftypefun int _marpa_b_and_node_cause ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_And_Node_ID @var{and_node_id})
+@end deftypefun
+@deftypefun int _marpa_b_and_node_symbol ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_And_Node_ID @var{and_node_id})
+@end deftypefun
+@deftypefun Marpa_Symbol_ID _marpa_b_and_node_token ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_And_Node_ID @var{and_node_id}, @
+    int* @var{value_p})
+
+Returns the data for the token of the and-node.
+The symbol id is the return value,
+and the token value is placed
+in the location pointed
+to by @var{value_p}, if that is non-null.
+If @var{and_node_id} is not the ID of an and-node
+whose cause is a token,
+returns -1,
+without changing @var{value_p}.
+On hard failure, returns -2 without changing
+@var{value_p}.
+
+There is no function to simply return the token value --
+because of the need to indicate errors, it is just as
+easy to return the symbol ID as well.
+@end deftypefun
+@deftypefun Marpa_Or_Node_ID _marpa_b_top_or_node ( @
+    Marpa_Bocage @var{b})
+
+Return the ID of the top or-node.
+@end deftypefun
+@deftypefun int _marpa_b_or_node_set ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_Or_Node_ID @var{or_node_id})
+
+Return the ordinal of the current (final) Earley set of
+the or-node.
+@end deftypefun
+@deftypefun int _marpa_b_or_node_origin ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_Or_Node_ID @var{or_node_id})
+@end deftypefun
+@deftypefun Marpa_IRL_ID _marpa_b_or_node_irl ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_Or_Node_ID @var{or_node_id})
+@end deftypefun
+@deftypefun int _marpa_b_or_node_position ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_Or_Node_ID @var{or_node_id})
+@end deftypefun
+@deftypefun int _marpa_b_or_node_first_and ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_Or_Node_ID @var{or_node_id})
+@end deftypefun
+@deftypefun int _marpa_b_or_node_last_and ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_Or_Node_ID @var{or_node_id})
+@end deftypefun
+@deftypefun int _marpa_b_or_node_and_count ( @
+    Marpa_Bocage @var{b}, @
+    Marpa_Or_Node_ID @var{or_node_id})
+@end deftypefun
+
+@node Ordering internals, Tree internals, Bocage internals, Internal Interface
+@section Ordering internals
+
+@deftypefun int _marpa_o_and_order_set ( @
+    Marpa_Order @var{o}, @
+    Marpa_Or_Node_ID @var{or_node_id}, @
+    Marpa_And_Node_ID* @var{and_node_ids}, @
+    int @var{length})
+@end deftypefun
+
+@deftypefun Marpa_And_Node_ID _marpa_o_and_order_get ( @
+    Marpa_Order @var{o}, @
+    Marpa_Or_Node_ID @var{or_node_id}, @
+    int @var{ix})
+@end deftypefun
+
+@node Tree internals, Valuator internals, Ordering internals, Internal Interface
+@section Tree internals
+
+In Marpa, a nook is any node of a parse tree.
+The usual term is "node",
+but within Marpa,
+the word "node" is already heavily overloaded.
+So what most texts call "tree nodes" are here
+called "nooks".
+"Nook" can be thought of as a pun on both
+"node" and "fork".
+
+@deftypefun int _marpa_t_size ( @
+	Marpa_Tree @var{t})
+Return the size of the parse tree.
+This is the number of nooks in its stack.
+If there is a serioius error,
+or if the tree is uninitialized, return -2.
+If the tree is exhausted, return -1.
+@end deftypefun
+
+@deftypefun Marpa_Or_Node_ID _marpa_t_nook_or_node ( @
+    Marpa_Tree @var{t}, @
+    Marpa_Nook_ID @var{nook_id})
+
+Return the ID of the or-node for @var{nook_id}.
+@end deftypefun
+
+@deftypefun int _marpa_t_nook_choice ( @
+	Marpa_Tree @var{t}, @
+	Marpa_Nook_ID @var{nook_id} @
+	)
+
+Return the current choice for @var{nook_id}.
+@end deftypefun
+
+@deftypefun int _marpa_t_nook_parent ( @
+	Marpa_Tree @var{t}, @
+	Marpa_Nook_ID @var{nook_id} @
+	)
+
+Return the parent nook's ID for @var{nook_id}.
+As with the other nook trace functions,
+-1 is returned if @var{nook_id} is not the ID of
+a nook on the stack,
+but -1 can also be a valid value.
+If that's an issue, the @var{nook_id} needs
+to be checked with one of the trace functions
+where -1 is never a valid value ---
+for example, @code{_marpa_t_nook_or_node}.
+@end deftypefun 
+
+@deftypefun int _marpa_t_nook_cause_is_ready ( @
+	Marpa_Tree @var{t}, @
+	Marpa_Nook_ID @var{nook_id} @
+	)
+
+Return the cause-is-ready bit for @var{nook_id}.
+@end deftypefun
+
+@deftypefun int _marpa_t_nook_predecessor_is_ready ( @
+	Marpa_Tree @var{t}, @
+	Marpa_Nook_ID @var{nook_id} @
+	)
+
+Return the predecessor-is-ready bit for @var{nook_id}.
+@end deftypefun
+
+@deftypefun int _marpa_t_nook_is_cause ( @
+	Marpa_Tree @var{t}, @
+	Marpa_Nook_ID @var{nook_id} @
+	)
+
+Return the is-cause bit for @var{nook_id}.
+@end deftypefun
+
+@deftypefun int _marpa_t_nook_is_predecessor ( @
+	Marpa_Tree @var{t}, @
+	Marpa_Nook_ID @var{nook_id} @
+	)
+
+Return the is-predecessor bit for @var{nook_id}.
+@end deftypefun
+
+@node Valuator internals,  , Tree internals, Internal Interface
+@section Valuator internals
+
+@deftypefun int _marpa_v_trace ( @
+    Marpa_Value @var{v}, @
+    int @var{flag})
+@end deftypefun
+
+@deftypefun Marpa_Nook_ID _marpa_v_nook ( @
+    Marpa_Value @var{v})
+@end deftypefun
 
 @bye

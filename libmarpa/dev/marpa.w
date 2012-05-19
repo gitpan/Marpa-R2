@@ -903,13 +903,16 @@ struct s_g_event;
 typedef struct s_g_event* GEV;
 @ @<Public typedefs@> =
 struct marpa_event;
-typedef struct marpa_event* Marpa_Event;
 typedef int Marpa_Event_Type;
+@ @<Public defines@> =
+#define marpa_g_event_value(event) \
+    ((event)->t_value)
 @ @<Public structures@> =
 struct marpa_event {
      Marpa_Event_Type t_type;
      int t_value;
 };
+typedef struct marpa_event Marpa_Event;
 @ @<Private structures@> =
 struct s_g_event {
      int t_type;
@@ -958,7 +961,7 @@ void int_event_new(GRAMMAR g, int type, int value)
 
 @ @<Function definitions@> =
 int
-marpa_g_event (Marpa_Grammar g, Marpa_Event public_event,
+marpa_g_event (Marpa_Grammar g, Marpa_Event* public_event,
 	       int ix)
 {
   @<Return |-2| on failure@>@;
@@ -5805,9 +5808,7 @@ struct marpa_r {
 @ The grammar must not be deallocated for the life of the
 recognizer.
 In the event of an error creating the recognizer,
-|NULL| is returned and the error status
-of the {\bf grammar} is set.
-For this reason, the grammar is not |const|.
+|NULL| is returned.
 @<Function definitions@> =
 Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
 {
@@ -5925,20 +5926,25 @@ PRIVATE ES current_es_of_r(RECCE r)
 @ @<Initialize recognizer elements@> =
 r->t_earley_item_warning_threshold = MAX(DEFAULT_EIM_WARNING_THRESHOLD, AIM_Count_of_G(g)*2);
 @ @<Function definitions@> =
-int marpa_r_earley_item_warning_threshold(Marpa_Recognizer r)
-{ return r->t_earley_item_warning_threshold; }
+int
+marpa_r_earley_item_warning_threshold (Marpa_Recognizer r)
+{
+  return r->t_earley_item_warning_threshold;
+}
 
 @ Returns true on success,
 false on failure.
 @<Function definitions@> =
-int marpa_r_earley_item_warning_threshold_set(struct marpa_r*r, int threshold)
+int
+marpa_r_earley_item_warning_threshold_set (Marpa_Recognizer r, int threshold)
 {
-    r->t_earley_item_warning_threshold = threshold <= 0 ? EIM_FATAL_THRESHOLD : threshold;
-    return 1;
+  const int new_threshold = threshold <= 0 ? EIM_FATAL_THRESHOLD : threshold;
+  r->t_earley_item_warning_threshold = new_threshold;
+  return new_threshold;
 }
 
 @*0 Furthest Earleme.
-The ``furthest" or highest-numbered earleme.
+The ``furthest'' or highest-numbered earleme.
 This is the earleme of the last Earley set that contains anything.
 Marpa allows variable length tokens,
 so it needs to track how far out tokens might be found.
@@ -6067,7 +6073,7 @@ r->t_is_using_leo = 0;
 0 if not,
 and |-2| if there was an error.
 @<Function definitions@> =
-int marpa_r_is_use_leo(Marpa_Recognizer  r)
+int _marpa_r_is_use_leo(Marpa_Recognizer  r)
 {
    @<Unpack recognizer objects@>@;
    @<Return |-2| on failure@>@;
@@ -6075,7 +6081,7 @@ int marpa_r_is_use_leo(Marpa_Recognizer  r)
     return r->t_use_leo_flag;
 }
 @ @<Function definitions@> =
-int marpa_r_is_use_leo_set(
+int _marpa_r_is_use_leo_set(
 Marpa_Recognizer r, int value)
 {
    @<Unpack recognizer objects@>@;
@@ -6134,8 +6140,11 @@ Marpa_Error_Code marpa_r_error(Marpa_Recognizer r, const char** p_error_string)
 
 @*0 Recognizer event accessor.
 @ A convenience wrapper for the grammar error strings.
-@<Function definitions@> =
-int marpa_r_event(Marpa_Recognizer r, Marpa_Event public_event, int ix)
+@<Public defines@> =
+#define marpa_r_event_value(event) \
+    ((event)->t_value)
+@ @<Function definitions@> =
+int marpa_r_event(Marpa_Recognizer r, Marpa_Event* public_event, int ix)
 {
     @<Unpack recognizer objects@>@;
   return marpa_g_event (g, public_event, ix);
@@ -10548,19 +10557,8 @@ if (b->t_is_obstack_initialized) {
     b->t_is_obstack_initialized = 0;
 }
 
-@*0 Bocage Construction.
-@ This function returns 0 for a null parse,
-and the ID of the start or-node for a non-null parse.
-If there is no parse, -1 is returned.
-On other failures, -2 is returned.
-Note that, even though 0 is a valid or-node ID,
-this does not conflict with returning 0 for a null parse.
-Or-node 0 must be in the first Earley set,
-and any parse whose top or-node is in the first
-Earley set must be a null parse.
-
-so that an or-node of 0 
-@ @<Function definitions@> =
+@*0 Bocage construction.
+@<Function definitions@> =
 Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     Marpa_Earley_Set_ID ordinal_arg)
 {
@@ -11916,7 +11914,7 @@ original (or "virtual") rules.
 This enables libmarpa to make the rewriting of
 the grammar invisible to the semantics.
 @d Next_Value_Type_of_V(val) ((val)->t_next_value_type)
-@d V_is_Active(val) (Next_Value_Type_of_V(val) != MARPA_VALUE_INACTIVE)
+@d V_is_Active(val) (Next_Value_Type_of_V(val) != MARPA_STEP_INACTIVE)
 @d T_of_V(v) ((v)->t_tree)
 @ @<VALUE structure@> =
 struct s_value {
@@ -11932,25 +11930,27 @@ struct s_value {
 @*0 Public data.
 @<Public structures@> =
 struct marpa_value {
-    Marpa_Symbol_ID t_semantic_token_id;
+    Marpa_Symbol_ID t_token_id;
     int t_token_value;
-    Marpa_Rule_ID t_semantic_rule_id;
+    Marpa_Rule_ID t_rule_id;
     int t_tos;
     int t_arg_n;
 };
 @ @<Public defines@> =
-#define marpa_v_semantic_token(v) \
-    ((v)->t_semantic_token_id)
+#define marpa_v_token(v) \
+    ((v)->t_token_id)
+#define marpa_v_symbol(v) marpa_v_token(v)
 #define marpa_v_token_value(v) \
     ((v)->t_token_value)
-#define marpa_v_semantic_rule(v) \
-    ((v)->t_semantic_rule_id)
+#define marpa_v_rule(v) \
+    ((v)->t_rule_id)
 #define marpa_v_arg_0(v) \
     ((v)->t_tos)
 #define marpa_v_arg_n(v) \
     ((v)->t_arg_n)
-@ @d XSYID_of_V(val) ((val)->public.t_semantic_token_id)
-@d RULEID_of_V(val) ((val)->public.t_semantic_rule_id)
+#define marpa_v_result(v) marpa_v_arg_0(v)
+@ @d XSYID_of_V(val) ((val)->public.t_token_id)
+@d RULEID_of_V(val) ((val)->public.t_rule_id)
 @d Token_Value_of_V(val) ((val)->public.t_token_value)
 @d Token_Type_of_V(val) ((val)->t_token_type)
 @d TOS_of_V(val) ((val)->public.t_tos)
@@ -12221,11 +12221,11 @@ int marpa_v_symbol_ask_me_when_null_set(
 The value type indicates whether the value
 is for a semantic rule, a semantic token, etc.
 @<Public typedefs@> =
-typedef int Marpa_Value_Type;
-@ @d V_GET_DATA MARPA_VALUE_INTERNAL1
+typedef int Marpa_Step_Type;
+@ @d V_GET_DATA MARPA_STEP_INTERNAL1
 
 @<Function definitions@> =
-Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
+Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 {
     @<Return |-2| on failure@>@;
     const VALUE v = (VALUE)public_v;
@@ -12233,65 +12233,65 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
     if (V_is_Nulling(v)) {
       @<Unpack value objects@>@;
       @<Step through a nulling valuator@>@;
-      return MARPA_VALUE_INACTIVE;
+      return MARPA_STEP_INACTIVE;
     }
 
     while (V_is_Active(v)) {
-	Marpa_Value_Type current_value_type = Next_Value_Type_of_V(v);
+	Marpa_Step_Type current_value_type = Next_Value_Type_of_V(v);
 	switch (current_value_type)
 	  {
 	  case V_GET_DATA:
 	    @<Perform evaluation steps @>@;
 	    if (!V_is_Active (v)) break;
 	    /* fall through */
-	  case MARPA_VALUE_TOKEN:
+	  case MARPA_STEP_TOKEN:
 	    {
 	      int token_type = Token_Type_of_V (v);
-	      Next_Value_Type_of_V (v) = MARPA_VALUE_RULE;
+	      Next_Value_Type_of_V (v) = MARPA_STEP_RULE;
 	      if (token_type == NULLING_TOKEN_OR_NODE)
 	      {
 		  if (bv_bit_test(Nulling_Ask_BV_of_V(v), XSYID_of_V(v)))
-		      return MARPA_VALUE_NULLING_SYMBOL;
+		      return MARPA_STEP_NULLING_SYMBOL;
 	      }
 	      else if (token_type != DUMMY_OR_NODE)
 		{
-		   return MARPA_VALUE_TOKEN;
+		   return MARPA_STEP_TOKEN;
 		 }
 	    }
 	    /* fall through */
-	  case MARPA_VALUE_RULE:
+	  case MARPA_STEP_RULE:
 	    if (RULEID_of_V (v) >= 0)
 	      {
-		Next_Value_Type_of_V(v) = MARPA_VALUE_TRACE;
-		return MARPA_VALUE_RULE;
+		Next_Value_Type_of_V(v) = MARPA_STEP_TRACE;
+		return MARPA_STEP_RULE;
 	      }
 	    /* fall through */
-	  case MARPA_VALUE_TRACE:
+	  case MARPA_STEP_TRACE:
 	    Next_Value_Type_of_V(v) = V_GET_DATA;
 	    if (V_is_Trace (v))
 	      {
-		return MARPA_VALUE_TRACE;
+		return MARPA_STEP_TRACE;
 	      }
 	  }
       }
 
-    Next_Value_Type_of_V(v) = MARPA_VALUE_INACTIVE;
-    return MARPA_VALUE_INACTIVE;
+    Next_Value_Type_of_V(v) = MARPA_STEP_INACTIVE;
+    return MARPA_STEP_INACTIVE;
 }
 
 @ @<Step through a nulling valuator@> =
 {
     while (V_is_Active(v)) {
-	Marpa_Value_Type current_value_type = Next_Value_Type_of_V(v);
+	Marpa_Step_Type current_value_type = Next_Value_Type_of_V(v);
 	switch (current_value_type)
 	  {
 	  case V_GET_DATA:
 	    {
-	      Next_Value_Type_of_V(v) = MARPA_VALUE_INACTIVE;
+	      Next_Value_Type_of_V(v) = MARPA_STEP_INACTIVE;
 	      XSYID_of_V(v) = g->t_start_xsyid;
 	      TOS_of_V(v) = Arg_N_of_V(v) = 0;
 	      if (bv_bit_test(Nulling_Ask_BV_of_V(v), XSYID_of_V(v)))
-		      return MARPA_VALUE_NULLING_SYMBOL;
+		      return MARPA_STEP_NULLING_SYMBOL;
 	    }
 	    /* fall through */
 	    /* No tracing of nulling valuators, at least at this point */
@@ -12319,7 +12319,7 @@ Marpa_Value_Type marpa_v_step(Marpa_Value public_v)
 	RULEID_of_V(v) = -1;
 	NOOK_of_V(v)--;
 	if (NOOK_of_V(v) < 0) {
-	    Next_Value_Type_of_V(v) = MARPA_VALUE_INACTIVE;
+	    Next_Value_Type_of_V(v) = MARPA_STEP_INACTIVE;
 	    break;
 	}
 	{
