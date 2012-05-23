@@ -47,6 +47,8 @@ int marpa_g_rule_whatever_set ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
 int marpa_g_rule_first_child_set ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
 int marpa_g_rule_ask_me_set ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
 int marpa_g_rule_is_ask_me ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
+int marpa_g_rule_is_nulling (Marpa_Grammar g, Marpa_Rule_ID ruleid);
+int marpa_g_rule_is_nullable ( Marpa_Grammar g, Marpa_Rule_ID ruleid);
 int marpa_g_rule_is_accessible (Marpa_Grammar g, Marpa_Rule_ID id);
 int marpa_g_rule_is_productive (Marpa_Grammar g, Marpa_Rule_ID id);
 int marpa_g_rule_is_loop (Marpa_Grammar g, Marpa_Rule_ID rule_id);

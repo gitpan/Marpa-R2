@@ -1,41 +1,41 @@
-\input texinfo @c -*-texinfo-*- 
+\input texinfo @c -*-texinfo-*-
 @c %**start of header
-@setfilename api.info 
+@setfilename api.info
 @settitle Libmarpa @value{VERSION}
-@c %**end of header 
+@c %**end of header
 @include version.texi
-@copying 
-This manual is for Libmarpa @value{VERSION}. 
+@copying
+This manual is for Libmarpa @value{VERSION}.
 Copyright @copyright{} 2012 Jeffrey Kegler.
-@quotation 
-Permission is granted to copy, distribute and/or modify this document 
-under the terms of the GNU Free Documentation License, Version 1.2 or 
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.2 or
 any later version published by the Free Software Foundation;
-@end quotation 
-@end copying 
+@end quotation
+@end copying
 @finalout
-@titlepage 
+@titlepage
 @title Libmarpa
 @subtitle Version @value{VERSION}
 @subtitle @value{UPDATED}
 @author Jeffrey Kegler
-@c The following two commands 
-@c start the copyright page. 
-@page 
-@vskip 0pt plus 1filll 
+@c The following two commands
+@c start the copyright page.
+@page
+@vskip 0pt plus 1filll
 @insertcopying
 
 Published @value{UPDATED} by Jeffrey Kegler
-@end titlepage 
-@c So the toc is printed at the start. 
-@contents 
-@ifnottex 
+@end titlepage
+@c So the toc is printed at the start.
+@contents
+@ifnottex
 @node Top, How to read this document, (dir), (dir)
 @top Libmarpa: The Marpa low-level library
 
-This manual is for Libmarpa, version @value{VERSION}. 
+This manual is for Libmarpa, version @value{VERSION}.
 
-@end ifnottex 
+@end ifnottex
 @menu
 * How to read this document::   
 * About Libmarpa::              What is Libmarpa?
@@ -43,6 +43,7 @@ This manual is for Libmarpa, version @value{VERSION}.
 * The architecture of Marpa::   
 * Threads::                     
 * Terminal and tokens::         
+* Semantics::                   
 * Error handling concepts::     
 * Introduction to the External Interface::  
 * Static Methods::              
@@ -73,14 +74,14 @@ Libmarpa objects
 * The lifetime of time objects::  
 * Numbered objects::            
 
-The architecture of Marpa
+The architecture
 
 * Architecture - Grammar::      
 * Recognition versus parsing::  
 
 Grammars
 
-* Precomputation::              
+* Precomputation::
 
 Recognition versus parsing
 
@@ -93,12 +94,17 @@ Threads
 
 C89 and thread-safety
 
-* C89 and thread-safety::       
+* C89 and thread-safety::
 
 Terminal and tokens
 
 * LHS Terminals::               
 * Token values::                
+
+Semantics
+
+* Whatever values::             
+* Caution about whatever values::  
 
 Error handling
 
@@ -185,7 +191,7 @@ Internal Interface
 @menu
 * Prerequisites::               Prerequisites.
 * Parsing theory::              Parsing theory.
-@end menu 
+@end menu
 
 @node Prerequisites, Parsing theory, How to read this document, How to read this document
 @section Prerequisites
@@ -318,14 +324,14 @@ In our lives, work and play are times.
 Infancy, adolescent and adulthood are phases.
 
 The time objects are, in sequence:
-@itemize 
+@itemize
 @item Grammars.
 @item Recognizers.
 @item Bocages.
 @item Orderings.
 @item Trees.
 @item Valuators.
-@end itemize 
+@end itemize
 
 @menu
 * The sequence of time objects::  
@@ -418,7 +424,7 @@ Tokens values are
 another examples of numbered objects.
 
 @node The architecture of Marpa, Threads, Libmarpa objects, Top
-@chapter The architecture of Marpa
+@chapter The architecture
 
 @menu
 * Architecture - Grammar::      
@@ -438,7 +444,7 @@ a set of rules,
 and a distinguished start symbol.
 
 @menu
-* Precomputation::              
+* Precomputation::
 @end menu
 
 @node Recognition versus parsing,  , Architecture - Grammar, The architecture of Marpa
@@ -515,7 +521,7 @@ and linked in an environment that provides
 thread-safety.
 
 @menu
-* C89 and thread-safety::       
+* C89 and thread-safety::
 @end menu
 
 @node Base grammars cannot be shared between threads,  , C89 and thread-safety, Threads
@@ -540,7 +546,7 @@ Libmarpa could allow thread-safe
 cloning of grammars and other
 time objects.
 
-@node Terminal and tokens, Error handling concepts, Threads, Top
+@node Terminal and tokens, Semantics, Threads, Top
 @chapter Terminal and tokens
 
 A terminal symbol is a symbol which
@@ -573,14 +579,14 @@ in losing the sharp division between terminals
 and non-terminals is that the distinction,
 while helpful for proving theorems,
 is not essential in practice.
-If LHS symbols 
+If LHS symbols
 appear in the input they, in effect,
 ``short circuiting'' the rules in which they occur.
 This may
 be helpful in debugging, or have other applications.
 
 However,
-it also can be useful, 
+it also can be useful,
 for checking input validity as well as for efficiency,
 to follow tradition and distingush
 non-terminals from terminals.
@@ -605,7 +611,59 @@ using an array,
 so that the higher levels can translate integers back
 and forth into whatever the application requires.
 
-@node Error handling concepts, Introduction to the External Interface, Terminal and tokens, Top
+@node Semantics, Error handling concepts, Terminal and tokens, Top
+@chapter Semantics
+
+@menu
+* Whatever values::             
+* Caution about whatever values::  
+@end menu
+
+@node Whatever values, Caution about whatever values, Semantics, Semantics
+@section ``Whatever'' values
+
+Libmarpa allows
+``whatever'' semantics, because it can be easily optimized and it occurs
+quite frequently in practical parsing situations.  ``Whatever''
+values are more frequently called "arbitrary" values.
+The author's problem
+with the term "arbitrary" is that it is heavily overloaded, with
+several closely related meanings, so that it is hard to understand
+exactly what is meant.  And unfortunately, it is used in circumstances
+where the exact meaning can be quite important.
+
+In Libmarpa, a ``whatever'' value is a value each instance of which can
+be any value in the universe of possible values, and which has no
+other property that can be relied on.  ``Whatever'' values may stay
+constant, or they may vary from instance to instance.  If and when
+they do vary, they may do so randomly, or according to an arbitrary
+pattern.
+
+@node Caution about whatever values,  , Whatever values, Semantics
+@section A caution about ``Whatever'' values
+
+If a value is not a ``whatever'' value, this document calls
+it a defined value.
+It is important to realize that
+it is impossible to tell the difference between a defined value
+and a ``whatever'' value:
+they could by coincidence be exactly the same.
+Marpa::R2, as of this writing the standard upper layer for Libmarpa,
+does not allow any symbol
+to have both ``whatever'' and defined semantics.
+
+But
+Libmarpa itself does nothing to prevent the application from
+mixing ``whatever'' and defined
+values in any way it pleases.
+This is in keeping with Libmarpa's design goals of maximum
+flexibility and minimal overhead.
+This flexibility might be exploited,
+for example, by applications
+that distinguish ``whatever'' values from defined values,
+by context.
+
+@node Error handling concepts, Introduction to the External Interface, Semantics, Top
 @chapter Error handling
 
 @menu
@@ -737,7 +795,7 @@ This will be the case as long as Libmarpa stays
 alpha.
 While Libmarpa is still alpha, much stricter compatibility
 will be enforced.
-While Libmarpa is alpha 
+While Libmarpa is alpha
 the major, minor and micro numbers must match exactly.
 
 Once Libmarpa is beyond alpha releases,
@@ -773,7 +831,7 @@ Return value: @code{MARPA_ERR_NONE} if the Marpa library is compatible with the
 * Sequences::                   
 * Grammar precomputation::      Precomputing the Grammar.
 * Grammar events::              
-@end menu 
+@end menu
 
 @node Grammar constructor, Grammar reference counting, Grammar objects, Grammar objects
 @section Creating a new grammar
@@ -836,7 +894,7 @@ On success, the grammar object it was called with;
 
 Creates a new symbol.
 
-Return value: On success, the ID of a new symbol; 
+Return value: On success, the ID of a new symbol;
 On failure, -2.
 
 @end deftypefun
@@ -1100,6 +1158,26 @@ Return value: On success, 1 if the resulting semantics after
 
 @end deftypefun
 
+@deftypefun int marpa_g_rule_is_nulling (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{ruleid})
+A rule is @dfn{nulling} if it always produces the empty string.
+This is not determined until the grammar is precomputed.
+
+Return value: On success, 1 if @var{ruleid} is nulling, 0 if not.
+If the grammar is not precomputed, or on other failure, -2.
+@end deftypefun
+
+@deftypefun int marpa_g_rule_is_nullable ( @
+  Marpa_Grammar g, Marpa_Rule_ID ruleid)
+A rule is @dfn{nullable} if it sometimes produces the empty string.
+This is not determined until the grammar is precomputed.
+A @strong{nulling} rule is always a @strong{nullable} rule,
+but not all @strong{nullable} rules are @strong{nulling} rules.
+
+Return value: On success, 1 if @var{ruleid} is nullable, 0 if not.
+If the grammar is not precomputed, or on other failure, -2.
+@end deftypefun
+
 @deftypefun int marpa_g_rule_is_accessible (Marpa_Grammar @var{g}, @
     Marpa_Rule_ID @var{id})
 A rule is @dfn{accessible} if it can be reached from the start symbol.
@@ -1249,7 +1327,7 @@ which succeeded.
 
 Each @code{MARPA_EVENT_LOOP_RULES} event is a rule
 which is part of an cycle (infinite loop) in the grammar.
-Cycles 
+Cycles
 are useless in current
 practice.
 Cycles make a grammar infinitely ambiguous
@@ -1276,7 +1354,7 @@ So that the programmer can fix several at once,
 the failure is delayed until events are created
 for all of the counted nullables.
 
-Precomputation involves freezing 
+Precomputation involves freezing
 and then thoroughly checking the grammar,
 and it is at this point that many failures
 are caught and reported.
@@ -1348,7 +1426,7 @@ codes.
 * Recognizer reference counting::  Keeping the reference count of a recognizer.
 * Recognizer life::             Taking a recognizer through its life cycle.
 * Recognizer events::           
-@end menu 
+@end menu
 
 @node Recognizer constructor, Recognizer reference counting, Recognizers, Recognizers
 @section Creating a new recognizer
@@ -1409,7 +1487,7 @@ which must be a terminal.
 @var{value} is a integer which represents the value of the
 token.
 In applications where the token's value is not an integer, it is
-expected that the application will use this value to 
+expected that the application will use this value to
 find the application's value, perhaps by using @var{value}
 to index an array.
 @var{value} is not used inside Libmarpa -- it is simply
@@ -1424,7 +1502,7 @@ that the token's value is ``whatever'' -- that it may take an
 arbitrary value.
 This usually means that the application simply does not
 care what the value of the token is.
-The value of tokens with a ``whatever'' value 
+The value of tokens with a ``whatever'' value
 does not need to be stored, tracked or computed either
 by Libmarpa or by the application.
 
@@ -1571,7 +1649,7 @@ Both successful and failed parses can be ``exhausted''.
 In many grammars,
 the parse is always exhausted as soon as it succeeds.
 And even if the parse is exhausted at a point
-where there is no good parse, 
+where there is no good parse,
 there may be good parses at earlemes prior to the
 earleme at which the parse became exhausted.
 
@@ -1878,7 +1956,7 @@ and optimizes stack manipulations based on this knowledge.
 Many practical grammars use long sequences heavily
 and, for these,
 the series of steps
-suggest by Libmarpa will be significantly faster than the standard 
+suggest by Libmarpa will be significantly faster than the standard
 stack evaluation algorithm in the textbooks.
 
 To make it clear,
@@ -2010,7 +2088,7 @@ and the result placed in
 @deftypevr Macro Marpa_Step_Type MARPA_STEP_TOKEN
 The semantics of a non-null token should be performed.
 The value of the token whose ID is
-@code{marpa_v_token(v)} should be 
+@code{marpa_v_token(v)} should be
 placed in
 stack location @code{marpa_v_result(v)}.
 The token is non-nulling.
@@ -2306,7 +2384,7 @@ even when exceeding the threshold is
 treated as a fatal error,
 will usually be well under 1000.
 If this error code ever does occur,
-it is almost certainly both a hard and a 
+it is almost certainly both a hard and a
 fatal error.
 @end deftypevr
 
@@ -2674,7 +2752,7 @@ safe, portable validity checking.
 
 @itemize
 @item
-There should be an interface in the valuator that allows the user to 
+There should be an interface in the valuator that allows the user to
 determine the start and end earlemes of a token.
 @end itemize
 
@@ -3118,7 +3196,7 @@ If that's an issue, the @var{nook_id} needs
 to be checked with one of the trace functions
 where -1 is never a valid value ---
 for example, @code{_marpa_t_nook_or_node}.
-@end deftypefun 
+@end deftypefun
 
 @deftypefun int _marpa_t_nook_cause_is_ready ( @
 	Marpa_Tree @var{t}, @

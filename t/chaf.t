@@ -46,7 +46,6 @@ my $grammar = Marpa::R2::Grammar->new(
             [ 'B', [] ],
             [ 'C', [] ],
         ],
-        default_null_value => q{},
         default_action     => 'main::default_action',
     }
 );

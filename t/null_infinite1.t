@@ -30,7 +30,7 @@ use Marpa::R2;
 sub default_action {
     shift;
     my $v_count = scalar @_;
-    return q{} if $v_count <= 0;
+    return q{-} if $v_count <= 0;
     my @vals = map { $_ // q{-} } @_;
     return '(' . join( q{;}, @vals ) . ')';
 } ## end sub default_action
@@ -63,7 +63,7 @@ my $grammar = Marpa::R2::Grammar->new(
             { lhs => 'f', rhs => [] },
             { lhs => 'f', rhs => ['S'],     action => 'main::rule_f' },
         ],
-        symbols        => { a => { terminal => 1 }, },
+        terminals => [qw(a)],
         default_action => 'main::default_action',
     }
 );

@@ -893,26 +893,23 @@ sub Marpa::R2::Perl::new {
         } ## end for my $symbol ( $lhs, @rhs )
         $symbol{$lhs}++;
 
-        # only create action for non-empty rules
         my @additional_args = ();
-        if ( scalar @rhs ) {
-            if ( $closure_type eq 'CODE' ) {
-                $rule_name ||= q{!} . scalar @rules;
-                my ($action) = $gen_closure->( $lhs, \@rhs, $rule_name );
-                if ( defined $action ) {
-                    $closure{"!$rule_name"} = $action;
-                    push @additional_args, action => "!$rule_name";
-                }
-            } ## end if ( $closure_type eq 'CODE' )
-            if ( $closure_type eq 'HASH' ) {
-                my $action_name = $rule_name // $lhs;
-                my $action = $gen_closure->{$action_name};
-                if ( defined $action ) {
-                    $closure{"!$action_name"} = $action;
-                    push @additional_args, action => "!$action_name";
-                }
-            } ## end if ( $closure_type eq 'HASH' )
-        } ## end if ( scalar @rhs )
+        if ( $closure_type eq 'CODE' ) {
+            $rule_name ||= q{!} . scalar @rules;
+            my ($action) = $gen_closure->( $lhs, \@rhs, $rule_name );
+            if ( defined $action ) {
+                $closure{"!$rule_name"} = $action;
+                push @additional_args, action => "!$rule_name";
+            }
+        } ## end if ( $closure_type eq 'CODE' )
+        if ( $closure_type eq 'HASH' ) {
+            my $action_name = $rule_name // $lhs;
+            my $action = $gen_closure->{$action_name};
+            if ( defined $action ) {
+                $closure{"!$action_name"} = $action;
+                push @additional_args, action => "!$action_name";
+            }
+        } ## end if ( $closure_type eq 'HASH' )
         my $rank = defined $rule_name ? $rule_rank{$rule_name} : undef;
         if ( defined $rank ) {
             push @additional_args, rank => $rank;
@@ -923,12 +920,12 @@ sub Marpa::R2::Perl::new {
             rhs => \@rhs,
             @additional_args, name => $rule_name
             };
+
     } ## end for my $line ( split /\n/xms, $reference_grammar )
 
     my $grammar = Marpa::R2::Grammar->new(
         {   start         => 'prog',
             rules         => \@rules,
-	    symbols => { listexpr => { null_value => undef } },
         }
     );
 
@@ -1076,7 +1073,7 @@ sub Marpa::R2::Perl::read {
             if ( $perl_type eq 'WORD' ) {
                 my $token_found = 0;
                 TYPE: for my $type (qw(WORD FUNC METHOD FUNCMETH)) {
-                    defined $recce->alternative( $type, $content, 1 )
+                    defined $recce->alternative( $type, \$content, 1 )
                         and $token_found++;
                 }
                 $token_found
@@ -1122,7 +1119,7 @@ sub Marpa::R2::Perl::read {
                 TYPE: for my $type (@potential_types) {
                     next TYPE if not $type ~~ $expected_tokens;
                     $token_found = 1;
-                    defined $recce->alternative( $type, $content, 1 )
+                    defined $recce->alternative( $type, \$content, 1 )
                         or token_not_accepted( $token, $type, $content, 1 );
                 } ## end for my $type (@potential_types)
                 defined $token_found or unknown_ppi_token($token);
@@ -1141,7 +1138,7 @@ sub Marpa::R2::Perl::read {
                 TYPE: for my $type (@potential_types) {
                     next TYPE if not $type ~~ $expected_tokens;
                     $token_found = 1;
-                    defined $recce->alternative( $type, $content, 1 )
+                    defined $recce->alternative( $type, \$content, 1 )
                         or token_not_accepted( $token, $type, $content, 1 );
                 } ## end for my $type (@potential_types)
                 defined $token_found or unknown_ppi_token($token);
@@ -1188,7 +1185,7 @@ sub Marpa::R2::Perl::read {
                 TYPE: for my $type (@potential_types) {
                     next TYPE if not $type ~~ $expected_tokens;
                     $token_found = 1;
-                    defined $recce->alternative( $type, $content, 1 )
+                    defined $recce->alternative( $type, \$content, 1 )
                         or token_not_accepted( $token, $type, $content, 1 );
                 } ## end for my $type (@potential_types)
                 defined $token_found or unknown_ppi_token($token);
@@ -1207,7 +1204,7 @@ sub Marpa::R2::Perl::read {
             my $content     = $token->{content};
             my $token_found = 0;
             TYPE: for my $type (qw(THING VERSION)) {
-                defined $recce->alternative( $type, $content, 1 )
+                defined $recce->alternative( $type, \$content, 1 )
                     and $token_found++;
             }
             $token_found or token_not_accepted( $token, 'THING', $content );

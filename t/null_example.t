@@ -54,8 +54,7 @@ sub L {
 }
 
 sub R {
-    shift;
-    return 'R(' . ( join q{;}, map { $_ // '[ERROR!]' } @_ ) . ')';
+    return 'R(): I will never be called';
 }
 
 sub S {
@@ -63,30 +62,32 @@ sub S {
     return 'S(' . ( join q{;}, map { $_ // '[ERROR!]' } @_ ) . ')';
 }
 
+sub X { return 'X(' . $_[1] . ')'; }
+sub Y { return 'Y(' . $_[1] . ')'; }
+
+our $null_A = 'null A';
+our $null_B = 'null B';
+our $null_L = 'null L';
+our $null_R = 'null R';
+our $null_X = 'null X';
+our $null_Y = 'null Y';
+
 my $grammar = Marpa::R2::Grammar->new(
     {   start   => 'S',
         actions => 'main',
         rules   => [
             [ 'S', [qw/L R/] ],
             [ 'L', [qw/A B X/] ],
-            [ 'L', [] ],
+            [ 'L', [], 'null_L' ],
             [ 'R', [qw/A B Y/] ],
-            [ 'R', [] ],
-            [ 'A', [] ],
-            [ 'B', [] ],
-            [ 'X', [] ],
+            [ 'R', [], 'null_R' ],
+            [ 'A', [], 'null_A' ],
+            [ 'B', [], 'null_B' ],
+            [ 'X', [], 'null_X' ],
             [ 'X', [qw/x/] ],
-            [ 'Y', [] ],
+            [ 'Y', [], 'null_Y' ],
             [ 'Y', [qw/y/] ],
         ],
-        symbols => {
-            L => { null_value => 'null L' },
-            R => { null_value => 'null R' },
-            A => { null_value => 'null A' },
-            B => { null_value => 'null B' },
-            X => { null_value => 'null X' },
-            Y => { null_value => 'null Y' },
-        },
     }
 );
 
@@ -106,7 +107,7 @@ $recce->read( 'x', 'x' );
 # end-before-line: '^END_OF_OUTPUT$'
 
 chomp( my $expected = <<'END_OF_OUTPUT');
-S(L(null A;null B;x);null R)
+S(L(null A;null B;X(x));null R)
 END_OF_OUTPUT
 
 # Marpa::R2::Display::End

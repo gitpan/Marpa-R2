@@ -33,7 +33,7 @@ use Marpa::R2;
 sub default_action {
     shift;
     my $v_count = scalar @_;
-    return q{}   if $v_count <= 0;
+    return q{}  if $v_count <= 0;
     return $_[0] if $v_count == 1;
     return '(' . join( q{;}, @_ ) . ')';
 } ## end sub default_action
@@ -63,8 +63,7 @@ sub run_sequence_test {
                     @separation_args
                 },
             ],
-            default_action     => 'main::default_action',
-            default_null_value => q{},
+            default_action => 'main::default_action',
         }
     );
 

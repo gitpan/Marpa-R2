@@ -26,9 +26,9 @@ normalize-whitespace: 1
 
     my $recce = Marpa::R2::Recognizer->new( { grammar => $grammar } );
     $recce->read( 'Number', 42 );
-    $recce->read( 'Multiply', );
+    $recce->read('Multiply');
     $recce->read( 'Number', 1 );
-    $recce->read( 'Add', );
+    $recce->read('Add');
     $recce->read( 'Number', 7 );
 
 =for Marpa::R2::Display::End
@@ -127,9 +127,9 @@ partial: 1
 normalize-whitespace: 1
 
     $recce->read( 'Number', 42 );
-    $recce->read( 'Multiply', );
+    $recce->read('Multiply');
     $recce->read( 'Number', 1 );
-    $recce->read( 'Add', );
+    $recce->read('Add');
     $recce->read( 'Number', 7 );
 
 =for Marpa::R2::Display::End
@@ -141,8 +141,8 @@ C<read> takes two arguments: a B<token name> and a B<token value>.
 The token name is required.
 It must be the name of a valid terminal symbol.
 The token value is optional.
-It defaults to an arbitrary value.
-Here "arbitrary" means the value may vary from instance
+It defaults to a "whatever" value.
+Here "whatever" means the value may vary from instance
 to instance,
 and cannot be relied on in any way.
 For details about terminal symbols,
@@ -184,6 +184,14 @@ including an attempt to C<read> a token
 into an exhausted parser,
 Marpa throws an exception.
 
+Note that passing an explicit C<undef> as the token value
+argument is
+quite different from omitting it.
+If the token value is omitted, it is a "whatever" value,
+one which could be anything.
+If it is C<undef>, then the token value
+is always a Perl C<undef>.
+
 =head2 set
 
 =for Marpa::R2::Display
@@ -224,52 +232,7 @@ and returns a reference to the parse result for that parse tree.
 If there are no more parse trees,
 the C<value> method returns C<undef>.
 
-The C<value> method's arguments are references to hashes of named
-arguments.
-Details of the named arguments are L<below|/"NAMED ARGUMENTS">.
-
-Several of the recognizer's named arguments are not allowed once
-evaluation has begun.
-Evaluation of a parse series begins with
-its first C<value> method call.
-As a convenience,
-the named arguments
-of the first C<value> method call
-are treated as having been specified BEFORE
-evaluation begins.
-
-For example, the C<end> named argument,
-which specifies the end of parsing location in the input
-stream, may not be changed after evaluation begins.
-The first C<value> call of an ambiguous parse series
-may have an C<end> named argument,
-and its value will apply to the entire parse series.
-If any subsequent call to C<value> for that parse series
-has an C<end> named argument specified,
-an exception will be
-thrown.
-
 =head1 TRACE ACCESSORS
-
-=head2 show_earley_sets
-
-=for Marpa::R2::Display
-name: show_earley_sets Synopsis
-partial: 1
-normalize-whitespace: 1
-
-    print $recce->show_earley_sets()
-        or die "print failed: $ERRNO";
-
-=for Marpa::R2::Display::End
-
-An advanced, internals-oriented tracing method,
-which will not be of interest to most users.
-Most users will want to use L<the C<show_progress>
-method|/show_progress>
-instead.
-C<show_earley_sets> returns a multi-line string
-listing every Earley item in every Earley set.
 
 =head2 show_progress
 
@@ -295,7 +258,7 @@ reports for all locations in the range.
 
 If an argument is negative,
 I<-N>,
-it indicates 
+it indicates
 the I<N>th location counting backward
 from the furthest location of the parse.
 For example, if 42 was the furthest location,
@@ -307,7 +270,7 @@ The method call C<< $recce->show_progress(0, -1) >>
 will print progress reports for the entire parse.
 
 C<show_progress> is
-Marpa's most powerful tool for 
+Marpa's most powerful tool for
 debugging application grammars.
 It can also be used to track the
 progress of a parse or
@@ -322,25 +285,7 @@ grammars|Marpa::R2::Debug>.
 
 The recognizer's named arguments are
 accepted by its
-C<new>, C<set> and C<value> methods.
-Most of these named arguments are valid everywhere,
-although depending on their meaning,
-they may have no effect.
-For example, the C<too_many_earley_items> named
-argument will have no effect after input is complete.
-
-Some of the recognizer's named arguments
-are not valid for all calls of the C<new>, C<set>
-and C<value> methods,
-and cause an exception if used
-in the wrong one.
-For example,
-a C<grammar> named argument is only valid
-when a recognizer is being constructed by
-the C<new> method.
-If a named argument can cause an exception
-due to use in the wrong method call,
-this is mentioned in its description below.
+C<new> and C<set> methods.
 
 =head2 closures
 
@@ -355,7 +300,7 @@ The C<closures> named argument
 is not allowed once evaluation has begun.
 
 When an action name is a key in
-the 
+the
 C<closures> named argument,
 the usual action resolution mechanism of the semantics
 is bypassed.
@@ -394,7 +339,7 @@ The default is for
 there to be no limit.
 
 Marpa allows extremely ambiguous grammars.
-C<max_parses> 
+C<max_parses>
 can be used if
 the user
 wants to see only
@@ -452,7 +397,7 @@ warnings about large Earley sets are turned off.
 
 =head2 trace_actions
 
-The C<value> method's
+The
 C<trace_actions> named argument
 is a boolean.
 If the boolean value is true, Marpa prints tracing information
@@ -491,8 +436,7 @@ trace level 2 can be voluminous.
 
 =head2 trace_values
 
-The C<value> method's
-C<trace_values> named argument
+The C<trace_values> named argument
 is a numeric trace level.
 If the numeric trace level is 1, Marpa
 prints tracing information
@@ -616,12 +560,12 @@ ignore: 1
   redistribute it and/or modify it under the terms of the GNU Lesser
   General Public License as published by the Free Software Foundation,
   either version 3 of the License, or (at your option) any later version.
-  
+
   Marpa::R2 is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
   Lesser General Public License for more details.
-  
+
   You should have received a copy of the GNU Lesser
   General Public License along with Marpa::R2.  If not, see
   http://www.gnu.org/licenses/.

@@ -1335,7 +1335,6 @@ it is the non-nullable ISY.
 @d ISYID_of_XSY(xsy) ID_of_ISY(ISY_of_XSY(xsy))
 @d ISY_by_XSYID(xsyid) (XSY_by_ID(xsyid)->t_isy_equivalent)
 @d ISYID_by_XSYID(xsyid) ID_of_ISY(ISY_of_XSY(XSY_by_ID(xsyid)))
-@d ISYID_by_SYMID(xsyid) ISYID_by_XSYID(xsyid)
 @<Widely aligned symbol elements@> = ISY t_isy_equivalent;
 @ @<Initialize symbol elements@> = ISY_of_XSY(symbol) = NULL;
 @ @<Function definitions@> =
@@ -2105,6 +2104,33 @@ Is the rule nulling?
 @<Bit aligned rule elements@> = unsigned int t_is_nulling:1;
 @ @<Initialize rule elements@> =
 XRL_is_Nulling(rule) = 0;
+@ @<Function definitions@> =
+int marpa_g_rule_is_nulling(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
+{
+  @<Return |-2| on failure@>@;
+  XRL xrl;
+  @<Fail if fatal error@>@;
+  @<Fail if |xrl_id| is invalid@>@;
+  xrl = XRL_by_ID(xrl_id);
+  return XRL_is_Nulling(xrl);
+}
+
+@*0 Is Rule Nullable?.
+Is the rule nullable?
+@d XRL_is_Nullable(rule) ((rule)->t_is_nullable)
+@<Bit aligned rule elements@> = unsigned int t_is_nullable:1;
+@ @<Initialize rule elements@> =
+XRL_is_Nullable(rule) = 0;
+@ @<Function definitions@> =
+int marpa_g_rule_is_nullable(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
+{
+  @<Return |-2| on failure@>@;
+  XRL xrl;
+  @<Fail if fatal error@>@;
+  @<Fail if |xrl_id| is invalid@>@;
+  xrl = XRL_by_ID(xrl_id);
+  return XRL_is_Nullable(xrl);
+}
 
 @*0 Is Rule Accessible?.
 @ A rule is accessible if its LHS is accessible.
@@ -2986,21 +3012,36 @@ and productive.
   for (xrl_id = 0; xrl_id < xrl_count; xrl_id++)
     {
       const XRL xrl = XRL_by_ID (xrl_id);
-      int rh_ix;
-      int is_nulling = 1;
-      int is_productive = 1;
       const XSYID lhs_id = LHS_ID_of_XRL (xrl);
       const XSY lhs = XSY_by_ID (lhs_id);
       XRL_is_Accessible (xrl) = XSY_is_Accessible (lhs);
-      for (rh_ix = 0; rh_ix < Length_of_XRL (xrl); rh_ix++)
+      if (XRL_is_Sequence (xrl) && Minimum_of_XRL (xrl) <= 0)
 	{
-	  const XSYID rhs_id = RHS_ID_of_XRL (xrl, rh_ix);
-	  const XSY rh_xsy = XSY_by_ID(rhs_id);
-	  if (LIKELY(!XSY_is_Nulling (rh_xsy))) is_nulling = 0;
-	  if (UNLIKELY(!XSY_is_Productive (rh_xsy))) is_productive = 0;
+	  XRL_is_Nulling (xrl) = 0;
+	  XRL_is_Nullable (xrl) = 1;
+	  XRL_is_Productive (xrl) = 1;
+	  continue;
 	}
-      XRL_is_Nulling (xrl) = is_nulling;
-      XRL_is_Productive (xrl) = is_productive;
+      {
+	int rh_ix;
+	int is_nulling = 1;
+	int is_nullable = 1;
+	int is_productive = 1;
+	for (rh_ix = 0; rh_ix < Length_of_XRL (xrl); rh_ix++)
+	  {
+	    const XSYID rhs_id = RHS_ID_of_XRL (xrl, rh_ix);
+	    const XSY rh_xsy = XSY_by_ID (rhs_id);
+	    if (LIKELY (!XSY_is_Nulling (rh_xsy)))
+	      is_nulling = 0;
+	    if (LIKELY (!XSY_is_Nullable (rh_xsy)))
+	      is_nullable = 0;
+	    if (UNLIKELY (!XSY_is_Productive (rh_xsy)))
+	      is_productive = 0;
+	  }
+	XRL_is_Nulling (xrl) = is_nulling;
+	XRL_is_Nullable (xrl) = is_nullable;
+	XRL_is_Productive (xrl) = is_productive;
+      }
     }
 }
 
@@ -3150,33 +3191,35 @@ rules will have ID's equal to or greater than
 the pre-CHAF rule count.
 @ @<Rewrite grammar |g| into CHAF form@> =
 {
-    @<CHAF rewrite declarations@>@;
-    @<CHAF rewrite allocations@>@;
-    @<Clone external symbols@>@;
-    pre_chaf_rule_count = XRL_Count_of_G(g);
-    for (rule_id = 0; rule_id < pre_chaf_rule_count; rule_id++) {
+  @<CHAF rewrite declarations@>@;
+  @<CHAF rewrite allocations@>@;
+  @<Clone external symbols@>@;
+  pre_chaf_rule_count = XRL_Count_of_G (g);
+  for (rule_id = 0; rule_id < pre_chaf_rule_count; rule_id++)
+    {
 
-         XRL rule = XRL_by_ID(rule_id);
-	 XRL rewrite_xrl = rule;
-	 const int rewrite_xrl_length = Length_of_XRL(rewrite_xrl);
-	 int nullable_suffix_ix = 0;
-	  if (XRL_is_Sequence (rule) && XRL_is_Used (rule))
-	    {
-	      @<Rewrite sequence |rule| into BNF@>@;
-	      goto NEXT_XRL;
-	    }
-	 if (XRL_is_BNF(rule) && XRL_is_Used(rule)) {
-	   @<Calculate CHAF rule statistics@>@;
-	   /* Do not factor if there is no proper nullable in the rule */
-	   if (factor_count > 0) {
-	     @<Factor the rule into CHAF rules@>@;
-	   } else {
-	     @<Clone a new IRL from |rule|@>@;
-	   }
-	 }
-	 NEXT_XRL: ;
+      XRL rule = XRL_by_ID (rule_id);
+      XRL rewrite_xrl = rule;
+      const int rewrite_xrl_length = Length_of_XRL (rewrite_xrl);
+      int nullable_suffix_ix = 0;
+      if (!XRL_is_Used(rule))
+	continue;
+      if (XRL_is_Sequence (rule))
+	{
+	  @<Rewrite sequence |rule| into BNF@>@;
+	  continue;
+	}
+      @<Calculate CHAF rule statistics@>@;
+      /* Do not factor if there is no proper nullable in the rule */
+      if (factor_count > 0)
+	{
+	  @<Factor the rule into CHAF rules@>@;
+	  continue;
+	}
+      @<Clone a new IRL from |rule|@>@;
     }
 }
+
 @ @<CHAF rewrite declarations@> =
 Marpa_Rule_ID rule_id;
 int pre_chaf_rule_count;
@@ -5516,20 +5559,14 @@ once I stabilize the C code implemention.
 
 @d TRANS_of_AHFA_by_ISYID(from_ahfa, isyid)
     (*(TRANSs_of_AHFA(from_ahfa)+(isyid)))
-@d TRANS_of_AHFA_by_SYMID(from_ahfa, id)
-  TRANS_of_AHFA_by_ISYID(from_ahfa, ISYID_by_SYMID(id))
-@d TRANS_of_EIM_by_SYMID(eim, id) TRANS_of_AHFA_by_SYMID(AHFA_of_EIM(eim), (id))
 @d TRANS_of_EIM_by_ISYID(eim, isyid) TRANS_of_AHFA_by_ISYID(AHFA_of_EIM(eim), (isyid))
 @d To_AHFA_of_TRANS(trans) (to_ahfa_of_transition_get(trans))
 @d LV_To_AHFA_of_TRANS(trans) ((trans)->t_ur.t_to_ahfa)
 @d Completion_Count_of_TRANS(trans)
     (completion_count_of_transition_get(trans))
 @d LV_Completion_Count_of_TRANS(trans) ((trans)->t_ur.t_completion_count)
-@d To_AHFA_of_AHFA_by_SYMID(from_ahfa, id)
-     (To_AHFA_of_TRANS(TRANS_of_AHFA_by_SYMID((from_ahfa), (id))))
 @d To_AHFA_of_AHFA_by_ISYID(from_ahfa, id)
      (To_AHFA_of_TRANS(TRANS_of_AHFA_by_ISYID((from_ahfa), (id))))
-@d To_AHFA_of_EIM_by_SYMID(eim, id) To_AHFA_of_AHFA_by_SYMID(AHFA_of_EIM(eim), (id))
 @d To_AHFA_of_EIM_by_ISYID(eim, id) To_AHFA_of_AHFA_by_ISYID(AHFA_of_EIM(eim), (id))
 @d AEXs_of_TRANS(trans) ((trans)->t_aex)
 @d Leo_Base_AEX_of_TRANS(trans) ((trans)->t_leo_base_aex)
@@ -11949,7 +11986,12 @@ struct marpa_value {
 #define marpa_v_arg_n(v) \
     ((v)->t_arg_n)
 #define marpa_v_result(v) marpa_v_arg_0(v)
-@ @d XSYID_of_V(val) ((val)->public.t_token_id)
+@
+{\bf To Do}: @^To Do@>
+|TOS_of_V| is misnamed.  |Arg_N_of_V| is actually
+the top of stack.
+I need to straighten this out sometime.
+@d XSYID_of_V(val) ((val)->public.t_token_id)
 @d RULEID_of_V(val) ((val)->public.t_rule_id)
 @d Token_Value_of_V(val) ((val)->public.t_token_value)
 @d Token_Type_of_V(val) ((val)->t_token_type)
@@ -12303,11 +12345,15 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 @ @<Perform evaluation steps@> =
 {
     AND and_nodes;
+    /* flag to indicate whether the arguments of
+       a rule should be popped off the stack.  Coming
+       into this loop that is always the case -- if
+       no rule was executed, this is a no-op. */
+    int pop_arguments = 1;
     @<Unpack value objects@>@;
     @<Fail if fatal error@>@;
     and_nodes = ANDs_of_B(B_of_O(o));
 
-    Arg_N_of_V(v) = TOS_of_V(v);
     if (NOOK_of_V(v) < 0) {
 	NOOK_of_V(v) = Size_of_TREE(t);
     }
@@ -12321,6 +12367,12 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 	if (NOOK_of_V(v) < 0) {
 	    Next_Value_Type_of_V(v) = MARPA_STEP_INACTIVE;
 	    break;
+	}
+	if (pop_arguments) {
+	  /* Pop the arguments for the last rule execution off of
+	  the stack */
+	  Arg_N_of_V(v) = TOS_of_V(v);
+	  pop_arguments = 0;
 	}
 	{
 	  ANDID and_node_id;
@@ -12393,11 +12445,12 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 		{
 		  // Currently all rules with a non-virtual LHS are
 		  // "semantic" rules.
-		  XRLID original_rule_id = ID_of_XRL(Source_XRL_of_IRL(nook_irl));
+		  XRLID original_rule_id = ID_of_XRL (Source_XRL_of_IRL (nook_irl));
+		  TOS_of_V (v) = Arg_N_of_V (v) - real_symbol_count + 1;
+		  pop_arguments = 1;
 		  if (XRL_is_Ask_Me (XRL_by_ID (original_rule_id)))
 		    {
-		      RULEID_of_V(v) = original_rule_id;
-		      TOS_of_V(v) = Arg_N_of_V(v) - real_symbol_count + 1;
+		      RULEID_of_V (v) = original_rule_id;
 		    }
 		}
 

@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '0.001_046';
+$VERSION        = '0.001_047';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -54,11 +54,7 @@ BEGIN {
     :package=Marpa::R2::Internal::Symbol
     ID { Unique ID }
     NAME
-    LHS_RANK
-    TERMINAL_RANK
-    NULL_VALUE { null value }
-    WARN_IF_NO_NULL_VALUE { should have a null value -- warn
-    if not }
+    RANK
 END_OF_STRUCTURE
     Marpa::R2::offset($structure);
 } ## end BEGIN
@@ -99,7 +95,7 @@ BEGIN {
     { === Evaluator Fields === }
 
     SYMBOL_HASH { hash to symbol ID by name of symbol }
-    DEFAULT_NULL_VALUE { default value for nulled symbols }
+    DEFAULT_EMPTY_ACTION { default value for empty rules }
     ACTION_OBJECT
     INFINITE_ACTION
 
@@ -260,7 +256,7 @@ use constant GRAMMAR_OPTIONS => [
         actions
         infinite_action
         default_action
-        default_null_value
+        default_empty_action
         default_rank
         inaccessible_ok
         rule_name_required
@@ -312,7 +308,7 @@ sub Marpa::R2::Grammar::set {
 
         if ( defined( my $value = $args->{'default_rank'} ) ) {
             Marpa::R2::exception(
-                'terminals option not allowed after grammar is precomputed')
+                'default_rank option not allowed after grammar is precomputed')
                 if $grammar_c->is_precomputed();
             $grammar->[Marpa::R2::Internal::Grammar::DEFAULT_RANK] = $value;
         } ## end if ( defined( my $value = $args->{'default_rank'} ) )
@@ -320,6 +316,8 @@ sub Marpa::R2::Grammar::set {
         # Second pass options
 
         if ( defined( my $value = $args->{'symbols'} ) ) {
+            Marpa::R2::exception(
+                'The symbols option is not currently implemented');
             Marpa::R2::exception(
                 'symbols option not allowed after grammar is precomputed')
                 if $grammar_c->is_precomputed();
@@ -362,10 +360,10 @@ sub Marpa::R2::Grammar::set {
             add_user_rules( $grammar, $value );
         } ## end if ( defined( my $value = $args->{'rules'} ) )
 
-        if ( exists $args->{'default_null_value'} ) {
-            my $value = $args->{'default_null_value'};
-            $grammar->[Marpa::R2::Internal::Grammar::DEFAULT_NULL_VALUE] =
-                \$value;
+        if ( exists $args->{'default_empty_action'} ) {
+            my $value = $args->{'default_empty_action'};
+            $grammar->[Marpa::R2::Internal::Grammar::DEFAULT_EMPTY_ACTION] =
+                $value;
         }
 
         if ( defined( my $value = $args->{'actions'} ) ) {
@@ -593,7 +591,7 @@ sub Marpa::R2::Grammar::precompute {
 
     # LHS_RANK is left undefined if not explicitly set
     SYMBOL: for my $symbol ( @{$symbols} ) {
-        $symbol->[Marpa::R2::Internal::Symbol::TERMINAL_RANK] //=
+        $symbol->[Marpa::R2::Internal::Symbol::RANK] //=
             $default_rank;
     }
 
@@ -650,47 +648,6 @@ sub Marpa::R2::Grammar::precompute {
                 or Marpa::R2::exception("Could not print: $ERRNO");
         } ## end for my $symbol ( @{ Marpa::R2::Grammar::unproductive_symbols...})
     } ## end if ( $grammar->[Marpa::R2::Internal::Grammar::WARNINGS...])
-
-    if ( $grammar->[Marpa::R2::Internal::Grammar::WARNINGS] ) {
-        SYMBOL:
-        for my $symbol (
-            @{ $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS] } )
-        {
-
-            next SYMBOL
-                if not $symbol
-                    ->[Marpa::R2::Internal::Symbol::WARN_IF_NO_NULL_VALUE];
-
-            next SYMBOL
-                if defined $symbol->[Marpa::R2::Internal::Symbol::NULL_VALUE];
-
-            my $symbol_id   = $symbol->[Marpa::R2::Internal::Symbol::ID];
-            my $symbol_name = $grammar->symbol_name($symbol_id);
-            say {$trace_fh}
-                qq{Zero length sequence for symbol without null value: "$symbol_name"}
-                or Marpa::R2::exception("Could not print: $ERRNO");
-        } ## end for my $symbol ( @{ $grammar->[...]})
-    } ## end if ( $grammar->[Marpa::R2::Internal::Grammar::WARNINGS...])
-
-    RULE: for my $rule_id ( 0 .. $grammar_c->rule_count() - 1 ) {
-        my $rule = $rules->[$rule_id];
-        $rule->[Marpa::R2::Internal::Rule::RANK] //= $default_rank;
-        my $rule_rank = $rule->[Marpa::R2::Internal::Rule::RANK];
-        my $lhs_id    = $grammar_c->rule_lhs($rule_id);
-        my $lhs       = $symbols->[$lhs_id];
-        my $lhs_rank  = $lhs->[Marpa::R2::Internal::Symbol::LHS_RANK];
-        if ( defined $lhs_rank
-            and $lhs_rank == $rule->[Marpa::R2::Internal::Rule::RANK] )
-        {
-            Marpa::R2::exception(
-                'Rank mismatch in rule: ',
-                brief_rule($rule),
-                "\n",
-                "LHS rank is $lhs_rank; rule rank is ",
-                $rule->[Marpa::R2::Internal::Rule::RANK]
-            );
-        } ## end if ( defined $lhs_rank and $lhs_rank == $rule->[...])
-    } ## end for my $rule_id ( 0 .. $grammar_c->rule_count() - 1 )
 
     return $grammar;
 
@@ -958,42 +915,19 @@ sub assign_user_symbol {
     my $symbol = assign_symbol( $grammar, $name );
     my $symbol_id = $symbol->[Marpa::R2::Internal::Symbol::ID];
 
-    # Do RANK first, so that the other options override it
-    my $rank = $options->{rank};
-    if ( defined $rank ) {
-        Marpa::R2::exception(qq{Symbol "$name": rank must be an integer})
-            if not Scalar::Util::looks_like_number($rank)
-                or not int($rank) != $rank;
-        $symbol->[Marpa::R2::Internal::Symbol::LHS_RANK] =
-            $symbol->[Marpa::R2::Internal::Symbol::TERMINAL_RANK] = $rank;
-    } ## end if ( defined $rank )
-
     PROPERTY: while ( my ( $property, $value ) = each %{$options} ) {
-        if (not $property ~~
-            [qw(terminal rank lhs_rank terminal_rank null_value)] )
-        {
+        if ( not $property ~~ [qw(terminal rank )] ) {
             Marpa::R2::exception(qq{Unknown symbol property "$property"});
         }
         if ( $property eq 'terminal' ) {
             $grammar_c->symbol_is_terminal_set( $symbol_id, $value );
         }
-        if ( $property eq 'null_value' ) {
-            $symbol->[Marpa::R2::Internal::Symbol::NULL_VALUE] = \$value;
-        }
-        if ( $property eq 'terminal_rank' ) {
-            Marpa::R2::exception(
-                qq{Symbol "$name": terminal_rank must be an integer})
+        if ( $property eq 'rank' ) {
+            Marpa::R2::exception(qq{Symbol "$name": rank must be an integer})
                 if not Scalar::Util::looks_like_number($value)
                     or int($value) != $value;
-            $symbol->[Marpa::R2::Internal::Symbol::TERMINAL_RANK] = $value;
-        } ## end if ( $property eq 'terminal_rank' )
-        if ( $property eq 'lhs_rank' ) {
-            Marpa::R2::exception(
-                qq{Symbol "$name": lhs_rank must be an integer})
-                if not Scalar::Util::looks_like_number($value)
-                    or int($value) != $value;
-            $symbol->[Marpa::R2::Internal::Symbol::LHS_RANK] = $value;
-        } ## end if ( $property eq 'lhs_rank' )
+            $symbol->[Marpa::R2::Internal::Symbol::RANK] = $value;
+        } ## end if ( $property eq 'rank' )
     } ## end while ( my ( $property, $value ) = each %{$options} )
 
     return $symbol;
@@ -1218,13 +1152,6 @@ sub add_user_rule {
 
     Marpa::R2::exception('Only one rhs symbol allowed for counted rule')
         if scalar @{$rhs_names} != 1;
-
-    # For a zero-length sequence
-    # with an action
-    # warn if we don't also have a null value.
-    if ( $min == 0 and $action ) {
-        $lhs->[Marpa::R2::Internal::Symbol::WARN_IF_NO_NULL_VALUE] = 1;
-    }
 
     # create the separator symbol, if we're using one
     my $separator;
