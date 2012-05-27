@@ -42,16 +42,12 @@ _marpa_avl_create (avl_comparison_func *compare, void *param,
 {
   AVL_TREE tree;
   int alignment = MAX(minimum_alignment, (int)alignof(struct avl_node));
+  struct obstack *avl_obstack = my_obstack_begin(0, alignment);
 
   assert (compare != NULL);
 
-  tree = my_malloc( sizeof *tree);
-  if (tree == NULL)
-    return NULL;
-
-  my_obstack_begin(&tree->avl_obstack, 0, alignment);
-
-
+  tree = my_obstack_new( avl_obstack, struct marpa_avl_table, 1);
+  tree->avl_obstack = avl_obstack;
   tree->avl_root = NULL;
   tree->avl_compare = compare;
   tree->avl_param = param;
@@ -116,7 +112,7 @@ _marpa_avl_probe (AVL_TREE tree, void *item)
       da[k++] = dir = cmp > 0;
     }
 
-  n = q->avl_link[dir] = my_obstack_alloc (&tree->avl_obstack, sizeof *n);
+  n = q->avl_link[dir] = my_obstack_alloc (tree->avl_obstack, sizeof *n);
   if (n == NULL)
     return NULL;
 
@@ -295,7 +291,7 @@ _marpa_avl_delete (AVL_TREE tree, const void *item)
         }
     }
 
-  my_obstack_free (&tree->avl_obstack);
+  /* Code to deallocate memory for node would go here */
 
   assert (k > 0);
   while (--k > 0)
@@ -705,13 +701,15 @@ _marpa_avl_t_replace (struct avl_traverser *trav, void *new)
   return old;
 }
 
-/* Frees storage allocated for |tree|. */
+/* Frees storage allocated for |tree|.
+  Everything is on the obstack.
+*/
 void
 _marpa_avl_destroy (AVL_TREE tree)
 {
-  if (tree ==  NULL) return;
-  my_obstack_free (&tree->avl_obstack);
-  my_free (tree);
+  if (tree == NULL)
+    return;
+  my_obstack_free (tree->avl_obstack);
 }
 
 #undef NDEBUG

@@ -105,7 +105,7 @@
 \bigskip\noindent
 @i copyright_page_license.w
 
-@** About This Document.
+@** About this document.
 This document is very much under construction,
 enough so that readers may question why I make it
 available at all.  Two reasons:
@@ -233,7 +233,7 @@ used in a private function.
 @d PRIVATE_NOT_INLINE static
 @d PRIVATE static inline
 
-@*0 Marpa Global Setup.
+@*0 Marpa global Setup.
 
 Marpa has no globals as of this writing.
 For thread-safety, among other reasons,
@@ -364,7 +364,7 @@ macro and subroutine arguments.
 \li |irl_count| is the number of internal rules in |g|.
 \li |xrl_count| is the number of external rules in |g|.
 
-@*0 Mixed Case Macros.
+@*0 Mixed case macros.
 In programming in general, accessors are very common.
 In |libmarpa|, the percentage of the logic the consists
 of accessors is even higher than usual,
@@ -400,7 +400,7 @@ Look at one of the many macro-heavy pages in this code
 and ask yourself -- do you genuinely wish more of this
 page was in caps?
 
-@*0 External Names.
+@*0 External names.
 External Names have |marpa_| or |MARPA_| as their prefix,
 as appropriate under the capitalization conventions.
 Many names begin with one of the major ``objects" of Marpa:
@@ -518,8 +518,8 @@ To change error codes or public function
 prototypes, look at 
 |api.texi| and the scripts which process it.
 
-@** The Public Header File.
-@*0 Version Constants.
+@** The public header file.
+@*0 Version constants.
 @<Global variables@> =
 const unsigned int marpa_major_version = MARPA_MAJOR_VERSION;
 const unsigned int marpa_minor_version = MARPA_MINOR_VERSION;
@@ -590,7 +590,7 @@ extern const unsigned int marpa_binary_age;@#
 @<Public structures@>@;
 @<Public function prototypes@>@;
 
-@** Grammar (GRAMMAR) Code.
+@** Grammar (GRAMMAR) code.
 @<Public incomplete structures@> =
 struct marpa_g;
 struct marpa_avl_table;
@@ -622,7 +622,7 @@ Marpa_Grammar marpa_g_new (unsigned int required_major,
     g->t_is_ok = I_AM_OK;
    return g;
 }
-@*0 Reference Counting and Destructors.
+@*0 Reference counting and destructors.
 @ @<Int aligned grammar elements@>= int t_ref_count;
 @ @<Initialize grammar elements@> =
 g->t_ref_count = 1;
@@ -671,7 +671,7 @@ void grammar_free(GRAMMAR g)
     my_slice_free(struct marpa_g, g);
 }
 
-@*0 The Grammar's Symbol List.
+@*0 The grammar's symbol list.
 This lists the symbols for the grammar,
 with their
 |Marpa_Symbol_ID| as the index.
@@ -728,7 +728,7 @@ PRIVATE int isy_is_valid(GRAMMAR g, ISYID isyid)
     return isyid >= 0 && isyid < ISY_Count_of_G(g);
 }
 
-@*0 The Grammar's Rule List.
+@*0 The grammar's rule list.
 |t_xrl_stack| lists the rules for the grammar,
 with their |Marpa_Rule_ID| as the index.
 The |rule_tree| is a tree for detecting duplicates.
@@ -790,7 +790,7 @@ rule_add (GRAMMAR g, RULE rule)
     ((irl_id) >= 0 && (irl_id) < IRL_Count_of_G(g))
 @d RULEID_of_G_is_Valid(g, rule_id) XRLID_of_G_is_Valid(rule_id)
 
-@*0 Start Symbol.
+@*0 Start symbol.
 @<Int aligned grammar elements@> = XSYID t_start_xsyid;
 @ @<Initialize grammar elements@> =
 g->t_start_xsyid = -1;
@@ -813,7 +813,7 @@ Marpa_Symbol_ID marpa_g_start_symbol_set(Marpa_Grammar g, Marpa_Symbol_ID symid)
     return g->t_start_xsyid = symid;
 }
 
-@*0 Start Rules.
+@*0 Start rules.
 These are the start rules, after the grammar is augmented.
 Only one of these needs to be non-NULL.
 A productive grammar
@@ -827,7 +827,7 @@ g->t_start_irl = NULL;
 {\bf To Do}: @^To Do@>
 Check that all trace functions are safe if G is trivial.
 
-@*0 The Grammar's Size.
+@*0 The grammar's size.
 Intuitively,
 I define a grammar's size as the total size, in symbols, of all of its
 rules.
@@ -841,7 +841,7 @@ int t_external_size;
 @ @<Initialize grammar elements@> =
 External_Size_of_G(g) = 0;
 
-@*0 The Maximum Rule Length.
+@*0 The maximum rule length.
 This is a high-ball estimate of the length of the
 longest rule in the grammar.
 The actual value will always be this number or smaller.
@@ -854,7 +854,7 @@ are marked useless.
 @ @<Initialize grammar elements@> =
 g->t_max_rule_length = 0;
 
-@*0 Grammar Boolean: Precomputed.
+@*0 Grammar is precomputed?.
 @ @d G_is_Precomputed(g) ((g)->t_is_precomputed)
 @<Bit aligned grammar elements@> = unsigned int t_is_precomputed:1;
 @ @<Initialize grammar elements@> =
@@ -867,7 +867,7 @@ int marpa_g_is_precomputed(Marpa_Grammar g)
     return G_is_Precomputed(g);
 }
 
-@*0 Grammar boolean: has loop?.
+@*0 Grammar has loop?.
 @<Bit aligned grammar elements@> = unsigned int t_has_cycle:1;
 @ @<Initialize grammar elements@> =
 g->t_has_cycle = 0;
@@ -879,7 +879,7 @@ int marpa_g_has_cycle(Marpa_Grammar g)
 return g->t_has_cycle;
 }
 
-@*0 Terminal Boolean Vector.
+@*0 Terminal boolean vector.
 A boolean vector, with bits sets if the symbol is a
 terminal.
 This is not used as the working vector while doing
@@ -1008,16 +1008,16 @@ A side benefit is that the dedicated
 XRL obstack can be specially
 aligned.
 @<Widely aligned grammar elements@> =
-struct obstack t_obs;
-struct obstack t_xrl_obs;
+struct obstack* t_obs;
+struct obstack* t_xrl_obs;
 @ @<Initialize grammar elements@> =
-my_obstack_init(&g->t_obs);
-my_obstack_begin(&g->t_xrl_obs, 0, alignof(struct s_xrl));
+g->t_obs = my_obstack_init;
+g->t_xrl_obs = my_obstack_begin(0, alignof(struct s_xrl));
 @ @<Destroy grammar elements@> =
-my_obstack_free(&g->t_obs);
-my_obstack_free(&g->t_xrl_obs);
+my_obstack_free(g->t_obs);
+my_obstack_free(g->t_xrl_obs);
 
-@*0 The "is OK" Word.
+@*0 The "is OK" word.
 The grammar needs a flag for a fatal error.
 This is an |int| for defensive coding reasons.
 Since I am paying the code of an |int|,
@@ -1040,7 +1040,7 @@ likely to catch memory overwrite errors.
 @<First grammar element@> =
 int t_is_ok;
 
-@*0 The Grammar's Error ID.
+@*0 The grammar's error ID.
 This is an error flag for the grammar.
 Error status is not necessarily cleared
 on successful return, so that
@@ -1078,7 +1078,7 @@ Marpa_Error_Code marpa_g_error(Marpa_Grammar g, const char** p_error_string)
     return error_code;
 }
 
-@** Symbol (XSY) Code.
+@** Symbol (XSY) code.
 @s Marpa_Symbol_ID int
 @<Public typedefs@> =
 typedef int Marpa_Symbol_ID;
@@ -1107,7 +1107,7 @@ struct s_xsy {
 PRIVATE SYM
 symbol_new (GRAMMAR g)
 {
-  SYM symbol = my_obstack_new (&g->t_obs, struct s_xsy, 1);
+  SYM symbol = my_obstack_new (g->t_obs, struct s_xsy, 1);
   @<Initialize symbol elements @>@;
   symbol_add (g, symbol);
   return symbol;
@@ -1130,7 +1130,7 @@ whether sequence or BNF.
 @ @<Initialize symbol elements@> =
     SYM_is_LHS(symbol) = 0;
 
-@*0 Symbol is Sequence LHS?.
+@*0 Symbol is sequence LHS?.
 Is this (external) symbol on the LHS of a sequence rule?
 @d SYM_is_Sequence_LHS(symbol) ((symbol)->t_is_sequence_lhs)
 @<Bit aligned symbol elements@> = unsigned int t_is_sequence_lhs:1;
@@ -1326,7 +1326,7 @@ int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID symid)
    return SYM_by_ID(symid)->t_is_start;
 }
 
-@*0 Primary Internal Equivalent.
+@*0 Primary internal equivalent.
 This is the internal
 equivalent of the external symbol.
 If the external symbol is nullable
@@ -1351,7 +1351,7 @@ Marpa_ISY_ID _marpa_g_xsy_isy(
     return isy ? ID_of_ISY(isy) : -1;
 }
 
-@*0 Nulling Internal Equivalent.
+@*0 Nulling internal equivalent.
 This is the nulling internal
 equivalent of the external symbol.
 If the external symbol is nullable
@@ -1396,7 +1396,7 @@ ISY symbol_alias_create(GRAMMAR g, SYM symbol)
     return alias_isy;
 }
 
-@** Internal Symbols (ISY).
+@** Internal symbols (ISY).
 This is the logic for keeping track of
 symbols created internally by libmarpa.
 
@@ -1435,7 +1435,7 @@ Symbols are used a nulling tokens, and
 PRIVATE ISY
 isy_start(GRAMMAR g)
 {
-  const ISY isy = my_obstack_new (&g->t_obs, struct s_isy, 1);
+  const ISY isy = my_obstack_new (g->t_obs, struct s_isy, 1);
   ID_of_ISY(isy) = DSTACK_LENGTH((g)->t_isy_stack);
   *DSTACK_PUSH((g)->t_isy_stack, ISY) = isy;
   @<Initialize ISY elements@>@;
@@ -1508,7 +1508,7 @@ int _marpa_g_isy_is_lhs( Marpa_Grammar g, Marpa_ISY_ID isy_id)
    return ISY_is_LHS(ISY_by_ID(isy_id));
 }
 
-@*0 ISY Is Nulling?.
+@*0 ISY is nulling?.
 @d ISY_is_Nulling(isy) ((isy)->t_isy_is_nulling)
 @<Bit aligned ISY elements@> = unsigned int t_isy_is_nulling:1;
 @ @<Initialize ISY elements@> = ISY_is_Nulling(isy) = 0;
@@ -1597,7 +1597,7 @@ int _marpa_g_isy_xrl_offset(Marpa_Grammar g, Marpa_ISY_ID isy_id)
   return XRL_Offset_of_ISY(isy);
 }
 
-@** External Rule (XRL) Code.
+@** External rule (XRL) code.
 @s Marpa_Rule_ID int
 @<Public typedefs@> =
 typedef int Marpa_Rule_ID;
@@ -1617,7 +1617,7 @@ typedef XRL RULE;
 typedef Marpa_Rule_ID RULEID;
 typedef Marpa_Rule_ID XRLID;
 
-@*0 Rule Construction.
+@*0 Rule construction.
 @ Set up the basic data.
 This logic is intended to be common to all individual rules.
 The name comes from the idea that this logic ``starts"
@@ -1635,8 +1635,8 @@ PRIVATE
   XRL xrl;
   const int sizeof_xrl = offsetof (struct s_xrl, t_symbols) +
     (length + 1) * sizeof (xrl->t_symbols[0]);
-  my_obstack_blank (&g->t_xrl_obs, sizeof_xrl);
-  xrl = my_obstack_base (&g->t_xrl_obs);
+  my_obstack_blank (g->t_xrl_obs, sizeof_xrl);
+  xrl = my_obstack_base (g->t_xrl_obs);
   Length_of_XRL (xrl) = length;
   xrl->t_symbols[0] = lhs;
   XSY_is_LHS (XSY_by_ID (lhs)) = 1;
@@ -1664,7 +1664,7 @@ const SYMID lhs, const SYMID *rhs, int length)
 {
     RULE rule = xrl_start(g, lhs, rhs, length);
     xrl_finish(g, rule);
-    rule = my_obstack_finish(&g->t_xrl_obs);
+    rule = my_obstack_finish(g->t_xrl_obs);
     return rule;
 }
 
@@ -1676,7 +1676,7 @@ irl_start(GRAMMAR g, int length)
   IRL irl;
   const int sizeof_irl = offsetof (struct s_irl, t_isyid_array) +
     (length + 1) * sizeof (irl->t_isyid_array[0]);
-  irl = my_obstack_alloc (&g->t_obs, sizeof_irl);
+  irl = my_obstack_alloc (g->t_obs, sizeof_irl);
   ID_of_IRL(irl) = DSTACK_LENGTH((g)->t_irl_stack);
   Length_of_IRL(irl) = length;
   @<Initialize IRL elements@>@;
@@ -1728,12 +1728,12 @@ marpa_g_rule_new (Marpa_Grammar g,
   if (UNLIKELY (!rule_check (g, rule)))
     goto FAILURE;
   rule = xrl_finish (g, rule);
-  rule = my_obstack_finish(&g->t_xrl_obs);
+  rule = my_obstack_finish(g->t_xrl_obs);
   XRL_is_BNF (rule) = 1;
   rule_id = rule->t_id;
   return rule_id;
   FAILURE:
-  my_obstack_reject(&g->t_xrl_obs);
+  my_obstack_reject(g->t_xrl_obs);
   return failure_indicator;
 }
 
@@ -1858,7 +1858,7 @@ duplicate_rule_cmp (const void *ap, const void *bp, void *param UNUSED)
   return 0;
 }
 
-@*0 Rule Symbols.
+@*0 Rule symbols.
 A rule takes the traditiona form of
 a left hand side (LHS), and a right hand side (RHS).
 The {\bf length} of a rule is the length of the RHS ---
@@ -1953,7 +1953,7 @@ int marpa_g_rule_length(Marpa_Grammar g, Marpa_Rule_ID xrl_id) {
     @<Fail if |xrl_id| is invalid@>@;
     return rule_length_get(XRL_by_ID(xrl_id)); }
 
-@*1 Symbols of the Rule.
+@*1 Symbols of the rule.
 @d LHS_ID_of_RULE(rule) ((rule)->t_symbols[0])
 @d LHS_ID_of_XRL(xrl) ((xrl)->t_symbols[0])
 @d RHS_ID_of_RULE(rule, position)
@@ -2079,7 +2079,7 @@ int marpa_g_rule_is_proper_separation(
     return !XRL_is_Proper_Separation(XRL_by_ID(xrl_id));
 }
 
-@*0 Loop Rule.
+@*0 Loop rule.
 @ A rule is a loop rule if it non-trivially
 produces the string of length one
 which consists only of its LHS symbol.
@@ -2098,7 +2098,7 @@ int marpa_g_rule_is_loop(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
   return XRL_by_ID(xrl_id)->t_is_loop;
 }
 
-@*0 Is Rule Nulling?.
+@*0 Is rule nulling?.
 Is the rule nulling?
 @d XRL_is_Nulling(rule) ((rule)->t_is_nulling)
 @<Bit aligned rule elements@> = unsigned int t_is_nulling:1;
@@ -2115,7 +2115,7 @@ int marpa_g_rule_is_nulling(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
   return XRL_is_Nulling(xrl);
 }
 
-@*0 Is Rule Nullable?.
+@*0 Is rule nullable?.
 Is the rule nullable?
 @d XRL_is_Nullable(rule) ((rule)->t_is_nullable)
 @<Bit aligned rule elements@> = unsigned int t_is_nullable:1;
@@ -2132,7 +2132,7 @@ int marpa_g_rule_is_nullable(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
   return XRL_is_Nullable(xrl);
 }
 
-@*0 Is Rule Accessible?.
+@*0 Is rule accessible?.
 @ A rule is accessible if its LHS is accessible.
 @d XRL_is_Accessible(rule) ((rule)->t_is_accessible)
 @<Bit aligned rule elements@> = unsigned int t_is_accessible:1;
@@ -2149,7 +2149,7 @@ int marpa_g_rule_is_accessible(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
   return XRL_is_Accessible(xrl);
 }
 
-@*0 Is Rule Productive?.
+@*0 Is rule productive?.
 Is the rule productive?
 @d XRL_is_Productive(rule) ((rule)->t_is_productive)
 @<Bit aligned rule elements@> = unsigned int t_is_productive:1;
@@ -2166,7 +2166,7 @@ int marpa_g_rule_is_productive(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
   return XRL_is_Productive(xrl);
 }
 
-@*0 Is XRL Used?.
+@*0 Is XRL used?.
 Is the rule used in computing the AHFA sets?
 @d XRL_is_Used(xrl) (
   XRL_is_Accessible(xrl) && XRL_is_Productive(xrl) && !XRL_is_Nulling(xrl)
@@ -2265,7 +2265,7 @@ _marpa_g_irl_semantic_equivalent (Marpa_Grammar g, Marpa_IRL_ID irl_id)
   return ID_of_XRL( Source_XRL_of_IRL(irl) );
 }
 
-@** Internal Rule (IRL) Code.
+@** Internal rule (IRL) code.
 
 @ @<Private structures@> =
 struct s_irl {
@@ -2362,7 +2362,7 @@ int _marpa_g_irl_is_virtual_lhs(
     return IRL_has_Virtual_LHS(IRL_by_ID(irl_id));
 }
 
-@*0 IRL has Virtual RHS?.
+@*0 IRL has virtual RHS?.
 @d IRL_has_Virtual_RHS(irl) ((irl)->t_is_virtual_rhs)
 @<Bit aligned IRL elements@> = unsigned int t_is_virtual_rhs:1;
 @ @<Initialize IRL elements@> =
@@ -2378,7 +2378,7 @@ int _marpa_g_irl_is_virtual_rhs(
     return IRL_has_Virtual_RHS(IRL_by_ID(irl_id));
 }
 
-@*0 Rule Real Symbol Count.
+@*0 Rule real symbol count.
 This is another data element used for the ``internal semantics" --
 the logic to reassemble results of rewritten rules so that they
 look as if they came from the original, un-rewritten rules.
@@ -2398,7 +2398,7 @@ int _marpa_g_real_symbol_count(
     return Real_SYM_Count_of_IRL(IRL_by_ID(irl_id));
 }
 
-@*0 Virtual Start Position.
+@*0 Virtual start position.
 For an IRL,
 this is the RHS position in the XRL
 where the IRL starts.
@@ -2418,7 +2418,7 @@ unsigned int _marpa_g_virtual_start(
     return Virtual_Start_of_IRL(irl);
 }
 
-@*0 Virtual End Position.
+@*0 Virtual end position.
 For an IRL,
 this is the RHS position in the XRL
 where the IRL ends.
@@ -2471,7 +2471,7 @@ be using it.
 @ @<Initialize IRL elements@> =
     First_AIM_of_IRL(irl) = NULL;
 
-@** Symbol Instance (SYMI) Code.
+@** Symbol instance (SYMI) code.
 @<Private typedefs@> = typedef int SYMI;
 @ @d SYMI_Count_of_G(g) ((g)->t_symbol_instance_count)
 @<Int aligned grammar elements@> =
@@ -2513,7 +2513,7 @@ symbol_instance_of_ahfa_item_get (AIM aim)
   return -1;
 }
 
-@** Precomputing the Grammar.
+@** Precomputing the grammar.
 Marpa's logic divides roughly into three pieces -- grammar precomputation,
 the actual parsing of input tokens,
 and semantic evaluation.
@@ -2535,9 +2535,8 @@ int marpa_g_precompute(Marpa_Grammar g)
 {
     @<Return |-2| on failure@>@;
     int return_value = failure_indicator;
-    struct obstack obs_precompute;
+    struct obstack *obs_precompute = my_obstack_init;
     @<Declare precompute variables@>@;
-    my_obstack_init(&obs_precompute);
     @<Fail if fatal error@>@;
     G_EVENTS_CLEAR(g);
     @<Fail if no rules@>@;
@@ -2568,14 +2567,14 @@ int marpa_g_precompute(Marpa_Grammar g)
     }
      return_value = G_EVENT_COUNT(g);
      FAILURE:;
-    my_obstack_free(&obs_precompute);
+    my_obstack_free(obs_precompute);
      return return_value;
 }
 @ {\bf To Do}: @^To Do@>
 
-@** The Grammar Census.
+@** The grammar census.
 
-@*0 Implementation: Inacessible and Unproductive Rules.
+@*0 Implementation: inacessible and unproductive Rules.
 The textbooks say that,
 in order to automatically {\bf eliminate} inaccessible and unproductive
 productions from a grammar, you have to first eliminate the
@@ -2697,8 +2696,8 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
 		    xrl_count);
   struct sym_rule_pair *p_lh_sym_rule_pairs = p_lh_sym_rule_pair_base;
 
-  lhs_v = bv_obs_create (&obs_precompute, pre_census_xsy_count);
-  empty_lhs_v = bv_obs_shadow (&obs_precompute, lhs_v);
+  lhs_v = bv_obs_create (obs_precompute, pre_census_xsy_count);
+  empty_lhs_v = bv_obs_shadow (obs_precompute, lhs_v);
   for (rule_id = 0; rule_id < xrl_count; rule_id++)
     {
       const XRL rule = XRL_by_ID (rule_id);
@@ -2750,11 +2749,11 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
     struct sym_rule_pair *pair;
     SYMID seen_symid = -1;
     RULEID *const rule_data_base =
-      my_obstack_new (&obs_precompute, RULEID, External_Size_of_G (g));
+      my_obstack_new (obs_precompute, RULEID, External_Size_of_G (g));
     RULEID *p_rule_data = rule_data_base;
     _marpa_avl_t_init (&traverser, rhs_avl_tree);
     /* One extra "symbol" as an end marker */
-    xrl_list_x_rh_sym = my_obstack_new (&obs_precompute, RULEID*, pre_census_xsy_count + 1);
+    xrl_list_x_rh_sym = my_obstack_new (obs_precompute, RULEID*, pre_census_xsy_count + 1);
     for (pair = (struct sym_rule_pair*)_marpa_avl_t_first (&traverser, rhs_avl_tree); pair;
 	 pair = (struct sym_rule_pair*)_marpa_avl_t_next (&traverser))
       {
@@ -2773,12 +2772,12 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
     struct sym_rule_pair *pair;
     SYMID seen_symid = -1;
     RULEID *const rule_data_base =
-      my_obstack_new (&obs_precompute, RULEID, xrl_count);
+      my_obstack_new (obs_precompute, RULEID, xrl_count);
     RULEID *p_rule_data = rule_data_base;
     _marpa_avl_t_init (&traverser, lhs_avl_tree);
     /* One extra "symbol" as an end marker */
     xrl_list_x_lh_sym =
-      my_obstack_new (&obs_precompute, RULEID *, pre_census_xsy_count + 1);
+      my_obstack_new (obs_precompute, RULEID *, pre_census_xsy_count + 1);
     for (pair =
 	 (struct sym_rule_pair *) _marpa_avl_t_first (&traverser, lhs_avl_tree);
 	 pair; pair = (struct sym_rule_pair *) _marpa_avl_t_next (&traverser))
@@ -2801,7 +2800,7 @@ and a flag which indicates if there are any.
 @<Census terminals@> =
 {
   SYMID symid;
-  terminal_v = bv_obs_create (&obs_precompute, pre_census_xsy_count);
+  terminal_v = bv_obs_create (obs_precompute, pre_census_xsy_count);
   bv_not (terminal_v, lhs_v);
   for (symid = 0; symid < pre_census_xsy_count; symid++)
     {
@@ -2841,7 +2840,7 @@ RULEID** xrl_list_x_lh_sym = NULL;
   unsigned int min, max, start;
   XSYID xsyid;
   int counted_nullables = 0;
-  nullable_v = bv_obs_clone (&obs_precompute, empty_lhs_v);
+  nullable_v = bv_obs_clone (obs_precompute, empty_lhs_v);
   rhs_closure (g, nullable_v, xrl_list_x_rh_sym);
   for (start = 0; bv_scan (nullable_v, start, &min, &max); start = max + 2)
     {
@@ -2866,7 +2865,7 @@ RULEID** xrl_list_x_lh_sym = NULL;
 
 @ @<Census productive symbols@> = 
 {
-  productive_v = bv_obs_shadow (&obs_precompute, nullable_v);
+  productive_v = bv_obs_shadow (obs_precompute, nullable_v);
   bv_or (productive_v, nullable_v, terminal_v);
   rhs_closure (g, productive_v, xrl_list_x_rh_sym);
   {
@@ -2916,7 +2915,7 @@ where many of the right hand sides repeat symbols.
 @<Calculate reach matrix@> =
 {
   XRLID rule_id;
-  reach_matrix = matrix_obs_create (&obs_precompute, pre_census_xsy_count, pre_census_xsy_count);
+  reach_matrix = matrix_obs_create (obs_precompute, pre_census_xsy_count, pre_census_xsy_count);
   for (rule_id = 0; rule_id < xrl_count; rule_id++)
     {
       XRL rule = XRL_by_ID (rule_id);
@@ -3045,7 +3044,7 @@ and productive.
     }
 }
 
-@** The Sequence rewrite.
+@** The sequence rewrite.
 @<Rewrite sequence |rule| into BNF@> =
 {
   const SYMID lhs_id = LHS_ID_of_RULE (rule);
@@ -3249,7 +3248,7 @@ is not already aliased, alias it.
     }
 }
 
-@*0 Compute Statistics Needed to Rewrite the Rule.
+@*0 Compute statistics needed to rewrite the nule.
 The term
 ``factor" is used to mean an instance of a proper nullable
 symbol on the RHS of a rule.
@@ -3282,9 +3281,9 @@ into multiple CHAF rules.
 int factor_count;
 int* factor_positions;
 @ @<CHAF rewrite allocations@> =
-factor_positions = my_obstack_new(&obs_precompute, int, g->t_max_rule_length);
+factor_positions = my_obstack_new(obs_precompute, int, g->t_max_rule_length);
 
-@*0 Divide the Rule into Pieces.
+@*0 Divide the rule into pieces.
 @<Factor the rule into CHAF rules@> =
 {
     const XRL chaf_xrl = rule;
@@ -3318,7 +3317,7 @@ factor_positions = my_obstack_new(&obs_precompute, int, g->t_max_rule_length);
   chaf_virtual_isyid = ID_of_ISY(chaf_virtual_isy);
 }
 
-@*0 Factor A Non-Final Piece.
+@*0 Factor a non-final piece.
 @ As long as I have more than 3 unprocessed factors, I am working on a non-final
 rule.
 @<Add non-final CHAF rules@> =
@@ -3342,7 +3341,7 @@ rule.
     current_lhs_isyid = chaf_virtual_isyid;
     piece_start = piece_end+1;
 
-@*0 Add CHAF Rules for Nullable Continuations.
+@*0 Add CHAF rules for nullable continuations.
 For a piece that has a nullable continuation,
 the virtual RHS counts
 as one of the two allowed proper nullables.
@@ -3432,7 +3431,7 @@ the Marpa parse engine.
     }
 }
 
-@*0 Add CHAF Rules for Proper Continuations.
+@*0 Add CHAF rules for proper continuations.
 @ Open block and declarations.
 @<Add CHAF rules for proper continuation@> =
 {
@@ -3551,7 +3550,7 @@ the Marpa parse engine.
   @<Add CHAF IRL@>@;
 }
 
-@*0 Add Final CHAF Rules for Two Factors.
+@*0 Add final CHAF rules for two factors.
 Open block, declarations and setup.
 @<Add final CHAF rules for two factors@> =
 {
@@ -3673,7 +3672,7 @@ a nulling rule.
   }
 }
 
-@*0 Add Final CHAF Rules for One Factor.
+@*0 Add final CHAF rules for one factor.
 @<Add final CHAF rules for one factor@> =
 {
   int real_symbol_count;
@@ -3749,7 +3748,7 @@ rule structure, and performing the call back.
   XRL_Offset_of_ISY (current_lhs_isy) = piece_start;
 }
 
-@** Adding a New Start Symbol.
+@** Adding a new start symbol.
 This is such a common rewrite that it has a special name
 in the literature --- it is called ``augmenting the grammar".
 @ @<Augment grammar |g|@> =
@@ -3831,7 +3830,7 @@ loop rule count, with the final tally.
 {
     int loop_rule_count = 0;
     Bit_Matrix unit_transition_matrix =
-	matrix_obs_create (&obs_precompute, (unsigned int) xrl_count,
+	matrix_obs_create (obs_precompute, (unsigned int) xrl_count,
 	    (unsigned int) xrl_count);
     @<Mark direct unit transitions in |unit_transition_matrix|@>@;
     transitive_closure(unit_transition_matrix);
@@ -3921,9 +3920,9 @@ rule with |nonnulling_id| on the LHS.
     }
 }
 
-@** The Aycock-Horspool Finite Automata.
+@** The Aycock-Horspool finite automata.
 
-@*0 Some Statistics on AHFA states.
+@*0 Some statistics on AHFA states.
 For Perl's grammar, the discovered states range in size from 1 to 20 items,
 but the numbers are heavily skewed toward the low
 end.  Here are the item counts that appear, with the percent of the total
@@ -4021,7 +4020,7 @@ And here is the same data for some grammar of HTML:
 29 items (16).
 
 
-@** AHFA Item (AIM) Code.
+@** AHFA item (AIM) code.
 AHFA states are sets of AHFA items.
 AHFA items are named by analogy with LR(0) items.
 LR(0) items play the same role in the LR(0) automaton that
@@ -4092,13 +4091,13 @@ Position in the RHS, -1 for a completion.
 @<Int aligned AHFA item elements@> =
 int t_position;
 
-@*0 Postdot Symbol.
+@*0 Postdot symbol.
 |-1| if the item is a completion.
 @d Postdot_ISYID_of_AIM(item) ((item)->t_postdot_isyid)
 @d AIM_is_Completion(aim) (Postdot_ISYID_of_AIM(aim) < 0)
 @<Int aligned AHFA item elements@> = ISYID t_postdot_isyid;
 
-@*0 Leading Nulls.
+@*0 Leading nulls.
 In libmarpa's AHFA items, the dot position is never in front
 of a nulling symbol.  (Due to rewriting, every nullable symbol
 is also a nulling symbol.)
@@ -4108,7 +4107,7 @@ this AHFA items's dot position.
 @<Int aligned AHFA item elements@> =
 int t_leading_nulls;
 
-@*0 AHFA Item External Accessors.
+@*0 AHFA item external accessors.
 @<Function definitions@> =
 int _marpa_g_AHFA_item_count(Marpa_Grammar g) {
     @<Return |-2| on failure@>@/
@@ -4154,7 +4153,7 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
     return Sort_Key_of_AIM(AIM_by_ID(item_id));
 }
 
-@** Creating the AHFA Items.
+@** Creating the AHFA items.
 @ @<Create AHFA items@> =
 {
     IRLID irl_id;
@@ -4316,7 +4315,7 @@ AHFA item as its new, final ID.
   my_free (sort_array);
 }
 
-@** AHFA State (AHFA) Code.
+@** AHFA state (AHFA) code.
 
 This algorithm to create the AHFA states is new with |libmarpa|.
 It is based on noting that the states to be created fall into
@@ -4432,7 +4431,7 @@ PRIVATE void AHFA_initialize(AHFA ahfa)
     @<Initialize AHFA@>@;
 }
 
-@*0 Complete Symbols Container.
+@*0 Complete symbols container.
 @ @d Complete_ISYIDs_of_AHFA(state) ((state)->t_complete_isyids)
 @d Complete_ISY_Count_of_AHFA(state) ((state)->t_complete_isy_count)
 @<Int aligned AHFA state elements@> =
@@ -4440,7 +4439,7 @@ unsigned int t_complete_isy_count;
 @ @<Widely aligned AHFA state elements@> =
 ISYID* t_complete_isyids;
 
-@*0 AHFA Item Container.
+@*0 AHFA item container.
 @ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
 @d AIM_of_AHFA_by_AEX(ahfa, aex) (AIMs_of_AHFA(ahfa)[aex])
 @d AEX_of_AHFA_by_AIM(ahfa, aim) aex_of_ahfa_by_aim_get((ahfa), (aim))
@@ -4479,7 +4478,7 @@ PRIVATE AEX aex_of_ahfa_by_aim_get(AHFA ahfa, AIM sought_aim)
   return -1;
 }
 
-@*0 Is AHFA Predicted?.
+@*0 Is AHFA predicted?.
 @ This boolean indicates whether the
 {\bf AHFA state} is predicted,
 as opposed to whether it contains any predicted 
@@ -4520,7 +4519,7 @@ AHFA_Count_of_G(g) = 0;
     }
 }
 
-@*0 ID of AHFA State.
+@*0 ID of AHFA state.
 @d ID_of_AHFA(state) ((state)->t_key.t_id)
 
 @*0 Validate AHFA ID.
@@ -4532,13 +4531,13 @@ PRIVATE int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id)
 }
 
     
-@*0 Postdot Symbols.
+@*0 Postdot symbols.
 @d Postdot_ISY_Count_of_AHFA(state) ((state)->t_postdot_isy_count)
 @d Postdot_ISYIDAry_of_AHFA(state) ((state)->t_postdot_isyidary)
 @<Widely aligned AHFA state elements@> = Marpa_Symbol_ID* t_postdot_isyidary;
 @ @<Int aligned AHFA state elements@> = unsigned int t_postdot_isy_count;
 
-@*0 AHFA State External Accessors.
+@*0 AHFA state external accessors.
 @<Function definitions@> =
 int _marpa_g_AHFA_state_count(Marpa_Grammar g) {
     return AHFA_Count_of_G(g);
@@ -4588,7 +4587,7 @@ int _marpa_g_AHFA_state_is_predict(Marpa_Grammar g,
     return AHFA_is_Predicted(state);
 }
 
-@*0 Leo LHS Symbol.
+@*0 Leo LHS symbol.
 The Leo LHS symbol is the LHS of the AHFA state's rule,
 if that state can be a Leo completion.
 Otherwise it is |-1|.
@@ -4610,7 +4609,7 @@ Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol(Marpa_Grammar g,
     return Leo_LHS_ISYID_of_AHFA(state);
 }
 
-@*0 Internal Accessors.
+@*0 Internal accessors.
 @ The ordering of the AHFA states can be arbitrarily chosen
 to be efficient to compute.
 The only requirement is that states with identical sets
@@ -4678,8 +4677,8 @@ PRIVATE_NOT_INLINE int AHFA_state_cmp(
    AIM AHFA_item_0_p = g->t_AHFA_items;
    Bit_Matrix prediction_matrix;
    IRL* irl_by_sort_key = my_new(IRL, irl_count);
-  Bit_Vector per_ahfa_complete_v = bv_obs_create (&obs_precompute, isy_count);
-  Bit_Vector per_ahfa_postdot_v = bv_obs_create (&obs_precompute, isy_count);
+  Bit_Vector per_ahfa_complete_v = bv_obs_create (obs_precompute, isy_count);
+  Bit_Vector per_ahfa_postdot_v = bv_obs_create (obs_precompute, isy_count);
     AVL_TREE duplicates;
     AHFA* singleton_duplicates;
    DQUEUE_DECLARE(states);
@@ -4758,7 +4757,7 @@ NEXT_AHFA_STATE:;
 		   int sizeof_transition =
 		       offsetof (struct s_transition, t_aex) + completion_count *
 		       sizeof (transitions[0]->t_aex[0]);
-		   TRANS new_transition = my_obstack_alloc(&g->t_obs, sizeof_transition);
+		   TRANS new_transition = my_obstack_alloc(g->t_obs, sizeof_transition);
 		   LV_To_AHFA_of_TRANS(new_transition) = To_AHFA_of_TRANS(working_transition);
 		   LV_Completion_Count_of_TRANS(new_transition) = 0;
 		   transitions[isyid] = new_transition;
@@ -4846,7 +4845,7 @@ _marpa_avl_destroy(duplicates);
   ISYID *postdot_isyidary;
   AIM start_item;
   ISYID postdot_isyid;
-  AIM *item_list = my_obstack_alloc (&g->t_obs, sizeof (AIM));
+  AIM *item_list = my_obstack_alloc (g->t_obs, sizeof (AIM));
   /* The start item is the initial item for the start rule */
   start_item = First_AIM_of_IRL(start_irl);
   item_list[0] = start_item;
@@ -4858,7 +4857,7 @@ _marpa_avl_destroy(duplicates);
   TRANSs_of_AHFA (p_initial_state) = transitions_new (g, isy_count);
   Postdot_ISY_Count_of_AHFA (p_initial_state) = 1;
   postdot_isyidary = Postdot_ISYIDAry_of_AHFA (p_initial_state) =
-    my_obstack_alloc (&g->t_obs, sizeof (ISYID));
+    my_obstack_alloc (g->t_obs, sizeof (ISYID));
   postdot_isyid = Postdot_ISYID_of_AIM (start_item);
   *postdot_isyidary = postdot_isyid;
   Complete_ISY_Count_of_AHFA (p_initial_state) = 0;
@@ -4869,7 +4868,7 @@ _marpa_avl_destroy(duplicates);
 			       item_list_working_buffer);
 }
 
-@* Discovered AHFA States.
+@* Discovered AHFA states.
 @ {\bf Theorem}:
 An AHFA state that contains a start rule completion is always
 a 1-item discovered state.
@@ -4908,7 +4907,7 @@ a start rule completion, and it is a
     p_new_state = singleton_duplicates[single_item_id];
     if (p_new_state)
       {				/* Do not add, this is a duplicate */
-	transition_add (&obs_precompute, p_working_state, working_isyid, p_new_state);
+	transition_add (obs_precompute, p_working_state, working_isyid, p_new_state);
 	goto NEXT_WORKING_SYMBOL;
       }
     p_new_state = DQUEUE_PUSH (states, AHFA_Object);
@@ -4916,18 +4915,18 @@ a start rule completion, and it is a
     AHFA_initialize(p_new_state);
     singleton_duplicates[single_item_id] = p_new_state;
     new_state_item_list = p_new_state->t_items =
-	my_obstack_alloc (&g->t_obs, sizeof (AIM));
+	my_obstack_alloc (g->t_obs, sizeof (AIM));
     new_state_item_list[0] = single_item_p;
     p_new_state->t_item_count = 1;
     AHFA_is_Predicted(p_new_state) = 0;
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE (states, AHFA_Object);
     TRANSs_of_AHFA(p_new_state) = transitions_new(g, isy_count);
-    transition_add (&obs_precompute, p_working_state, working_isyid, p_new_state);
+    transition_add (obs_precompute, p_working_state, working_isyid, p_new_state);
     postdot_isyid = Postdot_ISYID_of_AIM(single_item_p);
     if (postdot_isyid >= 0)
       {
 	ISYID* p_postdot_isyidary = Postdot_ISYIDAry_of_AHFA(p_new_state) =
-	  my_obstack_alloc (&g->t_obs, sizeof (ISYID));
+	  my_obstack_alloc (g->t_obs, sizeof (ISYID));
 	Complete_ISY_Count_of_AHFA(p_new_state) = 0;
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 1;
 	*p_postdot_isyidary = postdot_isyid;
@@ -4943,10 +4942,10 @@ a start rule completion, and it is a
     else
       {
 	ISYID lhs_isyid = LHS_ISYID_of_AIM(single_item_p);
-	ISYID* complete_isyids = my_obstack_alloc (&g->t_obs, sizeof (ISYID));
+	ISYID* complete_isyids = my_obstack_alloc (g->t_obs, sizeof (ISYID));
 	*complete_isyids = lhs_isyid;
 	Complete_ISYIDs_of_AHFA(p_new_state) = complete_isyids;
-	completion_count_inc(&obs_precompute, p_new_state, lhs_isyid);
+	completion_count_inc(obs_precompute, p_new_state, lhs_isyid);
 	Complete_ISY_Count_of_AHFA(p_new_state) = 1;
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 0;
 	p_new_state->t_empty_transition = NULL;
@@ -5012,7 +5011,7 @@ be if written 100\% using indexes.
 	memoizations@> =
   const RULEID irl_count = IRL_Count_of_G(g);
   AIM* const item_list_working_buffer
-    = my_obstack_alloc(&obs_precompute, irl_count*sizeof(AIM));
+    = my_obstack_alloc(obs_precompute, irl_count*sizeof(AIM));
   const ISYID isy_count = ISY_Count_of_G(g);
   const XSYID xsy_count = XSY_Count_of_G(g);
   IRLID** irl_list_x_lh_isy = NULL;
@@ -5056,12 +5055,12 @@ of minimum sizes.
     struct sym_rule_pair *pair;
     ISYID seen_isyid = -1;
     IRLID *const rule_data_base =
-      my_obstack_new (&obs_precompute, IRLID, irl_count);
+      my_obstack_new (obs_precompute, IRLID, irl_count);
     IRLID *p_rule_data = rule_data_base;
     _marpa_avl_t_init (&traverser, lhs_avl_tree);
     /* One extra "symbol" as an end marker */
     irl_list_x_lh_isy =
-      my_obstack_new (&obs_precompute, IRLID *, isy_count + 1);
+      my_obstack_new (obs_precompute, IRLID *, isy_count + 1);
     for (pair =
 	 (struct sym_rule_pair *) _marpa_avl_t_first (&traverser,
 						      lhs_avl_tree); pair;
@@ -5110,7 +5109,7 @@ of minimum sizes.
     {				// The new state would be a duplicate
 // Back it out and go on to the next in the queue
       (void) DQUEUE_POP (states, AHFA_Object);
-      transition_add (&obs_precompute, p_working_state, working_isyid,
+      transition_add (obs_precompute, p_working_state, working_isyid,
 		      queued_AHFA_state);
       goto NEXT_WORKING_SYMBOL;
     }
@@ -5119,7 +5118,7 @@ of minimum sizes.
   {
       int i;
       AIM* const final_aim_list = p_new_state->t_items =
-	  my_obstack_alloc( &g->t_obs, no_of_items_in_new_state * sizeof (AIM));
+	  my_obstack_alloc( g->t_obs, no_of_items_in_new_state * sizeof (AIM));
       for (i = 0; i < no_of_items_in_new_state; i++) {
           final_aim_list[i] = item_list_working_buffer[i];
       }
@@ -5129,7 +5128,7 @@ of minimum sizes.
   TRANSs_of_AHFA (p_new_state) = transitions_new (g, isy_count);
   @<Calculate complete and postdot symbols for discovered
     state@>@;
-  transition_add (&obs_precompute, p_working_state, working_isyid,
+  transition_add (obs_precompute, p_working_state, working_isyid,
 		  p_new_state);
   @<Calculate the predicted rule vector for this
     state and add the predicted AHFA state@>@;
@@ -5149,7 +5148,7 @@ of minimum sizes.
       if (postdot_isyid < 0)
 	{
 	  ISYID complete_symbol_isyid = LHS_ISYID_of_AIM (item);
-	  completion_count_inc (&obs_precompute, p_new_state, complete_symbol_isyid);
+	  completion_count_inc (obs_precompute, p_new_state, complete_symbol_isyid);
 	  bv_bit_set (per_ahfa_complete_v, (unsigned int) complete_symbol_isyid);
 	}
       else
@@ -5162,7 +5161,7 @@ of minimum sizes.
     {
       unsigned int min, max, start;
       ISYID *p_isyid = Postdot_ISYIDAry_of_AHFA(p_new_state) =
-	my_obstack_alloc (&g->t_obs,
+	my_obstack_alloc (g->t_obs,
 			  no_of_postdot_isys * sizeof (ISYID));
       for (start = 0; bv_scan (per_ahfa_postdot_v, start, &min, &max); start = max + 2)
 	{
@@ -5178,7 +5177,7 @@ of minimum sizes.
        Complete_ISY_Count_of_AHFA (p_new_state) = bv_count (per_ahfa_complete_v)))
     {
       unsigned int min, max, start;
-      ISYID *complete_isyids = my_obstack_alloc (&g->t_obs,
+      ISYID *complete_isyids = my_obstack_alloc (g->t_obs,
 						 no_of_complete_symbols *
 						 sizeof (ISYID));
       ISYID *p_isyid = complete_isyids;
@@ -5247,7 +5246,7 @@ and add the predicted AHFA state@> =
     }
 }
 
-@*0 Predicted AHFA States.
+@*0 Predicted AHFA states.
 The method for building predicted AHFA states is optimized using
 precomputed bit vectors.
 This should be very fast,
@@ -5280,7 +5279,7 @@ states.
 
 @ @<Construct prediction matrix@> = {
     Bit_Matrix isy_by_isy_matrix =
-	matrix_obs_create (&obs_precompute, isy_count, isy_count);
+	matrix_obs_create (obs_precompute, isy_count, isy_count);
     @<Initialize the symbol-by-symbol matrix@>@/
     transitive_closure(isy_by_isy_matrix);
     @<Create the prediction matrix from the symbol-by-symbol matrix@>@/
@@ -5389,7 +5388,7 @@ which can be used to index the rules in a bit vector.
 {
   ISYID from_isyid;
   prediction_matrix =
-    matrix_obs_create (&obs_precompute, isy_count,
+    matrix_obs_create (obs_precompute, isy_count,
 		       irl_count);
   for (from_isyid = 0; from_isyid < isy_count; from_isyid++)
     {
@@ -5471,7 +5470,7 @@ create_predicted_AHFA_state(
   {
     int i;
     AIM *const final_aim_list = p_new_state->t_items =
-      my_obstack_alloc (&g->t_obs, no_of_items_in_new_state * sizeof (AIM));
+      my_obstack_alloc (g->t_obs, no_of_items_in_new_state * sizeof (AIM));
     for (i = 0; i < no_of_items_in_new_state; i++)
       {
 	final_aim_list[i] = item_list_working_buffer[i];
@@ -5503,7 +5502,7 @@ create_predicted_AHFA_state(
   {
     unsigned int min, max, start;
     ISYID *p_isyid = Postdot_ISYIDAry_of_AHFA(p_new_state) =
-      my_obstack_alloc (&g->t_obs,
+      my_obstack_alloc (g->t_obs,
 		     no_of_postdot_isys * sizeof (ISYID));
     for (start = 0; bv_scan (postdot_v, start, &min, &max); start = max + 2)
       {
@@ -5518,7 +5517,7 @@ create_predicted_AHFA_state(
   bv_free(postdot_v);
 }
 
-@** Transition (TRANS) Code.
+@** Transition (TRANS) code.
 This code deals with data which is accessed
 as a function of AHFA state and symbol.
 The most important data
@@ -5619,7 +5618,7 @@ URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix)
 PRIVATE TRANS* transitions_new(GRAMMAR g, int isy_count)
 {
     int isyid = 0;
-    TRANS* transitions = my_obstack_new(&g->t_obs, TRANS, isy_count);
+    TRANS* transitions = my_obstack_new(g->t_obs, TRANS, isy_count);
     while (isyid < isy_count) transitions[isyid++] = NULL; /*
         |malloc0| will not work because NULL is not guaranteed
 	to be a bitwise zero. */
@@ -5654,7 +5653,7 @@ void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, ISYID isyid)
     return;
 }
 
-@*0 Trace Functions.
+@*0 Trace functions.
 @ @<Function definitions@> =
 int _marpa_g_AHFA_state_transitions(Marpa_Grammar g,
     Marpa_AHFA_State_ID AHFA_state_id,
@@ -5691,9 +5690,9 @@ int _marpa_g_AHFA_state_transitions(Marpa_Grammar g,
     return ix/2;
 }
 
-@** Empty Transition Code.
+@** Empty transition code.
 @d Empty_Transition_of_AHFA(state) ((state)->t_empty_transition)
-@*0 Trace Functions.
+@*0 Trace functions.
 @ In the external accessor,
 -1 is a valid return value, indicating no empty transition.
 @<Function definitions@> =
@@ -5712,11 +5711,11 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
 }
 
 
-@** Populating the Terminal Boolean Vector.
+@** Populating the terminal boolean vector.
 @<Populate the Terminal Boolean Vector@> =
 {
   int xsyid;
-  g->t_bv_isyid_is_terminal = bv_obs_create (&g->t_obs, isy_count);
+  g->t_bv_isyid_is_terminal = bv_obs_create (g->t_obs, isy_count);
   for (xsyid = 0; xsyid < xsy_count; xsyid++)
     {
       if (SYMID_is_Terminal (xsyid))
@@ -5733,7 +5732,7 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
     }
 }
 
-@** Input (I, INPUT) Code.
+@** Input (I, INPUT) code.
 |INPUT| is a "hidden" class.
 It is manipulated
 entirely via the Recognizer class ---
@@ -5749,16 +5748,15 @@ struct s_input {
 };
 
 @ @<Function definitions@> =
-PRIVATE INPUT
-input_new (GRAMMAR g)
+PRIVATE INPUT input_new (GRAMMAR g)
 {
   INPUT input = my_slice_new (struct s_input);
-  my_obstack_init (TOK_Obs_of_I (input));
+  TOK_Obs_of_I (input) = my_obstack_init;
   @<Initialize input elements@>@;
   return input;
 }
 
-@*0 Reference Counting and Destructors.
+@*0 Reference counting and destructors.
 @ @<Int aligned input elements@>=
     int t_ref_count;
 @ @<Initialize input elements@> =
@@ -5812,9 +5810,9 @@ Once the bocage is built, the token data is all that
 it needs, and someday I may want to take advantage of
 this fact by freeing up the rest of recognizer memory.
 @d TOK_Obs_of_I(i)
-    (&(i)->t_token_obs)
+    ((i)->t_token_obs)
 @<Widely aligned input elements@> =
-struct obstack t_token_obs;
+struct obstack* t_token_obs;
 
 @*0 Base objects.
 @ @d G_of_I(i) ((i)->t_grammar)
@@ -5826,7 +5824,7 @@ struct obstack t_token_obs;
     grammar_ref(g);
 }
 
-@** Recognizer (R, RECCE) Code.
+@** Recognizer (R, RECCE) code.
 @<Public incomplete structures@> =
 struct marpa_r;
 typedef struct marpa_r* Marpa_Recognizer;
@@ -5858,7 +5856,7 @@ Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
    return r;
 }
 
-@*0 Reference Counting and Destructors.
+@*0 Reference counting and destructors.
 @ @<Int aligned recognizer elements@>= int t_ref_count;
 @ @<Initialize recognizer elements@> =
 r->t_ref_count = 1;
@@ -5907,7 +5905,7 @@ void recce_free(struct marpa_r *r)
     my_slice_free(struct marpa_r, r);
 }
 
-@*0 Base Objects.
+@*0 Base objects.
 Initialized in |marpa_r_new|.
 @d G_of_R(r) (G_of_I((r)->t_input))
 @d AHFA_Count_of_R(r) AHFA_Count_of_G(G_of_R(r))
@@ -5916,7 +5914,7 @@ const INPUT input = I_of_R(r);
 const GRAMMAR g = G_of_I(input);
 @ @<Destroy recognizer elements@> = input_unref(input);
 
-@*0 Input Phase.
+@*0 Input phase.
 The recognizer always has
 an phase: |R_BEFORE_INPUT|,
 |R_DURING_INPUT|
@@ -5930,7 +5928,7 @@ or |R_AFTER_INPUT|.
 @ @<Initialize recognizer elements@> =
     Input_Phase_of_R(r) = R_BEFORE_INPUT;
 
-@*0 Earley Set Container.
+@*0 Earley set container.
 @d First_ES_of_R(r) ((r)->t_first_earley_set)
 @<Widely aligned recognizer elements@> =
 ES t_first_earley_set;
@@ -5941,7 +5939,7 @@ r->t_first_earley_set = NULL;
 r->t_latest_earley_set = NULL;
 r->t_current_earleme = -1;
 
-@*0 Current Earleme.
+@*0 Current earleme.
 @d Latest_ES_of_R(r) ((r)->t_latest_earley_set)
 @d Current_Earleme_of_R(r) ((r)->t_current_earleme)
 @<Function definitions@> =
@@ -5957,7 +5955,7 @@ PRIVATE ES current_es_of_r(RECCE r)
     return NULL;
 }
 
-@*0 Earley Set Warning Threshold.
+@*0 Earley set warning threshold.
 @d DEFAULT_EIM_WARNING_THRESHOLD (100)
 @<Int aligned recognizer elements@> = int t_earley_item_warning_threshold;
 @ @<Initialize recognizer elements@> =
@@ -5980,7 +5978,7 @@ marpa_r_earley_item_warning_threshold_set (Marpa_Recognizer r, int threshold)
   return new_threshold;
 }
 
-@*0 Furthest Earleme.
+@*0 Furthest earleme.
 The ``furthest'' or highest-numbered earleme.
 This is the earleme of the last Earley set that contains anything.
 Marpa allows variable length tokens,
@@ -5993,7 +5991,7 @@ No complete or predicted Earley item will be found after the current earleme.
 unsigned int marpa_r_furthest_earleme(Marpa_Recognizer r)
 { return Furthest_Earleme_of_R(r); }
 
-@*0 Expected Symbol Boolean Vector.
+@*0 Expected symbol boolean vector.
 A boolean vector by symbol ID,
 with the bits set if the symbol is expected
 at the current earleme.
@@ -6004,7 +6002,7 @@ can tell if there is a bit vector to be freed.
 @<Widely aligned recognizer elements@> = Bit_Vector t_bv_isyid_is_expected;
 @ @<Initialize recognizer elements@> = r->t_bv_isyid_is_expected = NULL;
 @ @<Allocate recognizer containers used in setup@> = 
-    r->t_bv_isyid_is_expected = bv_obs_create( &r->t_obs, (unsigned int)isy_count );
+    r->t_bv_isyid_is_expected = bv_obs_create( r->t_obs, (unsigned int)isy_count );
 @ Returns |-2| if there was a failure.
 There is a check that the expectations of this
 function and its caller about size of the |GArray| elements match.
@@ -6041,8 +6039,8 @@ int marpa_r_terminals_expected(Marpa_Recognizer r, Marpa_Symbol_ID* buffer)
     return ix;
 }
 
-@*0 Leo-Related Booleans.
-@*1 Turning Leo Logic Off and On.
+@*0 Leo-related booleans.
+@*1 Turning Leo logic off and on.
 A trace flag, set if we are using Leo items.
 This flag is set by default.
 It has two uses.
@@ -6128,7 +6126,7 @@ Marpa_Recognizer r, int value)
     return r->t_use_leo_flag = value ? 1 : 0;
 }
 
-@*1 Is The Parser Exhausted?.
+@*1 Is the parser exhausted?.
 A parser is ``exhausted" if it cannot accept any more input.
 Both successful and failed parses can be ``exhausted".
 In many grammars,
@@ -6162,9 +6160,9 @@ int marpa_r_is_exhausted(Marpa_Recognizer r)
 Create an obstack with the lifetime of the recognizer.
 This is a very efficient way of allocating memory which won't be
 resized and which will have the same lifetime as the recognizer.
-@<Widely aligned recognizer elements@> = struct obstack t_obs;
-@ @<Initialize recognizer obstack@> = my_obstack_init(&r->t_obs);
-@ @<Destroy recognizer obstack@> = my_obstack_free(&r->t_obs);
+@<Widely aligned recognizer elements@> = struct obstack *t_obs;
+@ @<Initialize recognizer obstack@> = r->t_obs = my_obstack_init;
+@ @<Destroy recognizer obstack@> = my_obstack_free(r->t_obs);
 
 @*0 Recognizer error accessor.
 @ A convenience wrapper for the grammar error strings.
@@ -6214,7 +6212,7 @@ able to handle.
 @<Public typedefs@> = typedef int Marpa_Earleme;
 @ @<Private typedefs@> = typedef Marpa_Earleme EARLEME;
 
-@** Earley Set (ES) Code.
+@** Earley set (ES) code.
 @<Public typedefs@> = typedef int Marpa_Earley_Set_ID;
 @ @<Private typedefs@> = typedef Marpa_Earley_Set_ID ESID;
 @ @d Next_ES_of_ES(set) ((set)->t_next_earley_set)
@@ -6242,7 +6240,7 @@ struct s_earley_set {
     @<Widely aligned Earley set elements@>@/
 };
 
-@*0 Earley Item Container.
+@*0 Earley item container.
 @d EIM_Count_of_ES(set) ((set)->t_eim_count)
 @<Int aligned Earley set elements@> =
 int t_eim_count;
@@ -6274,7 +6272,7 @@ earley_set_new( RECCE r, EARLEME id)
 {
   ESK_Object key;
   ES set;
-  set = my_obstack_alloc (&r->t_obs, sizeof (*set));
+  set = my_obstack_alloc (r->t_obs, sizeof (*set));
   key.t_earleme = id;
   set->t_key = key;
   set->t_postdot_ary = NULL;
@@ -6287,10 +6285,10 @@ earley_set_new( RECCE r, EARLEME id)
   return set;
 }
 
-@*0 ID of Earley Set.
+@*0 ID of Earley set.
 @d Earleme_of_ES(set) ((set)->t_key.t_earleme)
 
-@*0 Trace Functions.
+@*0 Trace functions.
 Many of the
 trace functions use
 a ``trace Earley set" which is
@@ -6368,7 +6366,7 @@ int _marpa_r_earley_set_size(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
     return EIM_Count_of_ES (earley_set);
 }
 
-@** Earley Item (EIM) Code.
+@** Earley item (EIM) code.
 @ {\bf Optimization Principles:}
 \li Optimization should favor unambiguous grammars,
 but not heavily penalize ambiguous grammars.
@@ -6464,7 +6462,7 @@ PRIVATE EIM earley_item_create(const RECCE r,
   const ES set = key.t_set;
   const int count = ++EIM_Count_of_ES(set);
   @<Check count against Earley item thresholds@>@;
-  new_item = my_obstack_alloc (&r->t_obs, sizeof (*new_item));
+  new_item = my_obstack_alloc (r->t_obs, sizeof (*new_item));
   new_item->t_key = key;
   new_item->t_source_type = NO_SOURCE;
   Ord_of_EIM(new_item) = count - 1;
@@ -6520,7 +6518,7 @@ if (count >= r->t_earley_item_warning_threshold)
 No destructor.  All earley item elements are either owned by other objects.
 The Earley item itself is on the obstack.
 
-@*0 Source of the Earley Item.
+@*0 Source of the Earley item.
 @d NO_SOURCE (0U)
 @d SOURCE_IS_TOKEN (1U)
 @d SOURCE_IS_COMPLETION (2U)
@@ -6555,7 +6553,7 @@ PRIVATE_NOT_INLINE Marpa_Error_Code invalid_source_type_code(unsigned int type)
      return MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN;
 }
 
-@*0 Trace Functions.
+@*0 Trace functions.
 Many of the
 trace functions use
 a ``trace Earley item" which is
@@ -6704,7 +6702,7 @@ Marpa_Earley_Set_ID _marpa_r_earley_item_origin(Marpa_Recognizer r)
     return Origin_Ord_of_EIM(item);
 }
 
-@** Earley Index (EIX) Code.
+@** Earley index (EIX) code.
 Postdot items are of two kinds: Earley indexes
 and Leo items.
 The payload of an Earley index is simple:
@@ -6727,7 +6725,7 @@ struct s_earley_ix {
 };
 typedef struct s_earley_ix EIX_Object;
 
-@** Leo Item (LIM) Code.
+@** Leo item (LIM) code.
 Leo items originate from the ``transition items" of Joop Leo's 1991 paper.
 They are set up so their first fields are identical to those of
 the Earley item indexes,
@@ -6765,7 +6763,7 @@ struct s_leo_item {
 };
 typedef struct s_leo_item LIM_Object;
 
-@*0 Trace Functions.
+@*0 Trace functions.
 The functions in this section are all accessors.
 The trace Leo item is selected by setting the trace postdot item
 to a Leo item.
@@ -6877,7 +6875,7 @@ Marpa_AHFA_State_ID _marpa_r_leo_expansion_ahfa(Marpa_Recognizer r)
 }
 
 
-@** Postdot Item (PIM) code.
+@** Postdot item (PIM) code.
 Postdot items are entries in an index,
 by postdot symbol, of both the Earley items and the Leo items
 for each Earley set.
@@ -6932,7 +6930,7 @@ PRIVATE PIM first_pim_of_es_by_isyid(ES set, ISYID isyid)
    return pim_isy_p ? *pim_isy_p : NULL;
 }
 
-@*0 Trace Functions.
+@*0 Trace functions.
 Many of the
 trace functions use
 a ``trace postdot item".
@@ -7074,9 +7072,9 @@ Marpa_AHFA_State_ID _marpa_r_postdot_item_symbol(Marpa_Recognizer r)
 }
 
 
-@** Source Objects.
+@** Source objects.
 These are distinguished by context.
-@*0 The Relationship between Leo items and Ambiguity.
+@*0 The relationship between Leo items and ambiguity.
 The relationship between Leo items and ambiguous sources bears
 some explaining.
 Leo sources must be unique, but only when their predecessor's
@@ -7213,7 +7211,7 @@ token_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
+  new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = First_Token_Link_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   TOK_of_Source(new_link->t_source) = token;
@@ -7290,7 +7288,7 @@ completion_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
+  new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = First_Completion_Link_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -7317,7 +7315,7 @@ leo_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
+  new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = First_Leo_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -7362,7 +7360,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate token source@> = {
-  SRCL new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
+  SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
   First_Leo_SRCL_of_EIM (item) = NULL;
@@ -7371,7 +7369,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate completion source@> = {
-  SRCL new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
+  SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
   First_Leo_SRCL_of_EIM (item) = NULL;
@@ -7380,7 +7378,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate Leo source@> = {
-  SRCL new_link = my_obstack_alloc (&r->t_obs, sizeof (*new_link));
+  SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = NULL;
   new_link->t_source = item->t_container.t_unique;
   First_Leo_SRCL_of_EIM (item) = new_link;
@@ -7388,7 +7386,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
   First_Token_Link_of_EIM (item) = NULL;
 }
 
-@*0 Trace Functions.
+@*0 Trace functions.
 Many trace functions track a ``trace source link".
 There is only one of these, shared among all types of
 source link.
@@ -7405,7 +7403,7 @@ r->t_trace_source = NULL;
 r->t_trace_next_source_link = NULL;
 r->t_trace_source_type = NO_SOURCE;
 
-@*1 Trace First Token Link.
+@*1 Trace first token link.
 @ Set the trace source link to a token link,
 if there is one, otherwise clear the trace source link.
 Returns the symbol ID if there was a token source link,
@@ -7447,7 +7445,7 @@ Marpa_Symbol_ID _marpa_r_first_token_link_trace(Marpa_Recognizer r)
     return -1;
 }
 
-@*1 Trace Next Token Link.
+@*1 Trace next token link.
 @ Set the trace source link to the next token link,
 if there is one.
 Otherwise clear the trace source link.
@@ -7479,7 +7477,7 @@ Marpa_Symbol_ID _marpa_r_next_token_link_trace(Marpa_Recognizer r)
     return ISYID_of_SRCL (full_link);
 }
 
-@*1 Trace First Completion Link.
+@*1 Trace first completion link.
 @ Set the trace source link to a completion link,
 if there is one, otherwise clear the completion source link.
 Returns the AHFA state ID of the cause
@@ -7521,7 +7519,7 @@ Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
     return -1;
 }
 
-@*1 Trace Next Completion Link.
+@*1 Trace next completion link.
 @ Set the trace source link to the next completion link,
 if there is one.
 Otherwise clear the trace source link.
@@ -7555,7 +7553,7 @@ Marpa_Symbol_ID _marpa_r_next_completion_link_trace(Marpa_Recognizer r)
     return Cause_AHFA_State_ID_of_SRC (source);
 }
 
-@*1 Trace First Leo Link.
+@*1 Trace first Leo link.
 @ Set the trace source link to a Leo link,
 if there is one, otherwise clear the Leo source link.
 Returns the AHFA state ID of the cause
@@ -7600,7 +7598,7 @@ _marpa_r_first_leo_link_trace (Marpa_Recognizer r)
   return -1;
 }
 
-@*1 Trace Next Leo Link.
+@*1 Trace next Leo link.
 @ Set the trace source link to the next Leo link,
 if there is one.
 Otherwise clear the trace source link.
@@ -7646,7 +7644,7 @@ _marpa_r_next_leo_link_trace (Marpa_Recognizer r)
         return failure_indicator;
     }
 
-@*1 Clear Trace Source Link.
+@*1 Clear trace source link.
 @<Function definitions@> =
 PRIVATE void trace_source_link_clear(RECCE r)
 {
@@ -7655,7 +7653,7 @@ PRIVATE void trace_source_link_clear(RECCE r)
     r->t_trace_source_type = NO_SOURCE;
 }
 
-@*1 Return the Predecessor AHFA State.
+@*1 Return the predecessor AHFA state.
 Returns the predecessor AHFA State,
 or -1 if there is no predecessor.
 If the recognizer is trace-safe,
@@ -7686,7 +7684,7 @@ AHFAID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
     return failure_indicator;
 }
 
-@*1 Return the Token.
+@*1 Return the token.
 Returns the token.
 The symbol id is the return value,
 and the value is written to |*value_p|,
@@ -7723,7 +7721,7 @@ Marpa_Symbol_ID _marpa_r_source_token(Marpa_Recognizer r, int *value_p)
     return failure_indicator;
 }
 
-@*1 Return the Leo Transition Symbol.
+@*1 Return the Leo transition symbol.
 The Leo transition symbol is defined only for sources
 with a Leo predecessor.
 The transition from a predecessor to the Earley item
@@ -7755,7 +7753,7 @@ Marpa_Symbol_ID _marpa_r_source_leo_transition_symbol(Marpa_Recognizer r)
     return failure_indicator;
 }
 
-@*1 Return the Middle Earleme.
+@*1 Return the middle earleme.
 Every source has a ``middle earleme" defined.
 Every source has
 \li An origin (or start earleme).
@@ -7821,7 +7819,7 @@ Marpa_Earley_Set_ID _marpa_r_source_middle(Marpa_Recognizer r)
         return failure_indicator;
     }
 
-@** Token Code (TOK).
+@** Token code (TOK).
 @ Tokens are duples of symbol ID and token value.
 They do {\bf not} store location information,
 so the same token
@@ -7889,7 +7887,7 @@ struct s_token {
   I_of_R(r) = input_new(g);
 }
 
-@** Alternative Tokens (ALT) Code.
+@** Alternative tokens (ALT) code.
 Because Marpa allows more than one token at every
 earleme, Marpa's tokens are also called ``alternatives".
 @<Private incomplete structures@> =
@@ -8020,7 +8018,7 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
    return insertion_point;
 }
 
-@** Starting Recognizer Input.
+@** Starting recognizer input.
 @<Function definitions@> = int marpa_r_start_input(Marpa_Recognizer r)
 {
     ES set0;
@@ -8059,7 +8057,7 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     return 1;
 }
 
-@** Read a Token Alternative.
+@** Read a token alternative.
 The ordinary semantics of a parser generator is a token-stream
 semantics.
 The input is a sequence of $n$ tokens.
@@ -8227,7 +8225,7 @@ altered by the attempt.
   token = my_obstack_finish (token_obstack);
 }
 
-@** Complete an Earley Set.
+@** Complete an Earley set.
 In the Aycock-Horspool variation of Earley's algorithm,
 the two main phases are scanning and completion.
 This section is devoted to the logic for completion.
@@ -8490,7 +8488,7 @@ PRIVATE void earley_set_update_items(RECCE r, ES set)
     EIM* finished_earley_items;
     int working_earley_item_count;
     int i;
-    EIMs_of_ES(set) = my_obstack_new(&r->t_obs, EIM, EIM_Count_of_ES(set));
+    EIMs_of_ES(set) = my_obstack_new(r->t_obs, EIM, EIM_Count_of_ES(set));
     finished_earley_items = EIMs_of_ES(set);
     working_earley_items = Work_EIMs_of_R(r);
     working_earley_item_count = Work_EIM_Count_of_R(r);
@@ -8523,7 +8521,7 @@ PRIVATE void r_update_earley_sets(RECCE r)
     }
 }
 
-@** Create the Postdot Items.
+@** Create the postdot items.
 @ This function inserts regular (non-Leo) postdot items into
 the postdot list.
 Not inlined, because of its size, and because it is used
@@ -8553,9 +8551,9 @@ and running benchmarks.
   Bit_Vector t_bv_pim_symbols;
   void** t_pim_workarea;
 @ @<Allocate recognizer containers used in setup@> = 
-  r->t_bv_lim_symbols = bv_obs_create(&r->t_obs, isy_count);
-  r->t_bv_pim_symbols = bv_obs_create(&r->t_obs, isy_count);
-  r->t_pim_workarea = my_obstack_new(&r->t_obs, void*, isy_count);
+  r->t_bv_lim_symbols = bv_obs_create(r->t_obs, isy_count);
+  r->t_bv_pim_symbols = bv_obs_create(r->t_obs, isy_count);
+  r->t_pim_workarea = my_obstack_new(r->t_obs, void*, isy_count);
 @ @<Reinitialize containers used in PIM setup@> =
   bv_clear(r->t_bv_lim_symbols);
   bv_clear(r->t_bv_pim_symbols);
@@ -8563,11 +8561,10 @@ and running benchmarks.
 PRIVATE_NOT_INLINE void
 postdot_items_create (RECCE r, ES current_earley_set)
 {
-    struct obstack obs_local;
+    struct obstack *obs_local = my_obstack_init;
     const ISYID isy_count = ISY_Count_of_G(G_of_R(r));
   @<Unpack recognizer objects@>@;
     EARLEME current_earley_set_id = Earleme_of_ES(current_earley_set);
-    my_obstack_init(&obs_local);
     @<Reinitialize containers used in PIM setup@>@;
     @<Start EIXes in PIM workarea@>@;
     if (r->t_is_using_leo) {
@@ -8576,7 +8573,7 @@ postdot_items_create (RECCE r, ES current_earley_set)
     }
     @<Copy PIM workarea to postdot item array@>@;
     bv_and(r->t_bv_isyid_is_expected, r->t_bv_pim_symbols, g->t_bv_isyid_is_terminal);
-    my_obstack_free(&obs_local);
+    my_obstack_free(obs_local);
 }
 
 @ This code creates the Earley indexes in the PIM workarea.
@@ -8599,7 +8596,7 @@ At this point there are no Leo items.
 	  PIM old_pim = NULL;
 	  PIM new_pim;
 	  ISYID isyid;
-	  new_pim = my_obstack_alloc (&r->t_obs, sizeof (EIX_Object));
+	  new_pim = my_obstack_alloc (r->t_obs, sizeof (EIX_Object));
 	  isyid = postdot_isyidary[isy_ix];
 	  Postdot_ISYID_of_PIM(new_pim) = isyid;
 	  EIM_of_PIM(new_pim) = earley_item;
@@ -8675,7 +8672,7 @@ That may become its actual value,
 once it is populated.
 @<Create a new, unpopulated, LIM@> = {
     LIM new_lim;
-    new_lim = my_obstack_alloc(&r->t_obs, sizeof(*new_lim));
+    new_lim = my_obstack_alloc(r->t_obs, sizeof(*new_lim));
     Postdot_ISYID_of_LIM(new_lim) = isyid;
     EIM_of_PIM(new_lim) = NULL;
     Predecessor_LIM_of_LIM(new_lim) = NULL;
@@ -8759,7 +8756,7 @@ ID must
 \li Must not have already been added to a LIM chain for this
 Earley set.\par
 @<Add predecessors to LIMs@> = {
-  const Bit_Vector bv_ok_for_chain = bv_obs_create(&obs_local, isy_count);
+  const Bit_Vector bv_ok_for_chain = bv_obs_create(obs_local, isy_count);
   unsigned int min, max, start;
 
   bv_copy(bv_ok_for_chain, r->t_bv_lim_symbols);
@@ -8836,7 +8833,7 @@ In a populated LIM, this will not necessarily be the case.
 @ @<Widely aligned recognizer elements@> =
   void** t_lim_chain;
 @ @<Allocate recognizer containers used in setup@> = 
-  r->t_lim_chain = my_obstack_new(&r->t_obs, void*, 2*isy_count);
+  r->t_lim_chain = my_obstack_new(r->t_obs, void*, 2*isy_count);
 @ @<Create and populate a LIM chain@> = {
   int lim_chain_ix;
   @<Create a LIM chain@>@;
@@ -8948,7 +8945,7 @@ of the base EIM.
 @ @<Copy PIM workarea to postdot item array@> = {
     PIM *postdot_array
 	= current_earley_set->t_postdot_ary
-	= my_obstack_alloc (&r->t_obs,
+	= my_obstack_alloc (r->t_obs,
 	       current_earley_set->t_postdot_sym_count * sizeof (PIM));
     unsigned int min, max, start;
     int postdot_array_ix = 0;
@@ -8961,7 +8958,7 @@ of the base EIM.
     }
 }
 
-@** Expand the Leo Items.
+@** Expand the Leo items.
 \libmarpa/ expands Leo items on a ``lazy" basis,
 when it creates the parse bocage.
 Some of the "virtual" Earley items in the Leo paths will also
@@ -8986,32 +8983,7 @@ instead a source link is added to the present Earley item.
 
 @** Some notes on evaluation.
 
-@*0 Alternate Start Rules.
-Note that a start symbol only works if it is
-on the LHS of just one rule.
-This is not an issue with the main start symbol, because
-Marpa uses an augmented grammar.
-It {\bf is} an issue for alternate start symbols, when
-I implement those, because an arbitrary symbol might be
-on the LHS of several rules.
-
-@ Possibilities:
-\li Require alternate start be specified as a rule, not a symbol.
-\li Allow alternate start symbols, but only if they are on the LHS of a
-single rule.
-I don't like this it it limits the ability of grammar writers
-to do on-the-fly experiments.
-\li Both of the above.  That certainly covers the bases,
-but it is just one more interface
-complication.
-
-@ Note that even when a start rule is supplied, that does
-not necessarily point to an unique Earley item.
-A completed rule can belong to several different AHFA states.
-That is OK, because even so origin, current earleme
-and the links will all be identical for all such Earley items.
-
-@*0 Statistics on Completed LHS Symbols per AHFA State.
+@*0 Statistics on completed LHS symbols per AHFA state.
 An AHFA state may contain completions for more than one LHS,
 but that is rare in practical use, and the number of completed
 LHS symbols in the exceptions remains low.
@@ -9032,7 +9004,7 @@ In my HTML test suite,
 of the 14,782 of the AHFA states, every
 single one has only one completed LHS symbol.
 
-@*0 CHAF Duplicate And-Nodes.
+@*0 CHAF duplicate and-nodes.
 There are three ways in which the same and-node can occur multiple
 times as the descendant of a single or-node.
 @ First, an or-node can have several different Earley items as
@@ -9064,7 +9036,7 @@ location, the same AHFA item in the other must be, also.
 This happen frequently enough to be an issue even for practical
 grammars.
 
-@*0 Sources of Leo Path Items.
+@*0 Sources of Leo path items.
 A Leo path consists of a series of Earley items:
 \li at the bottom, exactly one Leo base item;
 \li at the top, exactly one Leo completion item;
@@ -9089,7 +9061,7 @@ will be on the LHS of at least one completion in all of those causes.
 \li The Leo transition symbol will be the postdot symbol in exactly
 one AHFA item in the AHFA state of the Earley item predecessor.
 
-@** Ur-Node (UR) Code.
+@** Ur-node (UR) code.
 Ur is a German word for ``primordial", which is used
 a lot in academic writing to designate precursors---%
 for example, scholars who believe that Shakespeare's
@@ -9115,7 +9087,7 @@ will need to be changed.
 
 @<Private structures@> =
 struct s_ur_node_stack {
-   struct obstack t_obs;
+   struct obstack* t_obs;
    UR t_base;
    UR t_top;
 };
@@ -9140,7 +9112,7 @@ are settled.
 @ @<Function definitions@> =
 PRIVATE void ur_node_stack_init(URS stack)
 {
-    my_obstack_init(&stack->t_obs);
+    stack->t_obs = my_obstack_init;
     stack->t_base = ur_node_new(stack, 0);
     ur_node_stack_reset(stack);
 }
@@ -9154,7 +9126,7 @@ PRIVATE void ur_node_stack_reset(URS stack)
 @ @<Function definitions@> =
 PRIVATE void ur_node_stack_destroy(URS stack)
 {
-    if (stack->t_base) my_obstack_free(&stack->t_obs);
+    if (stack->t_base) my_obstack_free(stack->t_obs);
     stack->t_base = NULL;
 }
 
@@ -9162,7 +9134,7 @@ PRIVATE void ur_node_stack_destroy(URS stack)
 PRIVATE UR ur_node_new(URS stack, UR prev)
 {
     UR new_ur_node;
-    new_ur_node = my_obstack_alloc(&stack->t_obs, sizeof(new_ur_node[0]));
+    new_ur_node = my_obstack_alloc(stack->t_obs, sizeof(new_ur_node[0]));
     Next_UR_of_UR(new_ur_node) = 0;
     Prev_UR_of_UR(new_ur_node) = prev;
     return new_ur_node;
@@ -9236,7 +9208,7 @@ never on the stack.
 
 @ @<Push ur-node if new@> = {
     if (!psia_test_and_set
-	(&bocage_setup_obs, per_es_data, ur_earley_item, ur_aex))
+	(bocage_setup_obs, per_es_data, ur_earley_item, ur_aex))
       {
 	ur_node_push (ur_node_stack, ur_earley_item, ur_aex);
 	or_node_estimate += 1 + Null_Count_of_AIM(ur_aim);
@@ -9327,7 +9299,7 @@ no other descendants.
 		(aim));
 
 	    or_node_estimate += null_count;
-	    psia_test_and_set(&bocage_setup_obs, per_es_data, 
+	    psia_test_and_set(bocage_setup_obs, per_es_data, 
 		(eim), aex);
 	}
     }
@@ -9452,7 +9424,7 @@ no other descendants.
       }
 }
 
-@** Or-Node (OR) Code.
+@** Or-node (OR) code.
 The or-nodes are part of the parse bocage
 and are similar to the or-nodes of a standard parse forest.
 Unlike a parse forest,
@@ -9463,7 +9435,7 @@ typedef int Marpa_Or_Node_ID;
 @ @<Private typedefs@> =
 typedef Marpa_Or_Node_ID ORID;
 
-@*0 Relationship of Earley Items to Or-Nodes.
+@*0 Relationship of Earley items to or-nodes.
 Several Earley items may be the source of the same or-node,
 but the or-node only keeps track of one.  This is sufficient,
 because the Earley item is tracked by the or-node only for its
@@ -9622,7 +9594,7 @@ Top_ORID_of_B(b) = -1;
   ANDs_of_B (b) = NULL;
 }
 
-@*0 Create the Or-Nodes.
+@*0 Create the or-nodes.
 @<Create the or-nodes for all earley sets@> =
 {
   PSAR_Object or_per_es_arena;
@@ -9694,7 +9666,7 @@ Top_ORID_of_B(b) = -1;
     @<Add Leo or-nodes for |work_earley_item| and |work_aex|@>@;
 }
 
-@*0 Non-Leo Or-Nodes.
+@*0 Non-Leo or-nodes.
 @ Add the main or-node---%
 the one that corresponds directly to this AHFA item.
 The exception are predicted AHFA items.
@@ -9732,7 +9704,7 @@ or arranging to test it.
 {
   const int or_node_id = OR_Count_of_B (b)++;
   OR *or_nodes_of_b = ORs_of_B (b);
-  last_or_node = (OR)my_obstack_alloc (&OBS_of_B(b), sizeof(OR_Object));
+  last_or_node = (OR)my_obstack_alloc (OBS_of_B(b), sizeof(OR_Object));
   ID_of_OR(last_or_node) = or_node_id;
   if (UNLIKELY(or_node_id >= or_node_estimate))
     {
@@ -9780,7 +9752,7 @@ and this is the case if |Position_of_OR(or_node) == 0|.
 		Position_of_OR (or_node) = rhs_ix + 1;
 MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 		draft_and_node = DANDs_of_OR (or_node) =
-		  draft_and_node_new (&bocage_setup_obs, predecessor,
+		  draft_and_node_new (bocage_setup_obs, predecessor,
 		      cause);
 		Next_DAND_of_DAND (draft_and_node) = NULL;
 	      }
@@ -9789,7 +9761,7 @@ MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
     }
 }
 
-@*0 Leo Or-Nodes.
+@*0 Leo or-nodes.
 @<Add Leo or-nodes for |work_earley_item| and |work_aex|@> = {
   SRCL source_link = NULL;
   EIM cause_earley_item = NULL;
@@ -9923,7 +9895,7 @@ or-nodes follow a completion.
 	  Position_of_OR (or_node) = rhs_ix + 1;
 MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 	  DANDs_of_OR (or_node) = draft_and_node =
-	      draft_and_node_new (&bocage_setup_obs, predecessor, cause);
+	      draft_and_node_new (bocage_setup_obs, predecessor, cause);
 	  Next_DAND_of_DAND (draft_and_node) = NULL;
 	}
       MARPA_ASSERT (Position_of_OR (or_node) <=
@@ -9932,7 +9904,7 @@ MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
     }
 }
 
-@** Whole Element ID (WHEID) Code.
+@** Whole element ID (WHEID) code.
 The "whole elements" of the grammar are the symbols
 and the completed rules.
 {\bf To Do}: @^To Do@>
@@ -9952,7 +9924,7 @@ int.
 @<Private typedefs@> =
 typedef int WHEID;
 
-@** Draft And-Node (DAND) Code.
+@** Draft and-node (DAND) code.
 The draft and-nodes are used while the bocage is
 being built.
 Both draft and final and-nodes contain the predecessor
@@ -10149,7 +10121,7 @@ predecessor.  Set |or_node| to 0 if there is none.
       const AEX cause_aex = aexes[ix];
       OR dand_cause;
       Set_OR_from_EIM_and_AEX(dand_cause, cause_earley_item, cause_aex);
-      draft_and_node_add (&bocage_setup_obs, path_or_node,
+      draft_and_node_add (bocage_setup_obs, path_or_node,
 			  dand_predecessor, dand_cause);
     }
 }
@@ -10182,7 +10154,7 @@ predecessor.  Set |or_node| to 0 if there is none.
   const SYMI symbol_instance = SYMI_of_Completed_IRL(previous_path_irl);
   const int origin_ordinal = Ord_of_ES(ES_of_LIM(path_leo_item));
   Set_OR_from_Ord_and_SYMI(dand_cause, origin_ordinal, symbol_instance);
-  draft_and_node_add (&bocage_setup_obs, path_or_node,
+  draft_and_node_add (bocage_setup_obs, path_or_node,
 	  dand_predecessor, dand_cause);
 }
 
@@ -10220,7 +10192,7 @@ predecessor.  Set |or_node| to 0 if there is none.
 {
   OR dand_predecessor;
   @<Set |dand_predecessor|@>@;
-  draft_and_node_add (&bocage_setup_obs, work_proper_or_node,
+  draft_and_node_add (bocage_setup_obs, work_proper_or_node,
 	  dand_predecessor, (OR)token);
 }
 
@@ -10285,7 +10257,7 @@ predecessor.  Set |or_node| to 0 if there is none.
       SYMI_of_Completed_IRL(IRL_of_AIM(cause_ahfa_item));
   @<Set |dand_predecessor|@>@;
   Set_OR_from_Ord_and_SYMI(dand_cause, middle_ordinal, cause_symbol_instance);
-  draft_and_node_add (&bocage_setup_obs, work_proper_or_node,
+  draft_and_node_add (bocage_setup_obs, work_proper_or_node,
 	  dand_predecessor, dand_cause);
 }
 
@@ -10360,7 +10332,7 @@ Otherwise, it's the first such draft and-node.
     }
 }
 
-@** And-Node (AND) Code.
+@** And-node (AND) code.
 The or-nodes are part of the parse bocage.
 They are analogous to the and-nodes of a standard parse forest,
 except that they are binary -- restricted to two children.
@@ -10433,7 +10405,7 @@ typedef struct s_and_node AND_Object;
     MARPA_ASSERT(and_node_id == unique_draft_and_node_count);
 }
 
-@*0 Trace Functions.
+@*0 Trace functions.
 
 @ @<Function definitions@> =
 int _marpa_b_and_node_count(Marpa_Bocage b)
@@ -10553,7 +10525,9 @@ PRIVATE TOK and_node_token(AND and_node)
     return NULL;
 }
 
-@** Parse Bocage Code (B, BOCAGE).
+@** Progress report code.
+
+@** Parse bocage code (B, BOCAGE).
 @ Pre-initialization is making the elements safe for the deallocation logic
 to be called.  Often it is setting the value to zero, so that the deallocation
 logic knows when {\bf not} to try deallocating a not-yet uninitialized value.
@@ -10578,21 +10552,15 @@ struct marpa_bocage {
     const INPUT input = I_of_B(b);
     const GRAMMAR g UNUSED = G_of_I(input);
 
-@*0 The Bocage Obstack.
+@*0 The bocage obstack.
 An obstack with the lifetime of the bocage.
 @d OBS_of_B(b) ((b)->t_obs)
 @<Widely aligned bocage elements@> =
-struct obstack t_obs;
-@ @<Bit aligned bocage elements@> =
-unsigned int t_is_obstack_initialized:1;
+struct obstack *t_obs;
 @ @<Initialize bocage elements@> =
-b->t_is_obstack_initialized = 1;
-my_obstack_init(&OBS_of_B(b));
+OBS_of_B(b) = my_obstack_init;
 @ @<Destroy bocage elements, final phase@> =
-if (b->t_is_obstack_initialized) {
-    my_obstack_free(&OBS_of_B(b));
-    b->t_is_obstack_initialized = 0;
-}
+my_obstack_free(OBS_of_B(b));
 
 @*0 Bocage construction.
 @<Function definitions@> =
@@ -10625,13 +10593,13 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
       }
     @<Find |start_eim|, |start_aim| and |start_aex|@>@;
     if (!start_eim) goto NO_PARSE;
-    my_obstack_init(&bocage_setup_obs);
+    bocage_setup_obs = my_obstack_init;
     @<Allocate bocage setup working data@>@;
     @<Populate the PSIA data@>@;
     @<Create the or-nodes for all earley sets@>@;
     @<Create the final and-nodes for all earley sets@>@;
     @<Set top or node id in |b|@>;
-    my_obstack_free(&bocage_setup_obs);
+    my_obstack_free(bocage_setup_obs);
     return b;
     NO_PARSE: ;
 	  MARPA_ERROR(MARPA_ERR_NO_PARSE);
@@ -10652,7 +10620,7 @@ EARLEME end_of_parse_earleme;
 EIM start_eim = NULL;
 AIM start_aim = NULL;
 AEX start_aex = -1;
-struct obstack bocage_setup_obs;
+struct obstack* bocage_setup_obs = NULL;
 int total_earley_items_in_parse;
 int or_node_estimate = 0;
 const int earley_set_count_of_r = ES_Count_of_R (r);
@@ -10696,7 +10664,7 @@ struct s_bocage_setup_per_es* per_es_data = NULL;
   unsigned int earley_set_count = ES_Count_of_R (r);
   total_earley_items_in_parse = 0;
   per_es_data =
-    my_obstack_alloc (&bocage_setup_obs,
+    my_obstack_alloc (bocage_setup_obs,
 		   sizeof (struct s_bocage_setup_per_es) * earley_set_count);
   for (ix = 0; ix < earley_set_count; ix++)
     {
@@ -10706,7 +10674,7 @@ struct s_bocage_setup_per_es* per_es_data = NULL;
 	{
 	  struct s_bocage_setup_per_es *per_es = per_es_data + ix;
 	  OR ** const per_eim_eixes = per_es->t_aexes_by_item =
-	    my_obstack_alloc (&bocage_setup_obs, sizeof (OR *) * item_count);
+	    my_obstack_alloc (bocage_setup_obs, sizeof (OR *) * item_count);
 	  unsigned int item_ordinal;
 	  per_es->t_or_psl = NULL;
 	  per_es->t_and_psl = NULL;
@@ -10812,7 +10780,7 @@ Marpa_Or_Node_ID _marpa_b_top_or_node(Marpa_Bocage b)
   return Top_ORID_of_B(b);
 }
 
-@*0 Reference Counting and Destructors.
+@*0 Reference counting and destructors.
 @ @<Int aligned bocage elements@>= int t_ref_count;
 @ @<Initialize bocage elements@> =
 b->t_ref_count = 1;
@@ -10850,7 +10818,7 @@ marpa_b_ref (Marpa_Bocage b)
    return bocage_ref(b);
 }
 
-@*0 Bocage Destruction.
+@*0 Bocage destruction.
 @<Destroy bocage elements, all phases@> =
 @<Destroy bocage elements, main phase@>;
 @<Destroy bocage elements, final phase@>;
@@ -10871,7 +10839,7 @@ bocage_free (BOCAGE b)
     }
 }
 
-@*0 Bocage is Nulling?.
+@*0 Bocage is nulling?.
 Is this bocage for a nulling parse?
 @d B_is_Nulling(b) ((b)->t_is_nulling)
 @ @<Bit aligned bocage elements@> =
@@ -10879,7 +10847,7 @@ unsigned int t_is_nulling:1;
 @ @<Initialize bocage elements@> =
 B_is_Nulling(b) = 0;
 
-@*0 Trace Functions.
+@*0 Trace functions.
 
 @ This is common logic in the or-node trace functions.
 In the case of a nulling bocage, the or count of
@@ -10995,7 +10963,7 @@ int _marpa_b_or_node_and_count(Marpa_Bocage b,
   return AND_Count_of_OR(or_node);
 }
 
-@** Bocage Ordering (O, ORDER) Code.
+@** Ordering (O, ORDER) code.
 @<Public incomplete structures@> =
 struct marpa_order;
 typedef struct marpa_order* Marpa_Order;
@@ -11013,7 +10981,7 @@ and only if
 @d O_is_Frozen(o) ((o)->t_is_frozen)
 @<Private structures@> =
 struct marpa_order {
-    struct obstack t_obs;
+    struct obstack* t_obs;
     Bit_Vector t_and_node_in_use;
     ANDID** t_and_node_orderings;
     @<Widely aligned order elements@>@;
@@ -11026,6 +10994,7 @@ struct marpa_order {
     o->t_and_node_in_use = NULL;
     o->t_and_node_orderings = NULL;
     o->t_is_frozen = 0;
+    OBS_of_O(o) = NULL;
 }
 
 @*0 The base objects of the bocage.
@@ -11048,7 +11017,7 @@ Marpa_Order marpa_o_new(Marpa_Bocage b)
     return o;
 }
 
-@*0 Reference Counting and Destructors.
+@*0 Reference counting and destructors.
 @ @<Int aligned order elements@>= int t_ref_count;
 @ @<Pre-initialize order elements@> =
     o->t_ref_count = 1;
@@ -11109,7 +11078,7 @@ PRIVATE void order_free(ORDER o)
   order_strip(o);
   if (o->t_and_node_orderings) {
       o->t_and_node_orderings = NULL;
-      my_obstack_free(&OBS_of_O(o));
+      my_obstack_free(OBS_of_O(o));
   }
   my_slice_free(*o, o);
 }
@@ -11137,13 +11106,13 @@ Marpa_Grammar marpa_o_g(Marpa_Order o)
   return g;
 }
 
-@*0 Order is Nulling?.
+@*0 Order is nulling?.
 Is this order for a nulling parse?
 @d O_is_Nulling(o) ((o)->t_is_nulling)
 @ @<Bit aligned order elements@> =
 unsigned int t_is_nulling:1;
 
-@*0 Set the Order of And-nodes.
+@*0 Set the order of and-nodes.
 This function
 sets the order in which the and-nodes of an
 or-node are used.
@@ -11212,17 +11181,16 @@ int _marpa_o_and_order_set(
     {
       ANDID** and_node_orderings;
       Bit_Vector and_node_in_use;
-      struct obstack *obs;
+      struct obstack *obs = OBS_of_O(o);
       ANDID first_and_node_id;
       ANDID and_count_of_or;
 	and_node_orderings = o->t_and_node_orderings;
 	and_node_in_use = o->t_and_node_in_use;
-	obs = &OBS_of_O(o);
 	if (!and_node_orderings)
 	  {
 	    int and_id;
 	    const int and_count_of_r = AND_Count_of_B (b);
-	    my_obstack_init(obs);
+	    obs = OBS_of_O(o) = my_obstack_init;
 	    o->t_and_node_orderings =
 	      and_node_orderings =
 	      my_obstack_alloc (obs, sizeof (ANDID *) * and_count_of_r);
@@ -11271,7 +11239,7 @@ int _marpa_o_and_order_set(
   return 1;
 }
 
-@*0 Get an And-node by Order within its Or-Node.
+@*0 Get an and-node by order within its or-node.
 @<Function definitions@> =
 PRIVATE ANDID and_order_get(ORDER o, OR or_node, int ix)
 {
@@ -11313,7 +11281,7 @@ Marpa_And_Node_ID _marpa_o_and_order_get(Marpa_Order o,
     return and_order_get(o, or_node, ix);
 }
 
-@** Parse Tree (T, TREE) Code.
+@** Parse tree (T, TREE) code.
 Within Marpa,
 when it makes sense in context,
 "tree" means a parse tree.
@@ -11411,7 +11379,7 @@ Marpa_Tree marpa_t_new(Marpa_Order o)
     }
 }
 
-@*0 Reference Counting and Destructors.
+@*0 Reference counting and destructors.
 @ @<Int aligned tree elements@>=
     int t_ref_count;
 @ @<Initialize tree elements@> =
@@ -11581,7 +11549,7 @@ int marpa_t_next(Marpa_Tree t)
 
 }
 
-@*0 Tree is Exhausted?.
+@*0 Tree is exhausted?.
 Is this tree for a nulling parse?
 @d T_is_Exhausted(t) ((t)->t_is_exhausted)
 @ @<Bit aligned tree elements@> =
@@ -11589,13 +11557,13 @@ unsigned int t_is_exhausted:1;
 @ @<Pre-initialize tree elements@> =
   T_is_Exhausted(t) = 0;
 
-@*0 Tree is Nulling?.
+@*0 Tree is nulling?.
 Is this tree for a nulling parse?
 @d T_is_Nulling(t) ((t)->t_is_nulling)
 @ @<Bit aligned tree elements@> =
 unsigned int t_is_nulling:1;
 
-@*0 Claiming and Releasing And-nodes.
+@*0 Claiming and releasing and-nodes.
 To avoid cycles, the same and node is not allowed to occur twice
 in the parse tree.
 A bit vector, accessed by these functions, enforces this.
@@ -11797,7 +11765,7 @@ int _marpa_t_size(Marpa_Tree t)
   return Size_of_T(t);
 }
 
-@** Nook (NOOK) Code.
+@** Nook (NOOK) code.
 @<Public typedefs@> =
 typedef int Marpa_Nook_ID;
 @ @<Private typedefs@> =
@@ -11826,7 +11794,7 @@ struct s_nook {
 };
 typedef struct s_nook NOOK_Object;
 
-@*0 Trace Functions.
+@*0 Trace functions.
 
 @ This is common logic in the |NOOK| trace functions.
 @<Check |r| and |nook_id|;
@@ -11918,7 +11886,7 @@ int _marpa_t_nook_is_predecessor(Marpa_Tree t, int nook_id)
     return NOOK_is_Predecessor(nook);
 }
 
-@** Evaluation (V, VALUE) Code.
+@** Evaluation (V, VALUE) code.
 @ This code helps
 compute a value for
 a parse tree.
@@ -12005,7 +11973,7 @@ Token_Type_of_V(v) = DUMMY_OR_NODE;
 TOS_of_V(v) = -1;
 Arg_N_of_V(v) = -1;
 
-@*0 Virtual Stack.
+@*0 Virtual stack.
 @ A dynamic stack is used here instead of a fixed
 stack for two reasons.
 First, there are only a few stack moves per call
@@ -12080,7 +12048,7 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
     return NULL;
 }
 
-@*0 Reference Counting and Destructors.
+@*0 Reference counting and destructors.
 @ @<Int aligned value elements@>=
     int t_ref_count;
 @ @<Pre-initialize value elements@> =
@@ -12144,7 +12112,7 @@ Marpa_Grammar marpa_v_g(Marpa_Value public_v)
   return g;
 }
 
-@*0 Valuator is Nulling?.
+@*0 Valuator is nulling?.
 Is this valuator for a nulling parse?
 @d V_is_Nulling(v) ((v)->t_is_nulling)
 @ @<Bit aligned value elements@> =
@@ -12462,7 +12430,7 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
     }
 }
 
-@** Boolean Vectors.
+@** Boolean vectors.
 Marpa's boolean vectors are adapted from
 Steffen Beyer's Bit-Vector package on CPAN.
 This is a combined Perl package and C library for handling
@@ -12500,7 +12468,7 @@ PRIVATE unsigned int bv_bits_to_unused_mask(unsigned int bits)
     return(mask);
 }
 
-@*0 Create a Boolean Vector.
+@*0 Create a Boolean vector.
 @ Always start with an all-zero vector.
 Note this code is a bit tricky ---
 the pointer returned is to the data.
@@ -12518,7 +12486,7 @@ PRIVATE Bit_Vector bv_create(unsigned int bits)
     return addr;
 }
 
-@*0 Create a Boolean Vector on an Obstack.
+@*0 Create a Boolean vector on an obstack.
 @ Always start with an all-zero vector.
 Note this code is a bit tricky ---
 the pointer returned is to the data.
@@ -12542,7 +12510,7 @@ bv_obs_create (struct obstack *obs, unsigned int bits)
 }
 
 
-@*0 Shadow a Boolean Vector.
+@*0 Shadow a Boolean vector.
 Create another vector the same size as the original, but with
 all bits unset.
 @<Function definitions@> =
@@ -12555,7 +12523,7 @@ PRIVATE Bit_Vector bv_obs_shadow(struct obstack * obs, Bit_Vector bv)
     return bv_obs_create(obs, BV_BITS(bv));
 }
 
-@*0 Clone a Boolean Vector.
+@*0 Clone a Boolean vector.
 Given a boolean vector, creates a new vector which is
 an exact duplicate.
 This call allocates a new vector, which must be |free|'d.
@@ -12573,7 +12541,7 @@ Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from)
     return(bv_to);
 }
 
-@*0 Clone a Boolean Vector.
+@*0 Clone a Boolean vector.
 Given a boolean vector, creates a new vector which is
 an exact duplicate.
 This call allocates a new vector, which must be |free|'d.
@@ -12590,7 +12558,7 @@ Bit_Vector bv_obs_clone(struct obstack *obs, Bit_Vector bv)
     return bv_copy(bv_obs_shadow(obs, bv), bv);
 }
 
-@*0 Free a Boolean Vector.
+@*0 Free a Boolean vector.
 @<Function definitions@> =
 PRIVATE void bv_free(Bit_Vector vector)
 {
@@ -12601,14 +12569,14 @@ PRIVATE void bv_free(Bit_Vector vector)
     }
 }
 
-@*0 The Number of Bytes in a Boolean Vector.
+@*0 The number of bytes in a Boolean vector.
 @<Function definitions@> =
 PRIVATE int bv_bytes(Bit_Vector bv)
 {
     return (BV_SIZE(bv)+bv_hiddenwords)*sizeof(Bit_Vector_Word);
 }
 
-@*0 Fill a Boolean Vector.
+@*0 Fill a Boolean vector.
 @<Function definitions@> =
 PRIVATE void bv_fill(Bit_Vector bv)
 {
@@ -12619,7 +12587,7 @@ PRIVATE void bv_fill(Bit_Vector bv)
     *bv &= BV_MASK(bv);
 }
 
-@*0 Clear a Boolean Vector.
+@*0 Clear a Boolean vector.
 @<Function definitions@> =
 PRIVATE void bv_clear(Bit_Vector bv)
 {
@@ -12641,28 +12609,28 @@ PRIVATE void bv_over_clear(Bit_Vector bv, unsigned int bit)
     while (length--) *bv++ = 0u;
 }
 
-@*0 Set a Boolean Vector Bit.
+@*0 Set a Boolean vector bit.
 @ @<Function definitions@> =
 PRIVATE void bv_bit_set(Bit_Vector vector, unsigned int bit)
 {
     *(vector+(bit/bv_wordbits)) |= (bv_lsb << (bit%bv_wordbits));
 }
 
-@*0 Clear a Boolean Vector Bit.
+@*0 Clear a Boolean vector bit.
 @<Function definitions@> =
 PRIVATE void bv_bit_clear(Bit_Vector vector, unsigned int bit)
 {
     *(vector+(bit/bv_wordbits)) &= ~ (bv_lsb << (bit%bv_wordbits));
 }
 
-@*0 Test a Boolean Vector Bit.
+@*0 Test a Boolean vector bit.
 @<Function definitions@> =
 PRIVATE int bv_bit_test(Bit_Vector vector, unsigned int bit)
 {
     return (*(vector+(bit/bv_wordbits)) & (bv_lsb << (bit%bv_wordbits))) != 0u;
 }
 
-@*0 Test and Set a Boolean Vector Bit.
+@*0 Test and set a Boolean vector bit.
 Ensure that a bit is set and returning its value to the call.
 @<Function definitions@> =
 PRIVATE int
@@ -12676,7 +12644,7 @@ bv_bit_test_and_set (Bit_Vector vector, unsigned int bit)
   return 0;
 }
 
-@*0 Test a Boolean Vector for all Zeroes.
+@*0 Test a Boolean vector for all zeroes.
 @<Function definitions@> =
 PRIVATE
 int bv_is_empty(Bit_Vector addr)
@@ -12690,7 +12658,7 @@ int bv_is_empty(Bit_Vector addr)
     return(r);
 }
 
-@*0 Bitwise-negate a Boolean Vector.
+@*0 Bitwise-negate a Boolean vector.
 @<Function definitions@>=
 PRIVATE void bv_not(Bit_Vector X, Bit_Vector Y)
 {
@@ -12700,7 +12668,7 @@ PRIVATE void bv_not(Bit_Vector X, Bit_Vector Y)
     *(--X) &= mask;
 }
 
-@*0 Bitwise-and a Boolean Vector.
+@*0 Bitwise-and a Boolean vector.
 @<Function definitions@>=
 PRIVATE void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
 {
@@ -12710,7 +12678,7 @@ PRIVATE void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
     *(--X) &= mask;
 }
 
-@*0 Bitwise-or a Boolean Vector.
+@*0 Bitwise-or a Boolean vector.
 @<Function definitions@>=
 PRIVATE void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
 {
@@ -12720,7 +12688,7 @@ PRIVATE void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
     *(--X) &= mask;
 }
 
-@*0 Bitwise-or-assign a Boolean Vector.
+@*0 Bitwise-or-assign a Boolean vector.
 @<Function definitions@>=
 PRIVATE void bv_or_assign(Bit_Vector X, Bit_Vector Y)
 {
@@ -12730,7 +12698,7 @@ PRIVATE void bv_or_assign(Bit_Vector X, Bit_Vector Y)
     *(--X) &= mask;
 }
 
-@*0 Scan a Boolean Vector.
+@*0 Scan a Boolean vector.
 @<Function definitions@>=
 PRIVATE_NOT_INLINE
 int bv_scan(Bit_Vector bv, unsigned int start,
@@ -12802,7 +12770,7 @@ int bv_scan(Bit_Vector bv, unsigned int start,
     return 1;
 }
 
-@*0 Count the bits in a Boolean Vector.
+@*0 Count the bits in a Boolean vector.
 @<Function definitions@>=
 PRIVATE unsigned int
 bv_count (Bit_Vector v)
@@ -12816,7 +12784,7 @@ bv_count (Bit_Vector v)
     return count;
 }
 
-@*0 The RHS Closure of a Vector.
+@*0 The RHS closure of a vector.
 Despite the fact that they are actually tied closely to their
 use in |libmarpa|, most of the logic of boolean vectors has
 a ``pure math" appearance.
@@ -12847,7 +12815,7 @@ RHS closure properties:
 the property of being productive,
 and the property of being nullable.
 
-@*0 Produce the RHS Closure of a Vector.
+@*0 Produce the RHS closure of a vector.
 This routine takes a symbol vector and a grammar,
 and turns the original vector into the RHS closure of that vector.
 The orignal vector is destroyed.
@@ -12924,7 +12892,7 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
   FSTACK_DESTROY (stack);
 }
 
-@** Boolean Matrixes.
+@** Boolean matrixes.
 Marpa's Boolean matrixes are implemented differently
 from the matrixes in
 Steffen Beyer's Bit-Vector package on CPAN,
@@ -12948,7 +12916,7 @@ and |Bit_Vector| are identical.
 @<Private typedefs@> =
 typedef Bit_Vector_Word* Bit_Matrix;
 
-@*0 Create a Boolean Matrix.
+@*0 Create a Boolean matrix.
 @ Here the pointer returned is the actual start of the
 |malloc|'d space.
 This is {\bf not} the case with vectors, whose pointer is offset for
@@ -12974,7 +12942,7 @@ PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, uns
     return matrix_addr;
 }
 
-@*0 Find the Number of Columns in a Boolean Matrix.
+@*0 Find the number of columns in a Boolean matrix.
 The column count returned is for the first row.
 It is assumed that 
 all rows have the same number of columns.
@@ -12987,7 +12955,7 @@ PRIVATE int matrix_columns(Bit_Matrix matrix)
      return BV_BITS(row0);
 }
 
-@*0 Find a Row of a Boolean Matrix.
+@*0 Find a row of a Boolean matrix.
 Here's where the slight extra overhead of repeating
 identical ``hidden word" data for each row of a matrix
 pays off.
@@ -13004,7 +12972,7 @@ PRIVATE Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row)
     return row0 + row*words_per_row;
 }
 
-@*0 Set a Boolean Matrix Bit.
+@*0 Set a Boolean matrix bit.
 @ @<Function definitions@> =
 PRIVATE void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column)
 {
@@ -13012,7 +12980,7 @@ PRIVATE void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int co
     bv_bit_set(vector, column);
 }
 
-@*0 Clear a Boolean Matrix Bit.
+@*0 Clear a Boolean matrix bit.
 @ @<Function definitions@> =
 PRIVATE void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int column)
 {
@@ -13020,7 +12988,7 @@ PRIVATE void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int 
     bv_bit_clear(vector, column);
 }
 
-@*0 Test a Boolean Matrix Bit.
+@*0 Test a Boolean matrix bit.
 @ @<Function definitions@> =
 PRIVATE int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int column)
 {
@@ -13028,7 +12996,7 @@ PRIVATE int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int co
     return bv_bit_test(vector, column);
 }
 
-@*0 Produce the Transitive Closure of a Boolean Matrix.
+@*0 Produce the transitive closure of a Boolean matrix.
 This routine takes a matrix representing a relation
 and produces a matrix that represents the transitive closure
 of the relation.
@@ -13079,7 +13047,7 @@ PRIVATE_NOT_INLINE void transitive_closure(Bit_Matrix matrix)
       DSTACK_DESTROY(stack);
 }
 
-@** Efficient Stacks and Queues.
+@** Efficient stacks and queues.
 @ The interface for these macros is somewhat hackish,
 in that the user often
 must be aware of the implementation of the
@@ -13094,7 +13062,7 @@ Another important goal was that there be
 no compromise on efficiency,
 when compared to hand-written code.
 
-@*0 Fixed Size Stacks.
+@*0 Fixed size stacks.
 |libmarpa| uses stacks and worklists extensively.
 Often a reasonable maximum size is known when they are
 set up, in which case they can be made very fast.
@@ -13113,7 +13081,7 @@ set up, in which case they can be made very fast.
 @d FSTACK_IS_INITIALIZED(stack) ((stack).t_base)
 @d FSTACK_DESTROY(stack) (my_free((stack).t_base))
 
-@*0 Dynamic Stacks.
+@*0 Dynamic stacks.
 |libmarpa| uses stacks and worklists extensively.
 This stack interface resizes itself dynamically.
 There are two disadvantages.
@@ -13206,7 +13174,7 @@ PRIVATE_NOT_INLINE void * dstack_resize(struct s_dstack* this, size_t type_bytes
     return this->t_base;
 }
 
-@*0 Dynamic Queues.
+@*0 Dynamic queues.
 This is simply a dynamic stack extended with a second
 index.
 These is no destructor at this point, because so far all uses
@@ -13233,7 +13201,7 @@ typedef struct s_dqueue* DQUEUE;
 @ @<Private structures@> =
 struct s_dqueue { int t_current; struct s_dstack t_stack; };
 
-@** Per-Earley-Set List (PSL) Code.
+@** Per-Earley-set list (PSL) code.
 There are several cases where Marpa needs to
 look up a triple $\langle s,s',k \rangle$,
 where $s$ and $s'$ are earlemes, and $0<k<n$,
@@ -13637,7 +13605,7 @@ but pass all these calls on to the system malloc.
 @d my_slice_free(x, p) my_free(p)
 @d my_slice_free1(size, p) my_free(p)
 
-@** External Failure Reports.
+@** External failure reports.
 Most of
 |libmarpa|'s external functions return failure under
 one or more circumstances --- for
@@ -13683,7 +13651,7 @@ the general failure indicator.
 general failure indicator.
 @<Return |-2| on failure@> = const int failure_indicator = -2;
 
-@*0 Grammar Failures.
+@*0 Grammar failures.
 |g| is assumed to be the value of the relevant grammar,
 when one is required.
 @<Fail if precomputed@> =
@@ -13728,7 +13696,7 @@ if (UNLIKELY(!AHFA_state_id_is_valid(g, AHFA_state_id))) {
     return failure_indicator;
 }
 
-@*0 Recognizer Failures.
+@*0 Recognizer failures.
 |r| is assumed to be the value of the relevant recognizer,
 when one is required.
 @<Fail if recognizer started@> =
@@ -13805,49 +13773,14 @@ set_error (GRAMMAR g, Marpa_Error_Code code, const char* message, unsigned int f
     g->t_is_ok = 0;
 }
 
-@** Messages and Logging.
-There are some cases in which it is not appropriate
+@** Messages and logging.
+There are a few cases in which it is not appropriate
 to rely on the upper layers for error messages.
 These cases include
 serious internal problems,
 memory allocation failures,
 and debugging.
 
-@*0 Message "cookie" strings.
-Constant strings are used for convenience
-instead of numeric error and event codes.
-These should be considered ``cookies", 
-and treated similarly to variable and constant names.
-That is, they should
-{\bf not} be subject to internationalization or localization.
-This is because they
-should not be regarded as part of the user
-interface.
-
-Some user user interfaces may expose the message cookies
-to the user.
-This should be considered be considered the same
-as the interface printing a numeric error code ---
-not the most user-friendly thing to do in general,
-but as acceptable during development
-or for internal errors.
-
-These message cookies are always null-terminated in
-the 7-bit ASCII character set.
-This is a lowest common denominator, and is not a choice
-binding on the upper layers,
-which may use one of the Unicode encoding or anything
-else.
-Cookies often are mnemonics in the English language,
-but this should not be regarded
-as a reason to subject them to translation ---
-at least not unless you are also translating the variable
-names and file names.
-
-I emphasize this topic, because I want it to be clear
-that libmarpa leaves all internationalization,
-localization and string encoding issues to
-the upper layers.
 @<Public typedefs@> =
 typedef const char* Marpa_Message_ID;
 
@@ -13950,7 +13883,7 @@ void marpa_debug_level_set( int level )
        (*_marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
 #endif
 
-@*0 Earley Item Tag.
+@*0 Earley item tag.
 A function to print a descriptive tag for
 an Earley item.
 @<Debug function prototypes@> =
@@ -13975,7 +13908,7 @@ eim_tag (EIM eim)
   return eim_tag_safe (DEBUG_eim_tag_buffer, eim);
 }
 
-@*0 Leo Item Tag.
+@*0 Leo item tag.
 A function to print a descriptive tag for
 an Leo item.
 @<Debug function prototypes@> =
@@ -13999,7 +13932,7 @@ lim_tag (LIM lim)
   return lim_tag_safe (DEBUG_lim_tag_buffer, lim);
 }
 
-@*0 Or-Node Tag.
+@*0 Or-node tag.
 Functions to print a descriptive tag for
 an or-node item.
 One is thread-safe, the other is
@@ -14029,7 +13962,7 @@ or_tag (OR or)
   return or_tag_safe (DEBUG_or_tag_buffer, or);
 }
 
-@*0 AHFA Item Tag.
+@*0 AHFA item tag.
 Functions to print a descriptive tag for
 an AHFA item.
 One is passed a buffer to keep it thread-safe.
@@ -14060,7 +13993,7 @@ aim_tag (AIM aim)
   return aim_tag_safe (DEBUG_aim_tag_buffer, aim);
 }
 
-@** File Layout.  
+@** File layout.  
 @ The output files are {\bf not} source files,
 but I add the license to them anyway,
 as close to the top as possible.
@@ -14072,7 +14005,7 @@ not that they are
 not intended to be edited directly.
 So I add such a comment.
 
-@*0 |marpa.c| Layout.
+@*0 |marpa.c| layout.
 @q This is a hack to get the @>
 @q license language nearer the top of the files. @>
 @ The physical structure of the |marpa.c| file
@@ -14164,7 +14097,7 @@ So I add such a comment.
 
 @ \twelvepoint
 
-@*0 |marpa.h| Layout.
+@*0 |marpa.h| layout.
 @ The physical structure of the |marpa.h| file
 \tenpoint
 @ @(marpa.h@> =
@@ -14179,7 +14112,7 @@ So I add such a comment.
 #include "marpa_api.h"
 #endif __MARPA_H__
 
-@*0 |marpa_util.h| Layout.
+@*0 |marpa_util.h| layout.
 \tenpoint
 @(marpa_util.h@> =
 @<Header license language@>@;

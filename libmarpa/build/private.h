@@ -111,8 +111,7 @@ static inline URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int 
 static inline TRANS* transitions_new(GRAMMAR g, int isy_count);
 static inline void transition_add(struct obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA to_ahfa);
 static inline void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, ISYID isyid);
-static inline INPUT
-input_new (GRAMMAR g);
+static inline INPUT input_new (GRAMMAR g);
 static inline void
 input_unref (INPUT input);
 static inline INPUT
