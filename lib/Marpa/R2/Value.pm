@@ -21,7 +21,7 @@ use strict;
 use integer;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.003_000';
+$VERSION        = '2.003_002';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -308,7 +308,7 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
                 qq{  Marpa needs there to be only one\n}
             );
         } ## end if ( grep { $_ ne $first_resolution_name } ...)
-        $resolution_rule = $empty_rules[0];
+        $resolution_rule = $ruleids->[0];
         my ( $resolution_name, $closure ) =
             @{ $rule_resolutions->[$resolution_rule] };
         if ($trace_actions) {

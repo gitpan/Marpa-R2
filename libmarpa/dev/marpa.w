@@ -10526,6 +10526,148 @@ PRIVATE TOK and_node_token(AND and_node)
 }
 
 @** Progress report code.
+@<Private typedefs@> =
+   struct s_report_item;
+   typedef struct s_report_item* REPORT;
+@ @<Widely aligned recognizer elements@> =
+   const struct s_report_item* t_current_report_item;
+   AVL_TREE t_progress_report_tree;
+@ @<Initialize recognizer elements@> =
+   r->t_current_report_item = &progress_report_not_ready;
+   r->t_progress_report_tree = NULL;
+@ @<Clear progress report in |r|@> =
+   r->t_current_report_item = &progress_report_not_ready;
+   r->t_progress_report_tree = NULL;
+@ @<Destroy recognizer elements@> =
+   @<Clear progress report in |r|@>;
+@
+@d Rule_of_REPORT(report) ((report)->t_rule_id)
+@d Position_of_REPORT(report) ((report)->t_position)
+@d Origin_of_REPORT(report) ((report)->t_origin)
+@<Private structures@> =
+struct s_report_item {
+    Marpa_Rule_ID t_rule_id;
+    int t_position;
+    int t_origin;
+};
+
+@ A dummy progress report item to allow the macros to
+produce error reports without having to use a ternary,
+and getting into issues of evaluation the argument twice.
+@<Global variables@> =
+static const struct s_report_item progress_report_not_ready = { -2, -2, -2 };
+
+@ @<Public defines@> =
+#define marpa_r_report_rule(v) \
+    Rule_of_REPORT((r)->t-current_report_item)
+#define marpa_r_report_position(v) \
+    Position_of_REPORT((r)->t-current_report_item)
+#define marpa_r_report_origin(v) \
+    Origin_of_REPORT((r)->t-current_report_item)
+
+@ @<Function definitions@> =
+PRIVATE_NOT_INLINE int report_item_cmp (
+    const void* ap,
+    const void* bp,
+    void *param UNUSED)
+{
+    const struct s_report_item* const report_a = ap;
+    const struct s_report_item* const report_b = bp;
+    if (Position_of_REPORT(report_a) > Position_of_REPORT(report_b)) return 1;
+    if (Position_of_REPORT(report_a) < Position_of_REPORT(report_b)) return -1;
+    if (Rule_of_REPORT(report_a) > Rule_of_REPORT(report_b)) return 1;
+    if (Rule_of_REPORT(report_a) < Rule_of_REPORT(report_b)) return -1;
+    if (Origin_of_REPORT(report_a) > Origin_of_REPORT(report_b)) return 1;
+    if (Origin_of_REPORT(report_a) < Origin_of_REPORT(report_b)) return -1;
+    return 0;
+}
+
+@ @<Function definitions@> =
+int marpa_r_progress_report_start(
+  Marpa_Recognizer r,
+  Marpa_Earley_Set_ID set_id)
+{
+  @<Return |-2| on failure@>@;
+  const int es_does_not_exist = -1;
+  ES earley_set;
+  @<Unpack recognizer objects@>@;
+  @<Fail if fatal error@>@;
+  @<Fail if recognizer not started@>@;
+  if (set_id < 0)
+    {
+      MARPA_ERROR (MARPA_ERR_INVALID_ES_ORDINAL);
+      return failure_indicator;
+    }
+  r_update_earley_sets (r);
+  if (!ES_Ord_is_Valid (r, set_id))
+    {
+      return es_does_not_exist;
+    }
+  earley_set = ES_of_R_by_Ord (r, set_id);
+  @<Clear progress report in |r|@>@;
+  {
+    const AVL_TREE report_tree = r->t_progress_report_tree =
+      _marpa_avl_create (report_item_cmp, NULL, alignof (REPORT));
+    const EIM *const earley_items = EIMs_of_ES (earley_set);
+    const int earley_item_count = EIM_Count_of_ES (earley_set);
+    int earley_item_id;
+    for (earley_item_id = 0; earley_item_id < earley_item_count;
+	 earley_item_id++)
+      {
+	AEX aex;
+	const EIM earley_item = earley_items[earley_item_id];
+	const ESID origin_esid = Origin_Ord_of_EIM (earley_item);
+	const AHFA AHFA_state = AHFA_of_EIM (earley_item);
+	const int aim_count = AHFA_state->t_item_count;
+	for (aex = 0; aex < aim_count; aex++)
+	  {
+	    const AIM aim = AIM_of_AHFA_by_AEX (AHFA_state, aex);
+	    const IRL irl = IRL_of_AIM(aim);
+	    const XRL source_xrl = Source_XRL_of_IRL(irl);
+	    if (source_xrl) {
+	      const int irl_position = Position_of_AIM(aim);
+	      int xrl_position = irl_position;
+	      const int virtual_start = Virtual_Start_of_IRL(irl);
+	      if (virtual_start >= 0) {
+	          xrl_position += virtual_start;
+	      }
+	      if (XRL_is_Sequence(source_xrl)) {
+	          if (IRL_has_Virtual_LHS(irl)) {
+		     if (irl_position <= 0) goto NEXT_AIM;
+		     xrl_position = 1;
+		  } else {
+		     xrl_position = irl_position > 0 ? 1 : 0;
+		  }
+	      }
+	      {
+		const REPORT new_report_item =
+		  my_obstack_new (AVL_OBSTACK (report_tree), struct s_report_item, 1);
+		Position_of_REPORT(new_report_item) = xrl_position;
+		Origin_of_REPORT(new_report_item) = origin_esid;
+		Rule_of_REPORT(new_report_item) = ID_of_XRL(source_xrl);
+		_marpa_avl_insert (report_tree, new_report_item);
+	      }
+	    }
+	    NEXT_AIM: ;
+	  }
+      }
+  }
+  return marpa_avl_count (r->t_progress_report_tree);
+}
+
+@ @<Function definitions@> =
+void marpa_r_progress_report_finish(Marpa_Recognizer r) {
+    @<Clear progress report in |r|@>@;
+}
+
+@ @<Function definitions@> =
+int marpa_r_progress_item(Marpa_Recognizer r) {
+  @<Return |-2| on failure@>@;
+  @<Unpack recognizer objects@>@;
+  @<Fail if fatal error@>@;
+  @<Fail if recognizer not started@>@;
+  return 1;
+}
 
 @** Parse bocage code (B, BOCAGE).
 @ Pre-initialization is making the elements safe for the deallocation logic
@@ -13456,8 +13598,6 @@ void* (*_marpa_out_of_memory)(void) = _marpa_default_out_of_memory;
 @ @<Utility variables@> =
 extern void* (*_marpa_out_of_memory)(void);
 
-@ @<Global variables@> =
-
 @*0 Obstacks.
 |libmarpa| uses the system malloc,
 either directly or indirectly.
@@ -14056,9 +14196,9 @@ So I add such a comment.
 #include "avl.h"
 @<Private incomplete structures@>@;
 @<Private typedefs@>@;
-@<Global variables@>@;
 @<Private utility structures@>@;
 @<Private structures@>@;
+@<Global variables@>@;
 @<Recognizer structure@>@;
 @<Source object structure@>@;
 @<Earley item structure@>@;
