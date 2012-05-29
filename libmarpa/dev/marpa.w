@@ -735,20 +735,13 @@ The |rule_tree| is a tree for detecting duplicates.
 @<Widely aligned grammar elements@> =
     DSTACK_DECLARE(t_xrl_stack);
     DSTACK_DECLARE(t_irl_stack);
-    struct marpa_avl_table* t_rule_tree;
 @ @<Initialize grammar elements@> =
     DSTACK_INIT2(g->t_xrl_stack, RULE);
     DSTACK_SAFE(g->t_irl_stack);
-    g->t_rule_tree = _marpa_avl_create (duplicate_rule_cmp, NULL, alignof (RULE));
-
-@ @<Destroy rule tree@> =
-    _marpa_avl_destroy (g->t_rule_tree);
-    g->t_rule_tree = NULL;
 
 @ @<Destroy grammar elements@> =
     DSTACK_DESTROY(g->t_irl_stack);
     DSTACK_DESTROY(g->t_xrl_stack);
-    @<Destroy rule tree@>@;
 
 @*0 Rule count accessors.
 @ @d XRL_Count_of_G(g) (DSTACK_LENGTH((g)->t_xrl_stack))
@@ -2762,8 +2755,8 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
 	  xrl_list_x_rh_sym[++seen_symid] = p_rule_data;
 	*p_rule_data++ = pair->t_ruleid;
       }
-    while (seen_symid <= pre_census_xsy_count)
-      xrl_list_x_rh_sym[++seen_symid] = p_rule_data;
+    while (++seen_symid <= pre_census_xsy_count)
+      xrl_list_x_rh_sym[seen_symid] = p_rule_data;
     _marpa_avl_destroy (rhs_avl_tree);
   }
 
@@ -2787,8 +2780,8 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
 	  xrl_list_x_lh_sym[++seen_symid] = p_rule_data;
 	*p_rule_data++ = pair->t_ruleid;
       }
-    while (seen_symid <= pre_census_xsy_count)
-      xrl_list_x_lh_sym[++seen_symid] = p_rule_data;
+    while (++seen_symid <= pre_census_xsy_count)
+      xrl_list_x_lh_sym[seen_symid] = p_rule_data;
     _marpa_avl_destroy (lhs_avl_tree);
   }
 
@@ -5071,8 +5064,8 @@ of minimum sizes.
 	  irl_list_x_lh_isy[++seen_isyid] = p_rule_data;
 	*p_rule_data++ = pair->t_ruleid;
       }
-    while (seen_isyid <= isy_count)
-      irl_list_x_lh_isy[++seen_isyid] = p_rule_data;
+    while (++seen_isyid <= isy_count)
+      irl_list_x_lh_isy[seen_isyid] = p_rule_data;
   }
   _marpa_avl_destroy (lhs_avl_tree);
 }
@@ -8026,7 +8019,7 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     EIK_Object key;
     AHFA state;
   @<Unpack recognizer objects@>@;
-    const ISYID isy_count = ISY_Count_of_G(g);
+    @<Declare |marpa_r_start_input| locals@>@;
     @<Return |-2| on failure@>@;
     @<Fail if recognizer started@>@;
     Current_Earleme_of_R(r) = 0;
@@ -8050,12 +8043,19 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     if (state) {
 	key.t_state = state;
 	item = earley_item_create(r, key);
-    }
-    postdot_items_create(r, set0);
+    } 
+    postdot_items_create(r, bv_ok_for_chain, set0);
     earley_set_update_items(r, set0);
     r->t_is_using_leo = r->t_use_leo_flag;
+    @<Destroy |marpa_r_start_input| locals@>@;
     return 1;
 }
+
+@ @<Declare |marpa_r_start_input| locals@> =
+    const ISYID isy_count = ISY_Count_of_G(g);
+    Bit_Vector bv_ok_for_chain = bv_create(isy_count);
+@ @<Destroy |marpa_r_start_input| locals@> =
+    bv_free(bv_ok_for_chain);
 
 @** Read a token alternative.
 The ordinary semantics of a parser generator is a token-stream
@@ -8286,8 +8286,9 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
   ES current_earley_set;
   EARLEME current_earleme;
   int count_of_expected_terminals;
-    @<Fail if recognizer not accepting input@>@;
-    G_EVENTS_CLEAR(g);
+  @<Declare |marpa_r_earleme_complete| locals@>@;
+  @<Fail if recognizer not accepting input@>@;
+  G_EVENTS_CLEAR(g);
   psar_dealloc(Dot_PSAR_of_R(r));
     bv_clear (r->t_bv_isyid_is_expected);
     @<Initialize |current_earleme|@>@;
@@ -8299,7 +8300,7 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
       EIM cause = *cause_p;
         @<Add new Earley items for |cause|@>@;
     }
-    postdot_items_create(r, current_earley_set);
+    postdot_items_create(r, bv_ok_for_chain, current_earley_set);
 
     count_of_expected_terminals = bv_count (r->t_bv_isyid_is_expected);
     if (count_of_expected_terminals <= 0
@@ -8311,8 +8312,15 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
 	event_new(g, MARPA_EVENT_EXHAUSTED);
       }
     earley_set_update_items(r, current_earley_set);
+  @<Destroy |marpa_r_earleme_complete| locals@>@;
   return G_EVENT_COUNT(g);
 }
+
+@ @<Declare |marpa_r_earleme_complete| locals@> =
+    const ISYID isy_count = ISY_Count_of_G(g);
+    Bit_Vector bv_ok_for_chain = bv_create(isy_count);
+@ @<Destroy |marpa_r_earleme_complete| locals@> =
+    bv_free(bv_ok_for_chain);
 
 @ @<Initialize |current_earleme|@> = {
   current_earleme = ++(Current_Earleme_of_R(r));
@@ -8559,10 +8567,10 @@ and running benchmarks.
   bv_clear(r->t_bv_pim_symbols);
 @ @<Function definitions@> =
 PRIVATE_NOT_INLINE void
-postdot_items_create (RECCE r, ES current_earley_set)
+postdot_items_create (RECCE r,
+  Bit_Vector bv_ok_for_chain,
+  ES current_earley_set)
 {
-    struct obstack *obs_local = my_obstack_init;
-    const ISYID isy_count = ISY_Count_of_G(G_of_R(r));
   @<Unpack recognizer objects@>@;
     EARLEME current_earley_set_id = Earleme_of_ES(current_earley_set);
     @<Reinitialize containers used in PIM setup@>@;
@@ -8573,7 +8581,6 @@ postdot_items_create (RECCE r, ES current_earley_set)
     }
     @<Copy PIM workarea to postdot item array@>@;
     bv_and(r->t_bv_isyid_is_expected, r->t_bv_pim_symbols, g->t_bv_isyid_is_terminal);
-    my_obstack_free(obs_local);
 }
 
 @ This code creates the Earley indexes in the PIM workarea.
@@ -8756,7 +8763,6 @@ ID must
 \li Must not have already been added to a LIM chain for this
 Earley set.\par
 @<Add predecessors to LIMs@> = {
-  const Bit_Vector bv_ok_for_chain = bv_obs_create(obs_local, isy_count);
   unsigned int min, max, start;
 
   bv_copy(bv_ok_for_chain, r->t_bv_lim_symbols);
@@ -10614,45 +10620,76 @@ int marpa_r_progress_report_start(
     for (earley_item_id = 0; earley_item_id < earley_item_count;
 	 earley_item_id++)
       {
-	AEX aex;
+	const int initial_phase = 1;
+	const int eim_is_finished = 2;
+	int next_phase = initial_phase;
+	ESID report_origin;
+	AHFA report_AHFA_state;
 	const EIM earley_item = earley_items[earley_item_id];
-	const ESID origin_esid = Origin_Ord_of_EIM (earley_item);
-	const AHFA AHFA_state = AHFA_of_EIM (earley_item);
-	const int aim_count = AHFA_state->t_item_count;
-	for (aex = 0; aex < aim_count; aex++)
-	  {
-	    const AIM aim = AIM_of_AHFA_by_AEX (AHFA_state, aex);
-	    const IRL irl = IRL_of_AIM(aim);
-	    const XRL source_xrl = Source_XRL_of_IRL(irl);
-	    if (source_xrl) {
-	      const int irl_position = Position_of_AIM(aim);
-	      int xrl_position = irl_position;
-	      const int virtual_start = Virtual_Start_of_IRL(irl);
-	      if (virtual_start >= 0) {
-	          xrl_position += virtual_start;
-	      }
-	      if (XRL_is_Sequence(source_xrl)) {
-	          if (IRL_has_Virtual_LHS(irl)) {
-		     if (irl_position <= 0) goto NEXT_AIM;
-		     xrl_position = 1;
-		  } else {
-		     xrl_position = irl_position > 0 ? 1 : 0;
-		  }
-	      }
-	      {
-		const REPORT new_report_item =
-		  my_obstack_new (AVL_OBSTACK (report_tree), struct s_report_item, 1);
-		Position_of_REPORT(new_report_item) = xrl_position;
-		Origin_of_REPORT(new_report_item) = origin_esid;
-		Rule_of_REPORT(new_report_item) = ID_of_XRL(source_xrl);
-		_marpa_avl_insert (report_tree, new_report_item);
-	      }
+	while (1) {
+	  const int phase = next_phase;
+	  while (1)
+	    { // this pseudo-loop finds the next AHFA state to report
+	      if (phase == initial_phase)
+		{
+		  report_origin = Origin_Ord_of_EIM (earley_item);
+		  report_AHFA_state = AHFA_of_EIM (earley_item);
+		  next_phase = eim_is_finished;
+		  break;
+		}
+	      goto NEXT_EIM;		// happens only if |phase == eim_is_finished|
 	    }
-	    NEXT_AIM: ;
-	  }
+	  @<Insert items into tree for |report_AHFA_state|
+	  and |report_origin|@>@;
+	}
       }
+      NEXT_EIM: ;
   }
   return marpa_avl_count (r->t_progress_report_tree);
+}
+
+@ @<Insert items into tree for |report_AHFA_state| and |report_origin|@> =
+{
+  AEX aex;
+  const int aim_count = report_AHFA_state->t_item_count;
+  for (aex = 0; aex < aim_count; aex++)
+    {
+      const AIM report_aim = AIM_of_AHFA_by_AEX (report_AHFA_state, aex);
+      const IRL irl = IRL_of_AIM (report_aim);
+      const XRL source_xrl = Source_XRL_of_IRL (irl);
+      if (source_xrl)
+	{
+	  const int irl_position = Position_of_AIM (report_aim);
+	  int xrl_position = irl_position;
+	  const int virtual_start = Virtual_Start_of_IRL (irl);
+	  if (virtual_start >= 0)
+	    {
+	      xrl_position += virtual_start;
+	    }
+	  if (XRL_is_Sequence (source_xrl))
+	    {
+	      if (IRL_has_Virtual_LHS (irl))
+		{
+		  if (irl_position <= 0) goto NEXT_AIM;
+		  xrl_position = 1;
+		}
+	      else
+		{
+		  xrl_position = irl_position > 0 ? 1 : 0;
+		}
+	    }
+	  {
+	    const REPORT new_report_item =
+	      my_obstack_new (AVL_OBSTACK (report_tree), struct s_report_item,
+			      1);
+	    Position_of_REPORT (new_report_item) = xrl_position;
+	    Origin_of_REPORT (new_report_item) = report_origin;
+	    Rule_of_REPORT (new_report_item) = ID_of_XRL (source_xrl);
+	    _marpa_avl_insert (report_tree, new_report_item);
+	  }
+	}
+    NEXT_AIM:;
+    }
 }
 
 @ @<Function definitions@> =
@@ -12620,7 +12657,7 @@ by |bv_hiddenwords|.
 PRIVATE Bit_Vector bv_create(unsigned int bits)
 {
     unsigned int size = bv_bits_to_size(bits);
-    unsigned int bytes = (size + bv_hiddenwords) << sizeof(unsigned int);
+    unsigned int bytes = (size + bv_hiddenwords) * sizeof(Bit_Vector_Word);
     unsigned int* addr = (Bit_Vector) my_malloc0((size_t) bytes);
     *addr++ = bits;
     *addr++ = size;
@@ -12639,7 +12676,7 @@ PRIVATE Bit_Vector
 bv_obs_create (struct obstack *obs, unsigned int bits)
 {
   unsigned int size = bv_bits_to_size (bits);
-  unsigned int bytes = (size + bv_hiddenwords) << sizeof (unsigned int);
+  unsigned int bytes = (size + bv_hiddenwords) * sizeof (Bit_Vector_Word);
   unsigned int *addr = (Bit_Vector) my_obstack_alloc (obs, (size_t) bytes);
   *addr++ = bits;
   *addr++ = size;
@@ -12709,13 +12746,6 @@ PRIVATE void bv_free(Bit_Vector vector)
 	vector -= bv_hiddenwords;
 	my_free(vector);
     }
-}
-
-@*0 The number of bytes in a Boolean vector.
-@<Function definitions@> =
-PRIVATE int bv_bytes(Bit_Vector bv)
-{
-    return (BV_SIZE(bv)+bv_hiddenwords)*sizeof(Bit_Vector_Word);
 }
 
 @*0 Fill a Boolean vector.

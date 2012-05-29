@@ -29,6 +29,10 @@
 
 #include <stddef.h>
 
+#ifndef MARPA_OBSTACK_DEBUG
+#define MARPA_OBSTACK_DEBUG 0
+#endif
+
 /* If B is the base of an object addressed by P, return the result of
    aligning P to the next multiple of A + 1.  B and P must be of type
    char *.  A + 1 must be a power of 2.  */
@@ -40,25 +44,22 @@
    and converted back again.  If ptrdiff_t is narrower than a
    pointer (e.g., the AS/400), play it safe and compute the alignment
    relative to B.  Otherwise, use the faster strategy of computing the
-   alignment relative to 0.  */
+   alignment relative to 0.
 
-#define __PTR_ALIGN(B, P, A)						    \
-  __BPTR_ALIGN (sizeof (ptrdiff_t) < sizeof (void *) ? (B) : (char *) 0, \
+   Unsafe, so we don't use it. 
+*/
+
+/* #define __PTR_ALIGN(B, P, A)						    \
+  * __BPTR_ALIGN (sizeof (ptrdiff_t) < sizeof (void *) ? (B) : (char *) 0, \
 		P, A)
+*/
 
 #include <string.h>
-
-struct _obstack_chunk		/* Lives at front of each chunk. */
-{
-  char *limit;			/* 1 past end of this chunk */
-  struct _obstack_chunk *prev;	/* address of prior chunk or NULL */
-  char contents[4];	/* objects begin here */
-};
 
 struct obstack			/* control current object in current chunk */
 {
   long chunk_size;		/* preferred size to allocate chunks in */
-  struct _obstack_chunk *chunk;	/* address of current struct obstack_chunk */
+  struct obstack_chunk *chunk;	/* address of current struct obstack_chunk */
   char *object_base;		/* address of object we are building */
   char *next_free;		/* where to add next char to current object */
   char *chunk_limit;		/* address of char after current chunk */
@@ -68,10 +69,21 @@ struct obstack			/* control current object in current chunk */
     void *tempptr;
   } temp;			/* Temporary for some macros.  */
   int alignment_mask;		/* Mask of alignment for each object. */
-  unsigned maybe_empty_object:1;	/* There is a possibility that the current
-					   chunk contains a zero-length object.  This
-					   prevents freeing the chunk if we allocate
-					   a bigger chunk to replace it. */
+};
+
+struct obstack_chunk_header		/* Lives at front of each chunk. */
+{
+  char *limit;			/* 1 past end of this chunk */
+  struct obstack_chunk* prev;	/* address of prior chunk or NULL */
+};
+
+struct obstack_chunk
+{
+  struct obstack_chunk_header header;
+  union {
+    char contents[4];	/* objects begin here */
+    struct obstack obstack_header;
+  } contents;
 };
 
 /* Declare the external functions we use; they are in obstack.c.  */
@@ -124,13 +136,20 @@ void _marpa_obs_free (struct obstack *__obstack);
 
 # define obstack_empty_p(h) \
  ((h)->chunk->prev == 0							\
-  && (h)->next_free == __PTR_ALIGN ((char *) (h)->chunk,		\
+  && (h)->next_free == __BPTR_ALIGN ((char *) (h)->chunk,		\
 				    (h)->chunk->contents,		\
 				    (h)->alignment_mask))
 
+#if MARPA_OBSTACK_DEBUG
+#define NEED_CHUNK(h, length) (1)
+#else
+#define NEED_CHUNK(h, length) \
+  ((h)->chunk_limit - (h)->next_free < (length))
+#endif
+
 # define my_obstack_blank(h,length)					\
 ( (h)->temp.tempint = (length),						\
-  (((h)->chunk_limit - (h)->next_free < (h)->temp.tempint)		\
+  (NEED_CHUNK((h), (h)->temp.tempint)		\
    ? (_obstack_newchunk ((h), (h)->temp.tempint), 0) : 0),		\
   my_obstack_blank_fast (h, (h)->temp.tempint))
 
@@ -141,12 +160,10 @@ void _marpa_obs_free (struct obstack *__obstack);
     ((type *)my_obstack_alloc((h), (sizeof(type)*(count))))
 
 # define my_obstack_finish(h)						\
-( ((h)->next_free == (h)->object_base					\
-   ? (((h)->maybe_empty_object = 1), 0)					\
-   : 0),								\
+( \
   (h)->temp.tempptr = (h)->object_base,					\
   (h)->next_free							\
-    = __PTR_ALIGN ((h)->object_base, (h)->next_free,			\
+    = __BPTR_ALIGN ((h)->object_base, (h)->next_free,			\
 		   (h)->alignment_mask),				\
   (((h)->next_free - (char *) (h)->chunk				\
     > (h)->chunk_limit - (char *) (h)->chunk)				\

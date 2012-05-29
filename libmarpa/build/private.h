@@ -51,7 +51,9 @@ create_predicted_AHFA_state(
 static Marpa_Error_Code invalid_source_type_code(unsigned int type);
 static void earley_item_ambiguate (struct marpa_r * r, EIM item);
 static void
-postdot_items_create (RECCE r, ES current_earley_set);
+postdot_items_create (RECCE r,
+  Bit_Vector bv_ok_for_chain,
+  ES current_earley_set);
 static int report_item_cmp (
     const void* ap,
     const void* bp,
@@ -217,7 +219,6 @@ static inline Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from);
 static inline Bit_Vector bv_clone(Bit_Vector bv);
 static inline Bit_Vector bv_obs_clone(struct obstack *obs, Bit_Vector bv);
 static inline void bv_free(Bit_Vector vector);
-static inline int bv_bytes(Bit_Vector bv);
 static inline void bv_fill(Bit_Vector bv);
 static inline void bv_clear(Bit_Vector bv);
 static inline void bv_over_clear(Bit_Vector bv, unsigned int bit);
