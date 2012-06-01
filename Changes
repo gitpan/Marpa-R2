@@ -15,10 +15,17 @@
 
 Revision history for Marpa::R2
 
+2.005_000
+
+	* New series of developer's versions
+
 2.004000
 
 	* Fix action resolution issue; cleanup
 	  memory allocation.
+
+	* Large bump in version number is to sync
+	  version numbers with libmarpa.
 
 0.002000
        

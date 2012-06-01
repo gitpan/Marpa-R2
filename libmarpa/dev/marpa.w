@@ -2738,17 +2738,17 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
 	}
     }
   {
-    struct avl_traverser traverser;
+    AVL_TRAV traverser;
     struct sym_rule_pair *pair;
     SYMID seen_symid = -1;
     RULEID *const rule_data_base =
       my_obstack_new (obs_precompute, RULEID, External_Size_of_G (g));
     RULEID *p_rule_data = rule_data_base;
-    _marpa_avl_t_init (&traverser, rhs_avl_tree);
+    traverser = _marpa_avl_t_init (rhs_avl_tree);
     /* One extra "symbol" as an end marker */
     xrl_list_x_rh_sym = my_obstack_new (obs_precompute, RULEID*, pre_census_xsy_count + 1);
-    for (pair = (struct sym_rule_pair*)_marpa_avl_t_first (&traverser, rhs_avl_tree); pair;
-	 pair = (struct sym_rule_pair*)_marpa_avl_t_next (&traverser))
+    for (pair = _marpa_avl_t_first (traverser); pair;
+	 pair = (struct sym_rule_pair*)_marpa_avl_t_next (traverser))
       {
 	const SYMID current_symid = pair->t_symid;
 	while (seen_symid < current_symid)
@@ -2761,19 +2761,18 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
   }
 
   {
-    struct avl_traverser traverser;
+    AVL_TRAV traverser;
     struct sym_rule_pair *pair;
     SYMID seen_symid = -1;
     RULEID *const rule_data_base =
       my_obstack_new (obs_precompute, RULEID, xrl_count);
     RULEID *p_rule_data = rule_data_base;
-    _marpa_avl_t_init (&traverser, lhs_avl_tree);
+    traverser = _marpa_avl_t_init (lhs_avl_tree);
     /* One extra "symbol" as an end marker */
     xrl_list_x_lh_sym =
       my_obstack_new (obs_precompute, RULEID *, pre_census_xsy_count + 1);
-    for (pair =
-	 (struct sym_rule_pair *) _marpa_avl_t_first (&traverser, lhs_avl_tree);
-	 pair; pair = (struct sym_rule_pair *) _marpa_avl_t_next (&traverser))
+    for (pair = _marpa_avl_t_first (traverser); pair;
+	pair = (struct sym_rule_pair *) _marpa_avl_t_next (traverser))
       {
 	const SYMID current_symid = pair->t_symid;
 	while (seen_symid < current_symid)
@@ -5044,20 +5043,18 @@ of minimum sizes.
       p_sym_rule_pairs++;
     }
   {
-    struct avl_traverser traverser;
+    AVL_TRAV traverser;
     struct sym_rule_pair *pair;
     ISYID seen_isyid = -1;
     IRLID *const rule_data_base =
       my_obstack_new (obs_precompute, IRLID, irl_count);
     IRLID *p_rule_data = rule_data_base;
-    _marpa_avl_t_init (&traverser, lhs_avl_tree);
+    traverser = _marpa_avl_t_init (lhs_avl_tree);
     /* One extra "symbol" as an end marker */
     irl_list_x_lh_isy =
       my_obstack_new (obs_precompute, IRLID *, isy_count + 1);
-    for (pair =
-	 (struct sym_rule_pair *) _marpa_avl_t_first (&traverser,
-						      lhs_avl_tree); pair;
-	 pair = (struct sym_rule_pair *) _marpa_avl_t_next (&traverser))
+    for (pair = _marpa_avl_t_first (traverser); pair;
+	 pair = (struct sym_rule_pair *) _marpa_avl_t_next (traverser))
       {
 	const ISYID current_isyid = pair->t_symid;
 	while (seen_isyid < current_isyid)
@@ -7151,16 +7148,19 @@ struct s_ambiguous_source {
 @ @<Source object structure@>= 
 union u_source_container {
     struct s_ambiguous_source t_ambiguous;
-    struct s_source t_unique;
+    struct s_source_link t_unique;
 };
 
 @
 @d Source_of_SRCL(link) ((link)->t_source)
-@d Source_of_EIM(eim) ((eim)->t_container.t_unique)
+@d SRCL_of_EIM(eim) (&(eim)->t_container.t_unique)
+@d Source_of_EIM(eim) ((eim)->t_container.t_unique.t_source)
+@d SRC_of_EIM(eim) (&Source_of_EIM(eim))
 @d Predecessor_of_Source(srcd) ((srcd).t_predecessor)
 @d Predecessor_of_SRC(source) Predecessor_of_Source(*(source))
 @d Predecessor_of_EIM(item) Predecessor_of_Source(Source_of_EIM(item))
 @d Predecessor_of_SRCL(link) Predecessor_of_Source(Source_of_SRCL(link))
+@d LIM_of_SRCL(link) ((LIM)Predecessor_of_SRCL(link))
 @d Cause_of_Source(srcd) ((srcd).t_cause.t_completion)
 @d Cause_of_SRC(source) Cause_of_Source(*(source))
 @d Cause_of_EIM(item) Cause_of_Source(Source_of_EIM(item))
@@ -7174,15 +7174,19 @@ union u_source_container {
 @d ISYID_of_EIM(eim) ISYID_of_Source(Source_of_EIM(eim))
 @d ISYID_of_SRCL(link) ISYID_of_Source(Source_of_SRCL(link))
 
-@ @d Cause_AHFA_State_ID_of_SRC(source)
-    AHFAID_of_EIM((EIM)Cause_of_SRC(source))
-@d Leo_Transition_ISYID_of_SRC(leo_source)
-    Postdot_ISYID_of_LIM((LIM)Predecessor_of_SRC(leo_source))
+@ @d Cause_AHFAID_of_SRCL(srcl)
+    AHFAID_of_EIM((EIM)Cause_of_SRCL(srcl))
+@d Leo_Transition_ISYID_of_SRCL(leo_source_link)
+    Postdot_ISYID_of_LIM(LIM_of_SRCL(leo_source_link))
 
-@
-@d First_Completion_Link_of_EIM(item) ((item)->t_container.t_ambiguous.t_completion)
-@d First_Token_Link_of_EIM(item) ((item)->t_container.t_ambiguous.t_token)
-@d First_Leo_SRCL_of_EIM(item) ((item)->t_container.t_ambiguous.t_leo)
+@ Macros for setting and finding the first |SRCL|'s of each type.
+@d LV_First_Completion_SRCL_of_EIM(item) ((item)->t_container.t_ambiguous.t_completion)
+@d LV_First_Token_SRCL_of_EIM(item) ((item)->t_container.t_ambiguous.t_token)
+@d LV_First_Leo_SRCL_of_EIM(item) ((item)->t_container.t_ambiguous.t_leo)
+@d First_Leo_SRCL_of_EIM(item)
+  ( Source_Type_of_EIM(item) == SOURCE_IS_LEO ? (SRCL)SRCL_of_EIM(item) :
+  Source_Type_of_EIM(item) == SOURCE_IS_AMBIGUOUS ? 
+    LV_First_Leo_SRCL_of_EIM(item) : NULL)
 
 @ @<Function definitions@> = PRIVATE
 void
@@ -7195,9 +7199,11 @@ token_link_add (RECCE r,
   unsigned int previous_source_type = Source_Type_of_EIM (item);
   if (previous_source_type == NO_SOURCE)
     {
+      const SRCL source_link = SRCL_of_EIM(item);
       Source_Type_of_EIM (item) = SOURCE_IS_TOKEN;
-      item->t_container.t_unique.t_predecessor = predecessor;
-      TOK_of_Source(item->t_container.t_unique) = token;
+      Predecessor_of_SRCL(source_link) = predecessor;
+      TOK_of_SRCL(source_link) = token;
+      Next_SRCL_of_SRCL(source_link) = NULL;
       return;
     }
   if (previous_source_type != SOURCE_IS_AMBIGUOUS)
@@ -7205,10 +7211,10 @@ token_link_add (RECCE r,
       earley_item_ambiguate (r, item);
     }
   new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
-  new_link->t_next = First_Token_Link_of_EIM (item);
+  new_link->t_next = LV_First_Token_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   TOK_of_Source(new_link->t_source) = token;
-  First_Token_Link_of_EIM (item) = new_link;
+  LV_First_Token_SRCL_of_EIM (item) = new_link;
 }
 
 @
@@ -7272,9 +7278,11 @@ completion_link_add (RECCE r,
   unsigned int previous_source_type = Source_Type_of_EIM (item);
   if (previous_source_type == NO_SOURCE)
     {
+      const SRCL source_link = SRCL_of_EIM(item);
       Source_Type_of_EIM (item) = SOURCE_IS_COMPLETION;
-      item->t_container.t_unique.t_predecessor = predecessor;
-      Cause_of_Source(item->t_container.t_unique) = cause;
+      Predecessor_of_SRCL(source_link) = predecessor;
+      Cause_of_SRCL(source_link) = cause;
+      Next_SRCL_of_SRCL(source_link) = NULL;
       return;
     }
   if (previous_source_type != SOURCE_IS_AMBIGUOUS)
@@ -7282,10 +7290,10 @@ completion_link_add (RECCE r,
       earley_item_ambiguate (r, item);
     }
   new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
-  new_link->t_next = First_Completion_Link_of_EIM (item);
+  new_link->t_next = LV_First_Completion_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
-  First_Completion_Link_of_EIM (item) = new_link;
+  LV_First_Completion_SRCL_of_EIM (item) = new_link;
 }
 
 @ @<Function definitions@> =
@@ -7299,9 +7307,11 @@ leo_link_add (RECCE r,
   unsigned int previous_source_type = Source_Type_of_EIM (item);
   if (previous_source_type == NO_SOURCE)
     {
+      const SRCL source_link = SRCL_of_EIM(item);
       Source_Type_of_EIM (item) = SOURCE_IS_LEO;
-      item->t_container.t_unique.t_predecessor = predecessor;
-      Cause_of_Source(item->t_container.t_unique) = cause;
+      Predecessor_of_SRCL(source_link) = predecessor;
+      Cause_of_SRCL(source_link) = cause;
+      Next_SRCL_of_SRCL(source_link) = NULL;
       return;
     }
   if (previous_source_type != SOURCE_IS_AMBIGUOUS)
@@ -7309,10 +7319,10 @@ leo_link_add (RECCE r,
       earley_item_ambiguate (r, item);
     }
   new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
-  new_link->t_next = First_Leo_SRCL_of_EIM (item);
+  new_link->t_next = LV_First_Leo_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
-  First_Leo_SRCL_of_EIM(item) = new_link;
+  LV_First_Leo_SRCL_of_EIM(item) = new_link;
 }
 
 @ {\bf Convert an Earley item to an ambiguous one.}
@@ -7354,29 +7364,26 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 
 @ @<Ambiguate token source@> = {
   SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
-  new_link->t_next = NULL;
-  new_link->t_source = item->t_container.t_unique;
-  First_Leo_SRCL_of_EIM (item) = NULL;
-  First_Completion_Link_of_EIM (item) = NULL;
-  First_Token_Link_of_EIM (item) = new_link;
+  *new_link = *SRCL_of_EIM(item);
+  LV_First_Leo_SRCL_of_EIM (item) = NULL;
+  LV_First_Completion_SRCL_of_EIM (item) = NULL;
+  LV_First_Token_SRCL_of_EIM (item) = new_link;
 }
 
 @ @<Ambiguate completion source@> = {
   SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
-  new_link->t_next = NULL;
-  new_link->t_source = item->t_container.t_unique;
-  First_Leo_SRCL_of_EIM (item) = NULL;
-  First_Completion_Link_of_EIM (item) = new_link;
-  First_Token_Link_of_EIM (item) = NULL;
+  *new_link = *SRCL_of_EIM(item);
+  LV_First_Leo_SRCL_of_EIM (item) = NULL;
+  LV_First_Completion_SRCL_of_EIM (item) = new_link;
+  LV_First_Token_SRCL_of_EIM (item) = NULL;
 }
 
 @ @<Ambiguate Leo source@> = {
   SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
-  new_link->t_next = NULL;
-  new_link->t_source = item->t_container.t_unique;
-  First_Leo_SRCL_of_EIM (item) = new_link;
-  First_Completion_Link_of_EIM (item) = NULL;
-  First_Token_Link_of_EIM (item) = NULL;
+  *new_link = *SRCL_of_EIM(item);
+  LV_First_Leo_SRCL_of_EIM (item) = new_link;
+  LV_First_Completion_SRCL_of_EIM (item) = NULL;
+  LV_First_Token_SRCL_of_EIM (item) = NULL;
 }
 
 @*0 Trace functions.
@@ -7387,13 +7394,11 @@ It is an error to call a trace function that is
 inconsistent with the type of the current trace
 source link.
 @<Widely aligned recognizer elements@> =
-SRC t_trace_source;
-SRCL t_trace_next_source_link;
+SRCL t_trace_source_link;
 @ @<Bit aligned recognizer elements@> =
 unsigned int t_trace_source_type:3;
 @ @<Initialize recognizer elements@> =
-r->t_trace_source = NULL;
-r->t_trace_next_source_link = NULL;
+r->t_trace_source_link = NULL;
 r->t_trace_source_type = NO_SOURCE;
 
 @*1 Trace first token link.
@@ -7406,7 +7411,7 @@ and |-2| on some other kind of failure.
 Marpa_Symbol_ID _marpa_r_first_token_link_trace(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@;
-   SRC source;
+   SRCL source_link;
    unsigned int source_type;
     EIM item = r->t_trace_earley_item;
   @<Unpack recognizer objects@>@;
@@ -7417,20 +7422,17 @@ Marpa_Symbol_ID _marpa_r_first_token_link_trace(Marpa_Recognizer r)
       {
       case SOURCE_IS_TOKEN:
 	r->t_trace_source_type = SOURCE_IS_TOKEN;
-	source = &(item->t_container.t_unique);
-	r->t_trace_source = source;
-	r->t_trace_next_source_link = NULL;
-	return ISYID_of_SRC (source);
+	source_link = SRCL_of_EIM(item);
+	r->t_trace_source_link = source_link;
+	return ISYID_of_SRCL (source_link);
       case SOURCE_IS_AMBIGUOUS:
 	{
-	  SRCL full_link =
-	    First_Token_Link_of_EIM (item);
-	  if (full_link)
+	  source_link = LV_First_Token_SRCL_of_EIM (item);
+	  if (source_link)
 	    {
 	      r->t_trace_source_type = SOURCE_IS_TOKEN;
-	      r->t_trace_next_source_link = Next_SRCL_of_SRCL (full_link);
-	      r->t_trace_source = &(full_link->t_source);
-	      return ISYID_of_SRCL (full_link);
+	      r->t_trace_source_link = source_link;
+	      return ISYID_of_SRCL (source_link);
 	    }
 	}
       }
@@ -7450,7 +7452,7 @@ and |-2| on some other kind of failure.
 Marpa_Symbol_ID _marpa_r_next_token_link_trace(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@;
-   SRCL full_link;
+   SRCL source_link;
     EIM item;
   @<Unpack recognizer objects@>@;
     @<Fail if not trace-safe@>@;
@@ -7460,14 +7462,13 @@ Marpa_Symbol_ID _marpa_r_next_token_link_trace(Marpa_Recognizer r)
 	MARPA_ERROR(MARPA_ERR_NOT_TRACING_TOKEN_LINKS);
         return failure_indicator;
     }
-    if (!r->t_trace_next_source_link) {
+    source_link = Next_SRCL_of_SRCL( r->t_trace_source_link);
+    if (!source_link) {
 	trace_source_link_clear(r);
         return -1;
     }
-    full_link = r->t_trace_next_source_link;
-    r->t_trace_next_source_link = Next_SRCL_of_SRCL (full_link);
-    r->t_trace_source = &(full_link->t_source);
-    return ISYID_of_SRCL (full_link);
+    r->t_trace_source_link = source_link;
+    return ISYID_of_SRCL (source_link);
 }
 
 @*1 Trace first completion link.
@@ -7481,7 +7482,7 @@ and |-2| on some other kind of failure.
 Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@;
-   SRC source;
+   SRCL source_link;
    unsigned int source_type;
     EIM item = r->t_trace_earley_item;
   @<Unpack recognizer objects@>@;
@@ -7491,20 +7492,17 @@ Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
       {
       case SOURCE_IS_COMPLETION:
 	r->t_trace_source_type = SOURCE_IS_COMPLETION;
-	source = &(item->t_container.t_unique);
-	r->t_trace_source = source;
-	r->t_trace_next_source_link = NULL;
-	return Cause_AHFA_State_ID_of_SRC (source);
+	source_link = SRCL_of_EIM(item);
+	r->t_trace_source_link = source_link;
+	return Cause_AHFAID_of_SRCL (source_link);
       case SOURCE_IS_AMBIGUOUS:
 	{
-	  SRCL completion_link = First_Completion_Link_of_EIM (item);
-	  if (completion_link)
+	  source_link = LV_First_Completion_SRCL_of_EIM (item);
+	  if (source_link)
 	    {
-	      source = &(completion_link->t_source);
 	      r->t_trace_source_type = SOURCE_IS_COMPLETION;
-	      r->t_trace_next_source_link = Next_SRCL_of_SRCL (completion_link);
-	      r->t_trace_source = source;
-	      return Cause_AHFA_State_ID_of_SRC (source);
+	      r->t_trace_source_link = source_link;
+	      return Cause_AHFAID_of_SRCL (source_link);
 	    }
 	}
       }
@@ -7524,8 +7522,7 @@ and |-2| on some other kind of failure.
 Marpa_Symbol_ID _marpa_r_next_completion_link_trace(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@;
-   SRC source;
-   SRCL completion_link; 
+   SRCL source_link;
     EIM item;
   @<Unpack recognizer objects@>@;
     @<Fail if not trace-safe@>@;
@@ -7535,15 +7532,13 @@ Marpa_Symbol_ID _marpa_r_next_completion_link_trace(Marpa_Recognizer r)
 	MARPA_ERROR(MARPA_ERR_NOT_TRACING_COMPLETION_LINKS);
         return failure_indicator;
     }
-    if (!r->t_trace_next_source_link) {
+    source_link = Next_SRCL_of_SRCL (r->t_trace_source_link);
+    if (!source_link) {
 	trace_source_link_clear(r);
         return -1;
     }
-    completion_link = r->t_trace_next_source_link;
-    r->t_trace_next_source_link = Next_SRCL_of_SRCL (r->t_trace_next_source_link);
-    source = &(completion_link->t_source);
-    r->t_trace_source = source;
-    return Cause_AHFA_State_ID_of_SRC (source);
+    r->t_trace_source_link = source_link;
+    return Cause_AHFAID_of_SRCL (source_link);
 }
 
 @*1 Trace first Leo link.
@@ -7558,35 +7553,17 @@ Marpa_Symbol_ID
 _marpa_r_first_leo_link_trace (Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
-  SRC source;
-  unsigned int source_type;
+  SRCL source_link;
   EIM item = r->t_trace_earley_item;
   @<Unpack recognizer objects@>@;
   @<Fail if not trace-safe@>@;
   @<Set |item|, failing if necessary@>@;
-  switch ((source_type = Source_Type_of_EIM (item)))
-	{
-	case SOURCE_IS_LEO:
-	  r->t_trace_source_type = SOURCE_IS_LEO;
-	  source = &(item->t_container.t_unique);
-	  r->t_trace_source = source;
-	  r->t_trace_next_source_link = NULL;
-	  return Cause_AHFA_State_ID_of_SRC (source);
-	case SOURCE_IS_AMBIGUOUS:
-	  {
-	    SRCL full_link =
-	      First_Leo_SRCL_of_EIM (item);
-	    if (full_link)
-	      {
-		source = &(full_link->t_source);
-		r->t_trace_source_type = SOURCE_IS_LEO;
-		r->t_trace_next_source_link = (SRCL)
-		  Next_SRCL_of_SRCL (full_link);
-		r->t_trace_source = source;
-		return Cause_AHFA_State_ID_of_SRC (source);
-	      }
-	  }
-	}
+  source_link = First_Leo_SRCL_of_EIM(item);
+  if (source_link) {
+      r->t_trace_source_type = SOURCE_IS_LEO;
+      r->t_trace_source_link = source_link;
+      return Cause_AHFAID_of_SRCL (source_link);
+  }
   trace_source_link_clear (r);
   return -1;
 }
@@ -7604,8 +7581,7 @@ Marpa_Symbol_ID
 _marpa_r_next_leo_link_trace (Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@/
-  SRCL full_link;
-  SRC source;
+  SRCL source_link;
   EIM item;
   @<Unpack recognizer objects@>@;
   @<Fail if not trace-safe@>@/
@@ -7616,17 +7592,14 @@ _marpa_r_next_leo_link_trace (Marpa_Recognizer r)
       MARPA_ERROR(MARPA_ERR_NOT_TRACING_LEO_LINKS);
       return failure_indicator;
     }
-  if (!r->t_trace_next_source_link)
+  source_link = Next_SRCL_of_SRCL(r->t_trace_source_link);
+  if (!source_link)
     {
       trace_source_link_clear (r);
       return -1;
     }
-  full_link = r->t_trace_next_source_link;
-  source = &(full_link->t_source);
-  r->t_trace_source = source;
-  r->t_trace_next_source_link =
-    Next_SRCL_of_SRCL(r->t_trace_next_source_link);
-  return Cause_AHFA_State_ID_of_SRC (source);
+  r->t_trace_source_link = source_link;
+  return Cause_AHFAID_of_SRCL (source_link);
 }
 
 @ @<Set |item|, failing if necessary@> =
@@ -7641,8 +7614,7 @@ _marpa_r_next_leo_link_trace (Marpa_Recognizer r)
 @<Function definitions@> =
 PRIVATE void trace_source_link_clear(RECCE r)
 {
-    r->t_trace_next_source_link = NULL;
-    r->t_trace_source = NULL;
+    r->t_trace_source_link = NULL;
     r->t_trace_source_type = NO_SOURCE;
 }
 
@@ -7659,16 +7631,16 @@ AHFAID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@/
    unsigned int source_type;
-   SRC source;
+   SRCL source_link;
   @<Unpack recognizer objects@>@;
     @<Fail if not trace-safe@>@/
    source_type = r->t_trace_source_type;
-    @<Set source, failing if necessary@>@/
+    @<Set source link, failing if necessary@>@/
     switch (source_type)
     {
     case SOURCE_IS_TOKEN:
     case SOURCE_IS_COMPLETION: {
-        EIM predecessor = Predecessor_of_SRC(source);
+        EIM predecessor = Predecessor_of_SRCL(source_link);
 	if (!predecessor) return -1;
 	return AHFAID_of_EIM(predecessor);
     }
@@ -7700,13 +7672,13 @@ Marpa_Symbol_ID _marpa_r_source_token(Marpa_Recognizer r, int *value_p)
 {
    @<Return |-2| on failure@>@;
    unsigned int source_type;
-   SRC source;
+   SRCL source_link;
   @<Unpack recognizer objects@>@;
     @<Fail if not trace-safe@>@;
    source_type = r->t_trace_source_type;
-    @<Set source, failing if necessary@>@;
+    @<Set source link, failing if necessary@>@;
     if (source_type == SOURCE_IS_TOKEN) {
-	const TOK token = TOK_of_SRC(source);
+	const TOK token = TOK_of_SRCL(source_link);
         if (value_p) *value_p = Value_of_TOK(token);
 	return ISYID_of_TOK(token);
     }
@@ -7732,15 +7704,15 @@ Marpa_Symbol_ID _marpa_r_source_leo_transition_symbol(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@/
    unsigned int source_type;
-   SRC source;
+   SRCL source_link;
   @<Unpack recognizer objects@>@;
     @<Fail if not trace-safe@>@/
    source_type = r->t_trace_source_type;
-    @<Set source, failing if necessary@>@/
+    @<Set source link, failing if necessary@>@/
     switch (source_type)
     {
     case SOURCE_IS_LEO:
-	return Leo_Transition_ISYID_of_SRC(source);
+	return Leo_Transition_ISYID_of_SRCL(source_link);
     }
     MARPA_ERROR(invalid_source_type_code(source_type));
     return failure_indicator;
@@ -7779,16 +7751,16 @@ Marpa_Earley_Set_ID _marpa_r_source_middle(Marpa_Recognizer r)
    @<Return |-2| on failure@>@/
    const EARLEME no_predecessor = -1;
    unsigned int source_type;
-   SRC source;
+   SRCL source_link;
   @<Unpack recognizer objects@>@;
     @<Fail if not trace-safe@>@/
    source_type = r->t_trace_source_type;
-    @<Set source, failing if necessary@>@/
+    @<Set source link, failing if necessary@>@/
     switch (source_type)
       {
       case SOURCE_IS_LEO:
 	{
-	  LIM predecessor = Predecessor_of_SRC (source);
+	  LIM predecessor = LIM_of_SRCL (source_link);
 	  if (!predecessor) return no_predecessor;
 	  return
 	    ES_Ord_of_EIM (Base_EIM_of_LIM (predecessor));
@@ -7796,7 +7768,7 @@ Marpa_Earley_Set_ID _marpa_r_source_middle(Marpa_Recognizer r)
       case SOURCE_IS_TOKEN:
       case SOURCE_IS_COMPLETION:
 	{
-	  EIM predecessor = Predecessor_of_SRC (source);
+	  EIM predecessor = Predecessor_of_SRCL (source_link);
 	  if (!predecessor) return no_predecessor;
 	  return ES_Ord_of_EIM (predecessor);
 	}
@@ -7805,9 +7777,9 @@ Marpa_Earley_Set_ID _marpa_r_source_middle(Marpa_Recognizer r)
     return failure_indicator;
 }
 
-@ @<Set source, failing if necessary@> =
-    source = r->t_trace_source;
-    if (!source) {
+@ @<Set source link, failing if necessary@> =
+    source_link = r->t_trace_source_link;
+    if (!source_link) {
 	MARPA_ERROR(MARPA_ERR_NO_TRACE_SRCL);
         return failure_indicator;
     }
@@ -8921,12 +8893,13 @@ for (lim_chain_ix--; lim_chain_ix >= 0; lim_chain_ix--) {
     predecessor_lim = lim_to_process;
 }
 
-@ @<Populate |lim_to_process| from |predecessor_lim|@> = {
-Predecessor_LIM_of_LIM(lim_to_process) = predecessor_lim;
-Origin_of_LIM(lim_to_process) = Origin_of_LIM(predecessor_lim);
-Chain_Length_of_LIM(lim_to_process) = 
-    Chain_Length_of_LIM(lim_to_process)+1;
-Top_AHFA_of_LIM(lim_to_process) = Top_AHFA_of_LIM(predecessor_lim);
+@ @<Populate |lim_to_process| from |predecessor_lim|@> =
+{
+  Predecessor_LIM_of_LIM (lim_to_process) = predecessor_lim;
+  Origin_of_LIM (lim_to_process) = Origin_of_LIM (predecessor_lim);
+  Chain_Length_of_LIM (lim_to_process) =
+    Chain_Length_of_LIM (lim_to_process) + 1;
+  Top_AHFA_of_LIM (lim_to_process) = Top_AHFA_of_LIM (predecessor_lim);
 }
 
 @ If we have reached this code, either we do not have a predecessor
@@ -9263,7 +9236,7 @@ MARPA_ASSERT(ahfa_element_ix < aim_count_of_item)@;
       predecessor_earley_item = Predecessor_of_EIM (parent_earley_item);
       break;
     case SOURCE_IS_AMBIGUOUS:
-      source_link = First_Token_Link_of_EIM (parent_earley_item);
+      source_link = LV_First_Token_SRCL_of_EIM (parent_earley_item);
       if (source_link)
 	{
 	  predecessor_earley_item = Predecessor_of_SRCL (source_link);
@@ -9324,7 +9297,7 @@ no other descendants.
       cause_earley_item = Cause_of_EIM (parent_earley_item);
       break;
     case SOURCE_IS_AMBIGUOUS:
-      source_link = First_Completion_Link_of_EIM (parent_earley_item);
+      source_link = LV_First_Completion_SRCL_of_EIM (parent_earley_item);
       if (source_link)
 	{
 	  predecessor_earley_item = Predecessor_of_SRCL (source_link);
@@ -9372,62 +9345,47 @@ no other descendants.
 
 @ @<Push child Earley items from Leo sources@> =
 {
-  SRCL source_link = NULL;
-  EIM cause_earley_item = NULL;
-  LIM leo_predecessor = NULL;
-  switch (source_type)
+  SRCL source_link;
+  for (source_link = First_Leo_SRCL_of_EIM (parent_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
     {
-    case SOURCE_IS_LEO:
-      leo_predecessor = Predecessor_of_EIM (parent_earley_item);
-      cause_earley_item = Cause_of_EIM (parent_earley_item);
-      break;
-    case SOURCE_IS_AMBIGUOUS:
-      source_link = First_Leo_SRCL_of_EIM (parent_earley_item);
-      if (source_link)
-	{
-	  leo_predecessor = Predecessor_of_SRCL (source_link);
-	  cause_earley_item = Cause_of_SRCL (source_link);
-	  source_link = Next_SRCL_of_SRCL (source_link);
-	}
-      break;
-    }
-  while (cause_earley_item)
-    {
-      const ISYID transition_isyid = Postdot_ISYID_of_LIM(leo_predecessor);
+      const EIM cause_earley_item = Cause_of_SRCL (source_link);
+      LIM leo_predecessor = LIM_of_SRCL (source_link);
+      const ISYID transition_isyid = Postdot_ISYID_of_LIM (leo_predecessor);
       const TRANS cause_completion_data =
 	TRANS_of_EIM_by_ISYID (cause_earley_item, transition_isyid);
       const int aex_count = Completion_Count_of_TRANS (cause_completion_data);
-      const AEX * const aexes = AEXs_of_TRANS (cause_completion_data);
+      const AEX *const aexes = AEXs_of_TRANS (cause_completion_data);
       int ix;
       EIM ur_earley_item = cause_earley_item;
-      for (ix = 0; ix < aex_count; ix++) {
+      for (ix = 0; ix < aex_count; ix++)
+	{
 	  const AEX ur_aex = aexes[ix];
-	  const AIM ur_aim = AIM_of_EIM_by_AEX(ur_earley_item, ur_aex);
+	  const AIM ur_aim = AIM_of_EIM_by_AEX (ur_earley_item, ur_aex);
 	  @<Push ur-node if new@>@;
-      }
-    while (leo_predecessor) {
-      ISYID postdot_isyid = Postdot_ISYID_of_LIM (leo_predecessor);
-      EIM leo_base = Base_EIM_of_LIM (leo_predecessor);
-      TRANS transition = TRANS_of_EIM_by_ISYID (leo_base, postdot_isyid);
-      const AEX ur_aex = Leo_Base_AEX_of_TRANS (transition);
-      const AIM ur_aim = AIM_of_EIM_by_AEX(leo_base, ur_aex);
-      ur_earley_item = leo_base;
-      /* Increment the
-      estimate to account for the Leo path or-nodes */
-      or_node_estimate += 1 + Null_Count_of_AIM(ur_aim+1);
-	if (EIM_is_Predicted (ur_earley_item))
-	  {
-	    Set_boolean_in_PSIA_for_initial_nulls(ur_earley_item, ur_aim);
-	  } else {
+	}
+      while (leo_predecessor)
+	{
+	  ISYID postdot_isyid = Postdot_ISYID_of_LIM (leo_predecessor);
+	  EIM leo_base = Base_EIM_of_LIM (leo_predecessor);
+	  TRANS transition = TRANS_of_EIM_by_ISYID (leo_base, postdot_isyid);
+	  const AEX ur_aex = Leo_Base_AEX_of_TRANS (transition);
+	  const AIM ur_aim = AIM_of_EIM_by_AEX (leo_base, ur_aex);
+	  ur_earley_item = leo_base;
+	  /* Increment the
+	     estimate to account for the Leo path or-nodes */
+	  or_node_estimate += 1 + Null_Count_of_AIM (ur_aim + 1);
+	  if (EIM_is_Predicted (ur_earley_item))
+	    {
+	      Set_boolean_in_PSIA_for_initial_nulls (ur_earley_item, ur_aim);
+	    }
+	  else
+	    {
 	      @<Push ur-node if new@>@;
-	  }
-	leo_predecessor = Predecessor_LIM_of_LIM(leo_predecessor);
-        }
-	if (!source_link) break;
-	  leo_predecessor = Predecessor_of_SRCL (source_link);
-	  cause_earley_item = Cause_of_SRCL (source_link);
-	  source_link = Next_SRCL_of_SRCL (source_link);
-      }
+	    }
+	  leo_predecessor = Predecessor_LIM_of_LIM (leo_predecessor);
+	}
+    }
 }
 
 @** Or-node (OR) code.
@@ -9768,34 +9726,16 @@ MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
 }
 
 @*0 Leo or-nodes.
-@<Add Leo or-nodes for |work_earley_item| and |work_aex|@> = {
-  SRCL source_link = NULL;
-  EIM cause_earley_item = NULL;
-  LIM leo_predecessor = NULL;
-  switch (Source_Type_of_EIM(work_earley_item))
+@<Add Leo or-nodes for |work_earley_item| and |work_aex|@> =
+{
+  SRCL source_link;
+  for (source_link = First_Leo_SRCL_of_EIM (work_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
     {
-    case SOURCE_IS_LEO:
-      leo_predecessor = Predecessor_of_EIM (work_earley_item);
-      cause_earley_item = Cause_of_EIM (work_earley_item);
-      break;
-    case SOURCE_IS_AMBIGUOUS:
-      source_link = First_Leo_SRCL_of_EIM (work_earley_item);
-      if (source_link)
-	{
-	  leo_predecessor = Predecessor_of_SRCL (source_link);
-	  cause_earley_item = Cause_of_SRCL (source_link);
-	  source_link = Next_SRCL_of_SRCL (source_link);
-	}
-      break;
-    }
-    if (leo_predecessor) {
-	for (;;) { /* for each Leo source link */
-	    @<Add or-nodes for chain starting with |leo_predecessor|@>@;
-	    if (!source_link) break;
-	    leo_predecessor = Predecessor_of_SRCL (source_link);
-	    cause_earley_item = Cause_of_SRCL (source_link);
-	    source_link = Next_SRCL_of_SRCL (source_link);
-	}
+      LIM leo_predecessor = LIM_of_SRCL (source_link);
+      if (leo_predecessor) {
+	@<Add or-nodes for chain starting with |leo_predecessor|@>@;
+      }
     }
 }
 
@@ -10039,34 +9979,17 @@ predecessor.  Set |or_node| to 0 if there is none.
     @<Create draft and-nodes for completion sources@>@;
 }
 
-@ @<Create Leo draft and-nodes@> = {
-  SRCL source_link = NULL;
-  EIM cause_earley_item = NULL;
-  LIM leo_predecessor = NULL;
-  switch (Source_Type_of_EIM(work_earley_item))
+@ @<Create Leo draft and-nodes@> =
+{
+  SRCL source_link;
+  for (source_link = First_Leo_SRCL_of_EIM (work_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
     {
-    case SOURCE_IS_LEO:
-      leo_predecessor = Predecessor_of_EIM (work_earley_item);
-      cause_earley_item = Cause_of_EIM (work_earley_item);
-      break;
-    case SOURCE_IS_AMBIGUOUS:
-      source_link = First_Leo_SRCL_of_EIM (work_earley_item);
-      if (source_link)
-	{
-	  leo_predecessor = Predecessor_of_SRCL (source_link);
-	  cause_earley_item = Cause_of_SRCL (source_link);
-	  source_link = Next_SRCL_of_SRCL (source_link);
-	}
-      break;
-    }
-    if (leo_predecessor) {
-	for (;;) { /* for each Leo source link */
-	    @<Add draft and-nodes for chain starting with |leo_predecessor|@>@;
-	    if (!source_link) break;
-	    leo_predecessor = Predecessor_of_SRCL (source_link);
-	    cause_earley_item = Cause_of_SRCL (source_link);
-	    source_link = Next_SRCL_of_SRCL (source_link);
-	}
+      EIM cause_earley_item = Cause_of_SRCL (source_link);
+      LIM leo_predecessor = LIM_of_SRCL (source_link);
+      if (leo_predecessor) {
+	@<Add draft and-nodes for chain starting with |leo_predecessor|@>@;
+      }
     }
 }
 
@@ -10079,8 +10002,6 @@ predecessor.  Set |or_node| to 0 if there is none.
     IRL previous_path_irl;
     LIM path_leo_item = leo_predecessor;
     LIM higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
-    /* A boolean to indicate whether is true is there is some
-       section of a non-trivial path left unprocessed. */
     OR dand_predecessor;
     OR path_or_node;
     EIM base_earley_item;
@@ -10176,7 +10097,7 @@ predecessor.  Set |or_node| to 0 if there is none.
       token = TOK_of_EIM(work_earley_item);
       break;
     case SOURCE_IS_AMBIGUOUS:
-      source_link = First_Token_Link_of_EIM (work_earley_item);
+      source_link = LV_First_Token_SRCL_of_EIM (work_earley_item);
       if (source_link)
 	{
 	  predecessor_earley_item = Predecessor_of_SRCL (source_link);
@@ -10226,7 +10147,7 @@ predecessor.  Set |or_node| to 0 if there is none.
       cause_earley_item = Cause_of_EIM (work_earley_item);
       break;
     case SOURCE_IS_AMBIGUOUS:
-      source_link = First_Completion_Link_of_EIM (work_earley_item);
+      source_link = LV_First_Completion_SRCL_of_EIM (work_earley_item);
       if (source_link)
 	{
 	  predecessor_earley_item = Predecessor_of_SRCL (source_link);
@@ -10533,43 +10454,46 @@ PRIVATE TOK and_node_token(AND and_node)
 
 @** Progress report code.
 @<Private typedefs@> =
-   struct s_report_item;
-   typedef struct s_report_item* REPORT;
+   typedef struct marpa_progress_item* PROGRESS;
 @ @<Widely aligned recognizer elements@> =
-   const struct s_report_item* t_current_report_item;
-   AVL_TREE t_progress_report_tree;
+   const struct marpa_progress_item* t_current_report_item;
+   AVL_TRAV t_progress_report_traverser;
 @ @<Initialize recognizer elements@> =
    r->t_current_report_item = &progress_report_not_ready;
-   r->t_progress_report_tree = NULL;
+   r->t_progress_report_traverser = NULL;
 @ @<Clear progress report in |r|@> =
    r->t_current_report_item = &progress_report_not_ready;
-   r->t_progress_report_tree = NULL;
+    if (r->t_progress_report_traverser) {
+    _marpa_avl_destroy ( TREE_of_AVL_TRAV(r->t_progress_report_traverser) );
+    }
+   r->t_progress_report_traverser = NULL;
 @ @<Destroy recognizer elements@> =
    @<Clear progress report in |r|@>;
-@
-@d Rule_of_REPORT(report) ((report)->t_rule_id)
-@d Position_of_REPORT(report) ((report)->t_position)
-@d Origin_of_REPORT(report) ((report)->t_origin)
-@<Private structures@> =
-struct s_report_item {
+@ @<Public structures@> =
+struct marpa_progress_item {
     Marpa_Rule_ID t_rule_id;
     int t_position;
     int t_origin;
 };
+typedef const struct marpa_progress_item* Marpa_Progress_Item;
 
 @ A dummy progress report item to allow the macros to
 produce error reports without having to use a ternary,
 and getting into issues of evaluation the argument twice.
 @<Global variables@> =
-static const struct s_report_item progress_report_not_ready = { -2, -2, -2 };
+static const struct marpa_progress_item progress_report_not_ready = { -2, -2, -2 };
 
+@
+@d RULEID_of_PROGRESS(report) ((report)->t_rule_id)
+@d Position_of_PROGRESS(report) ((report)->t_position)
+@d Origin_of_PROGRESS(report) ((report)->t_origin)
 @ @<Public defines@> =
-#define marpa_r_report_rule(v) \
-    Rule_of_REPORT((r)->t-current_report_item)
-#define marpa_r_report_position(v) \
-    Position_of_REPORT((r)->t-current_report_item)
-#define marpa_r_report_origin(v) \
-    Origin_of_REPORT((r)->t-current_report_item)
+#define marpa_r_progress_item_rule(item) \
+    ((item)->t_rule_id)
+#define marpa_r_progress_item_position(item) \
+    ((item)->t_position)
+#define marpa_r_progress_item_origin(item) \
+    ((item)->t_origin)
 
 @ @<Function definitions@> =
 PRIVATE_NOT_INLINE int report_item_cmp (
@@ -10577,14 +10501,14 @@ PRIVATE_NOT_INLINE int report_item_cmp (
     const void* bp,
     void *param UNUSED)
 {
-    const struct s_report_item* const report_a = ap;
-    const struct s_report_item* const report_b = bp;
-    if (Position_of_REPORT(report_a) > Position_of_REPORT(report_b)) return 1;
-    if (Position_of_REPORT(report_a) < Position_of_REPORT(report_b)) return -1;
-    if (Rule_of_REPORT(report_a) > Rule_of_REPORT(report_b)) return 1;
-    if (Rule_of_REPORT(report_a) < Rule_of_REPORT(report_b)) return -1;
-    if (Origin_of_REPORT(report_a) > Origin_of_REPORT(report_b)) return 1;
-    if (Origin_of_REPORT(report_a) < Origin_of_REPORT(report_b)) return -1;
+    const struct marpa_progress_item* const report_a = ap;
+    const struct marpa_progress_item* const report_b = bp;
+    if (Position_of_PROGRESS(report_a) > Position_of_PROGRESS(report_b)) return 1;
+    if (Position_of_PROGRESS(report_a) < Position_of_PROGRESS(report_b)) return -1;
+    if (RULEID_of_PROGRESS(report_a) > RULEID_of_PROGRESS(report_b)) return 1;
+    if (RULEID_of_PROGRESS(report_a) < RULEID_of_PROGRESS(report_b)) return -1;
+    if (Origin_of_PROGRESS(report_a) > Origin_of_PROGRESS(report_b)) return 1;
+    if (Origin_of_PROGRESS(report_a) < Origin_of_PROGRESS(report_b)) return -1;
     return 0;
 }
 
@@ -10612,40 +10536,83 @@ int marpa_r_progress_report_start(
   earley_set = ES_of_R_by_Ord (r, set_id);
   @<Clear progress report in |r|@>@;
   {
-    const AVL_TREE report_tree = r->t_progress_report_tree =
-      _marpa_avl_create (report_item_cmp, NULL, alignof (REPORT));
+    const AVL_TREE report_tree =
+      _marpa_avl_create (report_item_cmp, NULL, alignof (PROGRESS));
     const EIM *const earley_items = EIMs_of_ES (earley_set);
     const int earley_item_count = EIM_Count_of_ES (earley_set);
     int earley_item_id;
     for (earley_item_id = 0; earley_item_id < earley_item_count;
 	 earley_item_id++)
       {
-	const int initial_phase = 1;
-	const int eim_is_finished = 2;
-	int next_phase = initial_phase;
-	ESID report_origin;
-	AHFA report_AHFA_state;
-	const EIM earley_item = earley_items[earley_item_id];
-	while (1) {
-	  const int phase = next_phase;
-	  while (1)
-	    { // this pseudo-loop finds the next AHFA state to report
-	      if (phase == initial_phase)
-		{
-		  report_origin = Origin_Ord_of_EIM (earley_item);
-		  report_AHFA_state = AHFA_of_EIM (earley_item);
-		  next_phase = eim_is_finished;
-		  break;
-		}
-	      goto NEXT_EIM;		// happens only if |phase == eim_is_finished|
-	    }
-	  @<Insert items into tree for |report_AHFA_state|
-	  and |report_origin|@>@;
-	}
+	@<Do the progress report for |earley_item|@>@;
       }
-      NEXT_EIM: ;
+    r->t_progress_report_traverser = _marpa_avl_t_init(report_tree);
+    return marpa_avl_count (report_tree);
   }
-  return marpa_avl_count (r->t_progress_report_tree);
+}
+
+@ @<Do the progress report for |earley_item|@> =
+{
+  const int initial_phase = 1;
+  const int leo_source_link_phase = 2;
+  const int leo_path_item_phase = 3;
+  int next_phase = initial_phase;
+  SRCL leo_source_link = NULL;
+  LIM next_leo_item = NULL;
+  const EIM earley_item = earley_items[earley_item_id];
+  while (1)
+    {
+      ESID report_origin;
+      AHFA report_AHFA_state;
+      while (1)
+	{			// this loop finds the next AHFA state to report
+	  const int phase = next_phase;
+	  if (phase == initial_phase)
+	    {
+	      report_origin = Origin_Ord_of_EIM (earley_item);
+	      report_AHFA_state = AHFA_of_EIM (earley_item);
+	      next_phase = leo_source_link_phase;
+	      goto INSERT_ITEMS_INTO_TREE;
+	    }
+	  if (phase == leo_source_link_phase)
+	    {
+	      leo_source_link = leo_source_link ?
+		Next_SRCL_of_SRCL (leo_source_link) :
+		First_Leo_SRCL_of_EIM (earley_item);
+	      if (leo_source_link)
+		{
+		  next_leo_item = LIM_of_SRCL (leo_source_link);
+		  next_phase = leo_path_item_phase;
+		  goto NEXT_PHASE;
+		}
+	      goto NEXT_EARLEY_ITEM;
+	      // If there are no more Leo source links,
+	      // we are finished with this Earley item
+	    }
+	  if (phase == leo_path_item_phase)
+	    {
+	      const LIM leo_item = next_leo_item;
+	      if (!leo_item)
+		{
+		  next_phase = leo_source_link_phase;
+		  goto NEXT_PHASE;
+		}
+	      {
+		const EIM base_earley_item = Base_EIM_of_LIM (leo_item);
+		const ISYID postdot_isyid = Postdot_ISYID_of_LIM (leo_item);
+		report_origin = Ord_of_ES (ES_of_LIM (leo_item));
+		report_AHFA_state =
+		  To_AHFA_of_EIM_by_ISYID (base_earley_item, postdot_isyid);
+		next_leo_item = Predecessor_LIM_of_LIM (leo_item);
+		goto INSERT_ITEMS_INTO_TREE;
+	      }
+	    }
+	NEXT_PHASE:;
+	}
+    INSERT_ITEMS_INTO_TREE:
+      @<Insert items into tree for |report_AHFA_state| and |report_origin|@>@;
+    }
+NEXT_EARLEY_ITEM:;
 }
 
 @ @<Insert items into tree for |report_AHFA_state| and |report_origin|@> =
@@ -10679,12 +10646,12 @@ int marpa_r_progress_report_start(
 		}
 	    }
 	  {
-	    const REPORT new_report_item =
-	      my_obstack_new (AVL_OBSTACK (report_tree), struct s_report_item,
+	    const PROGRESS new_report_item =
+	      my_obstack_new (AVL_OBSTACK (report_tree), struct marpa_progress_item,
 			      1);
-	    Position_of_REPORT (new_report_item) = xrl_position;
-	    Origin_of_REPORT (new_report_item) = report_origin;
-	    Rule_of_REPORT (new_report_item) = ID_of_XRL (source_xrl);
+	    Position_of_PROGRESS (new_report_item) = xrl_position;
+	    Origin_of_PROGRESS (new_report_item) = report_origin;
+	    RULEID_of_PROGRESS (new_report_item) = ID_of_XRL (source_xrl);
 	    _marpa_avl_insert (report_tree, new_report_item);
 	  }
 	}
@@ -10693,17 +10660,41 @@ int marpa_r_progress_report_start(
 }
 
 @ @<Function definitions@> =
-void marpa_r_progress_report_finish(Marpa_Recognizer r) {
+int marpa_r_progress_report_finish(Marpa_Recognizer r) {
+  const int success = 1;
+  @<Return |-2| on failure@>@;
+  @<Unpack recognizer objects@>@;
+  const AVL_TRAV traverser = r->t_progress_report_traverser;
+  @<Fail if no |traverser|@>@;
     @<Clear progress report in |r|@>@;
+    return success;
 }
 
 @ @<Function definitions@> =
-int marpa_r_progress_item(Marpa_Recognizer r) {
-  @<Return |-2| on failure@>@;
+Marpa_Progress_Item marpa_r_progress_item(Marpa_Recognizer r) {
+  @<Return |NULL| on failure@>@;
+  PROGRESS report_item;
+  AVL_TRAV traverser;
   @<Unpack recognizer objects@>@;
   @<Fail if fatal error@>@;
   @<Fail if recognizer not started@>@;
-  return 1;
+  traverser = r->t_progress_report_traverser;
+  @<Fail if no |traverser|@>@;
+  report_item = _marpa_avl_t_next(traverser);
+  if (report_item) {
+    r->t_current_report_item = report_item;
+    return report_item;
+  }
+  return &progress_report_not_ready ;
+}
+
+@ @<Fail if no |traverser|@> =
+{
+  if (!traverser)
+    {
+      MARPA_ERROR (MARPA_ERR_PROGRESS_REPORT_NOT_STARTED);
+      return failure_indicator;
+    }
 }
 
 @** Parse bocage code (B, BOCAGE).
@@ -14020,6 +14011,11 @@ void marpa_debug_level_set( int level )
 }
 
 @ @<Debug macros@> =
+
+#ifndef MARPA_DEBUG
+#define MARPA_DEBUG 0
+#endif
+
 #if MARPA_DEBUG
 
 #undef MARPA_ENABLE_ASSERT
@@ -14045,6 +14041,10 @@ void marpa_debug_level_set( int level )
 #define MARPA_DEBUG4(a, b, c, d) @[@]
 #define MARPA_DEBUG5(a, b, c, d, e) @[@]
 #define MARPA_ASSERT(exp) @[@]
+#endif
+
+#ifndef MARPA_ENABLE_ASSERT
+#define MARPA_ENABLE_ASSERT 0
 #endif
 
 #if MARPA_ENABLE_ASSERT
