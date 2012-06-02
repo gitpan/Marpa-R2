@@ -76,7 +76,7 @@ int marpa_r_is_exhausted (Marpa_Recognizer r);
 int marpa_r_event (Marpa_Recognizer r, Marpa_Event* event, int ix);
 int marpa_r_progress_report_start ( Marpa_Recognizer r, Marpa_Earley_Set_ID set_id);
 int marpa_r_progress_report_finish ( Marpa_Recognizer r );
-Marpa_Progress_Item marpa_r_progress_item ( Marpa_Recognizer r );
+Marpa_Rule_ID marpa_r_progress_item ( Marpa_Recognizer r, int* position, Marpa_Earley_Set_ID* origin );
 Marpa_Bocage marpa_b_new (Marpa_Recognizer r, Marpa_Earley_Set_ID ordinal_arg);
 Marpa_Grammar marpa_b_g (Marpa_Bocage b);
 Marpa_Bocage marpa_b_ref (Marpa_Bocage b);
@@ -189,7 +189,7 @@ int _marpa_t_nook_is_cause ( Marpa_Tree t, Marpa_Nook_ID nook_id );
 int _marpa_t_nook_is_predecessor ( Marpa_Tree t, Marpa_Nook_ID nook_id );
 int _marpa_v_trace ( Marpa_Value v, int flag);
 Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
-#define MARPA_ERROR_COUNT 72
+#define MARPA_ERROR_COUNT 73
 #define MARPA_ERR_NONE 0
 #define MARPA_ERR_AHFA_IX_NEGATIVE 1
 #define MARPA_ERR_AHFA_IX_OOB 2
@@ -239,29 +239,30 @@ Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
 #define MARPA_ERR_PARSE_EXHAUSTED 46
 #define MARPA_ERR_PARSE_TOO_LONG 47
 #define MARPA_ERR_PIM_IS_NOT_LIM 48
-#define MARPA_ERR_PRECOMPUTED 49
-#define MARPA_ERR_PROGRESS_REPORT_NOT_STARTED 50
-#define MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT 51
-#define MARPA_ERR_RECCE_NOT_STARTED 52
-#define MARPA_ERR_RECCE_STARTED 53
-#define MARPA_ERR_RHS_TOO_LONG 54
-#define MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE 55
-#define MARPA_ERR_SOURCE_TYPE_IS_NONE 56
-#define MARPA_ERR_SOURCE_TYPE_IS_TOKEN 57
-#define MARPA_ERR_SOURCE_TYPE_IS_COMPLETION 58
-#define MARPA_ERR_SOURCE_TYPE_IS_LEO 59
-#define MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS 60
-#define MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN 61
-#define MARPA_ERR_START_NOT_LHS 62
-#define MARPA_ERR_SYM_NOT_NULLABLE 63
-#define MARPA_ERR_TOKEN_IS_NOT_TERMINAL 64
-#define MARPA_ERR_TOKEN_LENGTH_LE_ZERO 65
-#define MARPA_ERR_TOKEN_TOO_LONG 66
-#define MARPA_ERR_TREE_EXHAUSTED 67
-#define MARPA_ERR_TREE_PAUSED 68
-#define MARPA_ERR_UNKNOWN 69
-#define MARPA_ERR_UNPRODUCTIVE_START 70
-#define MARPA_ERR_VALUATOR_INACTIVE 71
+#define MARPA_ERR_POINTER_ARG_NULL 49
+#define MARPA_ERR_PRECOMPUTED 50
+#define MARPA_ERR_PROGRESS_REPORT_NOT_STARTED 51
+#define MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT 52
+#define MARPA_ERR_RECCE_NOT_STARTED 53
+#define MARPA_ERR_RECCE_STARTED 54
+#define MARPA_ERR_RHS_TOO_LONG 55
+#define MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE 56
+#define MARPA_ERR_SOURCE_TYPE_IS_NONE 57
+#define MARPA_ERR_SOURCE_TYPE_IS_TOKEN 58
+#define MARPA_ERR_SOURCE_TYPE_IS_COMPLETION 59
+#define MARPA_ERR_SOURCE_TYPE_IS_LEO 60
+#define MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS 61
+#define MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN 62
+#define MARPA_ERR_START_NOT_LHS 63
+#define MARPA_ERR_SYM_NOT_NULLABLE 64
+#define MARPA_ERR_TOKEN_IS_NOT_TERMINAL 65
+#define MARPA_ERR_TOKEN_LENGTH_LE_ZERO 66
+#define MARPA_ERR_TOKEN_TOO_LONG 67
+#define MARPA_ERR_TREE_EXHAUSTED 68
+#define MARPA_ERR_TREE_PAUSED 69
+#define MARPA_ERR_UNKNOWN 70
+#define MARPA_ERR_UNPRODUCTIVE_START 71
+#define MARPA_ERR_VALUATOR_INACTIVE 72
 #define MARPA_EVENT_COUNT 6
 #define MARPA_EVENT_NONE 0
 #define MARPA_EVENT_EXHAUSTED 1

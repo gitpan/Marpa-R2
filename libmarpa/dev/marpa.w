@@ -100,6 +100,8 @@
 @s error normal
 @s PSAR int
 @s PSL int
+@s AVL_TREE int
+@s AVL_TRAV int
 
 @** License.
 \bigskip\noindent
@@ -10475,7 +10477,6 @@ struct marpa_progress_item {
     int t_position;
     int t_origin;
 };
-typedef const struct marpa_progress_item* Marpa_Progress_Item;
 
 @ A dummy progress report item to allow the macros to
 produce error reports without having to use a ternary,
@@ -10487,13 +10488,6 @@ static const struct marpa_progress_item progress_report_not_ready = { -2, -2, -2
 @d RULEID_of_PROGRESS(report) ((report)->t_rule_id)
 @d Position_of_PROGRESS(report) ((report)->t_position)
 @d Origin_of_PROGRESS(report) ((report)->t_origin)
-@ @<Public defines@> =
-#define marpa_r_progress_item_rule(item) \
-    ((item)->t_rule_id)
-#define marpa_r_progress_item_position(item) \
-    ((item)->t_position)
-#define marpa_r_progress_item_origin(item) \
-    ((item)->t_origin)
 
 @ @<Function definitions@> =
 PRIVATE_NOT_INLINE int report_item_cmp (
@@ -10638,11 +10632,11 @@ NEXT_EARLEY_ITEM:;
 	      if (IRL_has_Virtual_LHS (irl))
 		{
 		  if (irl_position <= 0) goto NEXT_AIM;
-		  xrl_position = 1;
+		  xrl_position = -1;
 		}
 	      else
 		{
-		  xrl_position = irl_position > 0 ? 1 : 0;
+		  xrl_position = irl_position > 0 ? -1 : 0;
 		}
 	    }
 	  {
@@ -10671,21 +10665,29 @@ int marpa_r_progress_report_finish(Marpa_Recognizer r) {
 }
 
 @ @<Function definitions@> =
-Marpa_Progress_Item marpa_r_progress_item(Marpa_Recognizer r) {
-  @<Return |NULL| on failure@>@;
+Marpa_Rule_ID marpa_r_progress_item(
+  Marpa_Recognizer r, int* position, Marpa_Earley_Set_ID* origin
+) {
+  @<Return |-2| on failure@>@;
+  const RULEID no_more_items = -1;
   PROGRESS report_item;
   AVL_TRAV traverser;
   @<Unpack recognizer objects@>@;
   @<Fail if fatal error@>@;
   @<Fail if recognizer not started@>@;
   traverser = r->t_progress_report_traverser;
+  if (UNLIKELY(!position || !origin)) {
+      MARPA_ERROR (MARPA_ERR_POINTER_ARG_NULL);
+      return failure_indicator;
+  }
   @<Fail if no |traverser|@>@;
   report_item = _marpa_avl_t_next(traverser);
-  if (report_item) {
-    r->t_current_report_item = report_item;
-    return report_item;
+  if (!report_item) {
+      return no_more_items;
   }
-  return &progress_report_not_ready ;
+  *position = Position_of_PROGRESS(report_item);
+  *origin = Origin_of_PROGRESS(report_item);
+  return RULEID_of_PROGRESS(report_item);
 }
 
 @ @<Fail if no |traverser|@> =
