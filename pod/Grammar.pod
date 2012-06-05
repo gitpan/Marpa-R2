@@ -108,7 +108,7 @@ name: Marpa::R2::Grammar min 0 sequence example
 partial: 1
 normalize-whitespace: 1
 
-    { lhs => 'sequence', rhs => ['item'], min => 0 }
+    { lhs => 'sequence', rhs => ['item'], min => 0, action => 'do_sequence' }
 
 =for Marpa::R2::Display::End
 
@@ -122,7 +122,7 @@ name: Marpa::R2::Grammar min 1 sequence example
 partial: 1
 normalize-whitespace: 1
 
-    { lhs => 'sequence', rhs => ['item'], min => 1 }
+    { lhs => 'sequence', rhs => ['item'], min => 1, action => 'do_sequence' }
 
 =for Marpa::R2::Display::End
 
@@ -188,8 +188,8 @@ name: Marpa::R2::Grammar multipart rhs sequence example
 partial: 1
 normalize-whitespace: 1
 
-    { lhs => 'sequence', rhs => [qw(item)], min => 0 },
-    { lhs => 'item', rhs => [qw(part1 part2)], },
+    { lhs => 'sequence', rhs => [qw(item)], min => 0, action => 'do_sequence' },
+    { lhs => 'item', rhs => [qw(part1 part2)], action => 'do_item' },
 
 =for Marpa::R2::Display::End
 
@@ -647,16 +647,6 @@ L<the document on semantics|Marpa::R2::Semantics>.
 The value of the C<lhs> rule property must be a string containing
 the name of the rule's left hand side symbol.
 Every Marpa rule must have a left hand side symbol.
-
-The C<lhs> plays a role in the semantics.
-If no C<action> rule property is defined,
-Marpa looks in either the
-grammar's C<actions> package
-or the grammar's C<action_object>
-for a Perl closure that has
-the name of the C<lhs> symbol.
-For details, see
-L<the document on semantics|Marpa::R2::Semantics>.
 
 =head2 min
 

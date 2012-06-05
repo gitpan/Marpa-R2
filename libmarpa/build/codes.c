@@ -99,7 +99,7 @@ const struct s_marpa_error_description marpa_error_description[] = {
   { 61, "MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS", "Ambiguous source type is not allowed here." },
   { 62, "MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN", "The source type is unknown." },
   { 63, "MARPA_ERR_START_NOT_LHS", "Start symbol not on LHS of any rule." },
-  { 64, "MARPA_ERR_SYM_NOT_NULLABLE", "Symbol not nullable." },
+  { 64, "MARPA_ERR_SYMBOL_VALUED_CONFLICT", "Symbol is treated both as valued and unvalued." },
   { 65, "MARPA_ERR_TOKEN_IS_NOT_TERMINAL", "MARPA_ERR_TOKEN_IS_NOT_TERMINAL" },
   { 66, "MARPA_ERR_TOKEN_LENGTH_LE_ZERO", "MARPA_ERR_TOKEN_LENGTH_LE_ZERO" },
   { 67, "MARPA_ERR_TOKEN_TOO_LONG", "MARPA_ERR_TOKEN_TOO_LONG" },

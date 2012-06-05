@@ -36,17 +36,13 @@ int marpa_g_symbol_is_productive (Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_start ( Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_nulling (Marpa_Grammar g, Marpa_Symbol_ID symid);
 int marpa_g_symbol_is_nullable ( Marpa_Grammar g, Marpa_Symbol_ID symid);
-int marpa_g_symbol_ask_me_when_null_set ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id, int value);
-int marpa_g_symbol_is_ask_me_when_null ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
+int marpa_g_symbol_valued_set ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id, int value);
+int marpa_g_symbol_is_valued ( Marpa_Grammar g, Marpa_Symbol_ID symbol_id);
 int marpa_g_rule_count (Marpa_Grammar g);
 Marpa_Rule_ID marpa_g_rule_new (Marpa_Grammar g, Marpa_Symbol_ID lhs, Marpa_Symbol_ID *rhs, int length);
 Marpa_Symbol_ID marpa_g_rule_lhs ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
 int marpa_g_rule_length ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
 Marpa_Symbol_ID marpa_g_rule_rh_symbol ( Marpa_Grammar g, Marpa_Rule_ID rule_id, int ix);
-int marpa_g_rule_whatever_set ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int marpa_g_rule_first_child_set ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int marpa_g_rule_ask_me_set ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int marpa_g_rule_is_ask_me ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
 int marpa_g_rule_is_nulling (Marpa_Grammar g, Marpa_Rule_ID ruleid);
 int marpa_g_rule_is_nullable ( Marpa_Grammar g, Marpa_Rule_ID ruleid);
 int marpa_g_rule_is_accessible (Marpa_Grammar g, Marpa_Rule_ID id);
@@ -68,9 +64,10 @@ int marpa_r_alternative (Marpa_Recognizer r, Marpa_Symbol_ID token_id, int value
 Marpa_Earleme marpa_r_earleme_complete (Marpa_Recognizer r);
 Marpa_Earleme marpa_r_earleme ( Marpa_Recognizer r, Marpa_Earley_Set_ID set_id);
 unsigned int marpa_r_current_earleme (Marpa_Recognizer r);
+Marpa_Earley_Set_ID marpa_r_latest_earley_set (Marpa_Recognizer r);
+unsigned int marpa_r_furthest_earleme (Marpa_Recognizer r);
 int marpa_r_earley_item_warning_threshold (Marpa_Recognizer r);
 int marpa_r_earley_item_warning_threshold_set (Marpa_Recognizer r, int threshold);
-unsigned int marpa_r_furthest_earleme (Marpa_Recognizer r);
 int marpa_r_terminals_expected ( Marpa_Recognizer r, Marpa_Symbol_ID* buffer);
 int marpa_r_is_exhausted (Marpa_Recognizer r);
 int marpa_r_event (Marpa_Recognizer r, Marpa_Event* event, int ix);
@@ -95,11 +92,14 @@ Marpa_Value marpa_v_new ( Marpa_Tree t );
 Marpa_Grammar marpa_v_g ( Marpa_Value v );
 Marpa_Value marpa_v_ref (Marpa_Value v);
 void marpa_v_unref ( Marpa_Value v);
-int marpa_v_symbol_is_ask_me_when_null ( Marpa_Value v, Marpa_Symbol_ID symid );
-int marpa_v_symbol_ask_me_when_null_set ( Marpa_Value v, Marpa_Symbol_ID symid, int value );
+int marpa_v_symbol_is_valued ( Marpa_Value v, Marpa_Symbol_ID symid );
+int marpa_v_symbol_is_valued_set ( Marpa_Value v, Marpa_Symbol_ID symid, int value );
+int marpa_v_rule_is_valued ( Marpa_Value v, Marpa_Rule_ID ruleid );
+int marpa_v_rule_is_valued_set ( Marpa_Value v, Marpa_Rule_ID ruleid, int value );
 Marpa_Step_Type marpa_v_step ( Marpa_Value v);
 Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 Marpa_Error_Code marpa_r_error (Marpa_Recognizer r, const char** p_error_string);
+int _marpa_g_rule_first_child_set ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
 int _marpa_g_isy_is_start ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
 int _marpa_g_isy_is_nulling ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
 int _marpa_g_isy_is_lhs ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
@@ -140,7 +140,6 @@ Marpa_AHFA_State_ID _marpa_g_AHFA_state_empty_transition ( Marpa_Grammar g, Marp
 int _marpa_r_is_use_leo (Marpa_Recognizer r);
 int _marpa_r_is_use_leo_set ( Marpa_Recognizer r, int value);
 Marpa_Earley_Set_ID _marpa_r_trace_earley_set (Marpa_Recognizer r);
-Marpa_Earley_Set_ID _marpa_r_latest_earley_set (Marpa_Recognizer r);
 int _marpa_r_earley_set_size (Marpa_Recognizer r, Marpa_Earley_Set_ID set_id);
 Marpa_Earleme _marpa_r_earley_set_trace (Marpa_Recognizer r, Marpa_Earley_Set_ID set_id);
 Marpa_AHFA_State_ID _marpa_r_earley_item_trace (Marpa_Recognizer r, Marpa_Earley_Item_ID item_id);
@@ -254,7 +253,7 @@ Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
 #define MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS 61
 #define MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN 62
 #define MARPA_ERR_START_NOT_LHS 63
-#define MARPA_ERR_SYM_NOT_NULLABLE 64
+#define MARPA_ERR_SYMBOL_VALUED_CONFLICT 64
 #define MARPA_ERR_TOKEN_IS_NOT_TERMINAL 65
 #define MARPA_ERR_TOKEN_LENGTH_LE_ZERO 66
 #define MARPA_ERR_TOKEN_TOO_LONG 67

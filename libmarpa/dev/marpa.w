@@ -718,7 +718,7 @@ void symbol_add( GRAMMAR g, SYM symbol)
 
 @ Check that external symbol is in valid range.
 @<Function definitions@> =
-PRIVATE int symbol_is_valid(GRAMMAR g, XSYID xsyid)
+PRIVATE int xsyid_is_valid(GRAMMAR g, XSYID xsyid)
 {
     return xsyid >= 0 && xsyid < XSY_Count_of_G(g);
 }
@@ -799,13 +799,13 @@ Marpa_Symbol_ID marpa_g_start_symbol(Marpa_Grammar g)
 @ Returns the symbol ID on success,
 |-2| on failure.
 @<Function definitions@> =
-Marpa_Symbol_ID marpa_g_start_symbol_set(Marpa_Grammar g, Marpa_Symbol_ID symid)
+Marpa_Symbol_ID marpa_g_start_symbol_set(Marpa_Grammar g, Marpa_Symbol_ID xsyid)
 {
    @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if precomputed@>@;
-    @<Fail if |symid| is invalid@>@;
-    return g->t_start_xsyid = symid;
+    @<Fail if |xsyid| is invalid@>@;
+    return g->t_start_xsyid = xsyid;
 }
 
 @*0 Start rules.
@@ -882,7 +882,7 @@ the census, because not all symbols have been added at
 that point.
 At grammar initialization, this vector cannot be sized.
 It is initialized to |NULL| so that the destructor
-can tell if there is a bit vector to be freed.
+can tell if there is a boolean vector to be freed.
 @<Widely aligned grammar elements@> = Bit_Vector t_bv_isyid_is_terminal;
 @ @<Initialize grammar elements@> = g->t_bv_isyid_is_terminal = NULL;
 
@@ -1142,11 +1142,11 @@ Symbols are semantic by default.
 @ @<Function definitions@> =
 int _marpa_g_symbol_is_semantic(
     Marpa_Grammar g,
-    Marpa_Symbol_ID symid)
+    Marpa_Symbol_ID xsyid)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if |symid| is invalid@>@;
-    return SYM_is_Semantic(SYM_by_ID(symid));
+    @<Fail if |xsyid| is invalid@>@;
+    return SYM_is_Semantic(SYM_by_ID(xsyid));
 }
 
 @*0 Nulling symbol has semantics?.
@@ -1157,98 +1157,117 @@ where the application
 does not care about the value of 
 a symbol -- that is, the semantics
 is arbitrary.
-@d XSY_is_Ask_Me_When_Null(symbol) ((symbol)->t_is_ask_me_when_null)
-@<Bit aligned symbol elements@> = unsigned int t_is_ask_me_when_null:1;
+@d XSY_is_Valued(symbol) ((symbol)->t_is_valued)
+@d XSY_is_Valued_Locked(symbol) ((symbol)->t_is_valued_locked)
+@<Bit aligned symbol elements@> =
+  unsigned int t_is_valued:1;
+  unsigned int t_is_valued_locked:1;
 @ @<Initialize symbol elements@> =
-    XSY_is_Ask_Me_When_Null(symbol) = 0;
+  XSY_is_Valued(symbol) = 0;
+  XSY_is_Valued_Locked(symbol) = 0;
+
 @ @<Function definitions@> =
-int marpa_g_symbol_is_ask_me_when_null(
+int marpa_g_symbol_is_valued(
     Marpa_Grammar g,
-    Marpa_Symbol_ID symid)
+    Marpa_Symbol_ID xsyid)
 {
     @<Return |-2| on failure@>@;
-    @<Fail if |symid| is invalid@>@;
-    return XSY_is_Ask_Me_When_Null(SYM_by_ID(symid));
-}
-int marpa_g_symbol_ask_me_when_null_set(
-    Marpa_Grammar g, Marpa_Symbol_ID symid, int value)
-{
-    SYM symbol;
-    @<Return |-2| on failure@>@;
-    @<Fail if |symid| is invalid@>@;
-    symbol = SYM_by_ID(symid);
-    return XSY_is_Ask_Me_When_Null(symbol) = value ? 1 : 0;
+    @<Fail if |xsyid| is invalid@>@;
+    return XSY_is_Valued(SYM_by_ID(xsyid));
 }
 
-@ Symbol Is Accessible Boolean
+@ @<Function definitions@> =
+int marpa_g_symbol_valued_set(
+    Marpa_Grammar g, Marpa_Symbol_ID xsyid, int value)
+{
+  SYM symbol;
+  const int valued_is_locked = -1;
+  @<Return |-2| on failure@>@;
+  @<Fail if |xsyid| is invalid@>@;
+  symbol = SYM_by_ID (xsyid);
+  if (UNLIKELY (value < 0 || value > 1))
+    {
+      MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+      return failure_indicator;
+    }
+  if (UNLIKELY (XSY_is_Valued_Locked (symbol)
+		&& value != XSY_is_Valued (symbol)))
+    {
+      return valued_is_locked;
+    }
+  XSY_is_Valued (symbol) = value;
+  return value;
+}
+
+@*0 Symbol is accessible?.
 @d XSY_is_Accessible(xsy) ((xsy)->t_is_accessible)
 @d SYM_is_Accessible(sym) XSY_is_Accessible(sym)
 @<Bit aligned symbol elements@> = unsigned int t_is_accessible:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_accessible = 0;
-@ The trace accessor returns the Boolean value.
+@ The trace accessor returns the boolean value.
 Right now this function uses a pointer
 to the symbol function.
 If that becomes private,
 the prototype of this function
 must be changed.
 @<Function definitions@> =
-int marpa_g_symbol_is_accessible(Marpa_Grammar g, Marpa_Symbol_ID symid)
+int marpa_g_symbol_is_accessible(Marpa_Grammar g, Marpa_Symbol_ID xsyid)
 {
   @<Return |-2| on failure@>@;
   @<Fail if fatal error@>@;
   @<Fail if not precomputed@>@;
-  @<Fail if |symid| is invalid@>@;
-  return XSY_is_Accessible( XSY_by_ID(symid));
+  @<Fail if |xsyid| is invalid@>@;
+  return XSY_is_Accessible( XSY_by_ID(xsyid));
 }
 
-@ Symbol Is Counted Boolean
+@*0 Symbol is counted?.
 @<Bit aligned symbol elements@> = unsigned int t_is_counted:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_counted = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_counted(Marpa_Grammar g,
-Marpa_Symbol_ID symid)
+Marpa_Symbol_ID xsyid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if |symid| is invalid@>@;
-    return SYM_by_ID(symid)->t_is_counted;
+    @<Fail if |xsyid| is invalid@>@;
+    return SYM_by_ID(xsyid)->t_is_counted;
 }
 
-@ Symbol Is Nulling Boolean
+@*0 Symbol is nulling?.
 @d XSY_is_Nulling(sym) ((sym)->t_is_nulling)
 @d SYM_is_Nulling(sym) XSY_is_Nulling(sym)
 @<Bit aligned symbol elements@> = unsigned int t_is_nulling:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_nulling = 0;
 @ @<Function definitions@> =
-int marpa_g_symbol_is_nulling(GRAMMAR g, SYMID symid)
+int marpa_g_symbol_is_nulling(Marpa_Grammar g, Marpa_Symbol_ID xsyid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if not precomputed@>@;
-    @<Fail if |symid| is invalid@>@;
-    return SYM_is_Nulling(SYM_by_ID(symid));
+    @<Fail if |xsyid| is invalid@>@;
+    return SYM_is_Nulling(SYM_by_ID(xsyid));
 }
 
-@ Symbol Is Nullable Boolean
+@*0 Symbol is nullable?.
 @d XSY_is_Nullable(sym) ((sym)->t_is_nullable)
 @d SYM_is_Nullable(sym) XSY_is_Nullable(sym)
 @<Bit aligned symbol elements@> = unsigned int t_is_nullable:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_nullable = 0;
 @ @<Function definitions@> =
-int marpa_g_symbol_is_nullable(Marpa_Grammar g, Marpa_Symbol_ID symid)
+int marpa_g_symbol_is_nullable(Marpa_Grammar g, Marpa_Symbol_ID xsyid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if not precomputed@>@;
-    @<Fail if |symid| is invalid@>@;
-    return XSY_is_Nullable(SYM_by_ID(symid));
+    @<Fail if |xsyid| is invalid@>@;
+    return XSY_is_Nullable(SYM_by_ID(xsyid));
 }
 
-@ Symbol Is Terminal Boolean
+@*0 Symbol is terminal?.
 The ``marked terminal'' flag tracked whether
 the terminal flag was set by the user.
 It distinguishes those
@@ -1261,37 +1280,37 @@ unsigned int t_is_marked_terminal:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_terminal = 0;
 symbol->t_is_marked_terminal = 0;
-@ @d SYM_is_Terminal(symbol) ((symbol)->t_is_terminal)
+@ @d XSY_is_Terminal(symbol) ((symbol)->t_is_terminal)
 @ @d SYM_is_Marked_Terminal(symbol) ((symbol)->t_is_marked_terminal)
-@d SYMID_is_Terminal(id) (SYM_is_Terminal(SYM_by_ID(id)))
+@d SYMID_is_Terminal(id) (XSY_is_Terminal(SYM_by_ID(id)))
 @<Function definitions@> =
 int marpa_g_symbol_is_terminal(Marpa_Grammar g,
-Marpa_Symbol_ID symid)
+Marpa_Symbol_ID xsyid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if |symid| is invalid@>@;
-    return SYMID_is_Terminal(symid);
+    @<Fail if |xsyid| is invalid@>@;
+    return SYMID_is_Terminal(xsyid);
 }
 @ @<Function definitions@> =
 int marpa_g_symbol_is_terminal_set(
-Marpa_Grammar g, Marpa_Symbol_ID symid, int value)
+Marpa_Grammar g, Marpa_Symbol_ID xsyid, int value)
 {
     SYM symbol;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if precomputed@>@;
-    @<Fail if |symid| is invalid@>@;
-    symbol = SYM_by_ID(symid);
+    @<Fail if |xsyid| is invalid@>@;
+    symbol = SYM_by_ID(xsyid);
     if (UNLIKELY(value < 0 || value > 1)) {
 	MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 	return failure_indicator;
     }
     SYM_is_Marked_Terminal(symbol) = 1;
-    return SYM_is_Terminal(symbol) = value;
+    return XSY_is_Terminal(symbol) = value;
 }
 
-@ Symbol Is Productive Boolean
+@*0 Symbol is productive?.
 @d XSY_is_Productive(xsy) ((xsy)->t_is_productive)
 @d SYM_is_Productive(xsy) XSY_is_Productive(xsy)
 @<Bit aligned symbol elements@> = unsigned int t_is_productive:1;
@@ -1300,25 +1319,25 @@ symbol->t_is_productive = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_productive(
     Marpa_Grammar g,
-    Marpa_Symbol_ID symid)
+    Marpa_Symbol_ID xsyid)
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if not precomputed@>@;
-    @<Fail if |symid| is invalid@>@;
-    return XSY_is_Productive(XSY_by_ID(symid));
+    @<Fail if |xsyid| is invalid@>@;
+    return XSY_is_Productive(XSY_by_ID(xsyid));
 }
 
-@ Symbol Is Start Boolean
+@*0 Symbol is start?.
 @<Bit aligned symbol elements@> = unsigned int t_is_start:1;
 @ @<Initialize symbol elements@> = symbol->t_is_start = 0;
 @ @<Function definitions@> =
-int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID symid) 
+int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID xsyid) 
 {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
-    @<Fail if |symid| is invalid@>@;
-   return SYM_by_ID(symid)->t_is_start;
+    @<Fail if |xsyid| is invalid@>@;
+   return SYM_by_ID(xsyid)->t_is_start;
 }
 
 @*0 Primary internal equivalent.
@@ -1335,13 +1354,13 @@ it is the non-nullable ISY.
 @ @<Function definitions@> =
 Marpa_ISY_ID _marpa_g_xsy_isy(
     Marpa_Grammar g,
-    Marpa_Symbol_ID symid)
+    Marpa_Symbol_ID xsyid)
 {
     XSY xsy;
     ISY isy;
     @<Return |-2| on failure@>@;
-    @<Fail if |symid| is invalid@>@;
-    xsy = XSY_by_ID(symid);
+    @<Fail if |xsyid| is invalid@>@;
+    xsy = XSY_by_ID(xsyid);
     isy = ISY_of_XSY(xsy);
     return isy ? ID_of_ISY(isy) : -1;
 }
@@ -1363,13 +1382,13 @@ there is no nulling internal equivalent.
 @ @<Function definitions@> =
 Marpa_ISY_ID _marpa_g_xsy_nulling_isy(
     Marpa_Grammar g,
-    Marpa_Symbol_ID symid)
+    Marpa_Symbol_ID xsyid)
 {
     XSY xsy;
     ISY isy;
     @<Return |-2| on failure@>@;
-    @<Fail if |symid| is invalid@>@;
-    xsy = XSY_by_ID(symid);
+    @<Fail if |xsyid| is invalid@>@;
+    xsy = XSY_by_ID(xsyid);
     isy = Nulling_ISY_of_XSY(xsy);
     return isy ? ID_of_ISY(isy) : -1;
 }
@@ -1776,13 +1795,13 @@ int min, int flags )
 {
   if (separator_id != -1)
     {
-      if (UNLIKELY (!symbol_is_valid (g, separator_id)))
+      if (UNLIKELY (!xsyid_is_valid (g, separator_id)))
 	{
 	  MARPA_ERROR (MARPA_ERR_BAD_SEPARATOR);
 	  goto FAILURE;
 	}
     }
-  if (UNLIKELY (!symbol_is_valid (g, lhs_id)))
+  if (UNLIKELY (!xsyid_is_valid (g, lhs_id)))
     {
       MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
       goto FAILURE;
@@ -1795,7 +1814,7 @@ int min, int flags )
 	goto FAILURE;
       }
   }
-  if (UNLIKELY (!symbol_is_valid (g, rhs_id)))
+  if (UNLIKELY (!xsyid_is_valid (g, rhs_id)))
     {
       MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
       goto FAILURE;
@@ -1886,7 +1905,7 @@ rule_check (GRAMMAR g, XRL rule)
 {
   SYM lhs;
   const XRLID lhs_id = LHS_ID_of_XRL (rule);
-  if (UNLIKELY (!symbol_is_valid (g, lhs_id)))
+  if (UNLIKELY (!xsyid_is_valid (g, lhs_id)))
     goto INVALID_SYMID;
   lhs = SYM_by_ID (lhs_id);
   if (UNLIKELY (SYM_is_Sequence_LHS (lhs)))
@@ -1901,7 +1920,7 @@ rule_check (GRAMMAR g, XRL rule)
       {
 	const SYMID symid = RHS_ID_of_XRL (rule, rh_index);
 	SYM rhs;
-	if (UNLIKELY (!symbol_is_valid (g, symid)))
+	if (UNLIKELY (!xsyid_is_valid (g, symid)))
 	  goto INVALID_SYMID;
 	rhs = SYM_by_ID (symid);
       }
@@ -2173,76 +2192,6 @@ _marpa_g_rule_is_used(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
   @<Return |-2| on failure@>@;
   @<Fail if |xrl_id| is invalid@>@;
   return XRL_is_Used(XRL_by_ID(xrl_id));
-}
-
-@*0 Rule has semantics?.
-This value describes the rule's semantics.
-Most of the semantics are left up to the higher
-layers, but there are two cases where Marpa
-can help optimize.
-The first is the case where the application
-does not care -- that is, the semantics
-is arbitrary.
-The second case is where the application wants
-the value of a rule to be the value of its
-first child, which under the current implementation
-is a stack no-op.
-@d XRL_is_Ask_Me(rule) ((rule)->t_is_ask_me)
-@<Bit aligned rule elements@> = unsigned int t_is_ask_me:1;
-@ @<Initialize rule elements@> =
-    XRL_is_Ask_Me(rule) = 0;
-@ @<Function definitions@> =
-int marpa_g_rule_is_ask_me(
-    Marpa_Grammar g,
-    Marpa_Rule_ID xrl_id)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if |xrl_id| is invalid@>@;
-    return XRL_is_Ask_Me(XRL_by_ID(xrl_id));
-}
-@ The application can specify the zero-based
-number of a child as the semantics of a rule.
-Marpa will implement that internally if it can,
-otherwise it will return the rule in an evaluation
-step to the higher layer.
-If the child number is -2, the application
-wants to implement the semantics itself.
-If the child number is -1, the value desired
-is arbitrary ---
-Marpa guarantees it can implement that.
-In the current implementation,
-if the child number is specified as zero,
-Marpa can implement that as a stack no-op,
-and will do so,
-but may not in some future implementation.
-The result of any other value is a failure.
-@<Function definitions@> =
-int marpa_g_rule_whatever_set(
-    Marpa_Grammar g, Marpa_Rule_ID xrl_id)
-{
-    XRL xrl;
-    @<Return |-2| on failure@>@;
-    @<Fail if |xrl_id| is invalid@>@;
-    xrl = XRL_by_ID(xrl_id);
-    return XRL_is_Ask_Me(xrl) = 0;
-}
-int marpa_g_rule_ask_me_set(
-    Marpa_Grammar g, Marpa_Rule_ID xrl_id)
-{
-    XRL xrl;
-    @<Return |-2| on failure@>@;
-    @<Fail if |xrl_id| is invalid@>@;
-    xrl = XRL_by_ID(xrl_id);
-    return XRL_is_Ask_Me(xrl) = 1;
-}
-int marpa_g_rule_first_child_set(
-    Marpa_Grammar g, Marpa_Rule_ID xrl_id)
-{
-    XRL xrl;
-    @<Return |-2| on failure@>@;
-    @<Fail if |xrl_id| is invalid@>@;
-    xrl = XRL_by_ID(xrl_id);
-    return XRL_is_Ask_Me(xrl) = 0;
 }
 
 @ If this rule is the semantic equivalent of another rule,
@@ -2558,7 +2507,7 @@ int marpa_g_precompute(Marpa_Grammar g)
 	@<Calculate Rule by LHS lists@>@;
 	@<Create AHFA items@>@;
 	@<Create AHFA states@>@;
-	@<Populate the Terminal Boolean Vector@>@;
+	@<Populate the terminal boolean vector@>@;
     }
      return_value = G_EVENT_COUNT(g);
      FAILURE:;
@@ -2610,6 +2559,7 @@ a lot of useless diagnostics.
     @<Census accessible symbols@>@;
     @<Census nulling symbols@>@;
     @<Classify rules@>@;
+    @<Mark valued symbols@>@;
 }
 
 @ @<Declare precompute variables@> =
@@ -2622,7 +2572,7 @@ if (UNLIKELY(xrl_count <= 0)) {
     return failure_indicator;
 }
 
-@ Loop over the rules, producing bit vector of LHS symbols, and of
+@ Loop over the rules, producing boolean vector of LHS symbols, and of
 symbols which are the LHS of empty rules.
 While at it, set a flag to indicate if there are empty rules.
 
@@ -2633,7 +2583,7 @@ While at it, set a flag to indicate if there are empty rules.
       MARPA_ERROR (MARPA_ERR_NO_START_SYM);
       return failure_indicator;
     }
-  if (UNLIKELY(!symbol_is_valid (g, start_xsyid)))
+  if (UNLIKELY(!xsyid_is_valid (g, start_xsyid)))
     {
       MARPA_ERROR (MARPA_ERR_INVALID_START_SYM);
       return failure_indicator;
@@ -2803,7 +2753,7 @@ and a flag which indicates if there are any.
 	{
 	  /* If marked by the user, leave the symbol
 	     as set by the user, and update the boolean vector */
-	  if (SYM_is_Terminal (symbol))
+	  if (XSY_is_Terminal (symbol))
 	    {
 	      bv_bit_set (terminal_v, (unsigned int) symid);
 	      continue;
@@ -2815,7 +2765,7 @@ and a flag which indicates if there are any.
          from the boolean vector and mark the symbol,
          if necessary. */
       if (bv_bit_test (terminal_v, (unsigned int) symid))
-	SYM_is_Terminal (symbol) = 1;
+	XSY_is_Terminal (symbol) = 1;
     }
 }
 
@@ -2977,7 +2927,7 @@ reach a terminal symbol.
 	    {
 	      const SYM symbol = SYM_by_ID (productive_id);
 	      SYM_is_Nulling (symbol) = 1;
-	      if (UNLIKELY (SYM_is_Terminal (symbol)))
+	      if (UNLIKELY (XSY_is_Terminal (symbol)))
 		{
 		  nulling_terminal_found = 1;
 		  int_event_new (g, MARPA_EVENT_NULLING_TERMINAL,
@@ -3037,6 +2987,36 @@ and productive.
       }
     }
 }
+
+@ Those LHS terminals that have not been explicitly marked
+(as indicated by their ``valued locked'' bit),
+should be marked valued and locked.
+This is to follow the principle of least surprise.
+A recognizer might mark these symbols as unvalued,
+prior to valuator trying to assign semantics to rules
+with them on the LHS.
+Better to mark them valued now,
+and cause an error in the recognizer.
+@ Commented out.  The LHS terminal user is a sophisticated
+user so it is probably the better course to allow her the
+choice.
+@<Mark valued symbols@> = 
+#if 0
+{
+  XSYID xsyid;
+  for (xsyid = 0; xsyid < pre_census_xsy_count; xsyid++)
+    {
+      if (bv_bit_test (terminal_v, xsyid) && bv_bit_test (lhs_v, xsyid))
+	{
+	  const XSY xsy = XSY_by_ID (xsyid);
+	  if (XSY_is_Valued_Locked (xsy))
+	    continue;
+	  XSY_is_Valued (xsy) = 1;
+	  XSY_is_Valued_Locked (xsy) = 1;
+	}
+    }
+}
+#endif
 
 @** The sequence rewrite.
 @<Rewrite sequence |rule| into BNF@> =
@@ -3853,10 +3833,10 @@ unit transitions are not in general reflexive.
       rule_length = Length_of_RULE (rule);
       for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
 	{
-	  Marpa_Symbol_ID symid = RHS_ID_of_RULE (rule, rhs_ix);
-	  if (bv_bit_test (nullable_v, symid))
+	  XSYID xsyid = RHS_ID_of_RULE (rule, rhs_ix);
+	  if (bv_bit_test (nullable_v, xsyid))
 	    continue;
-	  nonnulling_id = symid;
+	  nonnulling_id = xsyid;
 	  nonnulling_count++;
 	}
 	if (nonnulling_count == 1)
@@ -4369,9 +4349,9 @@ found.
 These are treated differently from discovered states.
 The items in these are always a subset of the initial items for rules,
 and therefore correspond one-to-one with a powerset of the rules.
-This fact is used in precomputing rule bit vectors, by postdot symbol,
+This fact is used in precomputing rule boolean vectors, by postdot symbol,
 to speed up the construction of these.
-An advantage of using bit vectors is that a radix sort of the items
+An advantage of using boolean vectors is that a radix sort of the items
 happens as a side effect.
 Because prediction states follow a very different distribution from
 discovered states, they have their own hash for checking duplicates.
@@ -5240,14 +5220,14 @@ and add the predicted AHFA state@> =
 
 @*0 Predicted AHFA states.
 The method for building predicted AHFA states is optimized using
-precomputed bit vectors.
+precomputed boolean vectors.
 This should be very fast,
 but it is possible to think other methods might
-be better, at least in some cases.  The bit vectors are $O(s)$ in length, where $s$ is the
+be better, at least in some cases.  The boolean vectors are $O(s)$ in length, where $s$ is the
 size of the grammar, and so is the time complexity of the method used.
 @ It may be possible to look at a list of
 only the AHFA items actually present in each state,
-which might be $O(\log s)$ in the average case.  An advantage of the bit vectors is they
+which might be $O(\log s)$ in the average case.  An advantage of the boolean vectors is they
 implicitly perform a radix sort.
 This would have to be performed explicitly for an enumerated
 list of AHFA items, making the putative average case $O(\log s \cdot \log \log s)$.
@@ -5255,13 +5235,13 @@ list of AHFA items, making the putative average case $O(\log s \cdot \log \log s
 $O(s)$, making the time complexity
 of a list solution, $O(s \cdot \log s)$.
 In normal cases,
-the practical advantages of bit vectors are overwhelming and swamp the theoretical
+the practical advantages of boolean vectors are overwhelming and swamp the theoretical
 time complexity.
 The advantage of listing AHFA items is restricted to a putative ``average" case,
 and even there would not kick in until the grammars became very large.
-My conclusion is that alternatives to the bit vector implementation deserve
+My conclusion is that alternatives to the boolean vector implementation deserve
 further investigation, but that at present, and overall,
-bit vectors appear clearly superior to the alternatives.
+boolean vectors appear clearly superior to the alternatives.
 @ For the predicted states, I construct a symbol-by-rule matrix
 of predictions.  First, I determine which symbols directly predict
 others.  Then I compute the transitive closure.
@@ -5326,7 +5306,7 @@ This first pass fully captures the order,
 but in the 
 final result we want the keys to be unique integers
 in a sequence start from 0,
-so that they can be used as the indices of a bit vector.
+so that they can be used as the indices of a boolean vector.
 
 @ @<Populate |irl_by_sort_key|@> =
 {
@@ -5365,7 +5345,7 @@ cmp_by_irl_sort_key(const void* ap, const void* bp)
 
 @ We have now sorted the rules into the final sort key order.
 The final version of the sort keys are ordinals,
-which can be used to index the rules in a bit vector.
+which can be used to index the rules in a boolean vector.
 @<Populate |sort_key_by_irl_id| with second pass value@> =
 {
   IRLID sort_ordinal;
@@ -5704,7 +5684,7 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
 
 
 @** Populating the terminal boolean vector.
-@<Populate the Terminal Boolean Vector@> =
+@<Populate the terminal boolean vector@> =
 {
   int xsyid;
   g->t_bv_isyid_is_terminal = bv_obs_create (g->t_obs, isy_count);
@@ -5907,10 +5887,9 @@ const GRAMMAR g = G_of_I(input);
 @ @<Destroy recognizer elements@> = input_unref(input);
 
 @*0 Input phase.
-The recognizer always has
-an phase: |R_BEFORE_INPUT|,
-|R_DURING_INPUT|
-or |R_AFTER_INPUT|.
+The recognizer always is
+in a one of the following
+phases:
 @d R_BEFORE_INPUT 0x1
 @d R_DURING_INPUT 0x2
 @d R_AFTER_INPUT 0x3
@@ -5989,11 +5968,11 @@ with the bits set if the symbol is expected
 at the current earleme.
 This vector is not size until input starts.
 When the recognizer is created,
-this bit vector is initialized to |NULL| so that the destructor
-can tell if there is a bit vector to be freed.
+this boolean vector is initialized to |NULL| so that the destructor
+can tell if there is a boolean vector to be freed.
 @<Widely aligned recognizer elements@> = Bit_Vector t_bv_isyid_is_expected;
 @ @<Initialize recognizer elements@> = r->t_bv_isyid_is_expected = NULL;
-@ @<Allocate recognizer containers used in setup@> = 
+@ @<Allocate recognizer containers@> = 
     r->t_bv_isyid_is_expected = bv_obs_create( r->t_obs, (unsigned int)isy_count );
 @ Returns |-2| if there was a failure.
 There is a check that the expectations of this
@@ -6308,7 +6287,7 @@ Marpa_Earley_Set_ID _marpa_r_trace_earley_set(Marpa_Recognizer r)
 }
 
 @ @<Function definitions@> =
-Marpa_Earley_Set_ID _marpa_r_latest_earley_set(Marpa_Recognizer r)
+Marpa_Earley_Set_ID marpa_r_latest_earley_set(Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
   @<Unpack recognizer objects@>@;
@@ -6948,7 +6927,7 @@ and clears the trace postdot item.
 @<Function definitions@> =
 Marpa_Symbol_ID
 _marpa_r_postdot_symbol_trace (Marpa_Recognizer r,
-    Marpa_Symbol_ID symid)
+    Marpa_Symbol_ID xsyid)
 {
   @<Return |-2| on failure@>@;
   ES current_es = r->t_trace_earley_set;
@@ -6957,17 +6936,17 @@ _marpa_r_postdot_symbol_trace (Marpa_Recognizer r,
   @<Unpack recognizer objects@>@;
   @<Clear trace postdot item data@>@;
   @<Fail if not trace-safe@>@;
-  @<Fail if |symid| is invalid@>@;
+  @<Fail if |xsyid| is invalid@>@;
   if (!current_es) {
       MARPA_ERROR(MARPA_ERR_NO_TRACE_ES);
       return failure_indicator;
   }
-  pim_isy_p = PIM_ISY_P_of_ES_by_ISYID(current_es, ISYID_by_XSYID(symid));
+  pim_isy_p = PIM_ISY_P_of_ES_by_ISYID(current_es, ISYID_by_XSYID(xsyid));
   pim = *pim_isy_p;
   if (!pim) return -1;
   r->t_trace_pim_isy_p = pim_isy_p;
   r->t_trace_postdot_item = pim;
-  return symid;
+  return xsyid;
 }
 
 @ @<Clear trace postdot item data@> =
@@ -7997,13 +7976,14 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     @<Return |-2| on failure@>@;
     @<Fail if recognizer started@>@;
     Current_Earleme_of_R(r) = 0;
+    @<Set up terminal-related boolean vectors@>@;
     if (G_is_Trivial(g)) {
 	@<Set |r| exhausted@>@;
 	return 1;
     }
     Input_Phase_of_R(r) = R_DURING_INPUT;
     psar_reset(Dot_PSAR_of_R(r));
-    @<Allocate recognizer containers used in setup@>@;
+    @<Allocate recognizer containers@>@;
     @<Initialize Earley item work stacks@>@;
     set0 = earley_set_new(r, 0);
     Latest_ES_of_R(r) = set0;
@@ -8027,6 +8007,7 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
 
 @ @<Declare |marpa_r_start_input| locals@> =
     const ISYID isy_count = ISY_Count_of_G(g);
+    const ISYID xsy_count = XSY_Count_of_G(g);
     Bit_Vector bv_ok_for_chain = bv_create(isy_count);
 @ @<Destroy |marpa_r_start_input| locals@> =
     bv_free(bv_ok_for_chain);
@@ -8051,7 +8032,56 @@ or equal to one.
 This means tokens can span multiple earlemes.
 As a consequence,
 there may be no tokens at some earlemes.
-@ |marpa_alternative|, by enforcing a limit on token length and on
+@*0 Boolean vectors to track terminals.
+A number of boolean vectors are used to track
+the valued status of terminal symbols.
+Whether a symbol is a terminal or not cannot
+be changed by the recognizer,
+but some symbols are ``value unlocked'' and
+will be set to valued or unvalued the first
+time they are encountered.
+@<Widely aligned recognizer elements@> =
+  LBV t_valued_terminal;
+  LBV t_unvalued_terminal;
+  LBV t_valued;
+  LBV t_unvalued;
+  LBV t_valued_locked;
+
+@ @<Set up terminal-related boolean vectors@> =
+{
+  XSYID xsyid;
+  r->t_valued_terminal = lbv_obs_new0 (r->t_obs, xsy_count);
+  r->t_unvalued_terminal = lbv_obs_new0 (r->t_obs, xsy_count);
+  r->t_valued = lbv_obs_new0 (r->t_obs, xsy_count);
+  r->t_unvalued = lbv_obs_new0 (r->t_obs, xsy_count);
+  r->t_valued_locked = lbv_obs_new0 (r->t_obs, xsy_count);
+  for (xsyid = 0; xsyid < xsy_count; xsyid++)
+    {
+      const XSY xsy = XSY_by_ID (xsyid);
+      if (XSY_is_Valued_Locked (xsy))
+	{
+	  lbv_bit_set (r->t_valued_locked, xsyid);
+	}
+      if (XSY_is_Valued (xsy))
+	{
+	  lbv_bit_set (r->t_valued, xsyid);
+	  if (XSY_is_Terminal (xsy))
+	    {
+	      lbv_bit_set (r->t_valued_terminal, xsyid);
+	    }
+	}
+      else
+	{
+	  lbv_bit_set (r->t_unvalued, xsyid);
+	  if (XSY_is_Terminal (xsy))
+	    {
+	      lbv_bit_set (r->t_unvalued_terminal, xsyid);
+	    }
+	}
+    }
+}
+
+@ |marpa_r_alternative|, by enforcing a limit on token length and on
 the furthest location, indirectly enforces a limit on the
 number of earley sets and the maximum earleme location.
 If tokens ending at location $n$ cannot be scanned, then clearly
@@ -8104,10 +8134,6 @@ Marpa_Earleme marpa_r_alternative(
 
 @ @<|marpa_alternative| initial check for failure conditions@> = {
     const XSY_Const token = SYM_by_ID(token_xsyid);
-    if (!SYM_is_Terminal(token)) {
-	MARPA_ERROR(MARPA_ERR_TOKEN_IS_NOT_TERMINAL);
-	return failure_indicator;
-    }
     if (length <= 0) {
 	MARPA_ERROR(MARPA_ERR_TOKEN_LENGTH_LE_ZERO);
 	return failure_indicator;
@@ -8115,6 +8141,34 @@ Marpa_Earleme marpa_r_alternative(
     if (length >= EARLEME_THRESHOLD) {
 	MARPA_ERROR(MARPA_ERR_TOKEN_TOO_LONG);
 	return failure_indicator;
+    }
+    if (value && UNLIKELY(!lbv_bit_test(r->t_valued_terminal, token_xsyid)))
+    {
+      if (!XSY_is_Terminal(token)) {
+	  MARPA_ERROR(MARPA_ERR_TOKEN_IS_NOT_TERMINAL);
+	  return failure_indicator;
+      }
+      if (lbv_bit_test(r->t_valued_locked, token_xsyid)) {
+	  MARPA_ERROR(MARPA_ERR_SYMBOL_VALUED_CONFLICT);
+	  return failure_indicator;
+      }
+      lbv_bit_set(r->t_valued_locked, token_xsyid);
+      lbv_bit_set(r->t_valued_terminal, token_xsyid);
+      lbv_bit_set(r->t_valued, token_xsyid);
+    }
+    if (!value && UNLIKELY(!lbv_bit_test(r->t_unvalued_terminal, token_xsyid)))
+    {
+      if (!XSY_is_Terminal(token)) {
+	  MARPA_ERROR(MARPA_ERR_TOKEN_IS_NOT_TERMINAL);
+	  return failure_indicator;
+      }
+      if (lbv_bit_test(r->t_valued_locked, token_xsyid)) {
+	  MARPA_ERROR(MARPA_ERR_SYMBOL_VALUED_CONFLICT);
+	  return failure_indicator;
+      }
+      lbv_bit_set(r->t_valued_locked, token_xsyid);
+      lbv_bit_set(r->t_unvalued_terminal, token_xsyid);
+      lbv_bit_set(r->t_unvalued, token_xsyid);
     }
 }
 
@@ -8532,7 +8586,7 @@ and running benchmarks.
   Bit_Vector t_bv_lim_symbols;
   Bit_Vector t_bv_pim_symbols;
   void** t_pim_workarea;
-@ @<Allocate recognizer containers used in setup@> = 
+@ @<Allocate recognizer containers@> = 
   r->t_bv_lim_symbols = bv_obs_create(r->t_obs, isy_count);
   r->t_bv_pim_symbols = bv_obs_create(r->t_obs, isy_count);
   r->t_pim_workarea = my_obstack_new(r->t_obs, void*, isy_count);
@@ -8683,7 +8737,7 @@ already populated,
 before populating it.
 @ The outer loop ensures that all LIMs are eventually
 populated.  It uses the PIM workarea, guided by
-a bit vector which indicates the LIM's.
+a boolean vector which indicates the LIM's.
 @ It is possible for a LIM to be encountered which may have a predecessor,
 but which cannot be immediately populated.
 This is because predecessors link the LIMs in chains, and such chains
@@ -8812,7 +8866,7 @@ In a populated LIM, this will not necessarily be the case.
 
 @ @<Widely aligned recognizer elements@> =
   void** t_lim_chain;
-@ @<Allocate recognizer containers used in setup@> = 
+@ @<Allocate recognizer containers@> = 
   r->t_lim_chain = my_obstack_new(r->t_obs, void*, 2*isy_count);
 @ @<Create and populate a LIM chain@> = {
   int lim_chain_ix;
@@ -10729,8 +10783,6 @@ An obstack with the lifetime of the bocage.
 @d OBS_of_B(b) ((b)->t_obs)
 @<Widely aligned bocage elements@> =
 struct obstack *t_obs;
-@ @<Initialize bocage elements@> =
-OBS_of_B(b) = my_obstack_init;
 @ @<Destroy bocage elements, final phase@> =
 my_obstack_free(OBS_of_B(b));
 
@@ -10742,9 +10794,13 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     @<Return |NULL| on failure@>@;
     @<Declare bocage locals@>@;
     INPUT input;
-  @<Fail if fatal error@>@;
-  @<Fail if recognizer not started@>@;
-    b = my_slice_new(*b);
+    @<Fail if fatal error@>@;
+    @<Fail if recognizer not started@>@;
+    {
+	struct obstack* const obstack = my_obstack_init;
+	b = my_obstack_new (obstack, struct marpa_bocage, 1);
+	OBS_of_B(b) = obstack;
+    }
     @<Initialize bocage elements@>@;
     input = I_of_B(b) = I_of_R(r);
     input_ref(input);
@@ -10782,9 +10838,21 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     return NULL;
 }
 
+@ @d Valued_BV_of_B(b) ((b)->t_valued_bv)
+@d Valued_Locked_BV_of_B(b) ((b)->t_valued_locked_bv)
+@<Widely aligned bocage elements@> =
+    LBV t_valued_bv;
+    LBV t_valued_locked_bv;
+
+@ @<Initialize bocage elements@> =
+  Valued_BV_of_B (b) = lbv_copy (b->t_obs, r->t_valued, xsy_count);
+  Valued_Locked_BV_of_B (b) =
+    lbv_copy (b->t_obs, r->t_valued_locked, xsy_count);
+
 @ @<Declare bocage locals@> =
 const GRAMMAR g = G_of_R(r);
 const int isy_count = ISY_Count_of_G(g);
+const int xsy_count = XSY_Count_of_G(g);
 const IRLID irl_count = IRL_Count_of_G(g);
 BOCAGE b = NULL;
 ES end_of_parse_earley_set;
@@ -11007,7 +11075,6 @@ bocage_free (BOCAGE b)
   if (b)
     {
       @<Destroy bocage elements, all phases@>;
-      my_slice_free (*b, b);
     }
 }
 
@@ -11306,10 +11373,10 @@ But most applications won't care, and
 will benefit from the faster memory allocation
 this restriction allows.
 
-@ Using a bit vector for
+@ Using a boolean vector for
 the index of an and-node within an or-node,
 instead of the and-node ID, would seem to allow
-an space efficiency: the size of the bit vector
+an space efficiency: the size of the boolean vector
 could be reduced to the maximum number of descendents
 of any or-node.
 But in fact, improvements from this approach are elusive.
@@ -11319,13 +11386,13 @@ almost the same.
 Any attempt to economize on space seems to always
 be counter-productive in terms of speed.
 And since
-allocating a bit vector for the worst case does
+allocating a boolean vector for the worst case does
 not increase the memory high water mark,
 it would seems to be the most reasonable tradeoff.
 
 This in turn suggests there is no advantage is using
-a within-or-node index to index the bit vector,
-instead of using the and-node id to index the bit vector.
+a within-or-node index to index the boolean vector,
+instead of using the and-node id to index the boolean vector.
 Using the and-node ID does have the advantage that the bit
 vector does not need to be cleared for each or-node.
 @ The first position in each |and_node_orderings| array is not
@@ -11738,7 +11805,7 @@ unsigned int t_is_nulling:1;
 @*0 Claiming and releasing and-nodes.
 To avoid cycles, the same and node is not allowed to occur twice
 in the parse tree.
-A bit vector, accessed by these functions, enforces this.
+A boolean vector, accessed by these functions, enforces this.
 @ Claim the and-node by setting its bit.
 @<Function definitions@> =
 PRIVATE void tree_and_node_claim(TREE tree, ANDID and_node_id)
@@ -12137,13 +12204,20 @@ I need to straighten this out sometime.
 @d Token_Type_of_V(val) ((val)->t_token_type)
 @d TOS_of_V(val) ((val)->public.t_tos)
 @d Arg_N_of_V(val) ((val)->public.t_arg_n)
-@<Pre-initialize value elements@> =
+@<Initialize value elements@> =
 XSYID_of_V(v) = -1;
 RULEID_of_V(v) = -1;
 Token_Value_of_V(v) = -1;
 Token_Type_of_V(v) = DUMMY_OR_NODE;
 TOS_of_V(v) = -1;
 Arg_N_of_V(v) = -1;
+
+@*0 The obstack.
+An obstack with the same lifetime as the valuator.
+@<Widely aligned value elements@> =
+  struct obstack* t_obs;
+@ @<Destroy value obstack@> =
+  my_obstack_free(v->t_obs);
 
 @*0 Virtual stack.
 @ A dynamic stack is used here instead of a fixed
@@ -12189,8 +12263,15 @@ stack reallocations is $O(1)$.
 @d VStack_of_V(val) ((val)->t_virtual_stack)
 @<Widely aligned value elements@> =
     DSTACK_DECLARE(t_virtual_stack);
-@ @<Pre-initialize value elements@> =
+@ @<Initialize value elements@> =
     DSTACK_SAFE(VStack_of_V(v));
+@ @<Destroy value elements@> =
+{
+    if (LIKELY(DSTACK_IS_INITIALIZED(VStack_of_V(v)) != NULL))
+    {
+        DSTACK_DESTROY(VStack_of_V(v));
+    }
+}
 
 @*0 Valuator constructor.
 @<Function definitions@> =
@@ -12201,9 +12282,12 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
     @<Fail if fatal error@>@;
     if (!T_is_Exhausted (t))
       {
-	VALUE v = my_slice_new (struct s_value);
-	Next_Value_Type_of_V(v) = V_GET_DATA;
-	@<Pre-initialize value elements@>@;
+	const XSYID xsy_count = XSY_Count_of_G (g);
+	struct obstack* const obstack = my_obstack_init;
+	const VALUE v = my_obstack_new (obstack, struct s_value, 1);
+	v->t_obs = obstack;
+	Next_Value_Type_of_V(v) = V_INITIALIZE;
+	@<Initialize value elements@>@;
 	tree_pause (t);
 	T_of_V(v) = t;
 	if (T_is_Nulling(o)) {
@@ -12223,7 +12307,7 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
 @*0 Reference counting and destructors.
 @ @<Int aligned value elements@>=
     int t_ref_count;
-@ @<Pre-initialize value elements@> =
+@ @<Initialize value elements@> =
     v->t_ref_count = 1;
 
 @ Decrement the value reference count.
@@ -12263,12 +12347,8 @@ marpa_v_ref (Marpa_Value v)
 PRIVATE void value_free(VALUE v)
 {
     tree_unpause(T_of_V(v));
-    bv_free(Nulling_Ask_BV_of_V(v));
-    if (LIKELY(DSTACK_IS_INITIALIZED(VStack_of_V(v)) != NULL))
-    {
-        DSTACK_DESTROY(VStack_of_V(v));
-    }
-    my_slice_free(*v, v);
+    @<Destroy value elements@>@;
+    @<Destroy value obstack@>@;
 }
 
 @ @<Unpack value objects@> =
@@ -12289,14 +12369,14 @@ Is this valuator for a nulling parse?
 @d V_is_Nulling(v) ((v)->t_is_nulling)
 @ @<Bit aligned value elements@> =
 unsigned int t_is_nulling:1;
-@ @<Pre-initialize value elements@> =
+@ @<Initialize value elements@> =
   V_is_Nulling(v) = 0;
 
 @*0 Trace valuator?.
 @d V_is_Trace(val) ((val)->t_trace)
 @<Bit aligned value elements@> =
     unsigned int t_trace:1;
-@ @<Pre-initialize value elements@> =
+@ @<Initialize value elements@> =
    V_is_Trace(v) = 0;
 @ @<Function definitions@> =
 int _marpa_v_trace(Marpa_Value public_v, int flag)
@@ -12317,7 +12397,7 @@ int _marpa_v_trace(Marpa_Value public_v, int flag)
 @d NOOK_of_V(val) ((val)->t_nook)
 @<Int aligned value elements@> =
     NOOKID t_nook;
-@ @<Pre-initialize value elements@> =
+@ @<Initialize value elements@> =
 	NOOK_of_V(v) = -1;
 @ Returns -1 if valuator is nulling.
 @<Function definitions@> =
@@ -12335,37 +12415,35 @@ Marpa_Nook_ID _marpa_v_nook(Marpa_Value public_v)
     return NOOK_of_V(v);
 }
 
-@*0 Nulling symbol semantics.
-@ @d Nulling_Ask_BV_of_V(val) ((val)->t_nulling_ask_bv)
+@*0 Symbol valued status.
+@ @d XSY_is_Valued_BV_of_V(v) ((v)->t_xsy_is_valued)
+@ @d XRL_is_Valued_BV_of_V(v) ((v)->t_xrl_is_valued)
+@d Valued_Locked_BV_of_V(v) ((v)->t_valued_locked)
 @<Widely aligned value elements@> =
-    Bit_Vector t_nulling_ask_bv;
-@ @<Pre-initialize value elements@> =
+    LBV t_xsy_is_valued;
+    LBV t_xrl_is_valued;
+    LBV t_valued_locked;
+
+@ @<Initialize value elements@> =
 {
-    const XSYID xsy_count = XSY_Count_of_G(g);
-    XSYID ix;
-    Nulling_Ask_BV_of_V(v) = bv_create (xsy_count);
-    for (ix = 0; ix < xsy_count; ix++) {
-	const XSY xsy = XSY_by_ID(ix);
-	if (XSY_is_Ask_Me_When_Null(xsy))
-	{
-	    bv_bit_set(Nulling_Ask_BV_of_V(v), ix);
-	}
-    }
+  XSY_is_Valued_BV_of_V (v) = lbv_copy (v->t_obs, Valued_BV_of_B (b), xsy_count);
+  Valued_Locked_BV_of_V (v) =
+    lbv_copy (v->t_obs, Valued_Locked_BV_of_B (b), xsy_count);
 }
 
 @ The settings here overrides the value
 set with the grammar.
 @<Function definitions@> =
-int marpa_v_symbol_is_ask_me_when_null(
+int marpa_v_symbol_is_valued(
     Marpa_Value public_v,
-    Marpa_Symbol_ID symid)
+    Marpa_Symbol_ID xsyid)
 {
     @<Return |-2| on failure@>@;
     const VALUE v = (VALUE)public_v;
     @<Unpack value objects@>@;
     @<Fail if fatal error@>@;
-    @<Fail if |symid| is invalid@>@;
-    return bv_bit_test(Nulling_Ask_BV_of_V(v), symid);
+    @<Fail if |xsyid| is invalid@>@;
+    return lbv_bit_test(XSY_is_Valued_BV_of_V(v), xsyid);
 }
 @ If the symbol has a null alias, the call is interpreted
 as being for that null alias.
@@ -12378,25 +12456,64 @@ The idea scares me,
 but I cannot think of a reason to ban it,
 so I do not.
 @<Function definitions@> =
-int marpa_v_symbol_ask_me_when_null_set(
-    Marpa_Value public_v, Marpa_Symbol_ID symid, int value)
+PRIVATE int symbol_is_valued_set (
+    VALUE v, XSYID xsyid, int value)
 {
-    SYM symbol;
+    const int valued_is_locked = -1;
+    const int old_value = lbv_bit_test(XSY_is_Valued_BV_of_V (v), xsyid);
+    if (old_value == value) {
+      lbv_bit_set(Valued_Locked_BV_of_V (v), xsyid);
+      return value;
+    }
+
+    if (UNLIKELY(lbv_bit_test (Valued_Locked_BV_of_V (v), xsyid))) {
+	return valued_is_locked;
+    }
+    lbv_bit_set(Valued_Locked_BV_of_V (v), xsyid);
+    if (value) {
+	lbv_bit_set(XSY_is_Valued_BV_of_V (v), xsyid);
+    } else {
+	lbv_bit_clear(XSY_is_Valued_BV_of_V (v), xsyid);
+    }
+    return value;
+}
+
+@ @<Function definitions@> =
+int marpa_v_symbol_is_valued_set (
+    Marpa_Value public_v, Marpa_Symbol_ID xsyid, int value)
+{
     const VALUE v = (VALUE)public_v;
     @<Return |-2| on failure@>@;
     @<Unpack value objects@>@;
     @<Fail if fatal error@>@;
-    @<Fail if |symid| is invalid@>@;
-    symbol = SYM_by_ID(symid);
-    if (UNLIKELY(!SYM_is_Nullable(symbol) && value)) {
-       MARPA_ERROR(MARPA_ERR_SYM_NOT_NULLABLE);
+    if (UNLIKELY (value < 0 || value > 1))
+      {
+	MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+	return failure_indicator;
+      }
+    @<Fail if |xsyid| is invalid@>@;
+    return symbol_is_valued_set(v, xsyid, value);
+}
+
+@ @<Function definitions@> =
+int marpa_v_rule_is_valued_set (
+    Marpa_Value public_v, Marpa_Rule_ID xrl_id, int value)
+{
+    const VALUE v = (VALUE)public_v;
+    @<Return |-2| on failure@>@;
+    @<Unpack value objects@>@;
+    @<Fail if fatal error@>@;
+    if (UNLIKELY (value < 0 || value > 1))
+      {
+	MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+	return failure_indicator;
+      }
+    @<Fail if |xrl_id| is invalid@>@;
+    {
+      const XRL xrl = XRL_by_ID (xrl_id);
+      const XSYID xsyid = LHS_ID_of_XRL (xrl);
+      return symbol_is_valued_set (v, xsyid, value);
     }
-    if (value) {
-	bv_bit_set(Nulling_Ask_BV_of_V(v), symid);
-    } else {
-	bv_bit_clear(Nulling_Ask_BV_of_V(v), symid);
-    }
-    return value ? 1 : 0;
 }
 
 @*0 Stepping the valuator.
@@ -12404,7 +12521,8 @@ The value type indicates whether the value
 is for a semantic rule, a semantic token, etc.
 @<Public typedefs@> =
 typedef int Marpa_Step_Type;
-@ @d V_GET_DATA MARPA_STEP_INTERNAL1
+@ @d V_INITIALIZE MARPA_STEP_INTERNAL1
+@ @d V_GET_DATA MARPA_STEP_INTERNAL2
 
 @<Function definitions@> =
 Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
@@ -12422,6 +12540,15 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 	Marpa_Step_Type current_value_type = Next_Value_Type_of_V(v);
 	switch (current_value_type)
 	  {
+	  case V_INITIALIZE:
+	    {
+	      XSYID xsy_count;
+	      @<Unpack value objects@>@;
+	      xsy_count = XSY_Count_of_G (g);
+	      lbv_fill (Valued_Locked_BV_of_V (v), xsy_count);
+	      @<Set rule-is-valued vector@>@;
+	    }
+	    /* fall through */
 	  case V_GET_DATA:
 	    @<Perform evaluation steps @>@;
 	    if (!V_is_Active (v)) break;
@@ -12432,7 +12559,7 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 	      Next_Value_Type_of_V (v) = MARPA_STEP_RULE;
 	      if (token_type == NULLING_TOKEN_OR_NODE)
 	      {
-		  if (bv_bit_test(Nulling_Ask_BV_of_V(v), XSYID_of_V(v)))
+		  if (lbv_bit_test(XSY_is_Valued_BV_of_V(v), XSYID_of_V(v)))
 		      return MARPA_STEP_NULLING_SYMBOL;
 	      }
 	      else if (token_type != DUMMY_OR_NODE)
@@ -12461,18 +12588,39 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
     return MARPA_STEP_INACTIVE;
 }
 
+@ A rule is valued if and only if its LHS is a
+valued symbol.  All the symbol values have been
+locked at this point, so we can memoize the value
+for the rule.
+@<Set rule-is-valued vector@> =
+{
+  const LBV xsy_bv = XSY_is_Valued_BV_of_V(v);
+  const XRLID xrl_count = XRL_Count_of_G(g);
+  const LBV xrl_bv = lbv_obs_new0(v->t_obs, xrl_count);
+  XRLID xrlid ;
+  XRL_is_Valued_BV_of_V(v) = xrl_bv;
+  for (xrlid = 0; xrlid < xrl_count; xrlid++) {
+      const XRL xrl = XRL_by_ID(xrlid);
+      const XSYID lhs_xsyid = LHS_ID_of_XRL(xrl);
+      if (lbv_bit_test(xsy_bv, lhs_xsyid)) {
+          lbv_bit_set(xrl_bv, xrlid);
+      }
+  }
+}
+
 @ @<Step through a nulling valuator@> =
 {
     while (V_is_Active(v)) {
 	Marpa_Step_Type current_value_type = Next_Value_Type_of_V(v);
 	switch (current_value_type)
 	  {
+	  case V_INITIALIZE:
 	  case V_GET_DATA:
 	    {
 	      Next_Value_Type_of_V(v) = MARPA_STEP_INACTIVE;
 	      XSYID_of_V(v) = g->t_start_xsyid;
 	      TOS_of_V(v) = Arg_N_of_V(v) = 0;
-	      if (bv_bit_test(Nulling_Ask_BV_of_V(v), XSYID_of_V(v)))
+	      if (lbv_bit_test(XSY_is_Valued_BV_of_V(v), XSYID_of_V(v)))
 		      return MARPA_STEP_NULLING_SYMBOL;
 	    }
 	    /* fall through */
@@ -12542,7 +12690,7 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 		const ISY token_isy = ISY_by_ID (token_isyid);
 		const XSY source_xsy = Source_XSY_of_ISY(token_isy);
 		const XSYID source_xsyid = ID_of_XSY(source_xsy);
-		if (bv_bit_test (Nulling_Ask_BV_of_V (v), source_xsyid))
+		if (bv_bit_test (XSY_is_Valued_BV_of_V (v), source_xsyid))
 		  {
 		    XSYID_of_V (v) = source_xsyid;
 		  }
@@ -12588,7 +12736,7 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 		  XRLID original_rule_id = ID_of_XRL (Source_XRL_of_IRL (nook_irl));
 		  TOS_of_V (v) = Arg_N_of_V (v) - real_symbol_count + 1;
 		  pop_arguments = 1;
-		  if (XRL_is_Ask_Me (XRL_by_ID (original_rule_id)))
+	      if (lbv_bit_test(XRL_is_Valued_BV_of_V(v), original_rule_id))
 		    {
 		      RULEID_of_V (v) = original_rule_id;
 		    }
@@ -12602,28 +12750,104 @@ Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
     }
 }
 
+@** Lightweight boolean vectors (LBV).
+These macros and functions assume that the 
+caller remembers the boolean vector's length.
+They also take no precautions about trailing bits
+in the last word.
+Most operations do not need to.
+When and if there are such operations,
+it will be up to the caller to make sure that
+the trailing bits are correct.
+@d lbv_wordbits (sizeof(LBW)*8u)
+@d lbv_lsb (1u)
+@d lbv_msb (1u << (lbv_wordbits-1u))
+@<Private typedefs@> =
+typedef unsigned int LBW;
+typedef LBW* LBV;
+
+@ Given a number of bits, compute the size.
+@<Function definitions@> =
+PRIVATE int lbv_bits_to_size(int bits)
+{
+    return (bits+(lbv_wordbits-1))/lbv_wordbits;
+}
+
+@*0 Create a zeroed LBV on an obstack.
+@<Function definitions@> =
+PRIVATE Bit_Vector
+lbv_obs_new0 (struct obstack *obs, int bits)
+{
+  int size = lbv_bits_to_size (bits);
+  LBV lbv = my_obstack_new (obs, LBW, size);
+  if (size > 0) {
+      LBW *addr = lbv;
+      while (size--) *addr++ = 0u;
+  }
+  return lbv;
+}
+
+@*0 Basic LBV operations.
+@d lbv_w(lbv, bit) ((lbv)+((bit)/lbv_wordbits))
+@d lbv_b(bit) (lbv_lsb << ((bit)%bv_wordbits))
+@d lbv_bit_set(lbv, bit)
+  (*lbv_w ((lbv), (bit)) |= lbv_b (bit))
+@d lbv_bit_clear(lbv, bit)
+  (*lbv_w ((lbv), (bit)) &= ~lbv_b (bit))
+@d lbv_bit_test(lbv, bit)
+  ((*lbv_w ((lbv), (bit)) & lbv_b (bit)) != 0U)
+
+@*0 Copy an LBV.
+@<Function definitions@> =
+PRIVATE LBV lbv_copy(
+  struct obstack* obs, LBV old_lbv, int bits)
+{
+  int size = lbv_bits_to_size (bits);
+  const LBV new_lbv = my_obstack_new (obs, LBW, size);
+  if (size > 0) {
+      LBW *from_addr = old_lbv;
+      LBW *to_addr = new_lbv;
+      while (size--) *to_addr++ = *from_addr++;
+  }
+  return new_lbv;
+}
+
+@*0 Fill an LBV with ones.
+No special provision is made for trailing bits.
+@<Function definitions@> =
+PRIVATE LBV lbv_fill(
+  LBV lbv, int bits)
+{
+  int size = lbv_bits_to_size (bits);
+  if (size > 0) {
+      LBW *to_addr = lbv;
+      while (size--) *to_addr++ = ~((LBW)0);
+  }
+  return lbv;
+}
+
 @** Boolean vectors.
 Marpa's boolean vectors are adapted from
 Steffen Beyer's Bit-Vector package on CPAN.
 This is a combined Perl package and C library for handling
-bit vectors.
-Someone seeking a general bit vector package should
+boolean vectors.
+Someone seeking a general boolean vector package should
 look at Steffen's instead.
 |libmarpa|'s boolean vectors are tightly tied in
 with its own needs and environment.
 @<Private typedefs@> =
-typedef unsigned int Bit_Vector_Word;
+typedef LBW Bit_Vector_Word;
 typedef Bit_Vector_Word* Bit_Vector;
 @ Some defines and constants
 @d BV_BITS(bv) *(bv-3)
 @d BV_SIZE(bv) *(bv-2)
 @d BV_MASK(bv) *(bv-1)
 @<Global variables@> =
-static const unsigned int bv_wordbits = sizeof(Bit_Vector_Word)*8u;
-static const unsigned int bv_modmask = sizeof(Bit_Vector_Word)*8u-1u;
+static const unsigned int bv_wordbits = lbv_wordbits;
+static const unsigned int bv_modmask = lbv_wordbits - 1u;
 static const unsigned int bv_hiddenwords = 3;
-static const unsigned int bv_lsb = 1u;
-static const unsigned int bv_msb = (1u << (sizeof(Bit_Vector_Word)*8u-1u));
+static const unsigned int bv_lsb = lbv_lsb;
+static const unsigned int bv_msb = lbv_msb;
 
 @ Given a number of bits, compute the size.
 @<Function definitions@> =
@@ -12640,7 +12864,7 @@ PRIVATE unsigned int bv_bits_to_unused_mask(unsigned int bits)
     return(mask);
 }
 
-@*0 Create a Boolean vector.
+@*0 Create a boolean vector.
 @ Always start with an all-zero vector.
 Note this code is a bit tricky ---
 the pointer returned is to the data.
@@ -12658,7 +12882,7 @@ PRIVATE Bit_Vector bv_create(unsigned int bits)
     return addr;
 }
 
-@*0 Create a Boolean vector on an obstack.
+@*0 Create a boolean vector on an obstack.
 @ Always start with an all-zero vector.
 Note this code is a bit tricky ---
 the pointer returned is to the data.
@@ -12682,7 +12906,7 @@ bv_obs_create (struct obstack *obs, unsigned int bits)
 }
 
 
-@*0 Shadow a Boolean vector.
+@*0 Shadow a boolean vector.
 Create another vector the same size as the original, but with
 all bits unset.
 @<Function definitions@> =
@@ -12695,7 +12919,7 @@ PRIVATE Bit_Vector bv_obs_shadow(struct obstack * obs, Bit_Vector bv)
     return bv_obs_create(obs, BV_BITS(bv));
 }
 
-@*0 Clone a Boolean vector.
+@*0 Clone a boolean vector.
 Given a boolean vector, creates a new vector which is
 an exact duplicate.
 This call allocates a new vector, which must be |free|'d.
@@ -12713,7 +12937,7 @@ Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from)
     return(bv_to);
 }
 
-@*0 Clone a Boolean vector.
+@*0 Clone a boolean vector.
 Given a boolean vector, creates a new vector which is
 an exact duplicate.
 This call allocates a new vector, which must be |free|'d.
@@ -12730,7 +12954,7 @@ Bit_Vector bv_obs_clone(struct obstack *obs, Bit_Vector bv)
     return bv_copy(bv_obs_shadow(obs, bv), bv);
 }
 
-@*0 Free a Boolean vector.
+@*0 Free a boolean vector.
 @<Function definitions@> =
 PRIVATE void bv_free(Bit_Vector vector)
 {
@@ -12741,7 +12965,7 @@ PRIVATE void bv_free(Bit_Vector vector)
     }
 }
 
-@*0 Fill a Boolean vector.
+@*0 Fill a boolean vector.
 @<Function definitions@> =
 PRIVATE void bv_fill(Bit_Vector bv)
 {
@@ -12752,7 +12976,7 @@ PRIVATE void bv_fill(Bit_Vector bv)
     *bv &= BV_MASK(bv);
 }
 
-@*0 Clear a Boolean vector.
+@*0 Clear a boolean vector.
 @<Function definitions@> =
 PRIVATE void bv_clear(Bit_Vector bv)
 {
@@ -12763,7 +12987,7 @@ PRIVATE void bv_clear(Bit_Vector bv)
 
 @ This function "overclears" ---
 it clears "too many bits".
-It clears a prefix of the bit vector faster
+It clears a prefix of the boolean vector faster
 than an interval clear, at the expense of often
 clearing more bits than were requested.
 In some situations clearing the extra bits is OK.
@@ -12774,28 +12998,28 @@ PRIVATE void bv_over_clear(Bit_Vector bv, unsigned int bit)
     while (length--) *bv++ = 0u;
 }
 
-@*0 Set a Boolean vector bit.
+@*0 Set a boolean vector bit.
 @ @<Function definitions@> =
 PRIVATE void bv_bit_set(Bit_Vector vector, unsigned int bit)
 {
     *(vector+(bit/bv_wordbits)) |= (bv_lsb << (bit%bv_wordbits));
 }
 
-@*0 Clear a Boolean vector bit.
+@*0 Clear a boolean vector bit.
 @<Function definitions@> =
 PRIVATE void bv_bit_clear(Bit_Vector vector, unsigned int bit)
 {
     *(vector+(bit/bv_wordbits)) &= ~ (bv_lsb << (bit%bv_wordbits));
 }
 
-@*0 Test a Boolean vector bit.
+@*0 Test a boolean vector bit.
 @<Function definitions@> =
 PRIVATE int bv_bit_test(Bit_Vector vector, unsigned int bit)
 {
     return (*(vector+(bit/bv_wordbits)) & (bv_lsb << (bit%bv_wordbits))) != 0u;
 }
 
-@*0 Test and set a Boolean vector bit.
+@*0 Test and set a boolean vector bit.
 Ensure that a bit is set and returning its value to the call.
 @<Function definitions@> =
 PRIVATE int
@@ -12809,7 +13033,7 @@ bv_bit_test_and_set (Bit_Vector vector, unsigned int bit)
   return 0;
 }
 
-@*0 Test a Boolean vector for all zeroes.
+@*0 Test a boolean vector for all zeroes.
 @<Function definitions@> =
 PRIVATE
 int bv_is_empty(Bit_Vector addr)
@@ -12823,7 +13047,7 @@ int bv_is_empty(Bit_Vector addr)
     return(r);
 }
 
-@*0 Bitwise-negate a Boolean vector.
+@*0 Bitwise-negate a boolean vector.
 @<Function definitions@>=
 PRIVATE void bv_not(Bit_Vector X, Bit_Vector Y)
 {
@@ -12833,7 +13057,7 @@ PRIVATE void bv_not(Bit_Vector X, Bit_Vector Y)
     *(--X) &= mask;
 }
 
-@*0 Bitwise-and a Boolean vector.
+@*0 Bitwise-and a boolean vector.
 @<Function definitions@>=
 PRIVATE void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
 {
@@ -12843,7 +13067,7 @@ PRIVATE void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
     *(--X) &= mask;
 }
 
-@*0 Bitwise-or a Boolean vector.
+@*0 Bitwise-or a boolean vector.
 @<Function definitions@>=
 PRIVATE void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
 {
@@ -12853,7 +13077,7 @@ PRIVATE void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
     *(--X) &= mask;
 }
 
-@*0 Bitwise-or-assign a Boolean vector.
+@*0 Bitwise-or-assign a boolean vector.
 @<Function definitions@>=
 PRIVATE void bv_or_assign(Bit_Vector X, Bit_Vector Y)
 {
@@ -12863,7 +13087,7 @@ PRIVATE void bv_or_assign(Bit_Vector X, Bit_Vector Y)
     *(--X) &= mask;
 }
 
-@*0 Scan a Boolean vector.
+@*0 Scan a boolean vector.
 @<Function definitions@>=
 PRIVATE_NOT_INLINE
 int bv_scan(Bit_Vector bv, unsigned int start,
@@ -12935,7 +13159,7 @@ int bv_scan(Bit_Vector bv, unsigned int start,
     return 1;
 }
 
-@*0 Count the bits in a Boolean vector.
+@*0 Count the bits in a boolean vector.
 @<Function definitions@>=
 PRIVATE unsigned int
 bv_count (Bit_Vector v)
@@ -12994,18 +13218,18 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
   FSTACK_INIT (stack, XSYID, XSY_Count_of_G (g));
   while (bv_scan (bv, start, &min, &max))
     {
-      unsigned int symid;
-      for (symid = min; symid <= max; symid++)
+      unsigned int xsyid;
+      for (xsyid = min; xsyid <= max; xsyid++)
 	{
-	  *(FSTACK_PUSH (stack)) = symid;
+	  *(FSTACK_PUSH (stack)) = xsyid;
 	}
       start = max + 2;
     }
   while ((top_of_stack = FSTACK_POP (stack)))
     {
-      const SYMID symid = *top_of_stack;
-      XRLID *p_xrl = xrl_list_x_rh_sym[symid];
-      const XRLID *p_one_past_rules = xrl_list_x_rh_sym[symid + 1];
+      const SYMID xsyid = *top_of_stack;
+      XRLID *p_xrl = xrl_list_x_rh_sym[xsyid];
+      const XRLID *p_one_past_rules = xrl_list_x_rh_sym[xsyid + 1];
       for (; p_xrl < p_one_past_rules; p_xrl++)
 	{
 	  const XRLID rule_id = *p_xrl;
@@ -13058,11 +13282,11 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
 }
 
 @** Boolean matrixes.
-Marpa's Boolean matrixes are implemented differently
+Marpa's boolean matrixes are implemented differently
 from the matrixes in
 Steffen Beyer's Bit-Vector package on CPAN,
 but like Beyer's matrixes are build on that package.
-Beyer's matrixes are a single Boolean vector
+Beyer's matrixes are a single boolean vector
 which special routines index by row and column.
 Marpa's matrixes are arrays of vectors.
 
@@ -13081,7 +13305,7 @@ and |Bit_Vector| are identical.
 @<Private typedefs@> =
 typedef Bit_Vector_Word* Bit_Matrix;
 
-@*0 Create a Boolean matrix.
+@*0 Create a boolean matrix.
 @ Here the pointer returned is the actual start of the
 |malloc|'d space.
 This is {\bf not} the case with vectors, whose pointer is offset for
@@ -13107,7 +13331,7 @@ PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, uns
     return matrix_addr;
 }
 
-@*0 Find the number of columns in a Boolean matrix.
+@*0 Find the number of columns in a boolean matrix.
 The column count returned is for the first row.
 It is assumed that 
 all rows have the same number of columns.
@@ -13120,7 +13344,7 @@ PRIVATE int matrix_columns(Bit_Matrix matrix)
      return BV_BITS(row0);
 }
 
-@*0 Find a row of a Boolean matrix.
+@*0 Find a row of a boolean matrix.
 Here's where the slight extra overhead of repeating
 identical ``hidden word" data for each row of a matrix
 pays off.
@@ -13137,7 +13361,7 @@ PRIVATE Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row)
     return row0 + row*words_per_row;
 }
 
-@*0 Set a Boolean matrix bit.
+@*0 Set a boolean matrix bit.
 @ @<Function definitions@> =
 PRIVATE void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column)
 {
@@ -13145,7 +13369,7 @@ PRIVATE void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int co
     bv_bit_set(vector, column);
 }
 
-@*0 Clear a Boolean matrix bit.
+@*0 Clear a boolean matrix bit.
 @ @<Function definitions@> =
 PRIVATE void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int column)
 {
@@ -13153,7 +13377,7 @@ PRIVATE void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int 
     bv_bit_clear(vector, column);
 }
 
-@*0 Test a Boolean matrix bit.
+@*0 Test a boolean matrix bit.
 @ @<Function definitions@> =
 PRIVATE int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int column)
 {
@@ -13161,7 +13385,7 @@ PRIVATE int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int co
     return bv_bit_test(vector, column);
 }
 
-@*0 Produce the transitive closure of a Boolean matrix.
+@*0 Produce the transitive closure of a boolean matrix.
 This routine takes a matrix representing a relation
 and produces a matrix that represents the transitive closure
 of the relation.
@@ -13753,16 +13977,15 @@ Where necessary, the caller must do that.
     ((type *)my_realloc((p), (sizeof(type)*(count))))
 
 @*0 Slices.
-Some memory allocations are suitable for special "slice"
-allocators, such as the one in the GNU glib.
-These are faster than the system malloc, but do not
-allow resizing, and require that the size of the
-allocation be known when it is freed.
-At present, libmarpa's ``slice allocator'' exists only
-as documentation
-of potential opportunities for optimization --
-it does nothing
-but pass all these calls on to the system malloc.
+I once used the "slice" allocator to handle
+the "middle ground" between the flexibity of the
+system malloc,
+and the efficiency of obstacks.
+But there turned out to not even "middle ground"
+to justify a third memory allocation scheme.
+I now simply
+pass all calls to the "slice" allocator
+on to the system malloc.
 @d my_slice_alloc(size) my_malloc(size)
 @d my_slice_new(x) my_malloc(sizeof(x))
 @d my_slice_free(x, p) my_free(p)
@@ -13828,8 +14051,8 @@ if (UNLIKELY(!G_is_Precomputed(g))) {
     MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
     return failure_indicator;
 }
-@ @<Fail if |symid| is invalid@> =
-if (UNLIKELY(!symbol_is_valid(g, symid))) {
+@ @<Fail if |xsyid| is invalid@> =
+if (UNLIKELY(!xsyid_is_valid(g, xsyid))) {
     MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
     return failure_indicator;
 }

@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.005_001';
+$VERSION        = '2.005_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -414,6 +414,12 @@ sub Marpa::R2::Recognizer::furthest_earleme {
     my ($recce) = @_;
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
     return $recce_c->furthest_earleme();
+}
+
+sub Marpa::R2::Recognizer::earleme {
+    my ($recce, $earley_set_id) = @_;
+    my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
+    return $recce_c->earleme($earley_set_id);
 }
 
 # Deprecated -- obsolete

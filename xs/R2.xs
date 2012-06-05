@@ -1141,26 +1141,6 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (result)));
 }
 
-void
-rule_ask_me_set( g_wrapper, rule_id )
-    G_Wrapper *g_wrapper;
-    Marpa_Rule_ID rule_id;
-PPCODE:
-{
-  Marpa_Grammar g = g_wrapper->g;
-  int result = marpa_g_rule_ask_me_set (g, rule_id);
-  if (result <= -2)
-    {
-      croak ("Problem in g->rule_ask_me_set(%d): %s", rule_id,
-	     xs_g_error (g_wrapper));
-    }
-  if (result == -1)
-    {
-      XSRETURN_UNDEF;
-    }
-  XPUSHs (sv_2mortal (newSViv (result)));
-}
-
 Marpa_Rule_ID
 _marpa_g_irl_semantic_equivalent( g_wrapper, irl_id )
     G_Wrapper *g_wrapper;
@@ -1673,7 +1653,7 @@ latest_earley_set( r_wrapper )
 PPCODE:
     {
       struct marpa_r *r = r_wrapper->r;
-      int latest_earley_set = _marpa_r_latest_earley_set(r);
+      int latest_earley_set = marpa_r_latest_earley_set(r);
       if (latest_earley_set < 0)
 	{
       croak ("Problem with r->latest_earley_set(): %s",
@@ -2772,18 +2752,41 @@ PPCODE:
 }
 
 void
-symbol_ask_me_when_null_set( v_wrapper, symbol_id, value )
+symbol_is_valued_set( v_wrapper, symbol_id, value )
     V_Wrapper *v_wrapper;
     Marpa_Symbol_ID symbol_id;
     int value;
 PPCODE:
 {
   const Marpa_Value v = v_wrapper->v;
-  int result = marpa_v_symbol_ask_me_when_null_set (v, symbol_id, value);
-  if (result <= -1)
+  int result = marpa_v_symbol_is_valued_set (v, symbol_id, value);
+  if (result == -1) {
+      XSRETURN_UNDEF;
+  }
+  if (result < -1)
     {
-      croak ("Problem in v->symbol_ask_me_when_null_set(%d, %d): %s",
+      croak ("Problem in v->symbol_is_valued_set(%d, %d): %s",
 	     symbol_id, value, xs_v_error (v_wrapper));
+    }
+  XPUSHs (sv_2mortal (newSViv (result)));
+}
+
+void
+rule_is_valued_set( v_wrapper, rule_id, value )
+    V_Wrapper *v_wrapper;
+    Marpa_Rule_ID rule_id;
+    int value;
+PPCODE:
+{
+  const Marpa_Value v = v_wrapper->v;
+  int result = marpa_v_rule_is_valued_set (v, rule_id, value);
+  if (result == -1) {
+      XSRETURN_UNDEF;
+  }
+  if (result < -1)
+    {
+      croak ("Problem in v->rule_is_valued_set(%d, %d): %s",
+	     rule_id, value, xs_v_error (v_wrapper));
     }
   XPUSHs (sv_2mortal (newSViv (result)));
 }

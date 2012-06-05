@@ -76,7 +76,7 @@ static inline GRAMMAR
 grammar_ref (GRAMMAR g);
 static inline void grammar_free(GRAMMAR g);
 static inline void symbol_add( GRAMMAR g, SYM symbol);
-static inline int symbol_is_valid(GRAMMAR g, XSYID xsyid);
+static inline int xsyid_is_valid(GRAMMAR g, XSYID xsyid);
 static inline int isy_is_valid(GRAMMAR g, ISYID isyid);
 static inline void
 rule_add (GRAMMAR g, RULE rule);
@@ -208,6 +208,15 @@ value_unref (VALUE v);
 static inline VALUE
 value_ref (VALUE v);
 static inline void value_free(VALUE v);
+static inline int symbol_is_valued_set (
+    VALUE v, XSYID xsyid, int value);
+static inline int lbv_bits_to_size(int bits);
+static inline Bit_Vector
+lbv_obs_new0 (struct obstack *obs, int bits);
+static inline LBV lbv_copy(
+  struct obstack* obs, LBV old_lbv, int bits);
+static inline LBV lbv_fill(
+  LBV lbv, int bits);
 static inline unsigned int bv_bits_to_size(unsigned int bits);
 static inline unsigned int bv_bits_to_unused_mask(unsigned int bits);
 static inline Bit_Vector bv_create(unsigned int bits);
