@@ -17,13 +17,13 @@
 
 Marpa::R2::Tracing - Tracing your grammar
 
-=head1 DESCRIPTION
+=head1 Description
 
 This document is an overview of
 the techniques for tracing and
 debugging Marpa parses and grammars.
 
-=head1 BASIC TECHNIQUES
+=head1 Basic techniques
 
 =head2 Check the input location where parsing failed
 
@@ -74,7 +74,7 @@ C<show_progress>
 should provide all the
 information necessary to
 debug an application's grammar.
-L<A separate document|Marpa::R2::Debug>
+L<A separate document|Marpa::R2::Progress>
 explains how to interpret the progress reports.
 That document includes an
 example of the use of C<show_progress>
@@ -126,7 +126,7 @@ and C<trace_values>
 will be very lengthy.
 You want to work with short inputs if at all possible.
 
-=head1 COPYRIGHT AND LICENSE
+=head1 Copyright and License
 
 =for Marpa::R2::Display
 ignore: 1

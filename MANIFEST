@@ -165,12 +165,13 @@ libmarpa/test/dev/Makefile.am
 libmarpa/test/dev/balanced.c
 libmarpa/test/dev/configure.ac
 libmarpa/test/dev/testleak.c
+pod/Acknowledgments.pod
 pod/Advanced/Bibliography.pod
 pod/Advanced/Models.pod
 pod/Changes.pod
-pod/Debug.pod
 pod/Grammar.pod
 pod/Marpa_R2.pod
+pod/Progress.pod
 pod/Recognizer.pod
 pod/Semantics.pod
 pod/Semantics/Infinite.pod
@@ -189,6 +190,7 @@ t/ah_numeric.t
 t/bocage.t
 t/chaf.t
 t/code_diag.t
+t/context.t
 t/counter.t
 t/curly.t
 t/debug.t

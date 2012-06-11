@@ -15,24 +15,45 @@
 
 =head1 NAME
 
-Marpa::R2::Debug - Debugging your grammar
+Marpa::R2::Progress - Progress reports on your parse
 
-=head1 OVERVIEW
+=head1 About this document
 
 This document describes
-the more powerful of
-Marpa's
-tracing and debugging techniques.
-It assumes that you have written
-a grammar for your Marpa application,
-and that something is going wrong.
-You should read
-L<the overview document
-for tracing
+Marpa's progress reports.
+These allow an application to know
+exactly where it is in the parse at any
+point.
+For parse locations of the user's choosing,
+progress reports list all the rules in play,
+and indicate the location at which the rule started,
+and how far into the rule parsing has progressed.
+
+For those new to parsing, this "situational awareness"
+might seem to be a feature that they can expect
+from any servicable parser.
+In fact,
+situation awareness in most parsers is extremely limited,
+and it tends to be more limited in those
+parsers considered production quality.
+Marpa is not just unusual in the amount of feedback
+it offers the application,
+it breaks new ground.
+
+Progress reports are extremely useful in
+debugging grammars.
+Because debugging creates a
+clear "narrative",
+the detailed example in
+this document is a debugging situation.
+Readers specifically interested in debugging
+a grammar
+should read L<the document
+on tracing
 problems|Marpa::R2::Tracing> before
 reading this document.
 
-=head1 INTRODUCTION TO EARLEY PARSING
+=head1 Introduction to Earley parsing
 
 To read the
 L<C<show_progress>|Marpa::R2::Recognizer/"show_progress">
@@ -129,7 +150,7 @@ if a rule will
 ever be completed,
 much less at which location.
 
-=head1 THE EXAMPLE
+=head1 The example
 
 For this example of debugging,
 I've taken a very common example
@@ -165,7 +186,7 @@ where the problem is,
 and use the Marpa diagnostics and tracing facilities
 to "discover" it.
 
-=head1 FIRST WARNING
+=head1 First warning
 
 Right off the bat, we get two warning messages:
 
@@ -197,7 +218,7 @@ tracing facilities, let's pretend we have not
 had our morning coffee,
 and that we miss the significance of these warning messages.
 
-=head1 OUTPUT FROM trace_terminals
+=head1 Output from trace_terminals()
 
 Before looking at Marpa's progress reports,
 it is usually best to orient yourself by looking
@@ -245,7 +266,7 @@ assume that we are slow on the uptake today,
 and that this does not clue us in.
 We move on.
 
-=head1 OUTPUT FROM show_progress
+=head1 Output from show_progress()
 
 Marpa's most powerful tool for debugging
 grammars is its progress report, which
@@ -540,7 +561,7 @@ and see that our C<Expression -E<gt> Factor> rule is wrong.
 It should be C<Expression -E<gt> Term>.
 Change that and the problem is fixed.
 
-=head1 EMPTY RULES
+=head1 Empty rules
 
 When a symbol is nulled in your parse,
 L<C<show_progress>|Marpa::R2::Recognizer/"show_progress">
@@ -548,7 +569,104 @@ does not show its expansion into rules.
 This reduces clutter,
 and seems to be the intuitive way to treat nulled rules.
 
-=head1 APPENDIX: FULL CODE AND OUTPUT FOR THE EXAMPLE
+=head1 Access to the "raw" progress report information
+
+This section deals with the C<progress()> recognizer method,
+which allows access to the raw progress report information.
+This method is not needed for typical debugging and tracing
+situations.
+It is intended for applications which want to leverage
+Marpa's "situational awareness" in innovative ways.
+
+=head2 progress()
+
+=for Marpa::R2::Display
+name: progress(0) example
+normalize-whitespace: 1
+
+    my $report0 = $recce->progress(0);
+
+=for Marpa::R2::Display::End
+
+Z<>
+
+=for Marpa::R2::Display
+name: progress() example
+normalize-whitespace: 1
+
+    my $latest_report = $recce->progress();
+
+=for Marpa::R2::Display::End
+
+Given the parse location (Earley set ID) as its argument,
+the C<progress()> recognizer method returns a reference
+to an array of "report items".
+Each report item is a triple: an array of three elements.
+The three elements are, in order,
+rule ID, dot position, and origin.
+The data returned by the two displays above,
+as well as the data for the other parse locations
+in our example,
+are shown L<below|"progress() outputs">.
+
+The rule ID is the same number that Marpa uses
+to identify rules
+in tracing and debugging output.
+Given a rule ID, an application can find
+its LHS and RHS symbols using
+L<the grammar's C<rule()> method|Marpa::R2::Grammar/"rule">.
+
+Dot position is -1 for completions,
+and 0 for predictions.
+Where the report item is not for a completion or
+a prediction, dot position is I<N>,
+where <N> is the number of RHS symbols
+successfully recognized at the parse location of
+the progress report.
+
+Origin is parse location (Earley set ID)
+at which the rule application reported by
+the report item began.
+For a prediction, origin will always be
+the same as the location of the parse report.
+
+=head2 Progress reports and efficiency
+
+When progress reports are used for production parsing,
+instead of just for debugging and tracing,
+efficiency consideration become significant.
+We will start with the good news.
+C<progress()> is implemented in C, so that the
+application can usually expect calls to
+C<progress()> to be extremely fast.
+
+Now, as to the potential bad news:
+Applications planning frequent use of calls
+to C<progress()> need to be aware that,
+where there is a right recursion at a parse location,
+C<progress()> needs to follow the entire chain
+of recursions to create the progress report.
+That this is happening will always be evident
+from the parse report itself,
+which will contain one report item
+for every completion in the right-recursive
+chain of completions.
+If an application tries to
+produce progress reports for a large number of parse locations,
+and these parse locations have long right recursive chains,
+it can prove computationally expensive.
+
+The efficiency consideration just mentioned
+for following right recursions
+is not an issue for left recursions.
+Left recursions only produce at most two report
+items per parse location
+and are extremely fast to process.
+Similarly, it is also not an issue for
+Marpa's sequence rules, because they are implemented
+internally as left recursions.
+
+=head1 Appendix: full code and output for the example
 
 Below are the code, the trace outputs
 and the progress report
@@ -658,7 +776,7 @@ may set it up so that earleme and location are
 two different things,
 and in that case the distinction will matter.
 
-=head2 Progress output
+=head2 show_progress() output
 
 =for Marpa::R2::Display
 name: Debug Example Progress Report
@@ -681,7 +799,61 @@ remove-blank-last-line: 1
 
 =for Marpa::R2::Display::End
 
-=head1 COPYRIGHT AND LICENSE
+=head2 progress() outputs
+
+These section contains the output of the C<progress()>
+method -- the progress reports in their "raw" format.
+The output is shown in L<Data::Dumper> format,
+with C<Data::Dumper::Indent> set to 0
+and C<Data::Dumper::Terse> set to 1.
+
+The C<Data::Dumper> output from C<progress()> at location 0:
+
+=for Marpa::R2::Display
+name: progress() output at location 0
+remove-display-indent: 1
+remove-blank-last-line: 1
+
+    [[0,0,0],[2,0,0],[4,0,0]]
+
+=for Marpa::R2::Display::End
+
+The C<Data::Dumper> output from C<progress()> at location 1:
+
+=for Marpa::R2::Display
+name: progress() output at location 1
+remove-display-indent: 1
+remove-blank-last-line: 1
+
+    [[0,-1,0],[2,-1,0],[4,1,0]]
+
+=for Marpa::R2::Display::End
+
+The C<Data::Dumper> output from C<progress()> at location 2:
+
+=for Marpa::R2::Display
+name: progress() output at location 2
+remove-display-indent: 1
+remove-blank-last-line: 1
+
+    [[2,0,2],[4,0,2],[4,2,0]]
+
+=for Marpa::R2::Display::End
+
+The default C<progress()> output is for the latest Earley set,
+which is location 3 in our example.
+Here is the C<progress()> output for location 3.
+
+=for Marpa::R2::Display
+name: progress() output at location 3
+remove-display-indent: 1
+remove-blank-last-line: 1
+
+    [[0,-1,0],[2,-1,2],[4,-1,0],[4,1,0],[4,1,2]]
+
+=for Marpa::R2::Display::End
+
+=head1 Copyright and License
 
 =for Marpa::R2::Display
 ignore: 1

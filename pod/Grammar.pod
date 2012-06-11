@@ -17,7 +17,7 @@
 
 Marpa::R2::Grammar - Marpa grammars
 
-=head1 SYNOPSIS
+=head1 Synopsis
 
 =for Marpa::R2::Display
 name: Engine Synopsis Unambiguous Parse
@@ -45,7 +45,7 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-=head1 DESCRIPTION
+=head1 Description
 
 To create a Marpa grammar object,
 use the C<new> method.
@@ -193,7 +193,7 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-=head1 CONSTRUCTOR
+=head1 Constructor
 
 =head2 new
 
@@ -231,9 +231,9 @@ the hash key is the argument name
 and the hash value is the value of
 the named argument.
 The available named arguments are described
-L<below|/"Named Arguments">.
+L<below|/"Named arguments">.
 
-=head1 MUTATORS
+=head1 Mutators
 
 =head2 precompute
 
@@ -265,10 +265,10 @@ The arguments to the
 C<set> method are
 references to hashes of named arguments.
 The available named arguments are described
-L<below|/"Named Arguments">.
+L<below|/"Named arguments">.
 C<set> either returns true or throws an exception.
 
-=head1 ACCESSORS
+=head1 Accessors
 
 =head2 check_terminal
 
@@ -278,7 +278,36 @@ Not often needed,
 but a lexer may find this
 the most convenient way to determine if a symbol is a terminal.
 
-=head1 TRACE ACCESSORS
+=head2 progress
+
+Given the location (Earley set ID) as its argument,
+returns an array that describes the parse progress
+at that location.
+Details on progress reports can be found in
+L<their own document|Marpa::R2::Progress>.
+
+=head2 rule
+
+=for Marpa::R2::Display
+name: rule() Synopsis
+normalize-whitespace: 1
+
+    my ($lhs, @rhs) = $grammar->rule($completed_rule_id);
+
+=for Marpa::R2::Display::End
+
+Given a rule ID as its argument,
+returns an array containing the symbols of the rule.
+The LHS symbol is the first symbol in the array,
+and the RHS symbols follow it in order.
+Returns a Perl false if rule ID is well-formed,
+but no such rule exists.
+Situations where
+Rule ID's are encountered include
+callbacks and
+use of L<the progress method|/"progress">.
+
+=head1 Trace accessors
 
 =head2 show_problems
 
@@ -373,16 +402,19 @@ indicating whether they were
 terminal, nulling, nullable, unproductive or inaccessible.
 Useful for debugging grammars.
 
-=head1 NAMED ARGUMENTS
+=head1 Named arguments
 
 =head2 action_object
 
 The C<action_object> named argument
-specifies a class name to be used
+specifies a Perl class name to be used
 in resolving action names to Perl closures.
 A C<new> constructor must be defined
 in the C<action_object> package.
 It will be used to create the per-parse-tree variables.
+The per-parse-tree variable is passed
+to rule evaluation closures,
+as their first argument.
 Details are in
 L<the document on semantics|Marpa::R2::Semantics>.
 
@@ -495,7 +527,7 @@ The C<rules> named argument may be specified multiple times,
 adding new rules to the grammar each time.
 New rules may be added until the grammar is precomputed.
 The format of rule descriptors is L<explained
-below|/"RULE DESCRIPTORS">.
+below|/"Rule descriptors">.
 
 =head2 start
 
@@ -520,7 +552,7 @@ In each key/value pair of this hash,
 the hash key is the symbol property name
 and the hash value is the
 symbol descriptor.
-Symbol descriptors are described L<below|/"SYMBOL DESCRIPTORS">.
+Symbol descriptors are described L<below|/"Symbol descriptors">.
 
 Note that the value of C<symbols> named argument is a hash,
 but the value of the C<rules> named argument is an array.
@@ -574,7 +606,7 @@ turning them back on
 after grammar precomputation is useless,
 and itself results in a warning.
 
-=head1 RULE DESCRIPTORS
+=head1 Rule descriptors
 
 =for Marpa::R2::Display
 name: Engine Synopsis Unambiguous Parse
@@ -791,7 +823,37 @@ whose RHS is the sequence LHS symbol.
 The LHS of the intermediate rule can then be used,
 without restriction, as the LHS of other rules.
 
-=head1 COPYRIGHT AND LICENSE
+=head1 Symbol descriptors
+
+=for Marpa::R2::Display
+name: Symbol descriptor example
+normalize-whitespace: 1
+
+    symbols => {
+        MinusMinus => { terminal => 1 },
+        Minus      => { terminal => 1 },
+        Number     => { terminal => 1 },
+    },
+
+=for Marpa::R2::Display::End
+
+A symbol descriptor is a hash.
+In the key/value pairs of this hash,
+the hash key is the symbol property name
+and the hash value is the value of
+that property.
+The available symbol properties are as follows:
+
+=head2 terminal
+
+A boolean.
+If true, it allows the symbol to be used as a terminal.
+If false, it disallows use of
+the symbol as a terminal.
+For details, see
+L<the section on terminals|/"Terminal Symbols">.
+
+=head1 Copyright and License
 
 =for Marpa::R2::Display
 ignore: 1

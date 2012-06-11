@@ -17,7 +17,7 @@
 
 Marpa::R2::Recognizer - Marpa recognizers
 
-=head1 SYNOPSIS
+=head1 Synopsis
 
 =for Marpa::R2::Display
 name: Engine Synopsis Unambiguous Parse
@@ -33,7 +33,7 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-=head1 DESCRIPTION
+=head1 Description
 
 To create a recognizer object, use L<the C<new> method|/new>.
 
@@ -58,7 +58,7 @@ requires special method calls,
 which are described in L<the
 document on alternative input models|Marpa::R2::Advanced::Models>.
 
-=head1 CONSTRUCTOR
+=head1 Constructor
 
 =head2 new
 
@@ -79,9 +79,42 @@ are references to hashes of named
 arguments.
 In each key/value pair of these hashes, the key is the argument name,
 and the hash value is the value of the argument.
-The named arguments are described L<below|/"NAMED ARGUMENTS">.
+The named arguments are described L<below|/"Named arguments">.
 
-=head1 ACCESSORS
+=head1 Accessors
+
+=head2 check_terminal
+
+=for Marpa::R2::Display
+name: Recognizer check_terminal Synopsis
+normalize-whitespace: 1
+
+    my $is_symbol_a_terminal = $recce->check_terminal('Document');
+
+=for Marpa::R2::Display::End
+
+Returns a Perl true when its argument is the name of a terminal symbol.
+Otherwise, returns a Perl false.
+Not often needed.
+
+=head2 latest_earley_set
+
+=for Marpa::R2::Display
+name: latest_earley_set() Synopsis
+normalize-whitespace: 1
+
+    my $latest_earley_set = $recce->latest_earley_set();
+
+=for Marpa::R2::Display::End
+
+Return the location of the latest (in other words,
+the most recent)
+Earley set.
+Not usually needed explicitly, because it is often
+the default.
+For example, by default parsing is of the input from
+0 through I<N>,
+where I<N> is the location of the last Earley set.
 
 =head2 terminals_expected
 
@@ -103,21 +136,7 @@ in this list means that terminal will be acceptable
 in the next C<read> method call.
 This is highly useful for Ruby Slippers parsing.
 
-=head2 check_terminal
-
-=for Marpa::R2::Display
-name: Recognizer check_terminal Synopsis
-normalize-whitespace: 1
-
-    my $is_symbol_a_terminal = $recce->check_terminal('Document');
-
-=for Marpa::R2::Display::End
-
-Returns a Perl true when its argument is the name of a terminal symbol.
-Otherwise, returns a Perl false.
-Not often needed.
-
-=head1 MUTATORS
+=head1 Mutators
 
 =head2 read
 
@@ -153,7 +172,7 @@ If the parser accepted the token,
 the C<read> method returns
 the number of tokens which are acceptable at the new current location.
 This number may be helpful in guiding L<Ruby
-Slippers parsing|/"RUBY SLIPPERS PARSING">.
+Slippers parsing|/"Ruby Slippers parsing">.
 
 C<read> may return zero,
 which means
@@ -165,7 +184,7 @@ a zero return from a C<read> method
 means that the parse is B<exhausted> --
 that no more input is possible.
 More details on "exhaustion" are in L<a
-section below|/"PARSE EXHAUSTION">.
+section below|/"Parse exhaustion">.
 
 Marpa may reject a token because it is not one of those
 acceptable at the current location.
@@ -177,7 +196,7 @@ This is, in fact, an important technique in Ruby
 Slippers parsing.
 For details,
 see L<the section on Ruby Slippers
-parsing|/"RUBY SLIPPERS PARSING">.
+parsing|/"Ruby Slippers parsing">.
 
 For other failures,
 including an attempt to C<read> a token
@@ -207,7 +226,7 @@ arguments.
 The C<set> method
 can be used to set or change named arguments after the recognizer
 has been created.
-Details of the named arguments are L<below|/"NAMED ARGUMENTS">.
+Details of the named arguments are L<below|/"Named arguments">.
 
 =head2 value
 
@@ -232,7 +251,7 @@ and returns a reference to the parse result for that parse tree.
 If there are no more parse trees,
 the C<value> method returns C<undef>.
 
-=head1 TRACE ACCESSORS
+=head1 Trace accessors
 
 =head2 show_progress
 
@@ -255,6 +274,10 @@ the string contains reports for location I<N>.
 With two numeric arguments, I<N> and I<M>, the arguments are interpreted
 as a range of locations and the returned string contains
 reports for all locations in the range.
+("Location" as referred to in this section,
+and elsewhere
+in this document,
+is what is also called the Earley set ID.)
 
 If an argument is negative,
 I<-N>,
@@ -279,9 +302,9 @@ A much fuller description,
 with an example,
 is in
 L<the document on debugging Marpa
-grammars|Marpa::R2::Debug>.
+grammars|Marpa::R2::Progress>.
 
-=head1 NAMED ARGUMENTS
+=head1 Named arguments
 
 The recognizer's named arguments are
 accepted by its
@@ -319,6 +342,9 @@ The default is for the parse to end where the input did,
 so that the parse returned is of the entire input.
 The C<end> named argument is not allowed
 once evaluation has begun.
+"Location" as referred to here and elsewhere
+in this document is what is also called
+an Earley set ID.
 
 =head2 grammar
 
@@ -452,7 +478,7 @@ Warnings are written to the trace file handle.
 By default, the recognizer's warnings are on.
 Usually, an application will want to leave them on.
 
-=head1 RUBY SLIPPERS PARSING
+=head1 Ruby Slippers parsing
 
 =for Marpa::R2::Display
 name: Engine Synopsis Interactive Parse
@@ -539,7 +565,7 @@ a completely new "virtual" token that gives the parser exactly what it expects.
 L<Marpa::HTML> then resumes input at the point in the original input stream
 where it left off.
 
-=head1 PARSE EXHAUSTION
+=head1 Parse exhaustion
 
 A parse is B<exhausted> when it will accept no more input.
 In the default input model, the C<read> method indicates this
@@ -550,7 +576,7 @@ Grammars are often written so that once they "find what
 they are looking for", no further input is acceptable.
 Grammars of that kind become exhausted when they succeed.
 
-=head1 COPYRIGHT AND LICENSE
+=head1 Copyright and License
 
 =for Marpa::R2::Display
 ignore: 1

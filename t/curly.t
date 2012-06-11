@@ -94,19 +94,26 @@ TEST: for my $test (@tests) {
     $parser = $parser->read( \$string );
     my @values    = $parser->eval();
     my $recce     = $parser->{recce};
-    my $recce_c   = $recce->[Marpa::R2::Internal::Recognizer::C];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $rules     = $grammar->[Marpa::R2::Internal::Grammar::RULES];
-    for my $earley_set ( 0 .. $recce_c->latest_earley_set() ) {
-        my $report_item_count = $recce_c->progress_report_start($earley_set);
-        ITEM: while ( $report_item_count-- ) {
-            my ( $rule_id, $position, $origin ) = $recce_c->progress_item();
+    for my $earley_set_id ( 0 .. $recce->latest_earley_set() ) {
+        my $progress_report = $recce->progress($earley_set_id);
+        ITEM: for my $progress_item ( @{$progress_report} ) {
+            my ( $rule_id, $position, $origin_earley_set_id ) = @{$progress_item};
+            last ITEM if not defined $rule_id;
             next ITEM if $position >= 0;
             $position = $grammar_c->rule_length($rule_id);
-            my $origin_earleme = $recce_c->earleme($origin);
-            my $rule           = $rules->[$rule_id];
-            my $rule_name      = $rule->[Marpa::R2::Internal::Rule::NAME];
+
+# Marpa::R2::Display
+# name: earleme() Synopsis
+
+            my $origin_earleme = $recce->earleme($origin_earley_set_id);
+
+# Marpa::R2::Display::End
+
+            my $rule      = $rules->[$rule_id];
+            my $rule_name = $rule->[Marpa::R2::Internal::Rule::NAME];
             next ITEM if not defined $rule_name;
             my $blocktype =
                   $rule_name eq 'anon_hash' ? 'hash'
@@ -123,8 +130,8 @@ TEST: for my $test (@tests) {
                 . $token->column_number;
             $hash{$location}++      if $blocktype eq 'hash';
             $codeblock{$location}++ if $blocktype eq 'code';
-        } ## end while ( $report_item_count-- )
-    } ## end for my $earley_set ( 0 .. $recce_c->latest_earley_set...)
+        } ## end for my $progress_item ( @{$progress_report} )
+    } ## end for my $earley_set_id ( 0 .. $recce->latest_earley_set...)
     Marpa::R2::Test::is(
         ( scalar @values ),
         $expected_parse_count,

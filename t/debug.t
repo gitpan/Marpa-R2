@@ -18,13 +18,14 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 3;
+use Test::More tests => 7;
 
 use English qw( -no_match_vars );
 use Fatal qw( open close );
 use lib 'inc';
 use Marpa::R2::Test;
 use Marpa::R2;
+use Data::Dumper;
 
 my $progress_report = q{};
 
@@ -133,6 +134,79 @@ F2 @2-3 Factor -> Number .
 R4:1 x2 @0,2-3 Factor -> Factor . Multiply Factor
 F4 @0-3 Factor -> Factor Multiply Factor .
 END_PROGRESS_REPORT
+
+# Marpa::R2::Display::End
+
+$Data::Dumper::Indent = 0;
+$Data::Dumper::Terse  = 1;
+
+# Marpa::R2::Display
+# name: progress(0) example
+
+my $report0 = $recce->progress(0);
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: progress() output at location 0
+# start-after-line: END_PROGRESS_REPORT
+# end-before-line: '^END_PROGRESS_REPORT$'
+
+chomp( my $expected_report0 = <<'END_PROGRESS_REPORT');
+[[0,0,0],[2,0,0],[4,0,0]]
+END_PROGRESS_REPORT
+Marpa::R2::Test::is( Data::Dumper::Dumper($report0),
+    $expected_report0, 'progress report at location 0' );
+
+# Marpa::R2::Display::End
+
+my $report1 = $recce->progress(1);
+
+# Marpa::R2::Display
+# name: progress() output at location 1
+# start-after-line: END_PROGRESS_REPORT
+# end-before-line: '^END_PROGRESS_REPORT$'
+
+chomp( my $expected_report1 = <<'END_PROGRESS_REPORT');
+[[0,-1,0],[2,-1,0],[4,1,0]]
+END_PROGRESS_REPORT
+Marpa::R2::Test::is( Data::Dumper::Dumper($report1),
+    $expected_report1, 'progress report at location 1' );
+
+# Marpa::R2::Display::End
+
+my $report2 = $recce->progress(2);
+
+# Marpa::R2::Display
+# name: progress() output at location 2
+# start-after-line: END_PROGRESS_REPORT
+# end-before-line: '^END_PROGRESS_REPORT$'
+
+chomp( my $expected_report2 = <<'END_PROGRESS_REPORT');
+[[2,0,2],[4,0,2],[4,2,0]]
+END_PROGRESS_REPORT
+Marpa::R2::Test::is( Data::Dumper::Dumper($report2),
+    $expected_report2, 'progress report at location 2' );
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: progress() example
+
+my $latest_report = $recce->progress();
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: progress() output at location 3
+# start-after-line: END_PROGRESS_REPORT
+# end-before-line: '^END_PROGRESS_REPORT$'
+
+chomp( my $expected_report3 = <<'END_PROGRESS_REPORT');
+[[0,-1,0],[2,-1,2],[4,-1,0],[4,1,0],[4,1,2]]
+END_PROGRESS_REPORT
+Marpa::R2::Test::is( Data::Dumper::Dumper($latest_report),
+    $expected_report3, 'progress report at location 3' );
 
 # Marpa::R2::Display::End
 
