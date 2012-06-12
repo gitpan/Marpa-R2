@@ -263,8 +263,30 @@ sub do_libmarpa {
     -d $build_dir or mkdir $build_dir;
     chdir $build_dir;
 
+    my @m4_files = glob('m4/*.m4');
     my $configure_script = 'configure';
-    make_writeable($configure_script);
+
+    # Some files should NEVER be updated in this directory, by
+    # make or anything else.  If for some reason they are
+    # out of date, stamp them up to date
+    if ( not $self->up_to_date( ['configure.ac', @m4_files], 'aclocal.m4' ) ) {
+        utime time(), time(), 'aclocal.m4';
+    }
+    if (not $self->up_to_date( [ 'configure.ac', 'Makefile.am', 'aclocal.m4' ],
+            'Makefile.in' ) )
+    {
+        utime time(), time(), 'Makefile.in';
+    }
+    if (not $self->up_to_date(
+            [ 'configure.ac',    'aclocal.m4' ],
+            [ $configure_script, 'config.h.in' ]
+        )
+        )
+    {
+        utime time(), time(), $configure_script;
+        utime time(), time(), 'config.h.in';
+    } ## end if ( not $self->up_to_date( [ 'configure.ac', 'aclocal.m4'...]))
+
     if ( not -r 'stamp-h1' ) {
 
         if ( $self->verbose() ) {
@@ -311,6 +333,22 @@ sub do_libmarpa {
                 or die "say failed: $ERRNO";
             die 'Cannot run libmarpa configure';
         } ## end if ( not IPC::Cmd::run( command => [ $shell, ...]))
+
+	# Make sure all the file produced by configure are
+	# stamped up to date, and in the right order
+	#
+	# We do not memoize time(), because we might need to space out
+	# the timestamps -- some make's has a coarse time resolution.
+	# We might, in fact, need to sleep(), but the hope is that
+	# all these calls to time() slow things down sufficienctly.
+	#
+	# All this is necessary because automake tries to be smart
+	# about remaking everything needed and often is
+	# way too agressive for our purposes.
+	utime time(), time(), 'config.status';
+	utime time(), time(), 'stamp-h1';
+	utime time(), time(), 'Makefile';
+	utime time(), time(), 'config.h';
 
     } ## end if ( not -r 'stamp-h1' )
     else {
