@@ -30,17 +30,16 @@ Published @value{UPDATED} by Jeffrey Kegler
 @c So the toc is printed at the start.
 @contents
 @ifnottex
-@node Top, How to read this document, (dir), (dir)
+@node Top, About this document, (dir), (dir)
 @top Libmarpa: The Marpa low-level library
 
 This manual is for Libmarpa, version @value{VERSION}.
 
 @end ifnottex
 @menu
-* How to read this document::   
+* About this document::         
 * About Libmarpa::              What is Libmarpa?
 * Architecture::                
-* Objects::                     
 * Input::                       
 * Semantics::                   
 * Threads::                     
@@ -63,29 +62,17 @@ This manual is for Libmarpa, version @value{VERSION}.
 @detailmenu
  --- The Detailed Node Listing ---
 
-How to read this document
+About this document
 
+* How to read this document::   
 * Prerequisites::               Prerequisites.
 * Parsing theory::              Parsing theory.
 
 Architecture
 
-* Architecture - Grammar::      
-* Recognition versus parsing::  
-
-Grammars
-
-* Precomputation::
-
-Recognition versus parsing
-
-* Precomputation::              
-
-Objects
-
-* The sequence of time objects::  
-* Base grammars::               
+* Time objects::                
 * The lifetime of time objects::  
+* Parent and child time objects::  
 * Numbered objects::            
 
 Input
@@ -116,16 +103,7 @@ Semantics
 
 * How Libmarpa semantics work::  
 * Universe of values::          
-* Whatever values::             
-
-Threads
-
-* C89 and thread-safety::       
-* Base grammars cannot be shared between threads::  
-
-C89 and thread-safety
-
-* C89 and thread-safety::
+* Valued and unvalued symbols::  
 
 Error handling
 
@@ -137,6 +115,7 @@ Introduction to the external interface
 
 * About the overviews::         
 * Return values::               
+* Naming conventions::          
 
 Grammar methods
 
@@ -204,7 +183,8 @@ Error macros and code
 
 * Methods::                     
 * Error Macros::                
-* Error Codes::                 
+* External error codes::        
+* Internal error codes::        
 
 Design considerations
 
@@ -229,22 +209,37 @@ Internal Interface
 @end detailmenu
 @end menu
 
-@node How to read this document, About Libmarpa, Top, Top
-@chapter How to read this document
+@node About this document, About Libmarpa, Top, Top
+@chapter About this document
 
 @menu
+* How to read this document::   
 * Prerequisites::               Prerequisites.
 * Parsing theory::              Parsing theory.
 @end menu
 
-@node Prerequisites, Parsing theory, How to read this document, How to read this document
+@node How to read this document, Prerequisites, About this document, About this document
+@section How to read this document
+
+This is essentially a reference document,
+but its early chapters lay out concepts
+essential to the others.
+Readers will usually want to read the
+chapters up and including
+@ref{Introduction to the external interface}
+in order.
+Otherwise, they may follow their interests.
+
+@node Prerequisites, Parsing theory, How to read this document, About this document
 @section Prerequisites
 
 This document is very far from self-contained.
 It assumes the following:
 @itemize
 @item
-The reader knows the C programming language.
+The reader knows the C programming language
+at least well
+enough to understand function prototypes.
 @item
 The reader
 has read the documents for one of Libmarpa's upper layers.
@@ -253,7 +248,7 @@ The reader knows some parsing theory.
 @xref{Parsing theory}.
 @end itemize
 
-@node Parsing theory,  , Prerequisites, How to read this document
+@node Parsing theory,  , Prerequisites, About this document
 @section Parsing theory
 
 This document assumes an acquaintance
@@ -297,7 +292,7 @@ one of the packages that extend
 regular expressions,
 he should have no trouble with BNF.
 
-@node About Libmarpa, Architecture, How to read this document, Top
+@node About Libmarpa, Architecture, About this document, Top
 @chapter About Libmarpa
 Libmarpa implements the Marpa parsing algorithm.
 Marpa is named
@@ -337,8 +332,7 @@ Instead, Libmarpa,
 based on its traversal of the parse tree,
 passes optimized step by step stack manipulation
 instructions to the upper layer.
-These instructions indicate the token or rule involved
-involved,
+These instructions indicate the token or rule involved,
 and the proper location for the true token value or
 the result of the rule evaluation.
 For rule evaluations, the instructions include the stack location
@@ -353,119 +347,127 @@ to catch errors at runtime or,
 failing all else,
 to successfully debug the logic.
 
-@node Architecture, Objects, About Libmarpa, Top
+@node Architecture, Input, About Libmarpa, Top
 @chapter Architecture
 
 @menu
-* Architecture - Grammar::      
-* Recognition versus parsing::  
-@end menu
-
-@node Architecture - Grammar, Recognition versus parsing, Architecture, Architecture
-@section Grammars
-
-As per parsing theory,
-before an input can be parsed,
-a grammar must be defined.
-Traditionally,
-a grammar consists of a set of terminal symbols,
-a set of non-terminal symbols,
-a set of rules,
-and a distinguished start symbol.
-
-@menu
-* Precomputation::
-@end menu
-
-@node Recognition versus parsing,  , Architecture - Grammar, Architecture
-@section Recognition versus parsing
-
-Even in the academic literature,
-parsing is used in many senses,
-Determining whether a string matches a grammar is called
-@dfn{recognition}.
-Finding the structure of the recognized string according
-to the grammar is
-@dfn{parsing} in a very strict sense of the term.
-Strictly speaking,
-Earley's algorithm was a recognizer,
-and not a parser.
-Marpa contains both a recognizer
-and a parser in the strict sense.
-Marpa's recognizer is implemented by its recognizer time objects.
-Marpa's parser in the strict sense
-is implemented by its bocage class and the classes
-which follow the bocage in the time object sequence.
-
-@menu
-* Precomputation::              
-@end menu
-
-@node Precomputation,  , Recognition versus parsing, Recognition versus parsing
-@subsection Precomputation
-
-Before a recognizer can be created from a grammar,
-it must be precomputed.
-Internally, precomputation is what the term
-suggests --
-the memoization of a large number
-of facts about the grammar to allow
-the recognizer to proceed more efficiently.
-Marpa makes aggressive use of grammar precomputation.
-
-Precomputation ``freezes'' a grammar.
-New symbols, rules and sequences cannot be added
-to a precomputed grammar
-are disallowed,
-as are most other changes.
-
-@node Objects, Input, Architecture, Top
-@chapter Objects
-
-Libmarpa's most important objects are time objects.
-Time objects are so called for two related reasons.
-First, they relate to a ``time'' in the progress of a parse.
-Second, each time object has a lifetime and is reference counted.
-
-Libmarpa's major objects are called ``time'' objects instead
-of phase objects,
-because phases are exclusive and non-simultaneous
--- when one phase ends, another begins.
-Time objects are often in use simultaneously.
-In our lives, work and play are times.
-Infancy, adolescent and adulthood are phases.
-
-The time objects are, in sequence:
-@itemize
-@item Grammars.
-@item Recognizers.
-@item Bocages.
-@item Orderings.
-@item Trees.
-@item Valuators.
-@end itemize
-
-@menu
-* The sequence of time objects::  
-* Base grammars::               
+* Time objects::                
 * The lifetime of time objects::  
+* Parent and child time objects::  
 * Numbered objects::            
 @end menu
 
-@node The sequence of time objects, Base grammars, Objects, Objects
-@section The sequence of time objects
+@node Time objects, The lifetime of time objects, Architecture, Architecture
+@section Time objects
 
-While time objects do not correspond to phases,
-they do have a well-defined sequence.
+Marpa divides parsing into phases,
+which in this document are more often called ``times''.
+The term ``time'' is more accurate,
+beacuse the time objects are typically in use simultaneously.
+The term ``phase'' suggest a time which is
+exclusive and non-simultaneous
+-- when one phase ends, another begins.
+In our lives, work and play are times.
+Infancy, adolescent and adulthood are phases.
+
+Although times can be simulataneous,
+they do have a sequence.
+The times are, in sequence order:
+
+@itemize
+@item
+Grammar:  At grammar time, the rules and symbols
+are defined, with their properties.
+A grammar must be precomputed before a recognizer can
+be created from it.
+@item
+Recognizer: At recognizer time, input is read.
+@item
+Bocage: At bocage time, a data structure called a
+bocage is created from the information captured
+during recognition.
+The bocage stores a collection of parse trees,
+similar to a parse forest.
+@item
+Ordering: At ordering time, a order is defined
+for the bocage.
+@item
+Tree: At tree time,
+an iterator of the parse bocage
+is created, and traversed.
+@item
+Value: At value time,
+the current parse tree of a tree iterator
+is traversed for its ``steps''.
+``Steps'' are instructions that tell
+the application how to maintain
+a stack and to evaluate the
+semantics.
+@end itemize
+
+The time objects classes have one letter abbreviations,
+which are used frequently.
+These are, in the standard sequence,
+
+@itemize
+@item
+Grammar:  G
+@item
+Recognizer: R
+@item
+Bocage: B
+@item
+Ordering: O
+@item
+Tree: T
+@item
+Value: V
+@end itemize
+
+@node The lifetime of time objects, Parent and child time objects, Time objects, Architecture
+@section The lifetime of time objects
+
+One of reasons Libmarpa's major objects
+are called ``time objects''
+is that each of them has a distinct lifetime.
+Time objects are reference counted.
+Every time object is created with a reference count of 1.
+Whenever one time object is created from another,
+the parent time object has its reference count incremented
+by 1.
+
+Time objects do not have explicit destructors.
+When the reference count of a time object reaches
+0, that time object is destroyed.
+When a child object is destroyed, it
+decrements the reference count of its parent.
+Also, each time class has a method that decrements 
+the reference count of an object in that class by 1.
+
+In ordinary circumstances, all an application has to
+do is keep in mind that it ``owns'' the time objects
+it has created,
+and that it must call a method
+to ``unreference'' that object when it is finished.
+
+More complex applications may find it convenient
+to have multiple parts, or even new objects,
+that share ownership of a Libmarpa time object.
+For such situations,
+every class of time object has a method to increment
+the reference count for objects in that class.
+
+@node Parent and child time objects, Numbered objects, The lifetime of time objects, Architecture
+@section Parent and child time objects
+
 Except for grammars,
 all time objects are created from another time
 object.
+Each time object is created from a time object
+of the class before it in the sequence.
 A recognizer cannot be created without a precomputed grammar;
 a bocage cannot be created without a recognizer;
 and so on.
-
-@node Base grammars, The lifetime of time objects, The sequence of time objects, Objects
-@section Every time object has a base grammar
 
 When one time object is used to create a second
 time object,
@@ -478,10 +480,10 @@ and the bocage is the child object.
 
 Grammars have no parent object.
 Every other time object has exactly one parent object.
-Valuation objects have no child objects.
+Value objects have no child objects.
 All other time objects can have any number of children,
-from zero up to a number determined by the memory limits
-or the architecture.
+from zero up to a number determined by memory or
+some other machine-determined limit.
 
 Every time object has a @dfn{base grammar}.
 A grammar object is its own base grammar.
@@ -495,34 +497,7 @@ the base grammar of a bocage is the base
 grammar of the recognizer that it was created
 with.
 
-@node The lifetime of time objects, Numbered objects, Base grammars, Objects
-@section The lifetime of time objects
-
-Time objects are reference-counted.
-Every time object is created with a reference count of 1.
-Whenever one time object is created from another,
-the parent time object has its reference count incremented
-by 1.
-
-Time objects do not have explicit destructors.
-Every time object has a method which decrements its
-reference count by 1.
-When the reference count of a time object reaches
-0, that time object is destroyed.
-
-In ordinary circumstances, all an application has to
-do is keep in mind that it ``owns'' the time objects
-it has created,
-and that it must call a method
-to ``unreference'' that object when it is finished.
-
-In some applications, multiple parts of it
-may need to share ownership of an object.
-For such situations,
-every time object has a method to increment
-the reference count.
-
-@node Numbered objects,  , The lifetime of time objects, Objects
+@node Numbered objects,  , Parent and child time objects, Architecture
 @section Numbered objects
 
 In addition to its major, ``time'' objects, Libmarpa also has
@@ -530,12 +505,11 @@ numbered objects.
 Numbered objects do not have lifetimes of their own.
 Every numbered object belongs to a timed object,
 and is destroyed with it.
-
 Rules and symbols are numbered objects.
-Tokens values are
-another examples of numbered objects.
+Tokens values are another class of numbered
+objects.
 
-@node Input, Semantics, Objects, Top
+@node Input, Semantics, Architecture, Top
 @chapter Input
 
 @menu
@@ -670,8 +644,7 @@ by calling @code{marpa_r_earleme_complete()},
 until the current earleme is equal to the furthest earleme.
 
 The lastest earleme is the earleme of the last Earley set.
-Typically, the Earley set ID is the number of greater interest.
-It is different from the current earleme if and only if
+The latest earleme is different from the current earleme if and only if
 there is no Earley set at the current earleme.
 Once recognition is complete, parsing must take place over
 a range of Earley sets.
@@ -789,18 +762,24 @@ we now need to remove only one restriction.
 We now allow empty earlemes -- earlemes with
 no tokens and no Earley set.
 
-An empty earleme 1 can be created by
-making a call to @code{marpa_r_earleme_complete()}
-when 
-no call to @code{marpa_r_alternative()} has been
-made for the recognizer.
-Later earleme will be empty if two calls
-to @code{marpa_r_earleme_complete()}
-are made with no intervening call
-to @code{marpa_r_alternative()}.
+A call
+to @code{marpa_r_earleme_complete()},
+creates an empty earleme if and only if
+it falls into one of these two cases:
+@itemize
+@item
+There has been no call
+to @code{marpa_r_alternative()} since
+recognizer initialization.
+@item
+There has been no call
+to @code{marpa_r_alternative()} since
+the previous call
+to @code{marpa_r_earleme_complete()}.
+@end itemize
 
-If @code{marpa_r_earleme_complete()} is called
-for an empty earleme,
+If a call to @code{marpa_r_earleme_complete()} creates
+an empty earleme,
 the latest earleme remains unchanged from its
 prior value.
 This means that, since the current earleme will
@@ -814,8 +793,8 @@ the call to @code{marpa_r_earleme_complete()}.
 
 At this point, the most generalized input model has been
 introduced.
-The following will always be the case,
-even in Libmarpa's most generalized input model.
+Next we state some facts that will always be the case,
+no matter what input model is in use.
 
 @itemize
 @item The current earleme is greater than
@@ -905,7 +884,7 @@ and forth into whatever the application requires.
 @menu
 * How Libmarpa semantics work::  
 * Universe of values::          
-* Whatever values::             
+* Valued and unvalued symbols::  
 @end menu
 
 @node How Libmarpa semantics work, Universe of values, Semantics, Semantics
@@ -914,7 +893,6 @@ and forth into whatever the application requires.
 Libmarpa handling of semantics is unusual.
 Most semantics are left up to the application,
 but Libmarpa guides them.
-
 Specifically, the application is expected to maintain the evaluation
 stack.
 Libmarpa's valuator provides instructions on how to handle the stack.
@@ -927,7 +905,7 @@ For rule evalution, Libmarpa will tell the application where the operands
 are to be found,
 and where the result must go.
 
-@node Universe of values, Whatever values, How Libmarpa semantics work, Semantics
+@node Universe of values, Valued and unvalued symbols, How Libmarpa semantics work, Semantics
 @section The universe of values
 
 The application can react to Libmarpa's stack handling instructions
@@ -954,7 +932,7 @@ Because of optimizations, it is quite possible for a
 Libmarpa step to identify a stack position which has
 never been written to as the operand of a rule.
 This can happen, for example, if the rule's
-operand is a ``whatever''
+operand is an unvalued or ``whatever''
 value.
 (It is expected that in such a case that the rule's value
 does not depend on that operand, though it is up to the
@@ -969,8 +947,11 @@ or that these trap values are never read.
 Excluding trap values from a C program's universe of
 values may require the application to make
 sure that stack positions are properly initialized.
+This is discussed in detail in the section
+on value objects.
+@xref{Value methods}.
 
-@node Whatever values,  , Universe of values, Semantics
+@node Valued and unvalued symbols,  , Universe of values, Semantics
 @section Valued and unvalued symbols
 
 Libmarpa symbols can have values,
@@ -992,11 +973,11 @@ Similarly, the value of the separators in a list is typically
 ignored.
 
 Rules are unvalued if and only if their LHS symbols
-are unvalued
+are unvalued.
 When rules and symbols are unvalued,
 Libmarpa optimizes their evaluation.
 
-Tt is in principle unsafe to check the value 
+It is in principle unsafe to check the value 
 of a symbol if it can be unvalued.
 For this reason,
 once a symbol has been treated as valued,
@@ -1019,46 +1000,38 @@ If allowed, the user should be aware that the valued
 status of a LHS terminal
 will be locked in the recognizer
 if it is used as a terminal,
-and the symbols use as a rule LHS
+and the symbol's use as a rule LHS
 in the valuator must be
 consistent with the recognizer's marking.
 
 Marpa reports an error when a symbol's use
 conflicts with its locked valued status.
-This usually is usually saving the programmer
-some tricky debugging down the road.
-It is possible that an application might want to mix
+Doing so usually saves the programmer
+some tricky debugging further down the road.
+But it is possible that an application might deliberately
+want to mix
 valued and unvalued uses of a symbol -- an application
 might be able to differentiate them using the larger
-context, or might be tolerant of a the uncertainty.
+context, or might be tolerant of the uncertainty.
 If there is interest,
-a future extension might allow a locked
+a future Libmarpa extension might allow a locked
 valued status to be overriden.
 
 @node Threads, Error handling concepts, Semantics, Top
 @chapter Threads
 
 Libmarpa is thread-safe,
-if used as described below.
+given circumstances as described below.
 The Libmarpa methods are not reentrant.
-
-@menu
-* C89 and thread-safety::       
-* Base grammars cannot be shared between threads::  
-@end menu
-
-@node C89 and thread-safety, Base grammars cannot be shared between threads, Threads, Threads
-@section C89 and thread-safety
 
 Libmarpa is C89-compliant.
 It uses no global data,
-and it does not use those C library functions which
-are inherently thread-unsafe.
-
-Libmarpa calls only the routines
+and calls only the routines
 that are defined in the C89 standard
 and that can be made thread-safe.
-In most modern implementations these are thread-safe.
+In most modern implementations,
+the default C89 implementation is thread-safe
+to the extent possible.
 But the C89 standard does not require thread-safety,
 and even most modern environments allow the user
 to turn thread safety off.
@@ -1066,12 +1039,6 @@ To be thread-safe, Libmarpa must be compiled
 and linked in an environment that provides
 thread-safety.
 
-@menu
-* C89 and thread-safety::
-@end menu
-
-@node Base grammars cannot be shared between threads,  , C89 and thread-safety, Threads
-@section Base grammars cannot be shared between threads
 While Libmarpa can be used safely across
 multiple threads,
 a Libmarpa grammar cannot be.
@@ -1126,15 +1093,19 @@ In ordinary language, ``success'' is a desired result,
 and ``failure'' an undesired one.
 
 In this document, @dfn{success}
-successfully followed its primary logic path to an end result.
+means that Libmarpa
+followed its primary logic path to its end,
+returning the result appropriate for that logic path.
 @dfn{Failure} means some other logic path was followed.
 
 As one example where the distinction is relevant,
 some methods are designed so that they can be used
 to control a loop.  Success means continue the loop,
-while a soft failure indicates loop terminate.
+while a soft failure indicates that the loop should terminate.
 It is typically a good thing for loops to terminate,
-so that the soft failure is very much a ``desired result''.
+so that this soft failure is,
+in context,
+very much a ``desired result''.
 As another example,
 the ``Ruby Slippers'' parsing method uses soft failures
 as a means of testing alternative inputs and/or
@@ -1172,9 +1143,8 @@ necessary,
 the error code is not set.
 
 An application will have its own ideas of success,
-primary and secondary logic paths,
-what is or is not a recoverable failure,
-and what is or is not a fatal error.
+of what is or is not a recoverable failure,
+and of what is or is not a fatal error.
 As much as possible, Libmarpa makes it
 possible for the application to capture
 its results and reinterpret them to suit
@@ -1186,10 +1156,11 @@ generalizations may be helpful.  Soft failures disrupt the normal
 flow of processing less often than hard failures.  Hard failures
 only rarely are part of an application's primary logic path, and
 very often indicate an unrecoverable error.
-There are many case in which
-soft failures are part of an application's primary logic path, and
-even more where they are part of a secondary logic path, and even
-more where they are recoverable.  But it is also true that many
+There are many cases in which
+soft failures are part of an application's primary logic path,
+even more where they are part of a secondary logic path,
+and even more where they are recoverable.
+But it is also true that many
 soft failures are unrecoverable errors from the point of view of
 the application.
 
@@ -1202,6 +1173,7 @@ interface in detail.
 @menu
 * About the overviews::         
 * Return values::               
+* Naming conventions::          
 @end menu
 
 @node About the overviews, Return values, Introduction to the external interface, Introduction to the external interface
@@ -1226,10 +1198,9 @@ implements the complete logic flow,
 from the creation of a grammar to a final result
 from its valuation.
 In the archetypal Libmarpa application,
-grammar, input and semantics are
-all small but non-trivial.
+the grammar, input and semantics are small but non-trivial.
 
-@node Return values,  , About the overviews, Introduction to the external interface
+@node Return values, Naming conventions, About the overviews, Introduction to the external interface
 @section Return values
 
 If a function returns an integer value,
@@ -1241,9 +1212,9 @@ If a function returns an pointer value,
 and it is not otherwise stated,
 @code{NULL} indicates a failure,
 and any other result indicates success.
+
 Exceptions to these rules
 will be explicitly indicated.
-
 Where a method returns @code{NULL},
 and in its description
 there is no mention of soft failure,
@@ -1262,7 +1233,42 @@ The Libmarpa error code is always set after
 a hard failure,
 and a full descriptions of the causes of each
 error code is in its own section.
-@xref{Error Codes}.
+@xref{External error codes}.
+
+@node Naming conventions,  , Return values, Introduction to the external interface
+@section Naming conventions
+
+Methods in Libmarpa follow a strict naming convention.
+All methods have a name beginning with @code{marpa_},
+if they are part of the
+external interface.
+If an external method is not a static method,
+its name is prefixed with one of 
+@code{marpa_g_},
+@code{marpa_r_},
+@code{marpa_b_},
+@code{marpa_o_},
+@code{marpa_t_} or
+@code{marpa_v_},
+where the single letter between underscores
+is one of the time class abbreviations.
+The letter indicates which class
+the method belongs to.
+
+Methods which are exported,
+but which are part of
+the internal interface begin with @code{_marpa_}.
+Methods which are part of the internal interface
+(hereafter ``internal methods'')
+are subject to change and are intended for use
+only by Libmarpa's developers.
+
+Libmarpa reserves the @code{marpa_}
+and @code{_marpa_} prefixes for itself,
+with all their capitalization variants.
+All Libmarpa names visible outside the package
+will begin with a capitalization variant
+of one of these two prefixes.
 
 @node Static method, Grammar methods, Introduction to the external interface, Top
 @chapter Static method
@@ -3191,7 +3197,8 @@ Suggested message: "This symbol is a nulling terminal"
 @menu
 * Methods::                     
 * Error Macros::                
-* Error Codes::                 
+* External error codes::        
+* Internal error codes::        
 @end menu
 
 @node Methods, Error Macros, Error macros and code, Error macros and code
@@ -3224,15 +3231,25 @@ Return value: The last error code from a Libmarpa method.
 Always succeeds.
 @end deftypefun
 
-@node Error Macros, Error Codes, Methods, Error macros and code
+@node Error Macros, External error codes, Methods, Error macros and code
 @section Error Macros
 
 @deftypevr Macro int MARPA_ERRCODE_COUNT
 The number of error codes.
 @end deftypevr
 
-@node Error Codes,  , Error Macros, Error macros and code
-@section Error Codes
+@node External error codes, Internal error codes, Error Macros, Error macros and code
+@section External error codes
+
+This section lists the external error codes.
+These are the only error codes that users
+of the Libmarpa external interface should ever see.
+Internal error codes are in their own section.
+@xref{Internal error codes}.
+
+This section is incomplete.
+As of this writing, some of the external error codes
+have no description or suggested message.
 
 @deftypevr Macro int MARPA_ERR_NONE
 No error condition.
@@ -3255,16 +3272,6 @@ found it.
 Suggested message: "No error"
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_AHFA_IX_NEGATIVE
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_AHFA_IX_OOB
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_ANDID_NEGATIVE
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_ANDID_NOT_IN_OR
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_ANDIX_NEGATIVE
-@end deftypevr
 @deftypevr Macro int MARPA_ERR_BAD_SEPARATOR
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_BOCAGE_ITERATION_EXHAUSTED
@@ -3296,21 +3303,21 @@ Suggested message: "Nullable symbol on RHS of a sequence rule"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_DEVELOPMENT
-The "development" errors is for use during
+Internal.
+"Development" errors were used heavily during
 Libmarpa's development,
-while it is not yet clear how precisely
+when it is not yet clear how precisely
 to classify every error condition.
+Users of the external interface in released
+non-developer's versions should never
+see development errors.
+
+Development errors has an error string
+associated with them.
 The error string is a
 short 7-bit ASCII error string
 which describes the error.
-Classifying an error as "development"
-is a temporary measure,
-taken until the error can be more
-precisely defined and classed.
 Suggested message: "Development error, see string"
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_DUPLICATE_AND_NODE
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_DUPLICATE_RULE
@@ -3359,50 +3366,39 @@ it is almost certainly both a hard and a
 fatal error.
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_EIM_ID_INVALID
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_INTERNAL
-Internal errors are errors which
-"should not happen".
-They could result when the calling program
-overwrites Libmarpa's internal data.
-They may also indicate a bug in Libmarpa.
-An internal error will usually be a hard error.
-Suggested message: "Internal error"
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_INVALID_AHFA_ID
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_INVALID_AIMID
-@end deftypevr
 @deftypevr Macro int MARPA_ERR_INVALID_BOOLEAN
 A function was called which takes a boolean argument,
 one which must be either 0 or 1,
 and that argument has some other value.
 Suggested message: "Argument is not boolean"
 @end deftypevr
-@deftypevr Macro int MARPA_ERR_INVALID_ES_ORDINAL
+
+@deftypevr Macro int MARPA_ERR_INVALID_LOCATION
+The location (Earley set ID) is not valid.
+It may be invalid because it is negative,
+and is not being used as an argument where
+a negative Earley set ID has a special meaning.
+It may be invalid because it is after the latest Earley set.
+
+For users of input models other than the standard one,
+the term ``location'', as used in association
+with this error code,
+means Earley set ID or Earley set ordinal.
+In the standard input model, this will always
+be identical with Libmarpa's other idea of
+location, the earleme.
+Suggested message: "Location is not valid"
 @end deftypevr
-@deftypevr Macro int MARPA_ERR_INVALID_IRLID
-A method was called with an invalid internal rule ID.
-Suggested message: "No IRL with that ID exists"
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_INVALID_ISYID
-A method was called with an invalid internal symbol ID.
-Suggested message: "No ISY with that ID exists"
-@end deftypevr
+
 @deftypevr Macro int MARPA_ERR_INVALID_START_SYM
 @end deftypevr
-@deftypevr Macro int MARPA_ERR_INVALID_SYMID
-After development, this error code should no longer
-be used and should be deleted.
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_INVALID_XRLID
+
+@deftypevr Macro int MARPA_ERR_INVALID_RULE_ID
 A method was called with an invalid external rule ID.
 Suggested message: "No rule with that ID exists"
 @end deftypevr
-@deftypevr Macro int MARPA_ERR_INVALID_XSYID
+
+@deftypevr Macro int MARPA_ERR_INVALID_SYMBOL_ID
 A method was called with an invalid external symbol ID.
 Suggested message: "No symbol with that ID exists"
 @end deftypevr
@@ -3423,22 +3419,15 @@ between the requested version
 of libmarpa, and the actual one.
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_NOOKID_NEGATIVE
-@end deftypevr
 @deftypevr Macro int MARPA_ERR_NOT_PRECOMPUTED
+An attempt was made to use a grammar
+that is not precomputed
+in a way that is not allowed.
+For example, a recognizer cannot be
+created from a grammar until it is precomputed.
+Suggested message: "This grammar is not precomputed"
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_NOT_TRACING_COMPLETION_LINKS
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_NOT_TRACING_LEO_LINKS
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_NOT_TRACING_TOKEN_LINKS
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_NO_AND_NODES
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_NO_OR_NODES
-@end deftypevr
 @deftypevr Macro int MARPA_ERR_NO_PARSE
 The application attempted to create a bocage
 from a recognizer without a parse.
@@ -3467,25 +3456,12 @@ symbol can be precomputed.
 Suggested message: "This grammar has no start symbol"
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_NO_TRACE_ES
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_NO_TRACE_PIM
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_NO_TRACE_EIM
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_NO_TRACE_SRCL
-@end deftypevr
-
 @deftypevr Macro int MARPA_ERR_NULLING_TERMINAL
 Marpa does not allow a symbol to be both nulling
 and a terminal.
 Suggested message: "A symbol is both terminal and nulling"
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_ORID_NEGATIVE
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_OR_ALREADY_ORDERED
-@end deftypevr
 @deftypevr Macro int MARPA_ERR_ORDER_FROZEN
 The Marpa order object has been frozen.
 Multiple tree iterators can share a Marpa order object,
@@ -3500,8 +3476,6 @@ but they must do so by creating multiple order objects.
 @deftypevr Macro int MARPA_ERR_PARSE_EXHAUSTED
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_PARSE_TOO_LONG
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_PIM_IS_NOT_LIM
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_POINTER_ARG_NULL
@@ -3548,41 +3522,6 @@ sequence rule cannot be the LHS of any other rule,
 whether a sequence rule or a BNF rule.
 An attempt was made to violate this restriction.
 Suggested message: "LHS of sequence rule would not be unique"
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_NONE
-The link source type is 'none'
-in a context where that is not allowed.
-Suggested message: "A source type of 'none' is not allowed here"
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_TOKEN
-The link source type is 'token'
-in a context where that is not allowed.
-Suggested message: "Token source type is not allowed here"
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_COMPLETION
-The link source type is 'completion'
-in a context where that is not allowed.
-Suggested message: "Completion source type is not allowed here"
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_LEO
-The link source type is 'Leo'
-in a context where that is not allowed.
-Suggested message: "Leo source type is not allowed here"
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS
-The link source type is ambiguous
-in a context where that is not allowed.
-Suggested message: "Ambiguous source type is not allowed here"
-@end deftypevr
-
-@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN
-The link source type is not known.
-Suggested message: "The source type is unknown"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_START_NOT_LHS
@@ -3637,6 +3576,120 @@ should not be the case.
 Suggested message: "Valuator inactive"
 @end deftypevr
 
+@node Internal error codes,  , External error codes, Error macros and code
+@section Internal error codes
+
+An internal error code may be one of two things:
+First,
+it can be an error code which
+arises from an internal Libmarpa programming issue
+(in other words, something happening in the code
+that was not supposed to be able to happen.)
+Second, it can be an error code which only occurs
+when a method from Libmarpa's internal interface
+is used.
+Both kinds of internal error message share one common
+trait -- users of the Libmarpa's external interface
+should never see them.
+
+Internal error messages
+require someone with knowledge of the Libmarpa internals
+to follow up on them.
+They usually do not have descriptions or suggested messages.
+
+@deftypevr Macro int MARPA_ERR_AHFA_IX_NEGATIVE
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_AHFA_IX_OOB
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_ANDID_NEGATIVE
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_ANDID_NOT_IN_OR
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_ANDIX_NEGATIVE
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_DEVELOPMENT
+"Development" errors were used heavily during
+Libmarpa's development,
+when it is not yet clear how precisely
+to classify every error condition.
+Users of the external interface in released
+non-developer's versions should never
+see development errors.
+
+Development errors has an error string
+associated with them.
+The error string is a
+short 7-bit ASCII error string
+which describes the error.
+Suggested message: "Development error, see string"
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_DUPLICATE_AND_NODE
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_EIM_ID_INVALID
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_INTERNAL
+A ``catchall'' internal error.
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_INVALID_AHFA_ID
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_INVALID_AIMID
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_INVALID_IRLID
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_INVALID_ISYID
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_INVALID_START_SYM
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NOOKID_NEGATIVE
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NOT_TRACING_COMPLETION_LINKS
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_NOT_TRACING_LEO_LINKS
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_NOT_TRACING_TOKEN_LINKS
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_NO_AND_NODES
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_NO_OR_NODES
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NO_TRACE_ES
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_NO_TRACE_PIM
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_NO_TRACE_EIM
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_NO_TRACE_SRCL
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_ORID_NEGATIVE
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_OR_ALREADY_ORDERED
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_PIM_IS_NOT_LIM
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_NONE
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_TOKEN
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_COMPLETION
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_LEO
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_AMBIGUOUS
+@end deftypevr
+@deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN
+@end deftypevr
 @node Design considerations, Things To Do, Error macros and code, Top
 @chapter Design considerations
 
@@ -3758,6 +3811,17 @@ determine the start and end earlemes of a token.
 @node Internal Interface,  , Things To Do, Top
 @chapter Internal Interface
 
+Internal methods are only for testing and development of libmarpa.
+They are listed here (and sometimes described) for the convenience
+of those working on libmarpa's internals.
+
+Internal methods are subject to change.
+Applications should not use internal methods.
+If a description exists and might be helpful,
+it may be included below,
+but all applications
+should treat these methods as ``undocumented''.
+
 @menu
 * Symbol internal methods::     
 * Rule internals::              
@@ -3771,17 +3835,6 @@ determine the start and end earlemes of a token.
 
 @node Symbol internal methods, Rule internals, Internal Interface, Internal Interface
 @section Symbol internal methods
-
-Internal methods are only for testing and development of libmarpa.
-They are listed here (and sometimes described) for the convenience
-of those working on libmarpa's internals.
-
-Internal methods are subject to change.
-Applications should not use internal methods.
-Where a description exists and may be helpful,
-it may be included below,
-but all applications
-should treat these methods as ``undocumented''.
 
 @deftypefun int _marpa_g_rule_first_child_set ( @
     Marpa_Grammar @var{g}, @

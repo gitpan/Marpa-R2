@@ -61,13 +61,12 @@ MARPA_ERR_INTERNAL
 MARPA_ERR_INVALID_AHFA_ID
 MARPA_ERR_INVALID_AIMID
 MARPA_ERR_INVALID_BOOLEAN
-MARPA_ERR_INVALID_ES_ORDINAL
 MARPA_ERR_INVALID_IRLID
 MARPA_ERR_INVALID_ISYID
+MARPA_ERR_INVALID_LOCATION
 MARPA_ERR_INVALID_START_SYM
-MARPA_ERR_INVALID_SYMID
-MARPA_ERR_INVALID_XRLID
-MARPA_ERR_INVALID_XSYID
+MARPA_ERR_INVALID_RULE_ID
+MARPA_ERR_INVALID_SYMBOL_ID
 MARPA_ERR_NOOKID_NEGATIVE
 MARPA_ERR_MAJOR_VERSION_MISMATCH
 MARPA_ERR_MICRO_VERSION_MISMATCH
@@ -224,8 +223,12 @@ LINE: while ( my $line = <STDIN> ) {
 
 } ## end while ( my $line = <STDIN> )
 
-for my $error_not_seen ( grep { !$errors_seen[$_] } (0 .. $#error_codes) ) {
-    say STDERR "Error not in document: ", $error_codes[$error_not_seen];
+my @errors_not_seen = grep { !$errors_seen[$_] } (0 .. $#error_codes);
+if (@errors_not_seen) {
+  for my $error_not_seen (@errors_not_seen) {
+      say STDERR "Error not in document: ", $error_codes[$error_not_seen];
+  }
+  die 'Error(s) in list, but not in document';
 }
 
 my $common_preamble = <<'COMMON_PREAMBLE';

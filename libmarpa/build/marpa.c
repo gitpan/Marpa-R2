@@ -2440,7 +2440,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2663,7 +2663,7 @@ const int failure_indicator= -2;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2690,7 +2690,7 @@ const int failure_indicator= -2;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2718,7 +2718,7 @@ const int failure_indicator= -2;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2776,7 +2776,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2813,7 +2813,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2859,7 +2859,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2905,7 +2905,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2942,7 +2942,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -2990,7 +2990,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -3044,7 +3044,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -3080,7 +3080,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -3109,7 +3109,7 @@ const int failure_indicator= -2;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -3140,7 +3140,7 @@ const int failure_indicator= -2;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -3734,7 +3734,7 @@ goto FAILURE;
 }
 if(UNLIKELY(!xsyid_is_valid(g,lhs_id)))
 {
-MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 goto FAILURE;
 }
 {
@@ -3747,7 +3747,7 @@ goto FAILURE;
 }
 if(UNLIKELY(!xsyid_is_valid(g,rhs_id)))
 {
-MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 goto FAILURE;
 }
 }
@@ -3826,7 +3826,7 @@ rule_check(GRAMMAR g,XRL rule)
 SYM lhs;
 const XRLID lhs_id= LHS_ID_of_XRL(rule);
 if(UNLIKELY(!xsyid_is_valid(g,lhs_id)))
-goto INVALID_SYMID;
+goto INVALID_XSYID;
 lhs= SYM_by_ID(lhs_id);
 if(UNLIKELY(SYM_is_Sequence_LHS(lhs)))
 {
@@ -3841,13 +3841,13 @@ for(rh_index= 0;rh_index<length;rh_index++)
 const SYMID symid= RHS_ID_of_XRL(rule,rh_index);
 SYM rhs;
 if(UNLIKELY(!xsyid_is_valid(g,symid)))
-goto INVALID_SYMID;
+goto INVALID_XSYID;
 rhs= SYM_by_ID(symid);
 }
 }
 return 1;
-INVALID_SYMID:;
-MARPA_ERROR(MARPA_ERR_INVALID_SYMID);
+INVALID_XSYID:;
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return 0;
 }
 
@@ -3883,7 +3883,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -3924,7 +3924,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -3966,7 +3966,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4003,7 +4003,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4042,7 +4042,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4080,7 +4080,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4116,7 +4116,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4163,7 +4163,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4201,7 +4201,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4239,7 +4239,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4277,7 +4277,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -4304,7 +4304,7 @@ const int failure_indicator= -2;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/
@@ -8758,7 +8758,7 @@ return failure_indicator;
 #line 6306 "./marpa.w"
 
 if(set_id<0){
-MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 return failure_indicator;
 }
 r_update_earley_sets(r);
@@ -8815,7 +8815,7 @@ return failure_indicator;
 r_update_earley_sets(r);
 if(!ES_Ord_is_Valid(r,set_id))
 {
-MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 return failure_indicator;
 }
 earley_set= ES_of_R_by_Ord(r,set_id);
@@ -9001,7 +9001,7 @@ r->t_trace_postdot_item= NULL;
 
 if(set_id<0)
 {
-MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 return failure_indicator;
 }
 r_update_earley_sets(r);
@@ -9536,7 +9536,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -12361,7 +12361,7 @@ return failure_indicator;
 
 if(set_id<0)
 {
-MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 return failure_indicator;
 }
 r_update_earley_sets(r);
@@ -12750,7 +12750,7 @@ else
 {
 if(!ES_Ord_is_Valid(r,ordinal_arg))
 {
-MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 return failure_indicator;
 }
 end_of_parse_earley_set= ES_of_R_by_Ord(r,ordinal_arg);
@@ -16476,7 +16476,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -16576,7 +16576,7 @@ return failure_indicator;
 #line 14054 "./marpa.w"
 
 if(UNLIKELY(!xsyid_is_valid(g,xsyid))){
-MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
 /*:1223*/
@@ -16652,7 +16652,7 @@ return failure_indicator;
 #line 14069 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))){
-MARPA_ERROR(MARPA_ERR_INVALID_XRLID);
+MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
 /*:1226*/

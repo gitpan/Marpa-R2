@@ -1803,7 +1803,7 @@ int min, int flags )
     }
   if (UNLIKELY (!xsyid_is_valid (g, lhs_id)))
     {
-      MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
+      MARPA_ERROR (MARPA_ERR_INVALID_SYMBOL_ID);
       goto FAILURE;
     }
   {
@@ -1816,7 +1816,7 @@ int min, int flags )
   }
   if (UNLIKELY (!xsyid_is_valid (g, rhs_id)))
     {
-      MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
+      MARPA_ERROR (MARPA_ERR_INVALID_SYMBOL_ID);
       goto FAILURE;
     }
 }
@@ -1906,7 +1906,7 @@ rule_check (GRAMMAR g, XRL rule)
   SYM lhs;
   const XRLID lhs_id = LHS_ID_of_XRL (rule);
   if (UNLIKELY (!xsyid_is_valid (g, lhs_id)))
-    goto INVALID_SYMID;
+    goto INVALID_XSYID;
   lhs = SYM_by_ID (lhs_id);
   if (UNLIKELY (SYM_is_Sequence_LHS (lhs)))
     {
@@ -1921,13 +1921,13 @@ rule_check (GRAMMAR g, XRL rule)
 	const SYMID symid = RHS_ID_of_XRL (rule, rh_index);
 	SYM rhs;
 	if (UNLIKELY (!xsyid_is_valid (g, symid)))
-	  goto INVALID_SYMID;
+	  goto INVALID_XSYID;
 	rhs = SYM_by_ID (symid);
       }
   }
   return 1;
-INVALID_SYMID:;
-  MARPA_ERROR (MARPA_ERR_INVALID_SYMID);
+INVALID_XSYID:;
+  MARPA_ERROR (MARPA_ERR_INVALID_SYMBOL_ID);
   return 0;
 }
 
@@ -6305,7 +6305,7 @@ Marpa_Earleme marpa_r_earleme(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
     @<Fail if recognizer not started@>@;
     @<Fail if fatal error@>@;
     if (set_id < 0) {
-        MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+        MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 	return failure_indicator;
     }
     r_update_earley_sets (r);
@@ -6330,7 +6330,7 @@ int _marpa_r_earley_set_size(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
     r_update_earley_sets (r);
     if (!ES_Ord_is_Valid (r, set_id))
       {
-	MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+	MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 	return failure_indicator;
       }
     earley_set = ES_of_R_by_Ord (r, set_id);
@@ -6589,7 +6589,7 @@ _marpa_r_earley_set_trace (Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
   @<Clear trace Earley set dependent data@>@;
     if (set_id < 0)
     {
-	MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+	MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 	return failure_indicator;
     }
   r_update_earley_sets (r);
@@ -10573,7 +10573,7 @@ int marpa_r_progress_report_start(
   @<Fail if recognizer not started@>@;
   if (set_id < 0)
     {
-      MARPA_ERROR (MARPA_ERR_INVALID_ES_ORDINAL);
+      MARPA_ERROR (MARPA_ERR_INVALID_LOCATION);
       return failure_indicator;
     }
   r_update_earley_sets (r);
@@ -10886,7 +10886,7 @@ struct s_bocage_setup_per_es* per_es_data = NULL;
     {				/* |ordinal_arg| != -1 */
       if (!ES_Ord_is_Valid (r, ordinal_arg))
 	{
-	  MARPA_ERROR(MARPA_ERR_INVALID_ES_ORDINAL);
+	  MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
 	  return failure_indicator;
 	}
       end_of_parse_earley_set = ES_of_R_by_Ord (r, ordinal_arg);
@@ -14053,7 +14053,7 @@ if (UNLIKELY(!G_is_Precomputed(g))) {
 }
 @ @<Fail if |xsyid| is invalid@> =
 if (UNLIKELY(!xsyid_is_valid(g, xsyid))) {
-    MARPA_ERROR(MARPA_ERR_INVALID_XSYID);
+    MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
     return failure_indicator;
 }
 @ @<Fail if |isy_id| is invalid@> =
@@ -14068,7 +14068,7 @@ if (UNLIKELY(!IRLID_of_G_is_Valid(irl_id))) {
 }
 @ @<Fail if |xrl_id| is invalid@> =
 if (UNLIKELY(!XRLID_of_G_is_Valid(xrl_id))) {
-    MARPA_ERROR (MARPA_ERR_INVALID_XRLID);
+    MARPA_ERROR (MARPA_ERR_INVALID_RULE_ID);
     return failure_indicator;
 }
 @ @<Fail if |item_id| is invalid@> =
