@@ -97,8 +97,6 @@ static inline IRL
 irl_start(GRAMMAR g, int length);
 static inline void
 irl_finish( GRAMMAR g, IRL irl);
-static inline int
-rule_check (GRAMMAR g, XRL rule);
 static inline Marpa_Symbol_ID rule_lhs_get(RULE rule);
 static inline Marpa_Symbol_ID* rule_rhs_get(RULE rule);
 static inline size_t rule_length_get(RULE rule);

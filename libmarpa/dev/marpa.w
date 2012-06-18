@@ -955,7 +955,7 @@ void int_event_new(GRAMMAR g, int type, int value)
 }
 
 @ @<Function definitions@> =
-int
+Marpa_Event_Type
 marpa_g_event (Marpa_Grammar g, Marpa_Event* public_event,
 	       int ix)
 {
@@ -1177,7 +1177,7 @@ int marpa_g_symbol_is_valued(
 }
 
 @ @<Function definitions@> =
-int marpa_g_symbol_valued_set(
+int marpa_g_symbol_is_valued_set(
     Marpa_Grammar g, Marpa_Symbol_ID xsyid, int value)
 {
   SYM symbol;
@@ -1268,7 +1268,7 @@ int marpa_g_symbol_is_nullable(Marpa_Grammar g, Marpa_Symbol_ID xsyid)
 }
 
 @*0 Symbol is terminal?.
-The ``marked terminal'' flag tracked whether
+The ``locked terminal'' flag tracked whether
 the terminal flag was set by the user.
 It distinguishes those
 terminal settings that will
@@ -1276,12 +1276,12 @@ be overwritten by the default
 from those should not be.
 @<Bit aligned symbol elements@> =
 unsigned int t_is_terminal:1;
-unsigned int t_is_marked_terminal:1;
+unsigned int t_is_locked_terminal:1;
 @ @<Initialize symbol elements@> =
 symbol->t_is_terminal = 0;
-symbol->t_is_marked_terminal = 0;
+symbol->t_is_locked_terminal = 0;
 @ @d XSY_is_Terminal(symbol) ((symbol)->t_is_terminal)
-@ @d SYM_is_Marked_Terminal(symbol) ((symbol)->t_is_marked_terminal)
+@ @d SYM_is_Locked_Terminal(symbol) ((symbol)->t_is_locked_terminal)
 @d SYMID_is_Terminal(id) (XSY_is_Terminal(SYM_by_ID(id)))
 @<Function definitions@> =
 int marpa_g_symbol_is_terminal(Marpa_Grammar g,
@@ -1297,6 +1297,7 @@ int marpa_g_symbol_is_terminal_set(
 Marpa_Grammar g, Marpa_Symbol_ID xsyid, int value)
 {
     SYM symbol;
+    const int terminal_is_locked = -1;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if precomputed@>@;
@@ -1306,7 +1307,10 @@ Marpa_Grammar g, Marpa_Symbol_ID xsyid, int value)
 	MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 	return failure_indicator;
     }
-    SYM_is_Marked_Terminal(symbol) = 1;
+    if (UNLIKELY(SYM_is_Locked_Terminal(symbol))) {
+	return terminal_is_locked;
+    }
+    SYM_is_Locked_Terminal(symbol) = 1;
     return XSY_is_Terminal(symbol) = value;
 }
 
@@ -1721,9 +1725,10 @@ irl_finish( GRAMMAR g, IRL irl)
 @ @<Function definitions@> =
 Marpa_Rule_ID
 marpa_g_rule_new (Marpa_Grammar g,
-		  Marpa_Symbol_ID lhs, Marpa_Symbol_ID * rhs, int length)
+		  Marpa_Symbol_ID lhs_id, Marpa_Symbol_ID * rhs_ids, int length)
 {
   @<Return |-2| on failure@>@;
+  const int soft_failure = -1;
   Marpa_Rule_ID rule_id;
   RULE rule;
   @<Fail if fatal error@>@;
@@ -1731,24 +1736,45 @@ marpa_g_rule_new (Marpa_Grammar g,
   if (UNLIKELY (length > MAX_RHS_LENGTH))
     {
       MARPA_ERROR (MARPA_ERR_RHS_TOO_LONG);
-      goto FAILURE;
+      return failure_indicator;
     }
-  rule = xrl_start (g, lhs, rhs, length);
+  if (UNLIKELY (!xsyid_is_valid (g, lhs_id)))
+    {
+      MARPA_ERROR (MARPA_ERR_INVALID_SYMBOL_ID);
+      return failure_indicator;
+    }
+  {
+    int rh_index;
+    for (rh_index = 0; rh_index < length; rh_index++)
+      {
+	const SYMID rhs_id = rhs_ids[rh_index];
+	if (UNLIKELY (!xsyid_is_valid (g, rhs_id)))
+	  {
+	    MARPA_ERROR (MARPA_ERR_INVALID_SYMBOL_ID);
+	    return failure_indicator;
+	  }
+      }
+  }
+  {
+    const SYM lhs = SYM_by_ID(lhs_id);
+    if (UNLIKELY (SYM_is_Sequence_LHS (lhs)))
+      {
+	MARPA_ERROR (MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE);
+	return soft_failure;
+      }
+  }
+  rule = xrl_start (g, lhs_id, rhs_ids, length);
   if (UNLIKELY (_marpa_avl_insert (g->t_xrl_tree, rule) != NULL))
     {
       MARPA_ERROR (MARPA_ERR_DUPLICATE_RULE);
-      goto FAILURE;
+      my_obstack_reject(g->t_xrl_obs);
+      return soft_failure;
     }
-  if (UNLIKELY (!rule_check (g, rule)))
-    goto FAILURE;
   rule = xrl_finish (g, rule);
   rule = my_obstack_finish(g->t_xrl_obs);
   XRL_is_BNF (rule) = 1;
   rule_id = rule->t_id;
   return rule_id;
-  FAILURE:
-  my_obstack_reject(g->t_xrl_obs);
-  return failure_indicator;
 }
 
 @ @<Function definitions@> =
@@ -1764,6 +1790,8 @@ int min, int flags )
     @<Check that the sequence symbols are valid@>@;
     @<Add the original rule for a sequence@>@;
     return original_rule_id;
+    SOFT_FAILURE:
+    return -1;
     FAILURE:
     return failure_indicator;
 }
@@ -1811,7 +1839,7 @@ int min, int flags )
     if (UNLIKELY (SYM_is_LHS (lhs)))
       {
 	MARPA_ERROR (MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE);
-	goto FAILURE;
+	goto SOFT_FAILURE;
       }
   }
   if (UNLIKELY (!xsyid_is_valid (g, rhs_id)))
@@ -1899,37 +1927,6 @@ nobody will have noticed this restriction.
 so that they can be variable length.
 @<Final rule elements@> = Marpa_Symbol_ID t_symbols[1];
 
-@ @<Function definitions@> =
-PRIVATE int
-rule_check (GRAMMAR g, XRL rule)
-{
-  SYM lhs;
-  const XRLID lhs_id = LHS_ID_of_XRL (rule);
-  if (UNLIKELY (!xsyid_is_valid (g, lhs_id)))
-    goto INVALID_XSYID;
-  lhs = SYM_by_ID (lhs_id);
-  if (UNLIKELY (SYM_is_Sequence_LHS (lhs)))
-    {
-      MARPA_ERROR (MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE);
-      return 0;
-    }
-  {
-    int rh_index;
-    const int length = Length_of_XRL (rule);
-    for (rh_index = 0; rh_index < length; rh_index++)
-      {
-	const SYMID symid = RHS_ID_of_XRL (rule, rh_index);
-	SYM rhs;
-	if (UNLIKELY (!xsyid_is_valid (g, symid)))
-	  goto INVALID_XSYID;
-	rhs = SYM_by_ID (symid);
-      }
-  }
-  return 1;
-INVALID_XSYID:;
-  MARPA_ERROR (MARPA_ERR_INVALID_SYMBOL_ID);
-  return 0;
-}
 
 @ @<Function definitions@> =
 PRIVATE Marpa_Symbol_ID rule_lhs_get(RULE rule)
@@ -1947,7 +1944,7 @@ PRIVATE Marpa_Symbol_ID* rule_rhs_get(RULE rule)
 {
     return rule->t_symbols+1; }
 @ @<Function definitions@> =
-Marpa_Symbol_ID marpa_g_rule_rh_symbol(Marpa_Grammar g, Marpa_Rule_ID xrl_id, int ix) {
+Marpa_Symbol_ID marpa_g_rule_rhs(Marpa_Grammar g, Marpa_Rule_ID xrl_id, int ix) {
     RULE rule;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
@@ -2255,7 +2252,7 @@ Marpa_ISY_ID _marpa_g_irl_lhs(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
 @ @d RHSID_of_IRL(irl, position) ((irl)->t_isyid_array[(position)+1])
 @ @d RHS_of_IRL(irl, position) ISY_by_ID(RHSID_of_IRL((irl), (position)))
 @<Function definitions@> =
-Marpa_ISY_ID _marpa_g_irl_rh_symbol(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix) {
+Marpa_ISY_ID _marpa_g_irl_rhs(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix) {
     IRL irl;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
@@ -2510,7 +2507,11 @@ int marpa_g_precompute(Marpa_Grammar g)
 	@<Populate the terminal boolean vector@>@;
     }
      return_value = G_EVENT_COUNT(g);
-     FAILURE:;
+     goto CLEANUP;
+     SOFT_FAILURE:;
+     return_value = -1;
+     goto CLEANUP;
+     CLEANUP:;
     my_obstack_free(obs_precompute);
      return return_value;
 }
@@ -2569,7 +2570,7 @@ a lot of useless diagnostics.
 @ @<Fail if no rules@> =
 if (UNLIKELY(xrl_count <= 0)) {
     MARPA_ERROR(MARPA_ERR_NO_RULES);
-    return failure_indicator;
+    goto SOFT_FAILURE;
 }
 
 @ Loop over the rules, producing boolean vector of LHS symbols, and of
@@ -2580,18 +2581,18 @@ While at it, set a flag to indicate if there are empty rules.
 {
   if (UNLIKELY(start_xsyid < 0))
     {
-      MARPA_ERROR (MARPA_ERR_NO_START_SYM);
-      return failure_indicator;
+      MARPA_ERROR (MARPA_ERR_NO_START_SYMBOL);
+      goto SOFT_FAILURE;
     }
   if (UNLIKELY(!xsyid_is_valid (g, start_xsyid)))
     {
-      MARPA_ERROR (MARPA_ERR_INVALID_START_SYM);
-      return failure_indicator;
+      MARPA_ERROR (MARPA_ERR_INVALID_START_SYMBOL);
+      goto SOFT_FAILURE;
     }
   if (UNLIKELY(!SYM_is_LHS (SYM_by_ID (start_xsyid))))
     {
       MARPA_ERROR (MARPA_ERR_START_NOT_LHS);
-      return failure_indicator;
+      goto SOFT_FAILURE;
     }
 }
 
@@ -2749,7 +2750,7 @@ and a flag which indicates if there are any.
   for (symid = 0; symid < pre_census_xsy_count; symid++)
     {
       SYM symbol = SYM_by_ID (symid);
-      if (SYM_is_Marked_Terminal (symbol))
+      if (SYM_is_Locked_Terminal (symbol))
 	{
 	  /* If marked by the user, leave the symbol
 	     as set by the user, and update the boolean vector */
@@ -2803,7 +2804,7 @@ RULEID** xrl_list_x_lh_sym = NULL;
   if (UNLIKELY(counted_nullables))
     {
       MARPA_ERROR (MARPA_ERR_COUNTED_NULLABLE);
-      goto FAILURE;
+      goto SOFT_FAILURE;
     }
 }
 
@@ -2832,7 +2833,7 @@ RULEID** xrl_list_x_lh_sym = NULL;
 if (UNLIKELY(!bv_bit_test(productive_v, (unsigned int)start_xsyid)))
 {
     MARPA_ERROR(MARPA_ERR_UNPRODUCTIVE_START);
-    goto FAILURE;
+    goto SOFT_FAILURE;
 }
 @ @<Declare census variables@> =
 Bit_Vector productive_v = NULL;
@@ -2940,7 +2941,7 @@ reach a terminal symbol.
   if (UNLIKELY (nulling_terminal_found))
     {
       MARPA_ERROR (MARPA_ERR_NULLING_TERMINAL);
-      goto FAILURE;
+      goto SOFT_FAILURE;
     }
 }
 
@@ -2997,26 +2998,25 @@ prior to valuator trying to assign semantics to rules
 with them on the LHS.
 Better to mark them valued now,
 and cause an error in the recognizer.
-@ Commented out.  The LHS terminal user is a sophisticated
-user so it is probably the better course to allow her the
-choice.
 @<Mark valued symbols@> = 
-#if 0
-{
-  XSYID xsyid;
-  for (xsyid = 0; xsyid < pre_census_xsy_count; xsyid++)
-    {
-      if (bv_bit_test (terminal_v, xsyid) && bv_bit_test (lhs_v, xsyid))
-	{
-	  const XSY xsy = XSY_by_ID (xsyid);
-	  if (XSY_is_Valued_Locked (xsy))
-	    continue;
-	  XSY_is_Valued (xsy) = 1;
-	  XSY_is_Valued_Locked (xsy) = 1;
-	}
-    }
-}
-#endif
+if (0)
+  {
+    /* Commented out.  The LHS terminal user is a sophisticated
+       user so it is probably the better course to allow her the
+       choice.  */
+    XSYID xsyid;
+    for (xsyid = 0; xsyid < pre_census_xsy_count; xsyid++)
+      {
+	if (bv_bit_test (terminal_v, xsyid) && bv_bit_test (lhs_v, xsyid))
+	  {
+	    const XSY xsy = XSY_by_ID (xsyid);
+	    if (XSY_is_Valued_Locked (xsy))
+	      continue;
+	    XSY_is_Valued (xsy) = 1;
+	    XSY_is_Valued_Locked (xsy) = 1;
+	  }
+      }
+  }
 
 @** The sequence rewrite.
 @<Rewrite sequence |rule| into BNF@> =
@@ -12445,17 +12445,8 @@ int marpa_v_symbol_is_valued(
     @<Fail if |xsyid| is invalid@>@;
     return lbv_bit_test(XSY_is_Valued_BV_of_V(v), xsyid);
 }
-@ If the symbol has a null alias, the call is interpreted
-as being for that null alias.
-Non-nullables can never have "ask me" set,
-and it is an error to attempt to attempt to do so.
-Note that it is currently
-{\bf not} an error to change setting while the valuation
-is in progress.
-The idea scares me,
-but I cannot think of a reason to ban it,
-so I do not.
-@<Function definitions@> =
+
+@ @<Function definitions@> =
 PRIVATE int symbol_is_valued_set (
     VALUE v, XSYID xsyid, int value)
 {
@@ -14505,7 +14496,7 @@ So I add such a comment.
 @<Body of public header file@>
 
 #include "marpa_api.h"
-#endif __MARPA_H__
+#endif /* |__MARPA_H__| */
 
 @*0 |marpa_util.h| layout.
 \tenpoint
@@ -14520,7 +14511,7 @@ So I add such a comment.
 @<Utility variables@>
 @<Utility static functions@>
 
-#endif __MARPA__UTIL_H__
+#endif /* |__MARPA__UTIL_H__| */
 
 @** Miscellaneous compiler defines.
 Various defines to

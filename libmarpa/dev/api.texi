@@ -110,6 +110,7 @@ Error handling
 * Memory allocation failures::  
 * Success and failure::         
 * Soft and hard failure.::      
+* Interpreting hard and soft failure::  
 
 Introduction to the external interface
 
@@ -123,7 +124,6 @@ Grammar methods
 * Grammar constructor::         Creating a new grammar.
 * Grammar reference counting::  Tracking the reference count of the grammar.
 * Symbols::                     
-* Terminals methods::           
 * Rules::                       
 * Sequences::                   
 * Grammar precomputation::      Precomputing the Grammar.
@@ -1066,6 +1066,7 @@ time objects.
 * Memory allocation failures::  
 * Success and failure::         
 * Soft and hard failure.::      
+* Interpreting hard and soft failure::  
 @end menu
 
 @node Memory allocation failures, Success and failure, Error handling concepts, Error handling concepts
@@ -1111,7 +1112,7 @@ the ``Ruby Slippers'' parsing method uses soft failures
 as a means of testing alternative inputs and/or
 checking the state of the parse.
 
-@node Soft and hard failure.,  , Success and failure, Error handling concepts
+@node Soft and hard failure., Interpreting hard and soft failure, Success and failure, Error handling concepts
 @section Soft and hard failure.
 
 Some methods have, in addition to a primary logic path,
@@ -1135,12 +1136,44 @@ Whenever a method returns a hard failure,
 Libmarpa sets the error code to indicate
 the nature of the failure.
 Soft failures typically have a single
-cause, and usually are indicated by a return
+cause.
+Since soft failures usually are indicated by a return
 value special to soft failures,
-and in those cases an error code is not needed.
-In the cases where it is not
-necessary,
-the error code is not set.
+in most cases of soft failure
+an error code is unnecessary.
+Unless explicitly stated otherwise
+in a method's description,
+the reader should assume that the error code
+is not set on a soft failure.
+
+There are exceptions.
+The @code{marpa_g_precompute()} method
+can report soft failure for many reasons.
+An error code distinguishing them can
+be very necessary,
+and @code{marpa_g_precompute()} sets an
+error code on both soft and hard failure.
+
+Whether a particular kind
+of error is a hard or soft failure
+sometimes depends on the context.
+For example, when iterating parse trees,
+it is usually a soft failure when the iterator is
+``exhausted''.
+The primary logic path is to continue the loop,
+but terminating the loop because the
+iterator is exhausted is an important secondary
+logic path.
+Reaching the end of an iteration is a normal event.
+On the other hand, attempting to create a new valuator
+from an exhausted parse tree iterator is
+considered a hard failure,
+because it is
+something the typical application will only
+do by mistake.
+
+@node Interpreting hard and soft failure,  , Soft and hard failure., Error handling concepts
+@section Interpreting hard and soft failure
 
 An application will have its own ideas of success,
 of what is or is not a recoverable failure,
@@ -1327,7 +1360,6 @@ one of the following is returned, indicating the nature of the mismatch:
 * Grammar constructor::         Creating a new grammar.
 * Grammar reference counting::  Tracking the reference count of the grammar.
 * Symbols::                     
-* Terminals methods::           
 * Rules::                       
 * Sequences::                   
 * Grammar precomputation::      Precomputing the Grammar.
@@ -1356,7 +1388,7 @@ To create rules, use the
 
 For non-trivial parsing,
 one or more of the symbols must be terminals.
-To mark a symbols a terminal,
+To mark a symbol as a terminal,
 use the
 @code{marpa_g_symbol_is_terminal_set()} method.
 
@@ -1402,13 +1434,6 @@ On failure, @code{NULL}.
 @cindex grammar reference
 @cindex grammar reference count
 
-@deftypefun void marpa_g_unref (Marpa_Grammar @var{g})
-Decreases the reference count by 1,
-destroying @var{g} once the reference count reaches
-zero.
-
-@end deftypefun
-
 @deftypefun Marpa_Grammar marpa_g_ref (Marpa_Grammar @var{g})
 Increases the reference count by 1.
 Not needed by most applications.
@@ -1419,16 +1444,27 @@ On success, the grammar object it was called with;
 
 @end deftypefun
 
-@node Symbols, Terminals methods, Grammar reference counting, Grammar methods
+@deftypefun void marpa_g_unref (Marpa_Grammar @var{g})
+Decreases the reference count by 1,
+destroying @var{g} once the reference count reaches
+zero.
+
+@end deftypefun
+
+@node Symbols, Rules, Grammar reference counting, Grammar methods
 @section Symbols
 
-@deftypefun Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar @var{g})
+@deftypefun Marpa_Symbol_ID marpa_g_start_symbol (Marpa_Grammar @var{g})
 
-Creates a new symbol.
+Returns current value of the start symbol of grammar @var{g}.
+The value is that
+specified in the @code{marpa_g_start_symbol_set()} call,
+if there has been one.
 
-Return value: On success, the ID of a new symbol;
-On failure, -2.
-
+Return value:
+On failure, -2;
+-1 if there is no start symbol yet;
+otherwise the ID of the new start symbol.
 @end deftypefun
 
 @deftypefun Marpa_Symbol_ID marpa_g_start_symbol_set ( @
@@ -1442,62 +1478,36 @@ On failure, -2.
 
 @end deftypefun
 
-@deftypefun Marpa_Symbol_ID marpa_g_start_symbol (Marpa_Grammar @var{g})
-
-Returns current value of the start symbol of grammar @var{g}.
-The value is that of the user's start
-symbol, as specified in the @code{marpa_g_start_symbol_set()} call,
-if there has been one.
-
-Return value:
-On failure, -2;
--1 if there is no start symbol yet;
-otherwise the ID of the new start symbol.
-@end deftypefun
-
 @deftypefun int marpa_g_symbol_count (Marpa_Grammar @var{g})
 Return value:
 On success, the symbol count of the grammar.
 On failure, -2.
 @end deftypefun
 
-@node Terminals methods, Rules, Symbols, Grammar methods
-@section Methods for terminal symbols
-
-@deftypefun int marpa_g_symbol_is_terminal ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
-Return value: On success, 1 if @var{symid} is a terminal symbol, 0 otherwise.
-On failure, -2.
-@end deftypefun
-
-@deftypefun int marpa_g_symbol_is_terminal_set ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid}, @
- int @var{value})
-This function flags symbol @var{symid} as a terminal if
-@var{value} is 1,
-or flags it as a non-terminal if @var{value} is 0.
-By default, a symbol is a terminal if and only if it
-does not appear on the LHS of any rule.
-This setting overrides the default.
-An attempt to flag a nulling symbol
-as a terminal is a fatal error,
-but this is not necesssarily detected before precomputation.
-
-Return value: On success, 1 if @var{symid} is a terminal symbol after the
-call, 0 otherwise.
-If @var{value} is not 0 or 1;
-if the grammar @var{g} is precomputed;
-or on some other failure, -2.
-@end deftypefun
-
 @deftypefun int marpa_g_symbol_is_accessible (Marpa_Grammar @var{g}, @
     Marpa_Symbol_ID @var{symid})
 A symbol is @dfn{accessible} if it can be reached from the start symbol.
 
-Return value: On success, 1 if accessible, 0 if not.  If the grammar
-is not precomputed, or on other failure, -2.
+Return value: On success, 1 if symbol @var{symid} is accessible, 0 if not.
+If the grammar is not precomputed, or on other failure, -2.
+@end deftypefun
+
+@deftypefun int marpa_g_symbol_is_nullable ( @
+  Marpa_Grammar g, Marpa_Symbol_ID symid)
+A symbol is @dfn{nullable} if it sometimes produces the empty string.
+A @strong{nulling} symbol is always a @strong{nullable} symbol,
+but not all @strong{nullable} symbols are @strong{nulling} symbols.
+
+Return value: On success, 1 if symbol @var{symid} is nullable, 0 if not.
+If the grammar is not precomputed, or on other failure, -2.
+@end deftypefun
+
+@deftypefun int marpa_g_symbol_is_nulling (Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid})
+A symbol is @dfn{nulling} if it always produces the empty string.
+
+Return value: On success, 1 if symbol @var{symid} is nulling, 0 if not.
+If the grammar is not precomputed, or on other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_productive (Marpa_Grammar @var{g}, @
@@ -1505,7 +1515,7 @@ is not precomputed, or on other failure, -2.
 A symbol is @dfn{productive} if it can produce a string of terminals.
 All nullable symbols are considered productive.
 
-Return value: On success, 1 if productive, 0 if not.  If the grammar
+Return value: On success, 1 if symbol @var{symid} is productive, 0 if not.  If the grammar
 is not precomputed, or on other failure, -2.
 @end deftypefun
 
@@ -1521,31 +1531,53 @@ Return value: -2 if @var{symid} is not valid;
 
 @end deftypefun
 
-@deftypefun int marpa_g_symbol_is_nulling (Marpa_Grammar @var{g}, @
+@deftypefun int marpa_g_symbol_is_terminal ( @
+    Marpa_Grammar @var{g}, @
     Marpa_Symbol_ID @var{symid})
-A symbol is @dfn{nulling} if it always produces the empty string.
+@deftypefunx int marpa_g_symbol_is_terminal_set ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symid}, @
+ int @var{value})
 
-Return value: On success, 1 if symbol is nulling, 0 if not.
-If the grammar is not precomputed, or on other failure, -2.
+These methods, respectively, set
+and query the ``terminal status'' of a symbol.
+To be used as an input symbol
+in the @code{marpa_r_alternative()} method,
+a symbol must be a terminal.
+This function flags symbol @var{symid} as a terminal if
+@var{value} is 1,
+or flags it as a non-terminal if @var{value} is 0.
+
+Once set to a value with the
+@code{marpa_g_symbol_is_terminal_set()} method,
+the terminal status of a symbol is ``locked'' at that value.
+A subsequent call to 
+@code{marpa_g_symbol_is_terminal_set()} with the same
+@var{symid} will return a soft failure,
+and leave the symbol's terminal status unchanged.
+
+By default, a symbol is a terminal if and only if it
+does not appear on the LHS of any rule.
+An attempt to flag a nulling symbol
+as a terminal is a hard failure,
+but this is not necesssarily detected before precomputation.
+
+Return value: On success, 1 if symbol @var{symid}
+is a terminal symbol after the
+call, 0 otherwise.
+If the terminal status is locked, -1.
+If @var{value} is not 0 or 1;
+if the grammar @var{g} is precomputed;
+or on some other failure, -2.
 @end deftypefun
 
-@deftypefun int marpa_g_symbol_is_nullable ( @
-  Marpa_Grammar g, Marpa_Symbol_ID symid)
-A symbol is @dfn{nullable} if it sometimes produces the empty string.
-A @strong{nulling} symbol is always a @strong{nullable} symbol,
-but not all @strong{nullable} symbols are @strong{nulling} symbols.
-
-Return value: On success, 1 if symbol is nullable, 0 if not.
-If the grammar is not precomputed, or on other failure, -2.
-@end deftypefun
-
-@deftypefun int marpa_g_symbol_valued_set ( @
+@deftypefun int marpa_g_symbol_is_valued ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symbol_id})
+@deftypefunx int marpa_g_symbol_is_valued_set ( @
     Marpa_Grammar @var{g}, @
     Marpa_Symbol_ID @var{symbol_id}, @
     int value)
-@deftypefunx int marpa_g_symbol_is_valued ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symbol_id})
 
 These methods, respectively, set
 and query the ``valued status'' of a symbol.
@@ -1554,91 +1586,37 @@ the semantics require that it have a defined value.
 If a symbol is not valued,
 it is an unvalued, or a ``whatever'' symbol.
 
+Once set to a value with the
+@code{marpa_g_symbol_is_valued_set()} method,
+the valued status of a symbol is ``locked'' at that value.
+A subsequent call to 
+@code{marpa_g_symbol_is_valued_set()} with the same
+@var{symid} will return a soft failure,
+and leave the symbol's valued status unchanged.
+
 Return value: On success, 1 if the symbol @var{symbol_id}
-is valued, 0 if not.
+is valued after the call, 0 if not.
+If the valued status is locked, -1.
+If @var{value} is not 0 or 1;
 On failure, -2.
 
 @end deftypefun
 
-@node Rules, Sequences, Terminals methods, Grammar methods
+@deftypefun Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar @var{g})
+
+Creates a new symbol.
+
+Return value: On success, the ID of a new symbol;
+On failure, -2.
+
+@end deftypefun
+
+@node Rules, Sequences, Symbols, Grammar methods
 @section Rules
 
 @deftypefun int marpa_g_rule_count (Marpa_Grammar @var{g})
 Return value: On success, the current number of rules in grammar @var{g}.
 On failure, -2.
-@end deftypefun
-
-@deftypefun Marpa_Rule_ID marpa_g_rule_new (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{lhs}, @
- Marpa_Symbol_ID *@var{rhs}, @
-     int @var{length})
-Creates a new external rule in grammar @var{g}.
-The LHS symbol is @var{lhs},
-and there are @var{length} symbols on the RHS,
-which is pointed to by @var{rhs}.
-
-An attempt to add a duplicate rule is a hard failure.
-A rule is considered a duplicate if it has the same
-LHS symbol,
-and the same RHS symbols in the same order.
-A rule is also considered a duplicate if it has
-the same LHS symbol as a sequence rule,
-regardless of the right hand sides of the
-two rules.
-
-Return value:  On success, the ID of new external rule.
-On failure, -2.
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID marpa_g_rule_lhs ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-Return value: On success, the LHS symbol of the rule.
-On failure, -2.
-@end deftypefun
-
-@deftypefun int marpa_g_rule_length ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-The length of a rule is the number of symbols on its RHS.
-
-Return value: On success, the rule length.
-On failure, -2.
-@end deftypefun
-
-@deftypefun Marpa_Symbol_ID marpa_g_rule_rh_symbol ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id}, @
-    int @var{ix})
-The position in the rule, @var{ix}, is zero-based.
-If @var{ix} is greater than or equal the length of the
-rule, it is a soft failure.
-This can be used in loops, to avoid having to determine
-the rule's length explicitly.
-
-Return value: On success, the symbol in position @var{ix}
-on the rules RHS.
-If @var{ix} is greater than or equal to the length of
-the rule, -1.
-On other failures, -2.
-@end deftypefun
-
-@deftypefun int marpa_g_rule_is_nulling (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{ruleid})
-A rule is @dfn{nulling} if it always produces the empty string.
-
-Return value: On success, 1 if @var{ruleid} is nulling, 0 if not.
-If the grammar is not precomputed, or on other failure, -2.
-@end deftypefun
-
-@deftypefun int marpa_g_rule_is_nullable ( @
-  Marpa_Grammar g, Marpa_Rule_ID ruleid)
-A rule is @dfn{nullable} if it sometimes produces the empty string.
-A @strong{nulling} rule is always a @strong{nullable} rule,
-but not all @strong{nullable} rules are @strong{nulling} rules.
-
-Return value: On success, 1 if @var{ruleid} is nullable, 0 if not.
-If the grammar is not precomputed, or on other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_g_rule_is_accessible (Marpa_Grammar @var{g}, @
@@ -1647,20 +1625,30 @@ A rule is @dfn{accessible} if it can be reached from the start symbol.
 A rule is accessible if and only if its LHS symbol is accessible.
 The start rule is always an accessible rule.
 
-Return value: On success, 1 if accessible, 0 if not.  If the grammar
+Return value: On success, 1 if rule @var{rule_id}
+is accessible, 0 if not.
+If the grammar
 is not precomputed, or on other failure, -2.
 @end deftypefun
 
-@deftypefun int marpa_g_rule_is_productive (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{id})
-A rule is @dfn{productive} if it can be produce a string of terminals.
-including the empty string.
-An rule is productive if and only if all the symbols on
-its RHS are productive.
-An empty rule is considered productive.
+@deftypefun int marpa_g_rule_is_nullable ( @
+  Marpa_Grammar g, Marpa_Rule_ID ruleid)
+A rule is @dfn{nullable} if it sometimes produces the empty string.
+A @strong{nulling} rule is always a @strong{nullable} rule,
+but not all @strong{nullable} rules are @strong{nulling} rules.
 
-Return value: On success, 1 if productive, 0 if not.  If the grammar
-is not precomputed, or on other failure, -2.
+Return value: On success,
+1 if rule @var{ruleid} is nullable, 0 if not.
+If the grammar is not precomputed, or on other failure, -2.
+@end deftypefun
+
+@deftypefun int marpa_g_rule_is_nulling (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{ruleid})
+A rule is @dfn{nulling} if it always produces the empty string.
+
+Return value: On success,
+1 if rule @var{ruleid} is nulling, 0 if not.
+If the grammar is not precomputed, or on other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_g_rule_is_loop (Marpa_Grammar @var{g}, @
@@ -1668,6 +1656,8 @@ is not precomputed, or on other failure, -2.
 A rule is a loop rule if it non-trivially
 produces the string of length one
 which consists only of its LHS symbol.
+Such a derivation takes the parse back to where
+it started, hence the term ``loop''.
 ``Non-trivially'' means the zero-step derivation does not count -- the
 derivation must have at least one step.
 
@@ -1677,12 +1667,121 @@ But nothing forces an application to do this,
 and Marpa will successfully parse and evaluate grammars with
 loop rules.
 
-Return value: On success, 1 if this is a loop rule, 0 if not.  If the grammar
+Return value: On success,
+1 if rule @var{rule_id} is a loop rule, 0 if not.
+If the grammar
 is not precomputed, or on other failure, -2.
+@end deftypefun
+
+@deftypefun int marpa_g_rule_is_productive (Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{id})
+A rule is @dfn{productive} if it can produce a string of terminals.
+An rule is productive if and only if all the symbols on
+its RHS are productive.
+The empty string counts as a string of terminals,
+so that a nullable rule is always a productive rule.
+For that same reason,
+an empty rule is considered productive.
+
+Return value: On success,
+1 if rule @var{rule_id} is productive, 0 if not.
+If the grammar is not precomputed, or on other failure, -2.
+@end deftypefun
+
+@deftypefun int marpa_g_rule_length ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+The length of a rule is the number of symbols on its RHS.
+
+Return value: On success, the length of rule @var{rule_id}.
+On failure, -2.
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID marpa_g_rule_lhs ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+Return value: On success, the LHS symbol of rule @var{rule_id}.
+On failure, -2.
+@end deftypefun
+
+@deftypefun Marpa_Rule_ID marpa_g_rule_new (Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{lhs_id}, @
+ Marpa_Symbol_ID *@var{rhs_ids}, @
+     int @var{length})
+Creates a new external rule in grammar @var{g}.
+The LHS symbol is @var{lhs_id},
+and there are @var{length} symbols on the RHS.
+The RHS symbols are in an array
+pointed to by @var{rhs_ids}.
+
+@code{marpa_g_rule_new()} sets an error code
+on both soft and hard failure.
+Possible soft failures, with their error codes, include:
+@itemize
+@item @code{MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE}: The LHS symbol is the same
+as that of a sequence rule.
+@item @code{MARPA_ERR_DUPLICATE_RULE}: The new rule would duplicate another BNF
+rule.
+Another BNF rule is considered the duplicate of the new one,
+if its LHS symbol is the same as symbol @var{lhs_id},
+if its length is the same as @var{length},
+and if its RHS symbols match one for one those
+in the array of symbols @var{rhs_ids}.
+@end itemize
+
+Return value:  On success, the ID of new external rule.
+On soft failures, -1.
+On other failures, -2.
+The error code is set for all failures.
+@end deftypefun
+
+@deftypefun Marpa_Symbol_ID marpa_g_rule_rhs ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id}, @
+    int @var{ix})
+The position in the rule, @var{ix}, is zero-based.
+If @var{ix} is greater than or equal the length of the
+rule, it is a soft failure.
+This can be used in loops, to avoid having to query
+the rule's length explicitly.
+
+Return value: On success, the symbol in position @var{ix}
+on the rules RHS.
+If @var{ix} is greater than or equal to the length of
+the rule, -1.
+On other failures, -2.
 @end deftypefun
 
 @node Sequences, Grammar precomputation, Rules, Grammar methods
 @section Sequences
+
+@deftypefun int marpa_g_rule_is_proper_separation ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+
+Note that this method will succeed even if rule @var{rule_id}
+is not a sequence rule.
+Since only sequence rules can have the proper separation flag set,
+the @code{marpa_g_rule_is_proper_separation()}
+method returns 0
+whenever rule @var{rule_is} is a BNF rule.
+
+Return value:
+On success,
+1 if rule @var{rule_id} has
+the proper separation flag set,
+0 otherwise.
+On hard failure, -2.
+@end deftypefun
+
+@deftypefun int marpa_g_rule_is_sequence ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Rule_ID @var{rule_id})
+Return value:  On success,
+1 if rule @var{rule_id} is a sequence rule,
+0 otherwise.
+On failure, -2.
+@end deftypefun
 
 @deftypefun Marpa_Rule_ID marpa_g_sequence_new (Marpa_Grammar @var{g}, @
     Marpa_Symbol_ID @var{lhs_id}, @
@@ -1691,9 +1790,14 @@ is not precomputed, or on other failure, -2.
     int @var{min}, @
  int @var{flags} )
 Adds a new sequence rule to grammar @var{g}.
-Internally, Libmarpa translates sequences into BNF
-rules, but it also optimizes their evaluation.
-In practice this speedup can be considerable.
+Sequence rules do not extend the kinds of grammar that
+Libmarpa parses -- a sequence can always be written
+as BNF rules.
+(In fact this is how Libmarpa
+implements them.)
+But when Libmarpa knows that a rule is a sequence,
+it can optimize it.
+This speedup is often considerable.
 
 The sequence is @var{lhs_id},
 and the item to be repeated in the sequence is @var{rhs_id}.
@@ -1710,17 +1814,12 @@ properly-speaking, separators should actually separate items.
 
 The sequence RHS, or item,
 is restricted to a single symbol,
-but almost
-any language and any semantics
-can be expressed indirectly,
-by using @var{rhs_id} be the LHS of another rule.
-@var{rhs_id} cannot be a nullable symbol.
+and that symbol cannot be nullable.
 If @var{separator_id} is a symbol, it also cannot
 be a nullable symbol.
-
 Nullables on the RHS of sequences are restricted
 because they lead to highly ambiguous grammars.
-Such grammars are allowed by Libmarpa, but
+Grammars of this kind are allowed by Libmarpa, but
 they must be expressed using BNF rules, not sequence rules.
 This is for two reasons:
 First, sequence optimizations would not work
@@ -1732,50 +1831,43 @@ some of which are nullable,
 the user's intent can be more clearly expressed
 directly in BNF.
 
-Return value:  On success, the ID of the external rule.
-If the rule duplicates another rule,
-or on other failure, -2.
-@end deftypefun
+The LHS symbol cannot be the LHS of any other rule,
+whether a BNF rule or a sequence rule.
+On an attempt to create an sequence rule with a duplicate
+LHS,
+@code{marpa_g_sequence_new()} sets the error code to
+@code{MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE}
+and returns a soft failure.
 
-@deftypefun int marpa_g_rule_is_sequence ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-Return value:  1 if @var{rule_id} is a sequence rule,
-0 otherwise.
-On failure, -2.
+Return value:  On success, the ID of the external rule.
+On failure because the LHS symbol is not unique, -1.
+On other failure, -2.
+The error code is set for both hard and soft failures.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_counted (Marpa_Grammar @var{g}, @
     Marpa_Symbol_ID @var{symid})
 A symbol is @dfn{counted}
-if it appears on the RHS of a sequence rule.
-The separator symbol of a sequence rule is also considered
-to be a counted symbol.
+if it appears on the RHS of a sequence rule,
+or if it is used as
+the separator symbol of a sequence rule.
 
-Return value: On success, 1 if the symbol is counted, 0 if not.
+Return value: On success,
+1 if symbol @var{symid} is counted, 0 if not.
 On failure, -2.
-@end deftypefun
-
-@deftypefun int marpa_g_rule_is_proper_separation ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{rule_id})
-Return value:
-Returns 1 if
-the proper separation flag is set,
-0 if not.
-Returns 0 if
-@var{rule_id} is not a sequence rule.
-On hard failure, returns -2.
 @end deftypefun
 
 @node Grammar precomputation, Grammar events, Sequences, Grammar methods
 @section Precomputing the Grammar
 
 @deftypefun int marpa_g_precompute (Marpa_Grammar @var{g})
-This function precomputes the grammar.
 
+This function precomputes the grammar.
 In the process, precomputation creates events which
 the user can access.
+Application writers should be wary about continuing
+processing without looking at the events.
+
 On success, this function returns the number of events
 generated,
 but it is important to note that events may be
@@ -1804,7 +1896,7 @@ and do not prevent Libmarpa from parsing.
 Each @code{MARPA_EVENT_COUNTED_NULLABLE} event is a symbol
 which is a nullable on the right hand side of a sequence
 rule -- a ``counted'' symbol.
-The presence of one or more of these is a hard failure.
+The presence of one or more of these is a soft failure.
 So that the programmer can fix several at once,
 these failures are delayed until events are created
 for all of the counted nullables.
@@ -1813,24 +1905,40 @@ Each @code{MARPA_EVENT_NULLING_TERMINAL} event is a nulling
 symbol which is also flagged as a terminal.
 Since terminals cannot be of zero length, this is a logical
 impossibility, and
-the presence of one or more of these is a hard failure.
+the presence of one or more of these is a soft failure.
 So that the programmer can fix several at once,
 the failure is delayed until events are created
 for all of the counted nullables.
 
 Precomputation involves freezing
-and then thoroughly checking the grammar,
-and it is at this point that many failures
-are caught and reported.
-Counted nullables and nulling terminals have
-already been mentioned.
-Grammars without rules and those
-with invalid start symbols also produce
-hard failures.
+and then thoroughly checking the grammar.
+Because of the many checks it runs,
+The @code{marpa_g_precompute()} method is unusual in
+returning a variety of soft failures.
+
+@itemize
+@item @code{MARPA_ERR_NO_RULES}: The grammar has no rules.
+@item @code{MARPA_ERR_NO_START_SYMBOL}: No start symbol was specified.
+@item @code{MARPA_ERR_INVALID_START_SYMBOL}: A start symbol ID was specified, but it
+is not the ID of a valid symbol.
+@item @code{MARPA_ERR_START_NOT_LHS}: The start symbol is not on the LHS of any rule.
+@item @code{MARPA_ERR_UNPRODUCTIVE_START}: The start symbol is not productive.
+@item @code{MARPA_ERR_COUNTED_NULLABLE}: A symbol on the RHS of a sequence rule is
+nullable.
+Libmarpa does not allow this.
+@item @code{MARPA_ERR_NULLING_TERMINAL}: A terminal is also a nulling symbol.
+Libmarpa does not allow this.
+@end itemize
+
+More details of these can be found under the
+description of the appropriate code.
+@xref{External error codes}.
 
 Return value: On success, the number of events generated.
-If the grammar is already precomputed,
-or on other failure, -2.
+On one of the many soft failures, -1.
+On hard failure, -2.
+@code{marpa_g_precompute()} sets the error code
+on both soft and hard failures.
 @end deftypefun
 
 @deftypefun int marpa_g_is_precomputed (Marpa_Grammar @var{g})
@@ -1856,25 +1964,29 @@ On failure, -2.
 @node Grammar events,  , Grammar precomputation, Grammar methods
 @section Events
 
-@deftypefun int marpa_g_event (Marpa_Grammar @var{g}, @
+@deftypefun Marpa_Event_Type marpa_g_event (Marpa_Grammar @var{g}, @
     Marpa_Event* @var{event}, @
 	       int @var{ix})
 This method provides access to the events generated
 by the @code{marpa_g_precompute()} method.
-The @var{ix}'th event (numbered from 0) is placed
-in the @var{event} value.
+On success,
+the data for the @var{ix}'th event (numbered from 0) is placed
+in the location pointed to by @var{event}.
 
-It is a soft failure if there is no such event.
+On failure,
+the locations pointed to by @var{event}
+are not changed.
+It is a soft failure if there is no
+@var{ix}'th event.
 This can be used as the termination condition
 in a loop over the events.
 
-Return value:  On success, returns the type of event @var{ix},
-and places the data for the event in @var{event}.
-If there is no such event, returns -1.
-On hard failure, returns -2.
+Return value:  On success, the type of event @var{ix}.
+If there is no @var{ix}'th event, -1.
+On hard failure, -2.
 @end deftypefun
 
-@deftypefn {Macro} void* marpa_g_event_value (Marpa_Event* @var{event})
+@deftypefn {Macro} int marpa_g_event_value (Marpa_Event* @var{event})
 This macro provides access to the ``value'' of the event.
 The semantics of the value varies according to the type
 of the event, and is described in the section on event
@@ -1941,8 +2053,8 @@ Increases the reference count by 1.
 Not needed by most applications.
 
 Return value:
-On success, the @var{r};
-@code{NULL} on failure.
+On success, the recognizer object, @var{r}.
+On failure, @code{NULL}.
 @end deftypefun
 
 @deftypefun void marpa_r_unref (Marpa_Recognizer @var{r})
@@ -2038,17 +2150,18 @@ The values of the current and latest earlemes
 are unchanged by
 calls to @code{marpa_r_alternative()}.
 
-Return value:  On success, returns a non-negative value.
+Return value:  On success, a non-negative value.
 If the token was not accepted because @var{token_id} is unexpected,
 it is considered a soft failure,
-and @code{marpa_r_alternative()} returns -1.
+and @code{marpa_r_alternative()}, -1.
 If the token was not accepted because it
 is a duplicate,
 it is considered a soft failure,
-and @code{marpa_r_alternative()} returns -3.
-Other problems that prevent successful processing,
+and @code{marpa_r_alternative()}, -3.
+For
+other problems that prevent successful processing,
 are considered hard failures,
-and -2 is returned.
+-2.
 
 @end deftypefun
 
@@ -3247,10 +3360,6 @@ of the Libmarpa external interface should ever see.
 Internal error codes are in their own section.
 @xref{Internal error codes}.
 
-This section is incomplete.
-As of this writing, some of the external error codes
-have no description or suggested message.
-
 @deftypevr Macro int MARPA_ERR_NONE
 No error condition.
 The error code is initialized to this value.
@@ -3263,9 +3372,8 @@ to another value.
 Methods which do not result in a hard failure
 may reset the error code to @code{MARPA_ERR_NONE}
 or leave it at its current value.
-Which of the two a method does is currently
-unspecified,
-although the current implementation,
+Which of the two a method does is unspecified.
+The current implementation,
 for efficiency and simplicity,
 will usually leave the error code as it
 found it.
@@ -3273,8 +3381,10 @@ Suggested message: "No error"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_BAD_SEPARATOR
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_BOCAGE_ITERATION_EXHAUSTED
+A separator was specified for a sequence rule,
+but its ID was not that
+of a valid symbol.
+Suggested message: "Separator has invalid symbol ID"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_COUNTED_NULLABLE
@@ -3302,24 +3412,6 @@ with ordinary BNF rules.
 Suggested message: "Nullable symbol on RHS of a sequence rule"
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_DEVELOPMENT
-Internal.
-"Development" errors were used heavily during
-Libmarpa's development,
-when it is not yet clear how precisely
-to classify every error condition.
-Users of the external interface in released
-non-developer's versions should never
-see development errors.
-
-Development errors has an error string
-associated with them.
-The error string is a
-short 7-bit ASCII error string
-which describes the error.
-Suggested message: "Development error, see string"
-@end deftypevr
-
 @deftypevr Macro int MARPA_ERR_DUPLICATE_RULE
 This error indicates an attempt to add a rule which
 is a duplicate of a rule already in the grammar.
@@ -3337,33 +3429,29 @@ Suggested message: "Duplicate rule"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_EIM_COUNT
-Libmarpa allows a maximum number of earley
-items per Earley set.
-This error code indicates that limit was
-exceeded.
-Note that this limit is different from
-the optional earley item
-warning threshold, which can be set
-by the application.
-Exceeding the warning threshold causes
-a Libmarpa event, which the application
-is free to treat as a hard or soft error.
-Suggested message: "Maximum number of earley items exceeded"
+This error code indicates that
+an implementation-defined limit on the
+number of earley items per Earley set
+was exceedeed.
+This limit is different from
+the earley item warning threshold,
+an optional limit on the number
+of Earley items in an Earley set,
+which can be set by the application.
 
-Most likely, memory will run out for
-other reasons long before this error can
-occur.
-The maximum earley item count for the
-purposes of this error code
-is over a billion.
-As a contrast, a reasonable setting for the
-warning threshold,
-even when exceeding the threshold is
-treated as a fatal error,
-will usually be well under 1000.
-If this error code ever does occur,
-it is almost certainly both a hard and a
-fatal error.
+The implementation defined-limit is very large,
+at least 500,000,000 earlemes.
+An application is unlikely ever to see this
+error for two reasons.
+First, Libmarpa's use of memory
+would almost certainly exceed the implementation's
+limits before it occurred.
+Second, applications will almost always want
+to use the earley item warning threshold to implement
+a much smaller limit.
+Typically, this will be under 1,000 Earley items
+per Earley set.
+Suggested message: "Maximum number of earley items exceeded"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_INVALID_BOOLEAN
@@ -3390,7 +3478,10 @@ location, the earleme.
 Suggested message: "Location is not valid"
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_INVALID_START_SYM
+@deftypevr Macro int MARPA_ERR_INVALID_START_SYMBOL
+A start symbol was specified,
+but its symbol ID is not that of a valid symbol.
+Suggested message: "Specified start symbol is not valid"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_INVALID_RULE_ID
@@ -3407,16 +3498,21 @@ Suggested message: "No symbol with that ID exists"
 There was a mismatch in the major version number
 between the requested version
 of libmarpa, and the actual one.
+Suggested message: "Libmarpa major version number is a mismatch"
+
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_MICRO_VERSION_MISMATCH
 There was a mismatch in the micro version number
 between the requested version
 of libmarpa, and the actual one.
+Suggested message: "Libmarpa micro version number is a mismatch"
 @end deftypevr
+
 @deftypevr Macro int MARPA_ERR_MINOR_VERSION_MISMATCH
 There was a mismatch in the minor version number
 between the requested version
 of libmarpa, and the actual one.
+Suggested message: "Libmarpa minor version number is a mismatch"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_NOT_PRECOMPUTED
@@ -3447,7 +3543,7 @@ in large part because it would be useless to do so.
 Suggested message: "This grammar does not have any rules"
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_NO_START_SYM
+@deftypevr Macro int MARPA_ERR_NO_START_SYMBOL
 The grammar has no start symbol,
 and an attempt was made to perform an
 operation which requires one.
@@ -3471,11 +3567,35 @@ If a Marpa order object is @dfn{frozen}, it cannot be
 changed.
 Applications can order an bocage in many ways,
 but they must do so by creating multiple order objects.
+Suggested message: "The ordering is frozen"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_PARSE_EXHAUSTED
+The parse is exhausted.
+This can be both a hard and a soft failure.
+This error code is reserved for hard failures.
+Suggested message: "The parse is exhausted"
 @end deftypevr
+
 @deftypevr Macro int MARPA_ERR_PARSE_TOO_LONG
+The parse is too long.
+The limit on the length of a parse is implementation
+dependent, but it is very large,
+is at least 500,000,000 earlemes.
+If an application sees this error,
+it almost certainly using one of the non-standard
+input models.
+Most often this messsage will occur because
+of a request to add a single extremely long token,
+perhaps as a result of an application error.
+But it is also possible this error condition will 
+occur after the input of a large number
+of long tokens.
+
+This error code is unlikely in the standard input model.
+Almost certainly memory would be exceeded
+before it could occur.
+Suggested message: "This input would make the parse too long"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_POINTER_ARG_NULL
@@ -3508,12 +3628,37 @@ Suggested message: "No progress report has been started"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT
+The recognizer is not accepting input,
+and the application has attempted something that
+is inconsistent with that fact.
+Suggested message: "The recognizer is not accepting input"
 @end deftypevr
+
 @deftypevr Macro int MARPA_ERR_RECCE_NOT_STARTED
+The recognizer has not been started.
+and the application has attempted something that
+is inconsistent with that fact.
+Suggested message: "The recognizer has not been started"
 @end deftypevr
+
 @deftypevr Macro int MARPA_ERR_RECCE_STARTED
+The recognizer has been started.
+and the application has attempted something that
+is inconsistent with that fact.
+Suggested message: "The recognizer has been started"
 @end deftypevr
+
 @deftypevr Macro int MARPA_ERR_RHS_TOO_LONG
+An attempt was made to add a rule with too many
+right hand side symbols.
+The limit on the RHS symbol count is implementation
+dependent, but it is very large,
+is at least 500,000,000.
+This is
+far beyond that required in any current practical grammar.
+An application with rules of this length is almost
+certain to run into memory and other limits.
+Suggested message: "The RHS is too long"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE
@@ -3544,22 +3689,50 @@ Suggested message: "Symbol is treated both as valued and unvalued"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_TOKEN_IS_NOT_TERMINAL
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_TOKEN_LENGTH_LE_ZERO
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_TOKEN_TOO_LONG
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_TREE_EXHAUSTED
-@end deftypevr
-@deftypevr Macro int MARPA_ERR_TREE_PAUSED
+A token was specified whose symbol ID is not
+a terminal.
+Suggested message: "Token symbol must be a terminal"
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_UNKNOWN
-The cause of the error could not be determined.
-This usually indicates a problem in the error handling
-logic itself.
-This will usually be a hard error.
-Suggested message: "Unknown error"
+@deftypevr Macro int MARPA_ERR_TOKEN_LENGTH_LE_ZERO
+A token length was specified which is less than
+or equal to zero.
+Zero-length tokens are not allowed in Libmarpa.
+Suggested message: "Token length must greater than zero"
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_TOKEN_TOO_LONG
+The token length is too long.
+The limit on the length of a token
+is implementation dependent, but it
+is at least 500,000,000.
+An application using a token that long
+is almost certain to run into some other
+limit.
+Suggested message: "Token is too long"
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_TREE_EXHAUSTED
+A Libmarpa parse tree iterator
+is ``exhausted'', that is,
+it has no more parses,
+under a circumstance where this is a hard
+failure.
+As of this writing, the only such
+circumstance is a call to @code{marpa_v_new()}.
+An exhausted tree can also be a soft failure,
+but in those cases, this error code will
+not be set.
+Suggested message: "Tree iterator is exhausted"
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_TREE_PAUSED
+A Libmarpa tree is ``paused''
+and an operation was attempted which
+is inconsistent with that face.
+Typically, this operation will be
+a call of the @code{marpa_t_next()} method.
+Suggested message: "Tree iterator is paused"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_UNPRODUCTIVE_START
@@ -3607,6 +3780,8 @@ They usually do not have descriptions or suggested messages.
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_ANDIX_NEGATIVE
 @end deftypevr
+@deftypevr Macro int MARPA_ERR_BOCAGE_ITERATION_EXHAUSTED
+@end deftypevr
 
 @deftypevr Macro int MARPA_ERR_DEVELOPMENT
 "Development" errors were used heavily during
@@ -3639,17 +3814,12 @@ A ``catchall'' internal error.
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_INVALID_AIMID
 @end deftypevr
-
 @deftypevr Macro int MARPA_ERR_INVALID_IRLID
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_INVALID_ISYID
 @end deftypevr
-@deftypevr Macro int MARPA_ERR_INVALID_START_SYM
-@end deftypevr
-
 @deftypevr Macro int MARPA_ERR_NOOKID_NEGATIVE
 @end deftypevr
-
 @deftypevr Macro int MARPA_ERR_NOT_TRACING_COMPLETION_LINKS
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_NOT_TRACING_LEO_LINKS
@@ -3660,7 +3830,6 @@ A ``catchall'' internal error.
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_NO_OR_NODES
 @end deftypevr
-
 @deftypevr Macro int MARPA_ERR_NO_TRACE_ES
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_NO_TRACE_PIM
@@ -3936,7 +4105,7 @@ Return value: On success, the IRL length.
 On failure, -2.
 @end deftypefun
 
-@deftypefun Marpa_Symbol_ID _marpa_g_irl_rh_symbol ( @
+@deftypefun Marpa_Symbol_ID _marpa_g_irl_rhs ( @
     Marpa_Grammar @var{g}, @
     Marpa_IRL_ID @var{irl_id}, @
     int @var{ix})

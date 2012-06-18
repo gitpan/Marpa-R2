@@ -19,6 +19,10 @@ Marpa::R2::Advanced::Thin - Direct access to Libmarpa
 
 =head1 About this document
 
+At this moment, this document is INCOMPLETE and,
+for that reason
+NOT 100% RELIABLE.
+
 Most Marpa users can ignore this document.
 It describes Marpa's "thin" interface.
 The provides efficient access to Marpa's core
@@ -48,11 +52,602 @@ enough to understand C function prototypes.
 The Libmarpa interface is described in the Libmarpa
 API document,
 and this document avoids duplicating the material there.
-This document states general rules for the "thin" interface,
-and only describes in detail, those methods
-and situation which depart from the general rules.
+This document states general rules for the "thin" interface.
+Methods that do not
+depart from the general rules
+are not specifically mentioned.
+
+While this style and level of documentation 
+is efficient,
+and the standard for C library interfaces to Perl,
+it is,
+admittedly, very terse.
+As an aid to
+the reader,
+an example of the usage of the thin interface is presented
+L<below|"Example">.
+While small, the example is non-trival.
+It includes a full
+logic flow, starting with the definition
+of the grammar
+and contining all the way to the iteration of
+the values of an ambiguous parse.
+
+=head1 Methods in the thin interface
+
+As of this writing, the thin interface has
+no methods of its own.
+Each of its methods is a wrapper for a method
+from the Libmarpa interface.
+
+Not all Libmarpa methods have thin interface wrappers.
+None of Libmarpa's internal methods are included in
+the thin interface.
+Additionally, some of Libmarpa's external methods
+provide services that are handled internally by the thin
+interface,
+and wrappers to those methods
+are therefore not included in the actual interface.
+When an external Libmarpa method is omitted,
+this will be specificially stated,
+with the reason for the omission.
+
+Whenever an external Libmarpa method is not mentioned
+in this document, the reader can assume that
+it has a wrapper that is implemented according
+to the general guidelines, as
+given below.
+Where the implementation of an
+external libmarpa methods
+is an exception to the guidelines,
+or has other peculiarities,
+that will be explicitly stated.
+
+=head1 Libmarpa time classes
+
+As a reminder,
+the classes of
+Libmarpa's time objects are,
+in sequence,
+grammar, recognizer, bocage,
+ordering, tree and value.
+The one-letter abbreviations for these
+are, respectively,
+C<g>, C<r>, C<b>, C<o>, C<t> and C<v>.
+
+=head1 Methods omitted
+
+No internal Libmarpa method is part of the thin interface.
+The C<marpa_check_version()> static method is not
+part of the thin interface, because the thin interface
+interface handles its own version matching.
+
+The thin interface deals with all reference counting
+issues, and interconnects Libmarpa's reference counting
+with Perl's.  The application can rely on Libmarpa
+objects being cleaned up properly as part of Perl's
+ordinary garbage collection.
+For this reason, there are no thin wrappers for the 
+C<mapra_g_ref()>, C<mapra_g_unref()>,
+C<mapra_r_ref()>, C<mapra_r_unref()>,
+C<mapra_b_ref()>, C<mapra_b_unref()>,
+C<mapra_o_ref()>, C<mapra_o_unref()>,
+C<mapra_t_ref()>, C<mapra_t_unref()>
+C<mapra_v_ref()>, and C<mapra_v_unref()> methods.
+
+There are no thin wrappers for the
+C<marpa_g_error()> and
+C<marpa_r_error()> methods.
+The thin interface provides its own interface
+to Libmarpa's error information,
+one which is more convenient in the Perl
+environment.
+
+=head1 Libmarpa time objects and constructors
+
+The thin interface implements a Perl class
+corresponding to
+each of the Libmarpa time classes.
+Objects in the thin Marpa classes
+should be treated as opaque scalars.
+No applications should define new elements for a
+thin Marpa classes,
+redefine, overload or remove existing elements,
+or subclass the class itself.
+The only operations an application should perform
+on objects blessed into the thin interfaces
+classes is to assign them,
+to use them to call methods in their class,
+and to pass them as arguments where appropriate.
+
+=for Marpa::R2::Display
+ignore: 1
+
+    Marpa_Grammar       Marpa::R2::Thin::G
+    Marpa_Recognizer    Marpa::R2::Thin::R
+    Marpa_Bocage        Marpa::R2::Thin::B
+    Marpa_Ordering      Marpa::R2::Thin::O
+    Marpa_Tree          Marpa::R2::Thin::T
+    Marpa_Value         Marpa::R2::Thin::V
+
+=for Marpa::R2::Display::End
+
+Constructors for the time objects may be called using
+the C<new> method of the corresponding Perl class.
+For example,
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    my $recce = Marpa::R2::Thin::R->new($grammar);
+
+=for Marpa::R2::Display::End
+
+The thin interface takes care of Libmarpa's reference
+counting for the user.
+Marpa thin interface's time objects should be destroyed
+implicitly by undefining them,
+or by letting them go out of scope.
+
+=head1 The general pattern
+
+The thin Marpa methods often follow
+a general pattern,
+based on their corresponding Libmarpa time class method.
+Internal class instance methods for Libmarpa's time classes
+have names of the form C<marpa_g_start_symbol_set>.
+The name begins with a fixed six-letter prefix
+C<marpa_>,
+followed by a single letter
+(in this case "C<g>"),
+and another underscore.
+The single letter is one of Libmarpa's time class
+abbreviations, and indicates which
+class the method belongs to.
+
+In general pattern of Marpa's thin interface,
+the corresponding Marpa thin Perl closure would be
+be a method in the appropriate Marpa thin class,
+whose name is the same except for the 8-letter prefix.
+For example,
+the Marpa thin method corresponding to C<marpa_g_start_symbol_set>
+would be named C<start_symbol_set>
+and would be a method
+of the C<Marpa::R2::Thin:G> Perl class.
+
+When a Libmarpa method returns -1 to indicate failure,
+a Marpa thin interface following the general pattern
+returns a Perl C<undef>.
+When a Libmarpa method returns -2 to indicate failure,
+a Marpa thin interface following the general pattern
+throws a Perl exception.
+
+Libmarpa's class instance methods
+prototypes have an object of the appropriate class
+as their first ("self") argument.
+Zero or more other non-self arguments follow this first time class argument.
+In the corresponding thin Marpa method,
+if it follows the general pattern,
+the arguments to the Perl method closure are the
+the arguments of the C function
+in the same order,
+and converted in Perl variables as described next.
+(Here I am following the
+convention in the L<perlobj> of considered the "self" object to
+be a Perl method's first argument.)
+
+In the general pattern,
+every return value or argument whose type is one
+of Libmarpa's time classes is converted
+to the corresponding Marpa thin interface class.
+Return values and arguments of Libmarpa's numbered 
+classes (C<Marpa_Rule_ID> and C<Marpa_Symbol_ID>)
+are converted to Perl scalar integers.
+C language C<int>'s are also
+converted to Perl scalar integers.
+
+Here is an example of a Libmarpa function
+whose corresponding Marpa thin method follows the
+general pattern.
+
+=for Marpa::R2::Display
+ignore: 1
+
+  marpa_g_start_symbol_set (grammar, symbol_S);
+
+=for Marpa::R2::Display::End
+
+and here is the corresonding thin Marpa call:
+
+=for Marpa::R2::Display
+name: Thin example
+normalize-whitespace: 1
+partial: 1
+
+    $grammar->start_symbol_set($symbol_S);
+
+=for Marpa::R2::Display::End
+
+=head1 Error methods
+
+The thin interface to Libmarpa provides
+error methods
+more appropriate to the Perl
+environment,
+than Libmarpa's own.
+
+=for Marpa::R2::Display
+name: Thin grammar error methods
+normalize-whitespace: 1
+
+    my @error_names       = Marpa::R2::Thin::error_names();
+    my $error_code        = $grammar->error_code();
+    my $error_name        = $error_names[$error_code];
+    my $error_description = $grammar->error();
+
+=for Marpa::R2::Display::End
+
+The C<error_code()> method returns the most
+recent error code,
+which is an integer.
+The C<error_names()> static method returns
+an array of error "names":
+these are the error code macros, as listed in
+the Libmarpa documentation.
+The error code can be used as an index
+into the array of error names.
+The programmer can expect error
+codes and error names to be kept stable.
+
+The C<error()> method returns
+the "error description",
+a string
+that provides a fuller
+description
+of the latest error than
+does the error name.
+Error descriptions are subject to change,
+Because error descriptions can be kept up
+to date, they may more accurately reflect
+the nature of the error than the error
+name.
+
+=for Marpa::R2::Display
+name: Thin recognizer error methods
+normalize-whitespace: 1
+
+    $error_code        = $recce->error_code();
+    $error_name        = $error_names[$error_code];
+    $error_description = $recce->error();
+
+=for Marpa::R2::Display::End
+
+A separate set of error methods is provided
+for thin interface recognizer objects.
+A recognizer does not have its own
+error code,
+and the error returned by the recognizer
+error methods will be the one
+tracked in the base grammar.
+The recognizer error methods are
+a convenience, to save the application
+the trouble of looking up the recognizer's
+base grammar.
+
+=head1 Grammar methods
+
+=head2 Constructor
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    my $grammar  = Marpa::R2::Thin::G->new();
+
+=for Marpa::R2::Display::End
+
+Because version checking is handled by the thin interface internally,
+the grammar constructor does NOT accept the version numbers as arguments.
+There are no arguments to the grammar constructor.
+Its return value is a thin interface grammar object.
+An exception is thrown if there is a version mismatch, which should
+not happen -- it indicates a problem with the way that the library
+was built.
+
+=head2 event()
+
+=for Marpa::R2::Display
+name: Thin event() example
+normalize-whitespace: 1
+
+    my ( $event_type, $value ) = $grammar->event( $event_ix++ ) ;
+
+=for Marpa::R2::Display::End
+
+The C<event()> method returns a two-element array on success.
+The first element is a string naming the event type,
+and the second is a scalar representing its value.
+The string for an event type is its macro name,
+as given in the Libmarpa API document.
+
+The value of the event, when defined
+for an event type, is always,
+as of this writing,
+a Perl scalar number.
+The number is either a symbol ID or a count,
+as described in the Libmarpa API document.
+
+On soft failure, C<event()> returns a Perl C<undef>.
+Soft failure indicates that there is no event C<event_ix>.
+Since the events are indexed in sequence starting from
+0, the soft failure can be used as a loop termination condition.
+C<event()> throws all other failures as exceptions.
+
+Since C<event()> returns the event value whenever it
+exists,
+the Libmarpa C<marpa_g_event_value()> method is
+unneeded.
+The Libmarpa C<marpa_g_event_value()> method has
+no corresponding Marpa thin interface method.
+
+=head2 rule_new()
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    my $start_rule_id = $grammar->rule_new( $symbol_S, [$symbol_E] );
+
+=for Marpa::R2::Display::End
+
+The C<rule_new()> grammar method is
+the Libmarpa thin interface method corresponding
+to the C<marpa_g_rule_new()> method.
+It takes two arguments, both required.
+The first argument is a symbol ID representing the
+rule's LHS,
+and the second argument is a reference to an
+array of symbol ID's.
+The symbol ID's in the array represent the RHS.
+On success,
+the return value is the ID of the new rule.
+
+The C<rule_new()> method has more than one kind of soft failure.
+To distinguish them, the error methods must be used.
+Following the general pattern, C<precompute()> returns
+a Perl C<undef> for all of these soft failures.
+C<rule_new()> throws hard failures as exceptions.
+
+=head2 sequence_new()
+
+=for Marpa::R2::Display
+name: Thin sequence_new() example
+normalize-whitespace: 1
+
+    my $sequence_rule_id = $grammar->sequence_new(
+            $symbol_S,
+            $symbol_a,
+            {   separator => $symbol_sep,
+                proper    => 0,
+                min       => 1
+            }
+        );
+
+=for Marpa::R2::Display::End
+
+The C<sequence_new()> grammar method is
+the Libmarpa thin interface method corresponding
+to the C<marpa_g_sequence_new()> method.
+It takes three arguments, all required.
+The first argument is a symbol ID representing the
+sequence's LHS.
+The second argument is a symbol ID representing the
+sequence's RHS.
+The third argument is a reference to a hash of named
+arguments.
+
+The hash of named arguments may be empty.
+If not empty, its keys, and their values,
+must be one of the following:
+
+=over
+
+=item C<separator>
+
+The value of the C<separator> named argument
+will be treated as an integer,
+and passed as the separator ID argument
+to the C<marpa_g_sequence_new()> method.
+It defaults to -1.
+
+=item C<proper>
+
+If the value of C<proper> named argument
+is a Perl true value,
+the C<MARPA_PROPER_SEPARATION> flag
+will be set in the flags passed
+to the C<marpa_g_sequence_new()> method.
+Otherwise, 
+the C<MARPA_PROPER_SEPARATION> flag
+will not be set.
+
+=item C<min>
+
+The value of the C<separator> named argument
+will be treated as an integer,
+and passed as the separator ID argument
+to the C<marpa_g_sequence_new()> method.
+It defaults to 0.
+
+=back
+
+On success,
+the return value is the ID of the new sequence.
+The C<sequence_new()> can return soft failure,
+as described in the Libmarpa API.
+C<sequence_new()> throws hard failures as exceptions.
+The C<sequence_new()> method
+sets the error code on both soft and hard failure.
+
+=head2 precompute()
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    $grammar->precompute();
+
+=for Marpa::R2::Display::End
+
+The C<precompute()> method follows the general pattern.
+It has a variety of soft failures.
+To distinguish them, the error methods must be used.
+Following the general pattern, C<precompute()> returns
+a Perl C<undef> for all of these soft failures.
+
+In addition to errors,
+C<precompute()> also reports events.
+On success, C<precompute> returns an event count.
+Events are interogated using the grammar's
+C<event()> method.
+
+It is quite possible for C<precompute()> to report
+one or more events, even when there is an error.
+It is not safe to assume that no events occurred
+unless C<precompute()> succeeds and reports
+an event count of zero.
+
+=head2 Omitted methods
+
+The
+C<marpa_g_error()> method is omitted
+because it is replaced by the error methods
+offered in the Marpa thin interface.
+The C<marpa_g_ref()>
+and C<marpa_g_unref()> methods are omitted
+because the Marpa thin interface performs
+their function.
+The C<marpa_g_event_value()> method is omitted
+because its function is performed by the
+thin interface's C<event()> grammar method.
+
+=head2 General pattern methods
+
+All methods that are part of the Libmarpa external interface,
+but that are not mentioned explicitly in this section,
+are implemented
+following the general pattern, as described
+L<above|"The general pattern">
 
 =head1 Example
+
+=for Marpa::R2::Display
+name: Thin example
+normalize-whitespace: 1
+
+    my $grammar  = Marpa::R2::Thin::G->new();
+    my $symbol_S = $grammar->symbol_new();
+    my $symbol_E = $grammar->symbol_new();
+    $grammar->start_symbol_set($symbol_S);
+    my $symbol_op     = $grammar->symbol_new();
+    my $symbol_number = $grammar->symbol_new();
+    my $start_rule_id = $grammar->rule_new( $symbol_S, [$symbol_E] );
+    my $op_rule_id =
+        $grammar->rule_new( $symbol_E, [ $symbol_E, $symbol_op, $symbol_E ] );
+    my $number_rule_id = $grammar->rule_new( $symbol_E, [$symbol_number] );
+    $grammar->precompute();
+
+    my $recce = Marpa::R2::Thin::R->new($grammar);
+    $recce->start_input();
+
+    # The numbers from 1 to 3 are themselves --
+    # that is, they index their own token value.
+    # Important: zero cannot be itself!
+
+    my @token_values         = ( 0 .. 3 );
+    my $zero                 = -1 + +push @token_values, 0;
+    my $minus_token_value    = -1 + push @token_values, q{-};
+    my $plus_token_value     = -1 + push @token_values, q{+};
+    my $multiply_token_value = -1 + push @token_values, q{*};
+
+    $recce->alternative( $symbol_number, 2, 1 );
+    $recce->earleme_complete();
+    $recce->alternative( $symbol_op, $minus_token_value, 1 );
+    $recce->earleme_complete();
+    $recce->alternative( $symbol_number, $zero, 1 );
+    $recce->earleme_complete();
+    $recce->alternative( $symbol_op, $multiply_token_value, 1 );
+    $recce->earleme_complete();
+    $recce->alternative( $symbol_number, 3, 1 );
+    $recce->earleme_complete();
+    $recce->alternative( $symbol_op, $plus_token_value, 1 );
+    $recce->earleme_complete();
+    $recce->alternative( $symbol_number, 1, 1 );
+    $recce->earleme_complete();
+
+    my $latest_earley_set_ID = $recce->latest_earley_set();
+    my $bocage        = Marpa::R2::Thin::B->new( $recce, $latest_earley_set_ID );
+    my $order         = Marpa::R2::Thin::O->new($bocage);
+    my $tree          = Marpa::R2::Thin::T->new($order);
+    my @actual_values = ();
+    while ( $tree->next() ) {
+        my $valuator = Marpa::R2::Thin::V->new($tree);
+        $valuator->rule_is_valued_set( $op_rule_id,     1 );
+        $valuator->rule_is_valued_set( $start_rule_id,  1 );
+        $valuator->rule_is_valued_set( $number_rule_id, 1 );
+        my @stack = ();
+        STEP: while ( my ( $type, @step_data ) = $valuator->step() ) {
+            last STEP if not defined $type;
+            if ( $type eq 'MARPA_STEP_TOKEN' ) {
+                my ( undef, $token_value_ix, $arg_n ) = @step_data;
+                $stack[$arg_n] = $token_values[$token_value_ix];
+                next STEP;
+            }
+            if ( $type eq 'MARPA_STEP_RULE' ) {
+                my ( $rule_id, $arg_0, $arg_n ) = @step_data;
+                if ( $rule_id == $start_rule_id ) {
+                    my ( $string, $value ) = @{ $stack[$arg_n] };
+                    $stack[$arg_0] = "$string == $value";
+                    next STEP;
+                }
+                if ( $rule_id == $number_rule_id ) {
+                    my $number = $stack[$arg_0];
+                    $stack[$arg_0] = [ $number, $number ];
+                    next STEP;
+                }
+                if ( $rule_id == $op_rule_id ) {
+                    my $op = $stack[ $arg_0 + 1 ];
+                    my ( $right_string, $right_value ) = @{ $stack[$arg_n] };
+                    my ( $left_string,  $left_value )  = @{ $stack[$arg_0] };
+                    my $value;
+                    my $text = '(' . $left_string . $op . $right_string . ')';
+                    if ( $op eq q{+} ) {
+                        $stack[$arg_0] = [ $text, $left_value + $right_value ];
+                        next STEP;
+                    }
+                    if ( $op eq q{-} ) {
+                        $stack[$arg_0] = [ $text, $left_value - $right_value ];
+                        next STEP;
+                    }
+                    if ( $op eq q{*} ) {
+                        $stack[$arg_0] = [ $text, $left_value * $right_value ];
+                        next STEP;
+                    }
+                    die "Unknown op: $op";
+                } ## end if ( $rule_id == $op_rule_id )
+                die "Unknown rule $rule_id";
+            } ## end if ( $type eq 'MARPA_STEP_RULE' )
+            die "Unexpected step type: $type";
+        } ## end while ( my ( $type, @step_data ) = $valuator->step() )
+        push @actual_values, $stack[0];
+    } ## end while ( $tree->next() )
+
+=for Marpa::R2::Display::End
 
 =head1 Copyright and License
 

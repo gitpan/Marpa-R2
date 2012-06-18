@@ -160,14 +160,36 @@ sub marpa_infer_xs_spec {
 sub process_xs {
     my ( $self, $xs_file ) = @_;
 
+    my $development_mode = $self->args('Dev');
+
     my $spec = marpa_infer_xs_spec( $self, $xs_file );
+
+    my $xs_dir = File::Spec->catdir(qw(xs));
+    my $gp_xsh = File::Spec->catfile( $xs_dir, 'general_pattern.xsh' );
+    if ($development_mode) {
+        my $gp_generate_pl = File::Spec->catfile( $xs_dir, 'gp_generate.pl' );
+        if ( not $self->up_to_date( [$gp_generate_pl], $gp_xsh ) ) {
+            if (not IPC::Cmd::run(
+                    command => [ $EXECUTABLE_NAME, $gp_generate_pl, $gp_xsh ],
+                    verbose => 1
+                )
+                )
+            {
+                die "Could not generate $gp_xsh";
+            } ## end if ( not IPC::Cmd::run( command => [ $EXECUTABLE_NAME...]))
+        } ## end if ( not $self->up_to_date( [$gp_generate_pl], $gp_xsh...))
+    } ## end if ($development_mode)
+
+    my $dest_gp_xsh =
+        File::Spec->catfile( $spec->{src_dir}, 'general_pattern.xsh' );
+    $self->copy_if_modified( from => $gp_xsh, to => $dest_gp_xsh, );
 
     # .xs -> .c
     $self->add_to_cleanup( $spec->{c_file} );
 
     my @libmarpa_build_dir = File::Spec->splitdir( $self->base_dir );
     push @libmarpa_build_dir, qw(libmarpa build);
-    my @xs_dependencies = ( 'typemap', 'Build', $xs_file );
+    my @xs_dependencies = ( 'typemap', 'Build', $xs_file, $dest_gp_xsh );
     my $libmarpa_build_dir = File::Spec->catdir(@libmarpa_build_dir);
     push @xs_dependencies,
         map { File::Spec->catfile( @libmarpa_build_dir, $_ ) }
@@ -224,7 +246,7 @@ sub process_xs {
     return marpa_link_c( $self, $spec );
 } ## end sub process_xs
 
-# The following was initially copied from Module::Build, and have
+# The following was initially copied from Module::Build, and has
 # been customized for Marpa.
 sub marpa_link_c {
     my ( $self, $spec ) = @_;
@@ -237,10 +259,6 @@ sub marpa_link_c {
     return $spec->{lib_file}
         if $self->up_to_date( [ $spec->{obj_file}, @{$objects} ],
         $spec->{lib_file} );
-
-    say {*STDERR} $spec->{lib_file}, ' Out of date wrt ', join q{, },
-        $spec->{obj_file}, @{$objects}
-        or die "say failed: $ERRNO";
 
     my $module_name = $spec->{module_name} || $self->module_name;
 

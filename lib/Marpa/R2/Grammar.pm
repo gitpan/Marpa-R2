@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.009_000';
+$VERSION        = '2.009_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -533,7 +533,7 @@ sub Marpa::R2::Grammar::precompute {
             );
         } ## end if ( $error_code == $Marpa::R2::Error::COUNTED_NULLABLE)
 
-        if ( $error_code == $Marpa::R2::Error::NO_START_SYM ) {
+        if ( $error_code == $Marpa::R2::Error::NO_START_SYMBOL ) {
             Marpa::R2::exception('No start symbol');
         }
         if ( $error_code == $Marpa::R2::Error::START_NOT_LHS ) {
@@ -1188,14 +1188,13 @@ sub set_start_symbol {
     my $grammar_c  = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $start_name = $grammar->[Marpa::R2::Internal::Grammar::START_NAME];
 
-    # Let libmarpa catch this error
     return if not defined $start_name;
     my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
     my $start_id    = $symbol_hash->{$start_name};
     Marpa::R2::exception(qq{Start symbol "$start_name" not in grammar})
         if not defined $start_id;
 
-    if ( !$grammar_c->start_symbol_set($start_id) ) {
+    if ( not defined $grammar_c->start_symbol_set($start_id) ) {
         Marpa::R2::uncaught_error( $grammar_c->error() );
     }
     return 1;
