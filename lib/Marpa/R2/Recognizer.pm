@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.009_001';
+$VERSION        = '2.009_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -127,6 +127,8 @@ sub Marpa::R2::Recognizer::new {
         Marpa::R2::exception( $grammar_c->error());
     } ## end if ( not defined $recce_c )
 
+    $recce_c->ruby_slippers_set(1);
+
     $recce->[Marpa::R2::Internal::Recognizer::WARNINGS]       = 1;
     $recce->[Marpa::R2::Internal::Recognizer::RANKING_METHOD] = 'none';
     $recce->[Marpa::R2::Internal::Recognizer::MAX_PARSES]     = 0;
@@ -144,7 +146,7 @@ sub Marpa::R2::Recognizer::new {
         // 0;
 
     if ( not $recce_c->start_input() ) {
-        my $error = $recce_c->error();
+        my $error = $grammar_c->error();
         Marpa::R2::exception( 'Recognizer start of input failed: ', $error );
     }
 
@@ -227,7 +229,7 @@ sub Marpa::R2::Recognizer::set {
         if ( defined( my $value = $args->{'leo'} ) ) {
 
             # Not allowed once input has started
-            if ( $recce_c->current_earleme() >= 0 ) {
+            if ( defined $recce_c->current_earleme() ) {
                 Marpa::R2::exception(
                     q{Cannot reset 'leo' once input has started});
             }
@@ -612,15 +614,23 @@ sub Marpa::R2::Recognizer::alternative {
     my $trace_terminals =
         $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS];
     if ($trace_terminals) {
-        my $verb = defined $result ? 'Accepted' : 'Rejected';
-        my $current_earleme = $result // $recce_c->current_earleme();
+        my $verb = $result == $Marpa::R2::Error::NONE ? 'Accepted' : 'Rejected';
+        my $current_earleme = $recce_c->current_earleme();
         say {$trace_fh} qq{$verb "$symbol_name" at $current_earleme-}
             . ( $length + $current_earleme )
             or Marpa::R2::exception("Cannot print: $ERRNO");
     } ## end if ($trace_terminals)
 
-    return if not defined $result;
-    return 1;
+    return 1 if $result == $Marpa::R2::Error::NONE;
+
+    # The last two are perhaps unnecessary or arguable,
+    # but they preserve compatibility with Marpa::XS
+    return if $result == $Marpa::R2::Error::UNEXPECTED_TOKEN_ID
+       || $result == $Marpa::R2::Error::NO_TOKEN_EXPECTED_HERE
+       || $result == $Marpa::R2::Error::INACCESSIBLE_TOKEN ;
+
+    my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
+    Marpa::R2::exception($grammar_c->error());
 
 } ## end sub Marpa::R2::Recognizer::alternative
 
@@ -652,12 +662,13 @@ sub Marpa::R2::Recognizer::earleme_complete {
     local $Marpa::R2::Internal::TRACE_FH =
         $recce->[Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE];
     my $grammar     = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    my $grammar_c   = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
     my $symbols     = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
 
     my $event_count = $recce_c->earleme_complete();
     EVENT: for my $event_ix ( 0 .. $event_count - 1 ) {
-        my ($event_type, $value) = $recce_c->event($event_ix);
+        my ( $event_type, $value ) = $grammar_c->event($event_ix);
         next EVENT if $event_type eq 'MARPA_EVENT_EXHAUSTED';
         if ( $event_type eq 'MARPA_EVENT_EARLEY_ITEM_THRESHOLD' ) {
             say {

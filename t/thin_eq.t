@@ -21,7 +21,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 11;
+use Test::More tests => 8;
 
 use lib 'inc';
 use Marpa::R2::Test;
@@ -189,30 +189,18 @@ my $sequence_rule_id = $grammar->sequence_new(
 # Marpa::R2::Display::End
 
 $grammar->precompute();
-my $event_ix = 0;
+my @events;
+my $event_ix = $grammar->event_count();
+while ( $event_ix-- ) {
 
 # Marpa::R2::Display
 # name: Thin event() example
 
-my ( $event_type, $value ) = $grammar->event( $event_ix++ ) ;
+    my ( $event_type, $value ) = $grammar->event( $event_ix++ );
 
 # Marpa::R2::Display::End
 
-$recce = Marpa::R2::Thin::R->new($grammar);
-
-# Marpa::R2::Display
-# name: Thin recognizer error methods
-
-$error_code        = $recce->error_code();
-$error_name        = $error_names[$error_code];
-$error_description = $recce->error();
-
-# Marpa::R2::Display::End
-
-Test::More::is( $error_code, 0, 'Recognizer error code' );
-Test::More::is( $error_name, 'MARPA_ERR_NONE', 'Recognizer error name' );
-Test::More::is( $error_description, 'No error',
-    'Recognizer error description' );
+}
 
 # Local Variables:
 #   mode: cperl

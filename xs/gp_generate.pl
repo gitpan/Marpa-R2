@@ -47,6 +47,13 @@ if ( @ARGV == 1 ) {
    $out = *STDOUT;
 }
 
+my %format_by_type = (
+   int => '%d',
+   Marpa_Rule_ID => '%d',
+   Marpa_Symbol_ID => '%d',
+   Marpa_Earley_Set_ID => '%d',
+);
+
 sub gp_generate {
     my ( $function, @arg_type_pairs ) = @_;
     my $output = q{};
@@ -60,8 +67,8 @@ sub gp_generate {
     # For example, 'g_wrapper'
     my $libmarpa_method = 'marpa_' . $main::CLASS_LETTER . '_' . $function;
 
-    # For example, 'g_wrapper'
-    my $xs_error_method = 'xs_' . $main::CLASS_LETTER . '_error';
+    # Just g_wrapper for the grammar, self->base otherwise
+    my $base = $main::CLASS_LETTER eq 'g' ? 'g_wrapper' : "$wrapper_variable->base";
 
     $output .= "void\n";
     my @args = ();
@@ -83,35 +90,29 @@ sub gp_generate {
     $output .= "  int gp_result = $libmarpa_method("
         . ( join q{, }, 'self', @args ) . ");\n";
     $output .= "  if ( gp_result == -1 ) { XSRETURN_UNDEF; }\n";
-    $output .= "  if ( gp_result < 0 ) {\n";
-    $output .= '    croak("Problem in g->' . $function . '(';
+    $output .= "  if ( gp_result < 0 && $base->throw ) {\n";
     my @format    = ();
     my @variables = ();
     ARG: for ( my $i = 0; $i < $#arg_type_pairs; $i += 2 ) {
         my $arg_type = $arg_type_pairs[$i];
         my $variable = $arg_type_pairs[ $i + 1 ];
-        if ( $arg_type eq 'int' ) {
-            push @format,    '%d';
-            push @variables, $variable;
-            next ARG;
-        }
-        if ( $arg_type eq 'Marpa_Rule_ID' ) {
-            push @format,    '%d';
-            push @variables, $variable;
-            next ARG;
-        }
-        if ( $arg_type eq 'Marpa_Symbol_ID' ) {
-            push @format,    '%d';
+        if ( my $format = $format_by_type{$arg_type} ) {
+            push @format,    $format;
             push @variables, $variable;
             next ARG;
         }
         die "Unknown arg_type $arg_type";
     } ## end for ( my $i = 0; $i < $#arg_type_pairs; $i += 2 )
-    $output .= join q{, }, @format;
-    $output .= q{): %s", } . "\n";
-    $output .= q{      } . join q{, }, @variables,
-        qq{$xs_error_method( $wrapper_variable )};
-    $output .= q{);} . "\n";
+    my $format_string =
+          q{"Problem in }
+        . $main::CLASS_LETTER . q{->}
+        . $function . '('
+        . ( join q{, }, @format )
+        . q{): %s"};
+    my @format_args = @variables;
+    push @format_args, qq{xs_g_error( $base )};
+    $output .= "    croak( $format_string,\n";
+    $output .= q{     } . (join q{, }, @format_args) . ");\n";
     $output .= "  }\n";
     $output .= q{  XPUSHs (sv_2mortal (newSViv (gp_result)));} . "\n";
     $output .= "}\n";
@@ -146,6 +147,8 @@ $main::CLASS_LETTER   = 'g';
 $main::LIBMARPA_CLASS = 'Marpa_Grammar';
 print {$out} 'MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G', "\n\n";
 
+say {$out} gp_generate(qw(error_clear));
+say {$out} gp_generate(qw(event_count));
 say {$out} gp_generate(qw(has_cycle));
 say {$out} gp_generate(qw(is_precomputed));
 say {$out} gp_generate(qw(precompute));
@@ -174,3 +177,20 @@ say {$out} gp_generate(qw(symbol_is_terminal_set Marpa_Symbol_ID symbol_id int b
 say {$out} gp_generate(qw(symbol_is_valued Marpa_Symbol_ID symbol_id));
 say {$out} gp_generate(qw(symbol_is_valued_set Marpa_Symbol_ID symbol_id int boolean));
 say {$out} gp_generate(qw(symbol_new));
+
+$main::CLASS_LETTER   = 'r';
+$main::LIBMARPA_CLASS = 'Marpa_Recognizer';
+print {$out} 'MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::R', "\n\n";
+
+say {$out} gp_generate(qw(current_earleme));
+say {$out} gp_generate(qw(furthest_earleme));
+say {$out} gp_generate(qw(is_exhausted));
+say {$out} gp_generate(qw(start_input));
+say {$out} gp_generate(qw(earley_item_warning_threshold_set int too_many_earley_items));
+say {$out} gp_generate(qw(earley_item_warning_threshold));
+say {$out} gp_generate(qw(latest_earley_set));
+say {$out} gp_generate(qw(earleme_complete));
+say {$out} gp_generate(qw(earleme Marpa_Earley_Set_ID ordinal));
+say {$out} gp_generate(qw(progress_report_start Marpa_Earley_Set_ID ordinal));
+say {$out} gp_generate(qw(progress_report_finish));
+
