@@ -125,22 +125,6 @@ PPCODE:
 }
 
 void
-rule_is_keep_separation( g_wrapper, rule_id )
-    G_Wrapper *g_wrapper;
-    Marpa_Rule_ID rule_id;
-PPCODE:
-{
-  Marpa_Grammar self = g_wrapper->g;
-  int gp_result = marpa_g_rule_is_keep_separation(self, rule_id);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && g_wrapper->throw ) {
-    croak( "Problem in g->rule_is_keep_separation(%d): %s",
-     rule_id, xs_g_error( g_wrapper ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
 rule_is_loop( g_wrapper, rule_id )
     G_Wrapper *g_wrapper;
     Marpa_Rule_ID rule_id;
@@ -183,6 +167,22 @@ PPCODE:
   if ( gp_result == -1 ) { XSRETURN_UNDEF; }
   if ( gp_result < 0 && g_wrapper->throw ) {
     croak( "Problem in g->rule_is_nulling(%d): %s",
+     rule_id, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+rule_is_proper_separation( g_wrapper, rule_id )
+    G_Wrapper *g_wrapper;
+    Marpa_Rule_ID rule_id;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_rule_is_proper_separation(self, rule_id);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->rule_is_proper_separation(%d): %s",
      rule_id, xs_g_error( g_wrapper ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
@@ -658,6 +658,73 @@ PPCODE:
   if ( gp_result < 0 && r_wrapper->base->throw ) {
     croak( "Problem in r->progress_report_finish(): %s",
      xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G
+
+void
+_marpa_g_rule_is_keep_separation( g_wrapper, rule_id )
+    G_Wrapper *g_wrapper;
+    Marpa_Rule_ID rule_id;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = _marpa_g_rule_is_keep_separation(self, rule_id);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->_marpa_g_rule_is_keep_separation(%d): %s",
+     rule_id, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+_marpa_g_irl_lhs( g_wrapper, rule_id )
+    G_Wrapper *g_wrapper;
+    Marpa_IRL_ID rule_id;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = _marpa_g_irl_lhs(self, rule_id);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->_marpa_g_irl_lhs(%d): %s",
+     rule_id, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+_marpa_g_irl_rhs( g_wrapper, rule_id, ix )
+    G_Wrapper *g_wrapper;
+    Marpa_IRL_ID rule_id;
+    int ix;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = _marpa_g_irl_rhs(self, rule_id, ix);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->_marpa_g_irl_rhs(%d, %d): %s",
+     rule_id, ix, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+_marpa_g_irl_length( g_wrapper, rule_id )
+    G_Wrapper *g_wrapper;
+    Marpa_IRL_ID rule_id;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = _marpa_g_irl_length(self, rule_id);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->_marpa_g_irl_length(%d): %s",
+     rule_id, xs_g_error( g_wrapper ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }

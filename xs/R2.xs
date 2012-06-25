@@ -24,10 +24,16 @@
 #include "marpa.h"
 
 typedef struct marpa_g Grammar;
+/* The error_code member should usually be ignored in favor of
+ * getting a fresh error code from Libmarpa.  Essentially it
+ * acts as an optional return value for marpa_g_error()
+ */
 typedef struct {
      Marpa_Grammar g;
      char *message_buffer;
-     int throw; /* boolean */
+     int error_code;
+     unsigned int throw:1;
+     unsigned int message_is_marpa_thin_error:1;
 } G_Wrapper;
 
 typedef struct marpa_r Recce;
@@ -35,7 +41,7 @@ typedef struct {
      Marpa_Recce r;
      Marpa_Symbol_ID* terminals_buffer;
      G_Wrapper* base;
-     int ruby_slippers; /* boolean */
+     unsigned int ruby_slippers:1;
 } R_Wrapper;
 
 typedef struct marpa_b Bocage;
@@ -145,6 +151,23 @@ libmarpa_exception (int error_code, const char *error_string)
       return savepv(output_string);
 }
 
+/* Argument 'string' must be something that can (and
+   should) be Safefree()'d.  This call is used even when
+   the string is thrown with croak(), because it sets
+    g_wrapper->message_buffer, which guarantees it will
+    be freed at some point in the future.
+   */
+static const char *
+set_error_from_string (G_Wrapper * g_wrapper, char *string)
+{
+  const char *error_string;
+  char *buffer = g_wrapper->message_buffer;
+  if (buffer) Safefree(buffer);
+  g_wrapper->message_buffer = string;
+  g_wrapper->message_is_marpa_thin_error = 1;
+  return buffer;
+}
+
 /* Return value must be Safefree()'d */
 static const char *
 xs_g_error (G_Wrapper * g_wrapper)
@@ -156,6 +179,8 @@ xs_g_error (G_Wrapper * g_wrapper)
   if (buffer) Safefree(buffer);
   g_wrapper->message_buffer = buffer =
     libmarpa_exception (error_code, error_string);
+  g_wrapper->message_is_marpa_thin_error = 0;
+  g_wrapper->error_code = error_code;
   return buffer;
 }
 
@@ -221,6 +246,8 @@ PPCODE:
 	  g_wrapper->throw = throw;
 	  g_wrapper->g = g;
 	  g_wrapper->message_buffer = NULL;
+	  g_wrapper->error_code = MARPA_ERR_NONE;
+	  g_wrapper->message_is_marpa_thin_error = 0;
 	  sv = sv_newmortal ();
 	  sv_setref_pv (sv, grammar_c_class_name, (void *) g_wrapper);
 	  XPUSHs (sv);
@@ -272,20 +299,27 @@ PPCODE:
   const char *result_string = NULL;
   Marpa_Event_Type result = marpa_g_event (g, &event, ix);
   if (result == -1)
-  {
+    {
       XSRETURN_UNDEF;
-  }
+    }
   if (result < 0)
     {
+      if (!g_wrapper->throw)
+	{
+	  XSRETURN_UNDEF;
+	}
       croak ("Problem in g->event(): %s", xs_g_error (g_wrapper));
     }
   result_string = event_type_to_string (result);
-  if (!result_string)
+  if (result_string)
     {
-      croak ("Problem in g->event(): unknown event %d", result);
+      XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
     }
-  XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
-  XPUSHs (sv_2mortal (newSViv (marpa_g_event_value(&event))));
+  else
+    {
+      XPUSHs (mess ("Problem in g->event(): unknown event %d", result));
+    }
+  XPUSHs (sv_2mortal (newSViv (marpa_g_event_value (&event))));
 }
 
 Marpa_Rule_ID
@@ -360,7 +394,17 @@ PPCODE:
 	      int raw_min = SvIV (arg_value);
 	      if (raw_min < 0)
 		{
-		  croak ("sequence_new(): min cannot be less than 0");
+		  char *error_message =
+		    form ("sequence_new(): min cannot be less than 0");
+		  set_error_from_string (g_wrapper, error_message);
+		  if (g_wrapper->throw)
+		    {
+		      croak ("%s", error_message);
+		    }
+		  else
+		    {
+		      XSRETURN_UNDEF;
+		    }
 		}
 	      min = raw_min;
 	      continue;
@@ -376,16 +420,24 @@ PPCODE:
 	      separator = SvIV (arg_value);
 	      continue;
 	    }
-	  croak ("unknown argument to sequence_new(): %.*s", (int) retlen,
-		 key);
+	  {
+	    char *error_message =
+	      form ("unknown argument to sequence_new(): %.*s", (int) retlen,
+		    key);
+	    set_error_from_string (g_wrapper, error_message);
+	    if (g_wrapper->throw)
+	      {
+		croak ("%s", error_message);
+	      }
+	    else
+	      {
+		XSRETURN_UNDEF;
+	      }
+	  }
 	}
     }
   new_rule_id = marpa_g_sequence_new (g, lhs, rhs, separator, min, flags);
-  if (new_rule_id == -1)
-    {
-      XSRETURN_UNDEF;
-    }
-  if (new_rule_id < 0)
+  if (new_rule_id < 0 && g_wrapper->throw)
     {
       croak ("Problem in g->sequence_new(%d, %d, ...): %s", lhs, rhs,
 	     xs_g_error (g_wrapper));
@@ -401,6 +453,7 @@ PPCODE:
 {
   if (boolean < 0 || boolean > 1)
     {
+      /* Always throws an exception if the arguments are bad */
       croak ("Problem in g->throw_set(%d): argument must be 0 or 1", boolean);
     }
   g_wrapper->throw = boolean;
@@ -413,20 +466,22 @@ error( g_wrapper )
 PPCODE:
 {
   Marpa_Grammar g = g_wrapper->g;
-  XPUSHs (sv_2mortal (newSVpv (xs_g_error (g_wrapper), 0)));
-}
-
-void
-error_code( g_wrapper )
-    G_Wrapper *g_wrapper;
-PPCODE:
-{
-  const Marpa_Grammar g = g_wrapper->g;
-  const Marpa_Error_Code error_code = marpa_g_error (g, NULL);
-  if (error_code < 0) {
-	  XSRETURN_UNDEF;
-  }
-  XPUSHs (sv_2mortal (newSViv (error_code)));
+  const char *error_message =
+    "Problem in $g->error(): Nothing in message buffer";
+  SV *error_code_sv = &PL_sv_undef;
+  if (!g_wrapper->message_is_marpa_thin_error)
+    {
+      xs_g_error (g_wrapper);
+      error_code_sv = sv_2mortal (newSViv (g_wrapper->error_code));
+    }
+  g_wrapper->message_is_marpa_thin_error = 0;
+  if (g_wrapper->message_buffer)
+    error_message = g_wrapper->message_buffer;
+  if (GIMME == G_ARRAY)
+    {
+      XPUSHs (error_code_sv);
+    }
+  XPUSHs (sv_2mortal (newSVpv (error_message, 0)));
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::R
@@ -483,6 +538,7 @@ PPCODE:
 {
   if (boolean < 0 || boolean > 1)
     {
+      /* Always thrown */
       croak ("Problem in g->ruby_slippers_set(%d): argument must be 0 or 1", boolean);
     }
   r_wrapper->ruby_slippers = boolean;
@@ -518,8 +574,10 @@ PPCODE:
     marpa_r_terminals_expected (r, r_wrapper->terminals_buffer);
   if (count < 0)
     {
+      G_Wrapper* base = r_wrapper->base;
+      if (!base->throw) { XSRETURN_UNDEF; }
       croak ("Problem in r->terminals_expected(): %s",
-	     xs_g_error (r_wrapper->base));
+	     xs_g_error (base));
     }
   EXTEND (SP, count);
   for (i = 0; i < count; i++)
@@ -534,14 +592,14 @@ progress_item( r_wrapper )
 PPCODE:
 {
   struct marpa_r *const r = r_wrapper->r;
-  int position;
-  Marpa_Earley_Set_ID origin;
+  int position = -1;
+  Marpa_Earley_Set_ID origin = -1;
   Marpa_Rule_ID rule_id = marpa_r_progress_item (r, &position, &origin);
   if (rule_id == -1)
     {
       XSRETURN_UNDEF;
     }
-  if (rule_id < 0)
+  if (rule_id < 0 && r_wrapper->base->throw)
     {
       croak ("Problem in r->progress_item(): %s",
 	     xs_g_error (r_wrapper->base));
@@ -926,57 +984,6 @@ PPCODE:
 	     xs_g_error (g_wrapper));
     }
   XPUSHs (sv_2mortal (newSViv (offset)));
-}
-
-Marpa_Symbol_ID
-_marpa_g_irl_lhs( g_wrapper, irl_id )
-    G_Wrapper *g_wrapper;
-    Marpa_IRL_ID irl_id;
-PPCODE:
-{
-    Marpa_Grammar g = g_wrapper->g;
-    int result = _marpa_g_irl_lhs(g, irl_id);
-    if (result < -1) { 
-      croak ("Problem in g->_marpa_g_irl_lhs(%d): %s", irl_id, xs_g_error (g_wrapper));
-      }
-    if (result < 0) { XSRETURN_UNDEF; }
-    XPUSHs( sv_2mortal( newSViv(result) ) );
-}
-
-Marpa_Symbol_ID
-_marpa_g_irl_rhs( g_wrapper, irl_id, ix )
-    G_Wrapper *g_wrapper;
-    Marpa_IRL_ID irl_id;
-    int ix;
-PPCODE:
-{
-    Marpa_Grammar g = g_wrapper->g;
-    int result = _marpa_g_irl_rhs(g, irl_id, ix);
-    if (result < -1) { 
-      croak ("Problem in g->_marpa_g_irl_rhs(%d, %d): %s", irl_id, ix, xs_g_error (g_wrapper));
-      }
-    if (result < 0) { XSRETURN_UNDEF; }
-    XPUSHs( sv_2mortal( newSViv(result) ) );
-}
-
-int
-_marpa_g_irl_length( g_wrapper, irl_id )
-    G_Wrapper *g_wrapper;
-    Marpa_IRL_ID irl_id;
-PPCODE:
-{
-  Marpa_Grammar g = g_wrapper->g;
-  int result = _marpa_g_irl_length (g, irl_id);
-  if (result < -1)
-    {
-      croak ("Problem in g->_marpa_g_irl_length(%d): %s", irl_id,
-	     xs_g_error (g_wrapper));
-    }
-  if (result < 0)
-    {
-      XSRETURN_UNDEF;
-    }
-  XPUSHs (sv_2mortal (newSViv (result)));
 }
 
 int

@@ -186,6 +186,7 @@ order_ref (ORDER o);
 static inline void order_strip(ORDER o);
 static inline void order_freeze(ORDER o);
 static inline void order_free(ORDER o);
+static inline ANDID and_order_ix_is_valid(ORDER o, OR or_node, int ix);
 static inline ANDID and_order_get(ORDER o, OR or_node, int ix);
 static inline void tree_exhaust(TREE t);
 static inline void
@@ -197,10 +198,8 @@ static inline void
 tree_pause (TREE t);
 static inline void
 tree_unpause (TREE t);
-static inline void tree_and_node_claim(TREE tree, ANDID and_node_id);
-static inline void tree_and_node_release(TREE tree, ANDID and_node_id);
-static inline int tree_and_node_try(TREE tree, ANDID and_node_id);
-static inline int or_node_next_choice(ORDER o, TREE tree, OR or_node, int start_choice);
+static inline int tree_or_node_try(TREE tree, ORID or_node_id);
+static inline void tree_or_node_release(TREE tree, ORID or_node_id);
 static inline void
 value_unref (VALUE v);
 static inline VALUE

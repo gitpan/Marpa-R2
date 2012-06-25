@@ -49,6 +49,8 @@ if ( @ARGV == 1 ) {
 
 my %format_by_type = (
    int => '%d',
+   Marpa_IRL_ID => '%d',
+   Marpa_ISY_ID => '%d',
    Marpa_Rule_ID => '%d',
    Marpa_Symbol_ID => '%d',
    Marpa_Earley_Set_ID => '%d',
@@ -65,7 +67,10 @@ sub gp_generate {
     my $wrapper_type = ( uc $main::CLASS_LETTER ) . '_Wrapper';
 
     # For example, 'g_wrapper'
-    my $libmarpa_method = 'marpa_' . $main::CLASS_LETTER . '_' . $function;
+    my $libmarpa_method =
+          $function =~ m/^_marpa_/xms
+        ? $function
+        : 'marpa_' . $main::CLASS_LETTER . '_' . $function;
 
     # Just g_wrapper for the grammar, self->base otherwise
     my $base = $main::CLASS_LETTER eq 'g' ? 'g_wrapper' : "$wrapper_variable->base";
@@ -154,10 +159,10 @@ say {$out} gp_generate(qw(is_precomputed));
 say {$out} gp_generate(qw(precompute));
 say {$out} gp_generate(qw(rule_count));
 say {$out} gp_generate(qw(rule_is_accessible Marpa_Rule_ID rule_id));
-say {$out} gp_generate(qw(rule_is_keep_separation Marpa_Rule_ID rule_id));
 say {$out} gp_generate(qw(rule_is_loop Marpa_Rule_ID rule_id));
 say {$out} gp_generate(qw(rule_is_nullable Marpa_Rule_ID rule_id));
 say {$out} gp_generate(qw(rule_is_nulling Marpa_Rule_ID rule_id));
+say {$out} gp_generate(qw(rule_is_proper_separation Marpa_Rule_ID rule_id));
 say {$out} gp_generate(qw(rule_is_productive Marpa_Rule_ID rule_id));
 say {$out} gp_generate(qw(rule_is_sequence Marpa_Rule_ID rule_id));
 say {$out} gp_generate(qw(rule_length Marpa_Rule_ID rule_id));
@@ -194,3 +199,11 @@ say {$out} gp_generate(qw(earleme Marpa_Earley_Set_ID ordinal));
 say {$out} gp_generate(qw(progress_report_start Marpa_Earley_Set_ID ordinal));
 say {$out} gp_generate(qw(progress_report_finish));
 
+$main::CLASS_LETTER   = 'g';
+$main::LIBMARPA_CLASS = 'Marpa_Grammar';
+print {$out} 'MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G', "\n\n";
+
+say {$out} gp_generate(qw(_marpa_g_rule_is_keep_separation Marpa_Rule_ID rule_id));
+say {$out} gp_generate(qw(_marpa_g_irl_lhs Marpa_IRL_ID rule_id));
+say {$out} gp_generate(qw(_marpa_g_irl_rhs Marpa_IRL_ID rule_id int ix));
+say {$out} gp_generate(qw(_marpa_g_irl_length Marpa_IRL_ID rule_id));

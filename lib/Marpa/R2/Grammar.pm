@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.009_002';
+$VERSION        = '2.009_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -69,6 +69,7 @@ BEGIN {
     ACTION { action for this rule as specified by user }
     RANK
     NULL_RANKS_HIGH
+    DISCARD_SEPARATION
 
 END_OF_STRUCTURE
     Marpa::R2::offset($structure);
@@ -485,7 +486,7 @@ sub Marpa::R2::Grammar::precompute {
     $grammar_c->throw_set(1);
 
     if ( $precompute_result < 0 ) {
-        $precompute_error_code = $grammar_c->error_code();
+        ($precompute_error_code) = $grammar_c->error();
         if ( not defined $precompute_error_code ) {
             Marpa::R2::exception(
                 'libmarpa error, but no error code returned');
@@ -561,7 +562,7 @@ sub Marpa::R2::Grammar::precompute {
             Marpa::R2::exception(qq{Unproductive start symbol: "$name"});
         }
 
-        Marpa::R2::uncaught_error( $grammar_c->error() );
+        Marpa::R2::uncaught_error( scalar $grammar_c->error() );
 
     } ## end if ( $precompute_error_code != $Marpa::R2::Error::NONE)
 
@@ -784,8 +785,8 @@ sub Marpa::R2::Grammar::show_rule {
     $grammar->rule_is_used($rule_id)         or push @comment, '!used';
     $grammar_c->rule_is_productive($rule_id) or push @comment, 'unproductive';
     $grammar_c->rule_is_accessible($rule_id) or push @comment, 'inaccessible';
-    $grammar_c->rule_is_keep_separation($rule_id)
-        or push @comment, 'discard_sep';
+    $rule->[Marpa::R2::Internal::Rule::DISCARD_SEPARATION]
+        and push @comment, 'discard_sep';
 
     my $text = $grammar->brief_rule($rule_id);
 
@@ -1129,11 +1130,12 @@ sub add_user_rule {
         if ( $ordinary_rule_id < 0 ) {
             my $rule_description =
                 "$lhs_name -> " . ( join q{ }, @{$rhs_names} );
-            my $error_code = $grammar_c->error_code() // -1;
+            my ($error_code, $error_string) = $grammar_c->error();
+	    $error_code //= -1;
             my $problem_description =
 		$error_code == $Marpa::R2::Error::DUPLICATE_RULE
                 ? 'Duplicate rule'
-                : $grammar_c->error();
+                : $error_string;
             Marpa::R2::exception("$problem_description: $rule_description");
         } ## end if ( not defined $ordinary_rule_id )
         shadow_rule( $grammar, $ordinary_rule_id );
@@ -1174,18 +1176,18 @@ sub add_user_rule {
         $lhs_id,
         $rhs_ids[0],
         {   separator => $separator_id,
-            keep      => $keep_separation,
             proper    => $proper_separation,
             min       => $min,
         }
     );
     if ( not defined $original_rule_id ) {
         my $rule_description = "$lhs_name -> " . ( join q{ }, @{$rhs_names} );
-        my $error_code = $grammar_c->error_code() // -1;
+        my ($error_code, $error_string) = $grammar_c->error();
+        $error_code //= -1;
         my $problem_description =
             $error_code == $Marpa::R2::Error::DUPLICATE_RULE
             ? 'Duplicate rule'
-            : $grammar_c->error();
+            : $error_string;
         Marpa::R2::exception("$problem_description: $rule_description");
     } ## end if ( not defined $event_count )
 
@@ -1197,6 +1199,8 @@ sub add_user_rule {
     # semantic equivalents.
     my $original_rule = $rules->[$original_rule_id];
     action_set( $original_rule_id, $grammar, $action );
+    $original_rule->[Marpa::R2::Internal::Rule::DISCARD_SEPARATION] =
+        $separator_id >= 0 && !$keep_separation;
     $original_rule->[Marpa::R2::Internal::Rule::NULL_RANKS_HIGH] = $null_ranking eq 'high';
     $original_rule->[Marpa::R2::Internal::Rule::RANK]         = $rank;
 

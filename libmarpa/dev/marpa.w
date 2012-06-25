@@ -2115,7 +2115,7 @@ Alternatively, it may be deleted.
 @ @<Initialize rule elements@> =
 rule->t_is_discard = 0;
 @ @<Function definitions@> =
-int marpa_g_rule_is_keep_separation(
+int _marpa_g_rule_is_keep_separation(
     Marpa_Grammar g,
     Marpa_Rule_ID xrl_id)
 {
@@ -2318,6 +2318,7 @@ Marpa_ISY_ID _marpa_g_irl_lhs(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
     IRL irl;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if |irl_id| is invalid@>@;
     irl = IRL_by_ID(irl_id);
     return LHSID_of_IRL(irl);
@@ -2330,6 +2331,7 @@ Marpa_ISY_ID _marpa_g_irl_rhs(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix) {
     IRL irl;
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if |irl_id| is invalid@>@;
     irl = IRL_by_ID(irl_id);
     if (Length_of_IRL(irl) <= ix) return -1;
@@ -2342,6 +2344,7 @@ Marpa_ISY_ID _marpa_g_irl_rhs(Marpa_Grammar g, Marpa_IRL_ID irl_id, int ix) {
 int _marpa_g_irl_length(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
+    @<Fail if not precomputed@>@;
     @<Fail if |irl_id| is invalid@>@;
     return Length_of_IRL(IRL_by_ID(irl_id));
 }
@@ -8151,14 +8154,20 @@ Marpa_Earleme marpa_r_alternative(
     int value,
     int length)
 {
-  @<Unpack recognizer objects@>@;
+    @<Unpack recognizer objects@>@;
     ES current_earley_set;
-    const EARLEME current_earleme = Current_Earleme_of_R(r);
+    const EARLEME current_earleme = Current_Earleme_of_R (r);
     EARLEME target_earleme;
     ISYID token_isyid;
-    if (UNLIKELY(Input_Phase_of_R(r) != R_DURING_INPUT)) {
-	MARPA_ERROR(MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
+    if (UNLIKELY (Input_Phase_of_R (r) != R_DURING_INPUT))
+      {
+	MARPA_ERROR (MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
 	return MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT;
+      }
+    if (UNLIKELY (!xsyid_is_valid (g, token_xsyid)))
+      {
+	MARPA_ERROR (MARPA_ERR_INVALID_SYMBOL_ID);
+	return MARPA_ERR_INVALID_SYMBOL_ID;
     }
     @<|marpa_alternative| initial check for failure conditions@>@;
     @<Set |current_earley_set|, failing if token is unexpected@>@;
@@ -11036,25 +11045,6 @@ to make sense.
   Top_ORID_of_B (b) = ID_of_OR (top_or_node);
 }
 
-@*0 The grammar of the bocage.
-@ This function returns the grammar of the bocage.
-It never returns an error.
-The grammar is always set when the bocage is initialized,
-and is never changed while the bocage exists.
-Fatal state is not reported,
-because it is kept in the grammar,
-so that
-either we can return the grammar in spite of
-its fatal state,
-or the problem is so severe than no
-errors can be properly reported.
-@<Function definitions@> =
-Marpa_Grammar marpa_b_g(Marpa_Bocage b)
-{
-  @<Unpack bocage objects@>@;
-  return g;
-}
-
 @*0 Top or-node.
 @ If |b| is nulling, the top Or node ID will be -1.
 @<Function definitions@> =
@@ -11372,25 +11362,6 @@ PRIVATE void order_free(ORDER o)
     const BOCAGE b = B_of_O(o);
     @<Unpack bocage objects@>@;
 
-@*0 The grammar of the order.
-@ This function returns the grammar of the order.
-It never returns an error.
-The grammar is always set when the order is initialized,
-and is never changed while the order exists.
-Fatal state is not reported,
-because it is kept in the grammar,
-so that
-either we can return the grammar in spite of
-its fatal state,
-or the problem is so severe than no
-errors can be properly reported.
-@<Function definitions@> =
-Marpa_Grammar marpa_o_g(Marpa_Order o)
-{
-  @<Unpack order objects@>@;
-  return g;
-}
-
 @*0 Order is nulling?.
 Is this order for a nulling parse?
 @d O_is_Nulling(o) ((o)->t_is_nulling)
@@ -11524,16 +11495,14 @@ int _marpa_o_and_order_set(
   return 1;
 }
 
-@*0 Get an and-node by order within its or-node.
+@
+Check that |ix| is the index of a valid and-node
+in |or_node|.
 @<Function definitions@> =
-PRIVATE ANDID and_order_get(ORDER o, OR or_node, int ix)
+PRIVATE ANDID and_order_ix_is_valid(ORDER o, OR or_node, int ix)
 {
-  @<Unpack order objects@>@;
   ANDID **and_node_orderings;
-  if (ix >= AND_Count_of_OR (or_node))
-    {
-      return -1;
-    }
+  if (ix >= AND_Count_of_OR (or_node)) return 0;
   and_node_orderings = o->t_and_node_orderings;
   if (and_node_orderings)
     {
@@ -11542,12 +11511,27 @@ PRIVATE ANDID and_order_get(ORDER o, OR or_node, int ix)
       if (ordering)
 	{
 	  int length = ordering[0];
-	  if (ix >= length)
-	    return -1;
-	  return ordering[1 + ix];
+	  if (ix >= length) return 0;
 	}
     }
-  return First_ANDID_of_OR(or_node) + ix;
+  return 1;
+}
+
+@ Get the |ix|'th and-node of an or-node.
+It is up to the caller to ensure that |ix|
+is valid.
+@<Function definitions@> =
+PRIVATE ANDID and_order_get(ORDER o, OR or_node, int ix)
+{
+  ANDID **and_node_orderings = o->t_and_node_orderings;
+  if (and_node_orderings)
+    {
+      ORID or_node_id = ID_of_OR (or_node);
+      ANDID *ordering = and_node_orderings[or_node_id];
+      if (ordering)
+	return ordering[1 + ix];
+    }
+  return First_ANDID_of_OR (or_node) + ix;
 }
 
 @ @<Function definitions@> =
@@ -11563,13 +11547,14 @@ Marpa_And_Node_ID _marpa_o_and_order_get(Marpa_Order o,
       MARPA_ERROR(MARPA_ERR_ANDIX_NEGATIVE);
       return failure_indicator;
   }
+    if (!and_order_ix_is_valid(o, or_node, ix)) return -1;
     return and_order_get(o, or_node, ix);
 }
 
 @** Parse tree (T, TREE) code.
-Within Marpa,
+In this document,
 when it makes sense in context,
-"tree" means a parse tree.
+the term "tree" means a parse tree.
 Trees are, of course, a very common data structure,
 and are used for all sorts of things.
 But the most important trees in Marpa's universe
@@ -11599,7 +11584,7 @@ it is exhausted.
 struct marpa_tree {
     FSTACK_DECLARE(t_nook_stack, NOOK_Object)@;
     FSTACK_DECLARE(t_nook_worklist, int)@;
-    Bit_Vector t_and_node_in_use;
+    Bit_Vector t_or_node_in_use;
     Marpa_Order t_order;
     @<Int aligned tree elements@>@;
     @<Bit aligned tree elements@>@;
@@ -11623,8 +11608,8 @@ PRIVATE void tree_exhaust(TREE t)
       FSTACK_DESTROY (t->t_nook_worklist);
       FSTACK_SAFE (t->t_nook_worklist);
     }
-  bv_free (t->t_and_node_in_use);
-  t->t_and_node_in_use = NULL;
+  bv_free (t->t_or_node_in_use);
+  t->t_or_node_in_use = NULL;
   T_is_Exhausted(t) = 1;
 }
 
@@ -11650,15 +11635,16 @@ Marpa_Tree marpa_t_new(Marpa_Order o)
   if (O_is_Nulling (o))
     {
       T_is_Nulling (t) = 1;
-      t->t_and_node_in_use = NULL;
+      t->t_or_node_in_use = NULL;
       FSTACK_SAFE (t->t_nook_stack);
       FSTACK_SAFE (t->t_nook_worklist);
     }
   else
     {
       const int and_count = AND_Count_of_B (b);
+      const int or_count = OR_Count_of_B (b);
       T_is_Nulling (t) = 0;
-      t->t_and_node_in_use = bv_create ((unsigned int) and_count);
+      t->t_or_node_in_use = bv_create ((unsigned int) or_count);
       FSTACK_INIT (t->t_nook_stack, NOOK_Object, and_count);
       FSTACK_INIT (t->t_nook_worklist, int, and_count);
     }
@@ -11713,13 +11699,13 @@ PRIVATE void tree_free(TREE t)
 
 @*0 Tree pause counting.
 Trees referenced by an active |VALUE| object
-cannot be moved for the lifetime of that
+cannot be iterated for the lifetime of that
 |VALUE| object.
-This is enforced by "pausing" the tree.
+This is enforced by ``pausing'' the tree.
 Because there may be multiple |VALUE| objects
 for each |TREE| object,
 a pause counter is used.
-@ The |TREE| object's "pause counter
+@ The |TREE| object's pause counter
 works much the same as a reference counter.
 And the two are tied together.
 Every time the pause counter is incremented,
@@ -11730,8 +11716,8 @@ every time the pause counter is decremented,
 the |TREE| object's reference counter is also
 decremented.
 For this reason, it is important that every
-tree "pause" be matched with a "tree unpause".
-@ "Pausing" is used because the expected use of
+tree ``pause'' be matched with a ``tree unpause''
+@ ``Pausing'' is used because the expected use of
 multiple |VALUE| objects is to evaluation a single
 tree instance in multiple ways ---
 |VALUE| objects are not expected to need to live
@@ -11764,25 +11750,6 @@ tree_unpause (TREE t)
     MARPA_ASSERT(t->t_ref_count >= t->t_pause_counter);
     t->t_pause_counter--;
     tree_unref(t);
-}
-
-@*0 The grammar of the tree.
-@ This function returns the grammar of the tree.
-It never returns an error.
-The grammar is always set when the tree is initialized,
-and is never changed while the tree exists.
-Fatal state is not reported,
-because it is kept in the grammar,
-so that
-either we can return the grammar in spite of
-its fatal state,
-or the problem is so severe than no
-errors can be properly reported.
-@<Function definitions@> =
-Marpa_Grammar marpa_t_g(Marpa_Tree t)
-{
-  @<Unpack tree objects@>@;
-  return g;
 }
 
 @ @<Function definitions@> =
@@ -11854,25 +11821,19 @@ unsigned int t_is_nulling:1;
 To avoid cycles, the same and node is not allowed to occur twice
 in the parse tree.
 A boolean vector, accessed by these functions, enforces this.
-@ Claim the and-node by setting its bit.
-@<Function definitions@> =
-PRIVATE void tree_and_node_claim(TREE tree, ANDID and_node_id)
-{
-    bv_bit_set(tree->t_and_node_in_use, (unsigned int)and_node_id);
-}
-@ Release the and-node by unsetting its bit.
-@<Function definitions@> =
-PRIVATE void tree_and_node_release(TREE tree, ANDID and_node_id)
-{
-    bv_bit_clear(tree->t_and_node_in_use, (unsigned int)and_node_id);
-}
 @ Try to claim the and-node.
 If it was already claimed, return 0, otherwise claim it (that is,
 set the bit) and return 1.
 @<Function definitions@> =
-PRIVATE int tree_and_node_try(TREE tree, ANDID and_node_id)
+PRIVATE int tree_or_node_try(TREE tree, ORID or_node_id)
 {
-    return !bv_bit_test_and_set(tree->t_and_node_in_use, (unsigned int)and_node_id);
+    return !bv_bit_test_and_set(tree->t_or_node_in_use, (unsigned int)or_node_id);
+}
+@ Release the and-node by unsetting its bit.
+@<Function definitions@> =
+PRIVATE void tree_or_node_release(TREE tree, ORID or_node_id)
+{
+    bv_bit_clear(tree->t_or_node_in_use, (unsigned int)or_node_id);
 }
 
 @ @<Initialize the tree iterator@> =
@@ -11880,13 +11841,14 @@ PRIVATE int tree_and_node_try(TREE tree, ANDID and_node_id)
   ORID top_or_id = Top_ORID_of_B (b);
   OR top_or_node = OR_of_B_by_ID (b, top_or_id);
   NOOK nook;
-  int choice;
-  choice = or_node_next_choice (o, t, top_or_node, 0);
-  /* Due to skipping, even the top or-node can have no
-     valid choices, in which case there is no parse */
-  if (choice < 0)
+  /* Due to skipping, it is possible for even
+    the top or-node to have no valid choices,
+    in which case there is no parse */
+  int choice = 0;
+  if (!and_order_ix_is_valid(o, top_or_node, 0))
     goto TREE_IS_EXHAUSTED;
   nook = FSTACK_PUSH (t->t_nook_stack);
+  tree_or_node_try(t, top_or_id); /* Empty stack, so cannot fail */
   OR_of_NOOK (nook) = top_or_node;
   Choice_of_NOOK (nook) = choice;
   Parent_of_NOOK (nook) = -1;
@@ -11902,18 +11864,14 @@ If there is one, set it to the next choice.
 Otherwise, the tree is exhausted.
 @<Start a new iteration of the tree@> = {
     while (1) {
-	NOOK iteration_candidate = FSTACK_TOP(t->t_nook_stack, NOOK_Object);
+	OR iteration_candidate_or_node;
+	const NOOK iteration_candidate = FSTACK_TOP(t->t_nook_stack, NOOK_Object);
 	int choice;
 	if (!iteration_candidate) break;
-	choice = Choice_of_NOOK(iteration_candidate);
-	MARPA_ASSERT(choice >= 0);
-	{
-	    OR or_node = OR_of_NOOK(iteration_candidate);
-	    ANDID and_node_id = and_order_get(o, or_node, choice);
-	    tree_and_node_release(t, and_node_id);
-	    choice = or_node_next_choice(o, t, or_node, choice+1);
-	}
-	if (choice >= 0) {
+	iteration_candidate_or_node = OR_of_NOOK(iteration_candidate);
+	choice = Choice_of_NOOK(iteration_candidate) + 1;
+	MARPA_ASSERT(choice > 0);
+	if (and_order_ix_is_valid(o, iteration_candidate_or_node, choice)) {
 	    /* We have found a nook we can iterate.
 	        Set the new choice,
 		dirty the child bits in the current working nook,
@@ -11925,7 +11883,8 @@ Otherwise, the tree is exhausted.
 	    break;
 	}
 	{
-	    /* Dirty the corresponding bit in the parent */
+	    /* Dirty the corresponding bit in the parent,
+	       then pop the nook */
 	    const int parent_nook_ix = Parent_of_NOOK(iteration_candidate);
 	    if (parent_nook_ix >= 0) {
 		NOOK parent_nook = NOOK_of_TREE_by_IX(t, parent_nook_ix);
@@ -11938,6 +11897,7 @@ Otherwise, the tree is exhausted.
 	    }
 
 	    /* Continue with the next item on the stack */
+	    tree_or_node_release(t, ID_of_OR(iteration_candidate_or_node));
 	    FSTACK_POP(t->t_nook_stack);
 	}
     }
@@ -11945,6 +11905,8 @@ Otherwise, the tree is exhausted.
 	int stack_length = Size_of_T(t);
 	int i;
 	if (stack_length <= 0) goto TREE_IS_EXHAUSTED;
+	/* Clear the worklist, then copy the entire remaining
+	   tree onto it. */
 	FSTACK_CLEAR(t->t_nook_worklist);
 	for (i = 0; i < stack_length; i++) {
 	    *(FSTACK_PUSH(t->t_nook_worklist)) = i;
@@ -11992,25 +11954,13 @@ Otherwise, the tree is exhausted.
 	    FSTACK_POP(t->t_nook_worklist);
 	    goto NEXT_NOOK_ON_WORKLIST;
 	}
-	choice = or_node_next_choice(o, t, child_or_node, 0);
-	if (choice < 0) goto NEXT_TREE;
+	if (!tree_or_node_try(t, ID_of_OR(child_or_node))) goto NEXT_TREE;
+	choice = 0;
+	if (!and_order_ix_is_valid(o, child_or_node, choice)) goto NEXT_TREE;
 	@<Add new nook to tree@>;
 	NEXT_NOOK_ON_WORKLIST: ;
     }
     NEXT_TREE: ;
-}
-
-@ @<Function definitions@> =
-PRIVATE int or_node_next_choice(ORDER o, TREE tree, OR or_node, int start_choice)
-{
-    int choice = start_choice;
-    while (1) {
-	ANDID and_node_id = and_order_get(o, or_node, choice);
-	if (and_node_id < 0) return -1;
-	if (tree_and_node_try(tree, and_node_id)) return choice;
-	choice++;
-    }
-    return -1;
 }
 
 @ @<Add new nook to tree@> =
@@ -12059,6 +12009,7 @@ typedef int Marpa_Nook_ID;
 @ @<Private typedefs@> =
 typedef Marpa_Nook_ID NOOKID;
 @ @s NOOK int
+@s NOOKID int
 @<Private incomplete structures@> =
 struct s_nook;
 typedef struct s_nook* NOOK;
@@ -12195,7 +12146,8 @@ evaluate it.
 @<Public incomplete structures@> =
 struct marpa_value;
 typedef struct marpa_value* Marpa_Value;
-@ @<Private incomplete structures@> =
+@ @s VALUE int
+@<Private incomplete structures@> =
 typedef struct s_value* VALUE;
 @ This structure tracks the top of the evaluation
 stack, but does {\bf not} maintain the
@@ -12403,15 +12355,6 @@ PRIVATE void value_free(VALUE v)
 @ @<Unpack value objects@> =
     TREE t = T_of_V(v);
     @<Unpack tree objects@>@;
-
-@*0 The grammar of the value object.
-@<Function definitions@> =
-Marpa_Grammar marpa_v_g(Marpa_Value public_v)
-{
-  const VALUE v = (VALUE)public_v;
-  @<Unpack value objects@>@;
-  return g;
-}
 
 @*0 Valuator is nulling?.
 Is this valuator for a nulling parse?

@@ -21,7 +21,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 8;
+use Test::More tests => 11;
 
 use lib 'inc';
 use Marpa::R2::Test;
@@ -153,15 +153,25 @@ for my $actual_value (@actual_values) {
 
 # For the error methods, start clean,
 # with a new, trivial grammar
+$grammar = $recce = $bocage = $order = $tree = undef;
 $grammar = Marpa::R2::Thin::G->new();
+
+# Marpa::R2::Display
+# name: Thin throw_set() example
+
+$grammar->throw_set(0);
+
+# Marpa::R2::Display::End
+
+# Turn it right back on, for safety's sake
+$grammar->throw_set(0);
 
 # Marpa::R2::Display
 # name: Thin grammar error methods
 
-my @error_names       = Marpa::R2::Thin::error_names();
-my $error_code        = $grammar->error_code();
-my $error_name        = $error_names[$error_code];
-my $error_description = $grammar->error();
+my ( $error_code, $error_description ) = $grammar->error();
+my @error_names = Marpa::R2::Thin::error_names();
+my $error_name = $error_names[$error_code];
 
 # Marpa::R2::Display::End
 
@@ -201,6 +211,48 @@ while ( $event_ix-- ) {
 # Marpa::R2::Display::End
 
 }
+
+$recce = Marpa::R2::Thin::R->new($grammar);
+
+# Marpa::R2::Display
+# name: Thin ruby_slippers_set() example
+
+$recce->ruby_slippers_set(1);
+
+# Marpa::R2::Display::End
+
+$recce->start_input();
+$recce->alternative( $symbol_a, 1, 1 );
+$recce->earleme_complete();
+
+# Marpa::R2::Display
+# name: Thin terminals_expected() example
+
+   my @terminals = $recce->terminals_expected();
+
+# Marpa::R2::Display::End
+
+Test::More::is( (scalar @terminals), 1, 'count of terminals expected' );
+Test::More::is( $terminals[0], $symbol_sep, 'expected terminal' );
+
+my $report;
+
+# Marpa::R2::Display
+# name: Thin progress_item() example
+
+    my $ordinal = $recce->latest_earley_set();
+    $recce->progress_report_start($ordinal);
+    ITEM: while (1) {
+        my ($rule_id, $dot_position, $origin) = $recce->progress_item();
+        last ITEM if not defined $rule_id;
+        push @{$report}, [$rule_id, $dot_position, $origin];
+    }
+    $recce->progress_report_finish();
+
+# Marpa::R2::Display::End
+
+Test::More::is( ( join q{ }, map { @{$_} } @{$report} ),
+    '0 -1 0 0 0 0', 'progress report' );
 
 # Local Variables:
 #   mode: cperl
