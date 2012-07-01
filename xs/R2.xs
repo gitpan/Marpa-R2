@@ -31,7 +31,8 @@ typedef struct marpa_g Grammar;
 typedef struct {
      Marpa_Grammar g;
      char *message_buffer;
-     int error_code;
+     int libmarpa_error_code;
+     const char *libmarpa_error_string;
      unsigned int throw:1;
      unsigned int message_is_marpa_thin_error:1;
 } G_Wrapper;
@@ -105,9 +106,11 @@ step_type_to_string (Marpa_Step_Type step_type)
    It returns a buffer which must be Safefree()'d.
 */
 static char *
-libmarpa_exception (int error_code, const char *error_string)
+error_description_generate (G_Wrapper *g_wrapper)
 {
   dTHX;
+  const int error_code = g_wrapper->libmarpa_error_code;
+  const char *error_string = g_wrapper->libmarpa_error_string;
   const char *suggested_description = NULL;
   /*
    * error_name should always be set when suggested_description is,
@@ -148,23 +151,26 @@ libmarpa_exception (int error_code, const char *error_string)
     }
   output_string = suggested_description;
   COPY_STRING:
-      return savepv(output_string);
+  {
+      char* buffer = g_wrapper->message_buffer;
+      if (buffer) Safefree(buffer);
+      return g_wrapper->message_buffer = savepv(output_string);
+    }
 }
 
-/* Argument 'string' must be something that can (and
-   should) be Safefree()'d.  This call is used even when
-   the string is thrown with croak(), because it sets
-    g_wrapper->message_buffer, which guarantees it will
-    be freed at some point in the future.
-   */
+/* Argument must be something that can be Safefree()'d */
 static const char *
 set_error_from_string (G_Wrapper * g_wrapper, char *string)
 {
-  const char *error_string;
+  dTHX;
+  Marpa_Grammar g = g_wrapper->g;
   char *buffer = g_wrapper->message_buffer;
   if (buffer) Safefree(buffer);
   g_wrapper->message_buffer = string;
   g_wrapper->message_is_marpa_thin_error = 1;
+  marpa_g_error_clear(g);
+  g_wrapper->libmarpa_error_code = MARPA_ERR_NONE;
+  g_wrapper->libmarpa_error_string = NULL;
   return buffer;
 }
 
@@ -172,16 +178,11 @@ set_error_from_string (G_Wrapper * g_wrapper, char *string)
 static const char *
 xs_g_error (G_Wrapper * g_wrapper)
 {
-  const char *error_string;
   Marpa_Grammar g = g_wrapper->g;
-  const int error_code = marpa_g_error (g, &error_string);
-  char *buffer = g_wrapper->message_buffer;
-  if (buffer) Safefree(buffer);
-  g_wrapper->message_buffer = buffer =
-    libmarpa_exception (error_code, error_string);
+  g_wrapper->libmarpa_error_code =
+    marpa_g_error (g, &g_wrapper->libmarpa_error_string);
   g_wrapper->message_is_marpa_thin_error = 0;
-  g_wrapper->error_code = error_code;
-  return buffer;
+  return error_description_generate (g_wrapper);
 }
 
 /* Wrapper to use vwarn with libmarpa */
@@ -230,7 +231,7 @@ PPCODE:
   Marpa_Grammar g;
   SV *sv;
   G_Wrapper *g_wrapper;
-  SV *throw_sv = get_sv ("Marpa::R2::Thin::THROW", 0);
+  SV *throw_sv = get_sv ("Marpa::R2::Thin::C::THROW", 0);
   const int throw = throw_sv && SvTRUE (throw_sv);
   Marpa_Config marpa_configuration;
   Marpa_Error_Code error_code =
@@ -246,7 +247,8 @@ PPCODE:
 	  g_wrapper->throw = throw;
 	  g_wrapper->g = g;
 	  g_wrapper->message_buffer = NULL;
-	  g_wrapper->error_code = MARPA_ERR_NONE;
+	  g_wrapper->libmarpa_error_code = MARPA_ERR_NONE;
+	  g_wrapper->libmarpa_error_string = NULL;
 	  g_wrapper->message_is_marpa_thin_error = 0;
 	  sv = sv_newmortal ();
 	  sv_setref_pv (sv, grammar_c_class_name, (void *) g_wrapper);
@@ -298,10 +300,6 @@ PPCODE:
   Marpa_Event event;
   const char *result_string = NULL;
   Marpa_Event_Type result = marpa_g_event (g, &event, ix);
-  if (result == -1)
-    {
-      XSRETURN_UNDEF;
-    }
   if (result < 0)
     {
       if (!g_wrapper->throw)
@@ -311,14 +309,14 @@ PPCODE:
       croak ("Problem in g->event(): %s", xs_g_error (g_wrapper));
     }
   result_string = event_type_to_string (result);
-  if (result_string)
+  if (!result_string)
     {
-      XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
+      char *error_message =
+	form ("event(%d): unknown event code, %d", ix, result);
+      set_error_from_string (g_wrapper, savepv(error_message));
+      XSRETURN_UNDEF;
     }
-  else
-    {
-      XPUSHs (mess ("Problem in g->event(): unknown event %d", result));
-    }
+  XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
   XPUSHs (sv_2mortal (newSViv (marpa_g_event_value (&event))));
 }
 
@@ -351,7 +349,6 @@ PPCODE:
     }
     new_rule_id = marpa_g_rule_new(g, lhs, rhs, length);
     Safefree(rhs);
-    if (new_rule_id == -1) { XSRETURN_UNDEF; }
     if (new_rule_id < 0 && g_wrapper->throw ) {
       croak ("Problem in g->rule_new(%d, ...): %s", lhs, xs_g_error (g_wrapper));
     }
@@ -396,7 +393,7 @@ PPCODE:
 		{
 		  char *error_message =
 		    form ("sequence_new(): min cannot be less than 0");
-		  set_error_from_string (g_wrapper, error_message);
+		  set_error_from_string (g_wrapper, savepv(error_message));
 		  if (g_wrapper->throw)
 		    {
 		      croak ("%s", error_message);
@@ -424,7 +421,7 @@ PPCODE:
 	    char *error_message =
 	      form ("unknown argument to sequence_new(): %.*s", (int) retlen,
 		    key);
-	    set_error_from_string (g_wrapper, error_message);
+	    set_error_from_string (g_wrapper, savepv(error_message));
 	    if (g_wrapper->throw)
 	      {
 		croak ("%s", error_message);
@@ -469,14 +466,21 @@ PPCODE:
   const char *error_message =
     "Problem in $g->error(): Nothing in message buffer";
   SV *error_code_sv = &PL_sv_undef;
-  if (!g_wrapper->message_is_marpa_thin_error)
+
+  g_wrapper->libmarpa_error_code =
+    marpa_g_error (g, &g_wrapper->libmarpa_error_string);
+  /* A new Libmarpa error overrides any thin interface error */
+  if (g_wrapper->libmarpa_error_code != MARPA_ERR_NONE)
+    g_wrapper->message_is_marpa_thin_error = 0;
+  if (g_wrapper->message_is_marpa_thin_error)
     {
-      xs_g_error (g_wrapper);
-      error_code_sv = sv_2mortal (newSViv (g_wrapper->error_code));
+      error_message = g_wrapper->message_buffer;
     }
-  g_wrapper->message_is_marpa_thin_error = 0;
-  if (g_wrapper->message_buffer)
-    error_message = g_wrapper->message_buffer;
+  else
+    {
+      error_message = error_description_generate (g_wrapper);
+      error_code_sv = sv_2mortal (newSViv (g_wrapper->libmarpa_error_code));
+    }
   if (GIMME == G_ARRAY)
     {
       XPUSHs (error_code_sv);
@@ -624,6 +628,7 @@ PPCODE:
   Marpa_Bocage b = marpa_b_new (r, ordinal);
   if (!b)
     {
+      if (!r_wrapper->base->throw) { XSRETURN_UNDEF; }
       croak ("Problem in b->new(): %s", xs_g_error(r_wrapper->base));
     }
   Newx (b_wrapper, 1, B_Wrapper);
@@ -658,6 +663,7 @@ PPCODE:
   Marpa_Order o = marpa_o_new (b);
   if (!o)
     {
+      if (!b_wrapper->base->throw) { XSRETURN_UNDEF; }
       croak ("Problem in o->new(): %s", xs_g_error(b_wrapper->base));
     }
   Newx (o_wrapper, 1, O_Wrapper);
@@ -692,6 +698,7 @@ PPCODE:
   Marpa_Tree t = marpa_t_new (o);
   if (!t)
     {
+      if (!o_wrapper->base->throw) { XSRETURN_UNDEF; }
       croak ("Problem in t->new(): %s", xs_g_error(o_wrapper->base));
     }
   Newx (t_wrapper, 1, T_Wrapper);
@@ -712,44 +719,6 @@ PPCODE:
     Safefree( t_wrapper );
 }
 
-void
-next( t_wrapper )
-    T_Wrapper *t_wrapper;
-PPCODE:
-{
-  Marpa_Tree t = t_wrapper->t;
-  int result;
-  result = marpa_t_next (t);
-  if (result == -1)
-    {
-      XSRETURN_UNDEF;
-    }
-  if (result < 0)
-    {
-      croak ("Problem in t->next(): %s", xs_g_error(t_wrapper->base));
-    }
-  XPUSHs (sv_2mortal (newSViv (result)));
-}
-
-void
-parse_count( t_wrapper )
-    T_Wrapper *t_wrapper;
-PPCODE:
-{
-  Marpa_Tree t = t_wrapper->t;
-  int result;
-  result = marpa_t_parse_count (t);
-  if (result == -1)
-    {
-      XSRETURN_UNDEF;
-    }
-  if (result < 0)
-    {
-      croak ("Problem in t->parse_count(): %s", xs_g_error(t_wrapper->base));
-    }
-  XPUSHs (sv_2mortal (newSViv (result)));
-}
-
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::V
 
 void
@@ -764,6 +733,7 @@ PPCODE:
   Marpa_Value v = marpa_v_new (t);
   if (!v)
     {
+      if (!t_wrapper->base->throw) { XSRETURN_UNDEF; }
       croak ("Problem in v->new(): %s", xs_g_error(t_wrapper->base));
     }
   Newx (v_wrapper, 1, V_Wrapper);
@@ -785,46 +755,6 @@ PPCODE:
 }
 
 void
-symbol_is_valued_set( v_wrapper, symbol_id, value )
-    V_Wrapper *v_wrapper;
-    Marpa_Symbol_ID symbol_id;
-    int value;
-PPCODE:
-{
-  const Marpa_Value v = v_wrapper->v;
-  int result = marpa_v_symbol_is_valued_set (v, symbol_id, value);
-  if (result == -1) {
-      XSRETURN_UNDEF;
-  }
-  if (result < -1)
-    {
-      croak ("Problem in v->symbol_is_valued_set(%d, %d): %s",
-	     symbol_id, value, xs_g_error(v_wrapper->base));
-    }
-  XPUSHs (sv_2mortal (newSViv (result)));
-}
-
-void
-rule_is_valued_set( v_wrapper, rule_id, value )
-    V_Wrapper *v_wrapper;
-    Marpa_Rule_ID rule_id;
-    int value;
-PPCODE:
-{
-  const Marpa_Value v = v_wrapper->v;
-  int result = marpa_v_rule_is_valued_set (v, rule_id, value);
-  if (result == -1) {
-      XSRETURN_UNDEF;
-  }
-  if (result < -1)
-    {
-      croak ("Problem in v->rule_is_valued_set(%d, %d): %s",
-	     rule_id, value, xs_g_error(v_wrapper->base));
-    }
-  XPUSHs (sv_2mortal (newSViv (result)));
-}
-
-void
 step( v_wrapper )
     V_Wrapper *v_wrapper;
 PPCODE:
@@ -838,24 +768,38 @@ PPCODE:
   status = marpa_v_step (v);
   if (status == MARPA_STEP_INACTIVE)
     {
-      XSRETURN_UNDEF;
+      XSRETURN_EMPTY;
     }
   if (status < 0)
     {
-      croak ("Problem in v->step(): %s", xs_g_error(v_wrapper->base));
+      const char *error_message = xs_g_error (v_wrapper->base);
+      if (v_wrapper->base->throw)
+	{
+	  croak ("Problem in v->step(): %s", error_message);
+	}
+      XPUSHs (sv_2mortal
+	      (newSVpvf ("Problem in v->step(): %s", error_message)));
+      XSRETURN (1);
     }
   result_string = step_type_to_string (status);
   if (!result_string)
     {
-      croak ("Problem in r->v_step(): unknown action type %d", status);
+      char *error_message =
+	form ("Problem in v->step(): unknown step type %d", status);
+      set_error_from_string (v_wrapper->base, savepv(error_message));
+      if (v_wrapper->base->throw)
+	{
+	  croak ("%s", error_message);
+	}
+      XPUSHs (sv_2mortal (newSVpv (error_message, 0)));
+      XSRETURN (1);
     }
   XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
   if (status == MARPA_STEP_TOKEN)
     {
       token_id = marpa_v_token (v);
       XPUSHs (sv_2mortal (newSViv (token_id)));
-      XPUSHs (sv_2mortal
-	      (newSViv (marpa_v_token_value (v))));
+      XPUSHs (sv_2mortal (newSViv (marpa_v_token_value (v))));
       XPUSHs (sv_2mortal (newSViv (marpa_v_arg_n (v))));
     }
   if (status == MARPA_STEP_NULLING_SYMBOL)

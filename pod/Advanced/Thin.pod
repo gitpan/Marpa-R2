@@ -19,55 +19,71 @@ Marpa::R2::Advanced::Thin - Direct access to Libmarpa
 
 =head1 About this document
 
-At this moment, this document is INCOMPLETE and,
-for that reason
-NOT 100% RELIABLE.
-
 Most Marpa users can ignore this document.
-It describes Marpa's "thin" interface.
-The provides efficient access to Marpa's core
+It describes Marpa's "thin" interface,
+which
+provides efficient access to Marpa's core
 library, Libmarpa.
 It provides the ultimate in Marpa speed,
 power and flexibility.
 
 The "thin" interface is very low-level and
-NOT convenient to use --
-user-friendliness is expected to be provided by
+is not designed to be convenient to use.
+User-friendliness is expected to be provided by
 an upper layer.
-The "thin" interface is intended for those writing
-upper layers for Marpa.
+The "thin" interface
+is intended for use in writing
+those upper layers.
 It is also for those writing applications,
 when they want
 to eliminate the overhead of an upper layer,
 or when they want the flexibility provided by direct access to Libmarpa.
 
+=head1 How this document is written
+
 This document assumes that the reader is familiar with
 the other Marpa::R2 documentation,
 as well as the Libmarpa API document.
-This means the reader will have to know some C language,
-enough to understand C function prototypes.
+This means its reader will have to know some C language --
+at least enough to understand a discussion
+written in terms of C functions,
+their parameters and return values,
+and C language macros.
 
-=head1 How this document is written
+This document
+avoids
+duplicating the material in the Libmarpa
+API document.
+Most Marpa thin interface functions correspond
+directly to a Libmarpa method,
+and their implementation follows a "general pattern".
+This document describes that "general pattern".
 
-The Libmarpa interface is described in the Libmarpa
-API document,
-and this document avoids duplicating the material there.
-This document states general rules for the "thin" interface.
-Methods that do not
-depart from the general rules
-are not specifically mentioned.
+Methods that follow
+the general pattern are not specifically mentioned.
+Methods that are
+exceptions
+to the general pattern
+are described in detail.
+Those
+Libmarpa methods to which
+no Marpa thin interface method directly corresponds
+are identified.
 
-While this style and level of documentation 
-is efficient,
-and the standard for C library interfaces to Perl,
-it is,
-admittedly, very terse.
+This style of documentation 
+is very efficient,
+which is one reason that it is the
+standard for C library interfaces to Perl.
+Admittedly, however,
+it is also very terse.
 As an aid to
 the reader,
-an example of the usage of the thin interface is presented
+an example of a script using
+the Marpa thin interface is presented
 L<below|"Example">.
 While small, the example is non-trival.
-It includes a full
+It is also full,
+in the sense it contains a complete
 logic flow, starting with the definition
 of the grammar
 and contining all the way to the iteration of
@@ -75,47 +91,14 @@ the values of an ambiguous parse.
 
 =head1 Methods in the thin interface
 
-As of this writing, the thin interface has
-no methods of its own.
-Each of its methods is a wrapper for a method
+While the thin interface has a few
+methods of its own,
+most of its methods are wrappers for a method
 from the Libmarpa interface.
-
-Not all Libmarpa methods have thin interface wrappers.
-None of Libmarpa's internal methods are included in
-the thin interface.
-Additionally, some of Libmarpa's external methods
-provide services that are handled internally by the thin
-interface,
-and wrappers to those methods
-are therefore not included in the actual interface.
-When an external Libmarpa method is omitted,
-this will be specificially stated,
-with the reason for the omission.
-
-Whenever an external Libmarpa method is not mentioned
-in this document, the reader can assume that
-it has a wrapper that is implemented according
-to the general guidelines, as
-given below.
-Where the implementation of an
-external libmarpa methods
-is an exception to the guidelines,
-or has other peculiarities,
-that will be explicitly stated.
-
-=head1 Libmarpa time classes
-
-As a reminder,
-the classes of
-Libmarpa's time objects are,
-in sequence,
-grammar, recognizer, bocage,
-ordering, tree and value.
-The one-letter abbreviations for these
-are, respectively,
-C<g>, C<r>, C<b>, C<o>, C<t> and C<v>.
-
-=head1 Libmarpa methods not in the Marpa thin interface
+On the other hand,
+many 
+Libmarpa methods do not have
+Marpa thin interface wrappers.
 
 No internal Libmarpa method is part of the Marpa:thin interface.
 Additionally,
@@ -132,7 +115,7 @@ of the Libmarpa config class methods,
 and no Marpa thin interface object corresponds
 to Libmarpa's config objects,
 Configuration in the Marpa thin
-interface is done Perl variables.
+interface is done using Perl variables.
 
 No Marpa thin interface method corresponds to the
 C<marpa_g_ref()> and C<marpa_g_unref()> methods
@@ -140,31 +123,43 @@ because the thin interface handles the
 reference counting of the Libmarpa objects it creates.
 The application can rely on Libmarpa
 objects being cleaned up properly as part of Perl's
+usual garbage collection.
 For the same reason,
 no Marpa thin interface method corresponds to the
 "ref" and "unref" methods of the other Libmarpa time
 classes.
 
+Whenever an external Libmarpa method is not mentioned
+in this document, the reader can assume that
+it has a wrapper that is implemented according
+to the general pattern, as
+described L<below|"The general pattern">.
+Where the implementation of an
+external libmarpa methods
+is an exception to the guidelines,
+or has other peculiarities,
+the corresponding Marpa thin interface method
+will be described in detail.
+
 =head1 Libmarpa time objects and constructors
 
+As a reminder,
+the classes of
+Libmarpa's time objects are,
+in sequence,
+grammar, recognizer, bocage,
+ordering, tree and value.
+The one-letter abbreviations for these
+are, respectively,
+C<c>, C<g>, C<r>, C<b>, C<o>, C<t> and C<v>.
 The thin interface implements a Perl class
 corresponding to
-each of the Libmarpa time classes.
-Objects in the thin Marpa classes
-should be treated as opaque scalars.
-No applications should define new elements for a
-thin Marpa classes,
-redefine, overload or remove existing elements,
-or subclass the class itself.
-The only operations an application should perform
-on objects blessed into the thin interfaces
-classes is to assign them,
-to use them to call methods in their class,
-and to pass them as arguments where appropriate.
+each of Libmarpa major classes.
 
 =for Marpa::R2::Display
 ignore: 1
 
+    Marpa_Config        Marpa::R2::Thin::C
     Marpa_Grammar       Marpa::R2::Thin::G
     Marpa_Recognizer    Marpa::R2::Thin::R
     Marpa_Bocage        Marpa::R2::Thin::B
@@ -173,6 +168,22 @@ ignore: 1
     Marpa_Value         Marpa::R2::Thin::V
 
 =for Marpa::R2::Display::End
+
+Objects in the thin Marpa classes
+should be treated as opaque scalars.
+Applications must not define new methods,
+constants or variables in a
+thin Marpa classes.
+Similarly, applications
+must not
+redefine, overload or remove existing elements.
+Thin Marpa classes must not be subclassed.
+Applications should restrict their operation on
+objects in the Marpa thin classes to assignments;
+calling methods of the class; and,
+in those cases where
+this document states that it is appropriate,
+passing them as arguments.
 
 Constructors for the time objects may be called using
 the C<new> method of the corresponding Perl class.
@@ -187,81 +198,327 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-The thin interface takes care of Libmarpa's reference
-counting for the user.
-Marpa thin interface's time objects should be destroyed
-implicitly by undefining them,
+Perl applications can destroy objects of the
+Marpa thin classes 
+by undefining them,
 or by letting them go out of scope.
+Application programmers do not need
+to concern themselves
+with the reference counting of Libmarpa objects.
+The Marpa thin interface handles this.
+
+=head1 The throw setting
+
+One of the most important functions of
+the Marpa thin interface to to adapt Libmarpa's
+error reporting to Perl.
+Perl allows two kinds of error reporting.
+Perl methods can communicate failure via their return values,
+or they can throw exceptions.
+
+Each has its place.
+Throwing failure as an exception is the default in 
+the Marpa thin interface because it is safer,
+and because
+it is convenient for prototyping and the first
+cuts at a new application.
+On the other hand, for Marpa thin
+applications to have access
+to the full flexibility and power of Libmarpa,
+these must be able to set the Marpa thin
+interface to return failure, instead of
+throwing it.
+
+In choosing whether or not to throw a failure
+as an exception,
+almost every Marpa thin method obeys the throw
+setting.
+If the throw setting is 1, failure is thrown.
+If the throw setting is 0, failure is returned.
+
+Newly created grammar objects take their
+throw setting from the
+L<C<$Marpa::R2::Thin::C::THROW>|"$Marpa::R2::Thin::C::THROW">
+configuration variable.
+By default, C<$Marpa::R2::Thin::C::THROW> is set to 1.
+Once created, the throw setting of a grammar object
+can be changed using the L<< C<throw_set()>
+method|"$g->throw_set()" >>
+The throw setting of other objects is that
+of their base grammar.
+
+Nearly every Marpa thin method always obeys the throw setting.
+Only two methods never obey the throw setting.
+L<< C<throw_set()>|"$g->throw_set()" >>
+and L<< C<ruby_slippers_set()>|"$r->ruby_slippers_set()" >>
+themselves change
+the logic that controls the throwing of exceptions.
+For this reason it is safest to have these two
+methods throw all failures.
+
+One method allows the throw setting to be overriden.
+For convenience in using the Ruby Slippers technique,
+the behavior of the L<< C<alternative()>
+method|"$r->alternative()" >>
+is also affected by a separate "Ruby Slippers" flag.
+For details, see
+L<< the description of that
+method|"$r->alternative()" >>.
+
+=head1 Error codes, names and descriptions
+
+Errors in the Marpa thin interface come from
+two sources:
+Libmarpa, and the Marpa thin interface itself.
+These will be called Libmarpa errors
+and thin interface errors, respectively.
+
+Internally, Marpa maintains two variables to
+track recent errors.
+These are the error code and the error description.
+For every defined error code,
+there is an error name.
+Together, the error code, the error name
+and the error descriptions are called the
+"error variables".
+
+When the last error was a Libmarpa error,
+the error code is the Libmarpa error code, as described
+in the Libmarpa API document.
+A Libmarpa error code is a non-negative integer.
+When the most recent error was a thin interface
+error, the error code is
+a Perl C<undef>.
+
+Libmarpa's integral error codes are rarely used directly,
+either in C or in Perl.
+In C, the error codes are referred to using macros.
+The macro names are available through the thin interface
+as error names.
+For details see L<the section on error methods|"Error methods">.
+Thin interface errors do not have error names.
+
+In addition to error names, there are error descriptions.
+
+=over 4
+
+=item *
+
+Error names are short mnemonics.
+Error descriptions are typically longer.
+
+=item *
+
+Error names and error codes have a one to one correspondence (bijection).
+For a given error code, the error name will always
+be the same, and vice versa.
+Error descriptions 
+may contain text relating, not just to the error code,
+but to the specific error instance.
+
+=item *
+
+The error name is defined if and
+only if
+the error code is defined.
+Error descriptions always exist,
+whether or not there is an error code defined.
+
+=item *
+
+A thin interface error
+will always have an error description.
+A thin interface error
+will never have an error name.
+
+=item *
+
+The programmer may expect error codes and error names
+to remain stable and may write code that relies
+on the numeric value of the error codes
+and the text of the error name.
+Applications should treat the text of an error description
+as suitable for the purpose of passing it on to a human user,
+and should otherwise regard it as opaque.
+
+=back
+
+Error descriptions, while typically longer than error names,
+are intended for situations where
+it is most convenient if they fit into a single line,
+or at most two.
+The Libmarpa API document contains a section on the Libmarpa
+error codes.
+and there the descriptions
+are often longer and more detailed.
+
+Error codes and error descriptions should only be considered
+valid
+only if that method indicates that it sets the error code.
+An application should assume that the
+error codes and error descriptions will be overwritten by the
+next call to 
+any  thin interface method other than the L<< C<error()>
+method|"$g->error()" >>.
+
+=head2 Failure and the error variables
+
+A method indicates failure
+either by throwing an exception
+or by returning a value that indicates failure.
+If a method follows the general pattern,
+it indicates failure if and only if
+its return value is less than or equal to -2.
+Other methods indicate failure as stated in
+their descriptions in this document.
+
+Whenever a method indicates failure, that also
+indicates that it has set the error variables.
+On Libmarpa failures, the error code is set to the
+Libmarpa error code.
+On thin interface failure, the error code is
+set to a Perl C<undef>.
+For both Libmarpa and thin interface failures,
+the error description is set to a text
+that describes the error.
+
+=head2 Success and the error variables
+
+On success,
+what a method will do with the error code and error
+description is usually unspecified,
+except that it will be one
+of the following three things:
+
+=over 4
+
+=item *
+
+A successful method
+may set the error code to C<MARPA_ERR_NONE>,
+together with an error description that indicates
+there is no error.
+
+=item *
+
+A successful method
+may leave the error code and error
+description as is.
+
+=item *
+
+A successful method may set a
+Libmarpa error code to
+a value other than C<MARPA_ERR_NONE>.
+Error codes of this kind are called
+informational error codes,
+the phrase "error code" in this context
+being something of a misnomer.
+When a Libmarpa method might set an informational
+error code,
+that is explicitly stated
+in that method's description in
+the Libmarpa API document.
+Typically, informational error codes are
+ignored.
+
+=back
 
 =head1 The general pattern
 
-The thin Marpa methods often follow
-a general pattern,
-based on their corresponding Libmarpa time class method.
-Internal class instance methods for Libmarpa's time classes
-have names of the form C<marpa_g_start_symbol_set>.
-The name begins with a fixed six-letter prefix
-C<marpa_>,
-followed by a single letter
-(in this case "C<g>"),
-and another underscore.
-The single letter is one of Libmarpa's time class
-abbreviations, and indicates which
-class the method belongs to.
+Most Marpa thin interface methods correspond directly
+to a Libmarpa method,
+and their behaviors are in most cases exactly the same.
+These behaviors are called the "general pattern"
+in this document.
+To avoid repetition,
+Marpa thin interface methods that follow
+the general pattern exactly are
+usually not
+described explicitly in this document.
 
-In general pattern of Marpa's thin interface,
-the corresponding Marpa thin Perl closure would be
-be a method in the appropriate Marpa thin class,
-whose name is the same except for the 8-letter prefix.
+=head2 Method names
+
+The name of a general pattern method is that of
+its corresponding Libmarpa method,
+minus the 8-letter prefix which indicates
+its Libmarpa class.
 For example,
-the Marpa thin method corresponding to C<marpa_g_start_symbol_set>
-would be named C<start_symbol_set>
-and would be a method
-of the C<Marpa::R2::Thin:G> Perl class.
+the Marpa thin interface method that
+corresponds to C<marpa_g_start_symbol_set>
+is C<< $g->start_symbol_set() >>.
+The class of the general pattern method
+will be the Marpa thin class corresponding
+to the time class
+of the Libmarpa method.
+In the previous example, C<start_symbol_set()>
+will be in
+the C<Marpa::R2::Thin:G> Perl class.
 
-When a Libmarpa method returns -1 to indicate failure,
-a Marpa thin interface following the general pattern
-returns a Perl C<undef>.
-When a Libmarpa method returns -2 to indicate failure,
-a Marpa thin interface following the general pattern
-throws a Perl exception.
+=head2 Arguments
 
 Libmarpa's class instance methods
 prototypes have an object of the appropriate class
 as their first ("self") argument.
-Zero or more other non-self arguments follow this first time class argument.
-In the corresponding thin Marpa method,
-if it follows the general pattern,
-the arguments to the Perl method closure are the
-the arguments of the C function
-in the same order,
-and converted in Perl variables as described next.
-(Here I am following the
-convention in the L<perlobj> of considered the "self" object to
+Zero or more non-self arguments follow this first time class argument.
+The arguments of the corresponding general pattern
+Marpa thin method will be
+the same, converted from C types to Perl as described next.
+(This discussion follows
+the convention used in L<perlobj>,
+and considers the "self" object to
 be a Perl method's first argument.)
 
 In the general pattern,
-every return value or argument whose type is one
+every argument whose type is one
 of Libmarpa's time classes is converted
 to the corresponding Marpa thin interface class.
-Return values and arguments of Libmarpa's numbered 
-classes (C<Marpa_Rule_ID> and C<Marpa_Symbol_ID>)
-are converted to Perl scalar integers.
-C language C<int>'s are also
-converted to Perl scalar integers.
+C language C<int>'s are converted to Perl scalar integers.
+Arguments which belong to Libmarpa's numbered 
+classes (for example,
+C<Marpa_Rule_ID> and C<Marpa_Symbol_ID>)
+are also converted to Perl scalar integers.
 
-Note that will NOT convert
-a Perl true to a 1
-or a Perl false to a 0.
-The thin interface expects even those arguments 
-which Libmapra interprets as booleans to be
-numbers, as specified in the Libmarpa API.
-This usually means the that arguments
-must either be
-NUMERIC one or NUMERIC zero.
-This allows for future extensions
+The Marpa thin interface does
+not recognize booleans, either in 
+C or in Perl.
+For example,
+if a Perl true value is not a numeric
+1, it will not be converted to a numeric
+1 in C, even in a situation where
+the Libmarpa method is clearly
+looking for a boolean.
+The intent is to allow for future extensions
 to the Libmarpa interface that
 accept and interpret other numeric values.
+
+=head2 Return values
+
+In the general pattern,
+the return value from a Libmarpa method
+will always either
+belong to
+one of Libmarpa's numbered classes,
+or be a C language C<int>.
+If the Libmarpa return value is a non-negative
+integer,
+the corresponding general pattern Marpa thin method
+will return a numeric Perl scalar.
+If the Libmarpa method returns -1,
+its corresponding general pattern Marpa thin method
+will return a Perl C<undef>.
+
+=head2 General pattern failures
+
+General pattern methods consider failure to be
+a Libmarpa return value of -2 or less.
+Failure is thrown if the throw setting is 1.
+On unthrown failure, the return value
+of the Libmarpa method will
+be returned by the Marpa thin
+method as a numeric Perl scalar.
+
+=head2 An example of a general pattern method
 
 Here is an example of a Libmarpa function
 whose corresponding Marpa thin method follows the
@@ -306,94 +563,21 @@ normalize-whitespace: 1
 =for Marpa::R2::Display::End
 
 In scalar context,
-the C<error()> method returns the B<error description>,
-a string that describes the most recent error.
+the C<error()> method returns the error description.
 In array context, it returns a 2-element array.
-The first element of the array is the B<error code>,
-and the second element is the same error description
-that is returned in scalar context.
+The first element of the array is the error code,
+and the second element is the error description.
+Applications should assume that
+a call to any other Marpa thin method
+will overwrite the error code and error description.
+For C<error()> to successfully query
+the error code or error description of a method,
+it should be
+the next Marpa thin interface method called.
 
-If a method follows
-the general error handling pattern,
-then it does the following:
+=head2 C<< $g->error_clear() >>
 
-=over 4
-
-=item *
-
-On a Libmarpa failure,
-the method sets the error code to the
-Libmarpa error code.
-This is a integer.
-The method always sets the error description
-to a string which describes the Libmarpa failure.
-
-=item *
-
-On other failures,
-the method sets the error code to a Perl C<undef>.
-It sets the error description
-to a string which describes the failure.
-
-=item *
-
-On success, the method may do
-one of two things.
-First, it may
-clear the error code and error description.
-Second, it may leave them as is.
-Which of the two will happen is
-unspecified, unless stated in the description
-of that method in this document.
-
-=back
-
-All Marpa thin interface
-methods follow the general error
-handling pattern, unless it is stated otherwise
-in that method's description in this document.
-Methods which follow the general pattern
-always follow the general error handling pattern.
-
-The "error description" is
-a string
-that describes the most recent error.
-Error descriptions are subject to wording
-and punctuation changes,
-and applications should not rely on their text.
-
-The error code may be undefined
-or an integer.
-If it is an integer, it
-is the Libmarpa error code and
-can be used as an index to array of
-error names returned by the 
-L<< C<< $g->error_names() >>
-method|"$g->error_names()" >>.
-The programmer can expect error
-codes and error names to be kept stable.
-
-If the error code is a Perl C<undef>,
-the most recent error was in the Marpa thin
-layer, and the error description will be of
-that error.
-Note that a Marpa thin layer
-error will not persist after the call
-to C<error()>.
-It is up to
-an application, if it wants to refer to the
-error code or description again,
-to store them.
-
-While in the current implement Libmarpa error
-codes and descriptions can be more persistent,
-applications should not rely on this.
-Applications should assume, for all classes of
-errors returned by the C<error()> method,
-that they will not persist into a call to
-any other Marpa thin method, including the
-a second call to the C<error()>
-method itself.
+The C<error_clear()> method follows the general pattern.
 
 =head2 C<< $g->error_names() >>
 
@@ -403,13 +587,6 @@ method|"$g->error()" >>.
 The C<error_names()> method returns a
 B<reference> to an array of error names,
 indexed by Libmarpa error code.
-Error names are intended as mnemonic codes --
-as a convenient alternative to the numeric
-error codes.
-They are not intended as descriptions of the error
-condition.
-The programmer can expect error
-codes and error names to be kept stable.
 
 =head2 C<< $g->throw_set() >>
 
@@ -424,23 +601,17 @@ normalize-whitespace: 1
 The C<throw_set()> method turns the throw flag
 for the grammar on or off,
 according to whether its argument is 1 or 0.
+C<throw_set()> fails if its argument is
+not a numeric 0 or 1.
+C<throw_set()> itself never returns failure --
+it always throws an exception.
 
-If the argument of C<throw_set()> is
-not a numeric 0 or 1,
-the method always throws an exception,
-regardless of the setting of any
-throw flags or variables.
-
-=head1 Configuration methods and variables
+=head1 Configuration variables
 
 The Marpa thin interface has one configuration
 variable:
 
-=over 4
-
-=item *
-
-C<< $Marpa::R2::Thin::THROW >>
+=head2 C<< $Marpa::R2::Thin::C::THROW >>
 
 If a Perl true, the Marpa thin interface throws
 failures as exceptions.
@@ -454,25 +625,16 @@ that variable.
 A grammar's "throw" flag can be reset using
 the C<< $g->throw_set() >> method,
 after which its setting is independent of the
-C< $Marpa::R2::Thin::THROW > variable.
+C< $Marpa::R2::Thin::C::THROW > variable.
 
-Each grammar's "throw" flag is intended to
-centralize control of the throwing of exceptions
-in the time objects descended from that base grammar.
-But there are exceptions.
-If the arguments to the C<throw_set()> method
-itself are not sane,
-it assumes all bets are off and throws an
-exception.
-And for the
-C<< $r->alternative() >> method, the "Ruby Slippers"
-flag also affects which issues are throw as
-exceptions.
-For details, set
-L<< its
-description|$r->alternative() >>.
+=head2 Omitted methods
 
-=back
+All of
+the functions performed by Libmarpa's configuration
+methods are handled in a more Perl-centric way
+by the Marpa thin interface.
+All of the methods of Libmarpa's configuration
+class are omitted in the Marpa thin interface.
 
 =head1 Grammar methods
 
@@ -489,15 +651,18 @@ normalize-whitespace: 1
 
 There are no arguments to the Marpa thin interface's
 grammar constructor.
+On success,
+its return value is a thin interface grammar object.
+
 A failure occurs if there is a version mismatch, which should
 not happen -- it indicates a problem with the way that the library
 was built.
-On success,
-its return value is a thin interface grammar object.
-On failure in scalar context,
-its return value is a Perl undef.
-On failure in array context, its return value
-is a 2-element array whose first element is a Perl C<undef>
+C<new()> obeys the throw setting.
+On unthrown failure in scalar context, C<new()> returns
+a Perl C<undef>.
+On unthrown failure in array context,
+C<new()> returns a 2-element array
+whose first element is a Perl C<undef>
 and whose second element is the error code.
 
 =head2 C<< $g->event() >>
@@ -536,6 +701,9 @@ unneeded.
 The Libmarpa C<marpa_g_event_value()> method has
 no corresponding Marpa thin interface method.
 
+C<event()> obeys the throw setting.
+On unthrown failure, C<event()> returns a Perl C<undef>.
+
 =head2 C<< $g->rule_new() >>
 
 =for Marpa::R2::Display
@@ -558,6 +726,9 @@ array of symbol ID's.
 The symbol ID's in the array represent the RHS.
 On success,
 the return value is the ID of the new rule.
+
+C<rule_new()> obeys the throw setting.
+On unthrown failure, it returns -2.
 
 =head2 C<< $g->sequence_new() >>
 
@@ -624,9 +795,6 @@ It defaults to 0.
 
 On success,
 the return value is the ID of the new sequence.
-C<sequence_new()> obeys the throw setting.
-On unthrown Libmarpa failure, it returns -2.
-On other unthrown failure, it returns a Perl C<undef>.
 
 Users should be aware that all sequences at
 the Marpa thin interface level are "keep
@@ -637,6 +805,9 @@ At the
 Marpa thin interface level, it is up
 to the programmer to discard separators,
 if that is what is wanted.
+
+C<sequence_new()> obeys the throw setting.
+On unthrown failure, it returns -2.
 
 =head2 C<< $g->precompute() >>
 
@@ -679,7 +850,7 @@ All grammar methods that are part of the Libmarpa external interface,
 but that are not mentioned explicitly in this document,
 are implemented
 following the general pattern, as described
-L<above|"The general pattern">
+L<above|"The general pattern">.
 
 =head1 Recognizer methods
 
@@ -697,7 +868,8 @@ normalize-whitespace: 1
 The C<new()> method takes a Marpa thin grammar object
 as its one argument.
 On success, it returns a Marpa thin recognizer object.
-On an unthrown failure, it returns undef.
+C<new()> obeys the throw setting.
+On unthrown failure, it returns a Perl C<undef>.
 
 =head2 C<< $r->ruby_slippers_set() >>
 
@@ -711,18 +883,18 @@ normalize-whitespace: 1
 
 With an argument of 1,
 the C<ruby_slippers_set()> method enables "Ruby Slippers" mode.
-With an argument of 0,
-the C<ruby_slippers_set()> method disables "Ruby Slippers" mode.
-This is the default.
-Note that the default in this interface (off) is
-the opposite of the default in the higher level L<Marpa::R2> interface.
+An argument of 0 disables "Ruby Slippers" mode.
+By default, 
+Ruby Slippers mode is disabled.
+Note that this default (disabled) is
+the opposite of that in the higher level L<Marpa::R2> interface.
 
 The L<< C<alternative()>
 method|"$r->alternative()" >>
 will only throw exceptions when 
-"Ruby Slippers" mode is OFF and the throw flag is ON.
-One way of describing Ruby Slippers mode is to say it is
-an override of the throw flag, one which only applies
+"Ruby Slippers" mode is disabled and the throw flag is on.
+One way of describing Ruby Slippers mode is as
+an override of the throw setting, one which only applies
 to the C<alternative()> method.
 
 The C<ruby_slippers_set()> method itself does B<not>
@@ -742,10 +914,7 @@ normalize-whitespace: 1
 =for Marpa::R2::Display::End
 
 The thin interface's C<alternative()> method follows
-the general pattern, with one exception.
-The Ruby Slippers flag overrides the base grammar's
-throw setting.
-
+the general pattern, with one exception:
 The C<alternative()> method
 will not throw an exception if the
 Ruby Slippers flag is on.
@@ -753,6 +922,7 @@ More precisely, the C<alternative()> method will
 throw failures as exceptions if and only if the
 base grammar's throw flag is on
 and the Ruby Slippers flag is off.
+For more, see L<< C<ruby_slippers_set()>|"$r->ruby_slippers_set()" >>.
 
 =head2 C<< $r->terminals_expected() >>
 
@@ -773,8 +943,7 @@ be empty, so that an empty array is NOT a failure
 indicator.
 C<terminals_expected()> obeys the throw setting.
 On unthrown failure,
-C<terminals_expected()> sets the error
-code and returns a Perl C<undef>.
+C<terminals_expected()> returns a Perl C<undef>.
 
 =head2 C<< $r->progress_item() >>
 
@@ -801,7 +970,8 @@ C<progress_item()> returns a Perl C<undef>.
 
 C<progress_item()> obeys the throw setting.
 On unthrown failure,
-C<progress_item()> returns a rule ID of -2.
+the rule ID element in the array returned by
+C<progress_item()> will have a value of -2.
 
 =head2 Omitted methods
 
@@ -818,7 +988,290 @@ All recognizer methods that are part of the Libmarpa external interface,
 but that are not mentioned explicitly in this document,
 are implemented
 following the general pattern, as described
-L<above|"The general pattern">
+L<above|"The general pattern">.
+
+=head1 Bocage methods
+
+=head2 C<< Marpa::R2::Thin::B->new() >>
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    my $latest_earley_set_ID = $recce->latest_earley_set();
+    my $bocage = Marpa::R2::Thin::B->new( $recce, $latest_earley_set_ID );
+
+=for Marpa::R2::Display::End
+
+The C<new()> method takes a Marpa thin recognizer object
+as its one argument.
+On success, it returns a Marpa thin bocage object.
+C<new()> obeys the throw setting.
+On unthrown failure, it returns a Perl C<undef>.
+
+=head2 Omitted methods
+
+Because the Marpa thin interface 
+handles reference counting internally,
+it does not implement methods
+directly corresponding to
+Libmarpa's C<marpa_b_ref()>
+and C<marpa_b_unref()> methods.
+
+=head2 Methods not mentioned
+
+All bocage methods that are part of the Libmarpa external interface,
+but that are not mentioned explicitly in this document,
+are implemented
+following the general pattern, as described
+L<above|"The general pattern">.
+
+=head1 Ordering methods
+
+=head2 C<< Marpa::R2::Thin::O->new() >>
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    my $order = Marpa::R2::Thin::O->new($bocage);
+
+=for Marpa::R2::Display::End
+
+The C<new()> method takes a Marpa thin bocage object
+as its one argument.
+On success, it returns a Marpa thin ordering object.
+C<new()> obeys the throw setting.
+On unthrown failure, it returns a Perl C<undef>.
+
+=head2 Omitted methods
+
+Because the Marpa thin interface 
+handles reference counting internally,
+it does not implement methods
+directly corresponding to
+Libmarpa's C<marpa_o_ref()>
+and C<marpa_o_unref()> methods.
+
+=head2 Methods not mentioned
+
+All ordering methods that are part of the Libmarpa external interface,
+but that are not mentioned explicitly in this document,
+are implemented
+following the general pattern, as described
+L<above|"The general pattern">.
+
+=head1 Tree methods
+
+=head2 C<< Marpa::R2::Thin::T->new() >>
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    my $tree = Marpa::R2::Thin::T->new($order);
+
+=for Marpa::R2::Display::End
+
+The C<new()> method takes a Marpa thin ordering object
+as its one argument.
+On success, it returns a Marpa thin tree object.
+C<new()> obeys the throw setting.
+On unthrown failure, it returns a Perl C<undef>.
+
+=head2 Omitted methods
+
+Because the Marpa thin interface 
+handles reference counting internally,
+it does not implement methods
+directly corresponding to
+Libmarpa's C<marpa_t_ref()>
+and C<marpa_t_unref()> methods.
+
+=head2 Methods not mentioned
+
+All tree methods that are part of the Libmarpa external interface,
+but that are not mentioned explicitly in this document,
+are implemented
+following the general pattern, as described
+L<above|"The general pattern">.
+
+=head1 Value methods
+
+=head2 C<< Marpa::R2::Thin::V->new() >>
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    my $valuator = Marpa::R2::Thin::V->new($tree);
+
+=for Marpa::R2::Display::End
+
+The C<new()> method takes a Marpa thin tree object
+as its one argument.
+On success, it returns a Marpa thin value object.
+C<new()> obeys the throw setting.
+On unthrown failure, it returns a Perl C<undef>.
+
+=head2 C<< $v->step() >>
+
+=for Marpa::R2::Display
+name: Thin example
+partial: 1
+normalize-whitespace: 1
+
+    my ( $type, @step_data ) = $valuator->step();
+
+=for Marpa::R2::Display::End
+
+The C<step()> method takes no arguments.
+On success, C<step()>
+returns an array, whose contents are as follows:
+
+=over 4
+
+=item C<MARPA_STEP_RULE>
+
+If the step type is C<MARPA_STEP_RULE>, C<step()>
+returns an array of 4 elements.  These will be,
+in order:
+
+=over 4
+
+=item *
+
+The string "C<MARPA_STEP_RULE>".
+
+=item *
+
+The rule id, as returned
+by the Libmarpa method C<marpa_v_rule_id()>.
+
+=item *
+
+The stack location where the child values
+of the rule begin,
+as returned
+by the Libmarpa method C<marpa_v_token_arg_0()>.
+This is also the stack location to which the result
+should be written.
+
+=item *
+
+The stack location where the child values
+of the rule end,
+as returned
+by the Libmarpa method C<marpa_v_token_arg_n()>.
+
+=back
+
+=item C<MARPA_STEP_TOKEN>
+
+If the step type is C<MARPA_STEP_TOKEN>, C<step()>
+returns an array of 4 elements.  These will be,
+in order:
+
+=over 4
+
+=item *
+
+The string "C<MARPA_STEP_TOKEN>".
+
+=item *
+
+The token id, as returned
+by the Libmarpa method C<marpa_v_token()>.
+
+=item *
+
+The token value, as returned
+by the Libmarpa method C<marpa_v_token_value()>.
+
+=item *
+
+The stack location to which the token's
+value should be written,
+as returned
+by the Libmarpa method C<marpa_v_result()>.
+
+=back
+
+As a reminder, Libmarpa's token values are always integers.
+Applications will often have a richer or different
+semantics for token values.
+One approach such applications can take is
+to use
+Libmarpa's token values as indexes into an array.
+
+=item C<MARPA_STEP_NULLING_SYMBOL>
+
+If the step type is C<MARPA_STEP_NULLING_SYMBOL>, C<step()>
+returns an array of 3 elements.  These will be,
+in order:
+
+=over 4
+
+=item *
+
+The string "C<MARPA_STEP_NULLING_SYMBOL>".
+
+=item *
+
+The ID of the nulling symbol, as returned
+by the Libmarpa method C<marpa_v_symbol()>.
+
+=item *
+
+The stack location to which the nulling
+symbol's value should be written,
+as returned
+by the Libmarpa method C<marpa_v_result()>.
+
+=back
+
+=item C<MARPA_STEP_INACTIVE>
+
+If the step type is C<MARPA_STEP_INACTIVE>, C<step()> returns
+an empty array.
+
+=back
+
+C<step()> obeys the throw setting.
+On unthrown failure,
+C<step()> returns an array whose only
+element is a
+string not reserved by Libmarpa.
+A string is not reserved by Libmarpa if it does
+not begin with "C<MARPA_>" in one of its
+captialization variants.
+The string will usually be a description of the error.
+
+=head2 Omitted methods
+
+Because the Marpa thin interface 
+handles reference counting internally,
+it does not implement methods
+directly corresponding to
+Libmarpa's C<marpa_v_ref()>
+and C<marpa_v_unref()> methods.
+Because they are folded into the thin interface's
+C<< $v->step() >> method,
+the thin interface does not have any methods
+corresponding directly to the
+step accessor macros.
+
+=head2 Methods not mentioned
+
+All value methods that are part of the Libmarpa external interface,
+but that are not mentioned explicitly in this document,
+are implemented
+following the general pattern, as described
+L<above|"The general pattern">.
 
 =head1 Example
 
@@ -877,7 +1330,8 @@ normalize-whitespace: 1
         $valuator->rule_is_valued_set( $start_rule_id,  1 );
         $valuator->rule_is_valued_set( $number_rule_id, 1 );
         my @stack = ();
-        STEP: while ( my ( $type, @step_data ) = $valuator->step() ) {
+        STEP: while ( 1 ) {
+            my ( $type, @step_data ) = $valuator->step();
             last STEP if not defined $type;
             if ( $type eq 'MARPA_STEP_TOKEN' ) {
                 my ( undef, $token_value_ix, $arg_n ) = @step_data;

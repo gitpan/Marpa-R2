@@ -662,6 +662,74 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
 
+MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::T
+
+void
+next( t_wrapper )
+    T_Wrapper *t_wrapper;
+PPCODE:
+{
+  Marpa_Tree self = t_wrapper->t;
+  int gp_result = marpa_t_next(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && t_wrapper->base->throw ) {
+    croak( "Problem in t->next(): %s",
+     xs_g_error( t_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+parse_count( t_wrapper )
+    T_Wrapper *t_wrapper;
+PPCODE:
+{
+  Marpa_Tree self = t_wrapper->t;
+  int gp_result = marpa_t_parse_count(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && t_wrapper->base->throw ) {
+    croak( "Problem in t->parse_count(): %s",
+     xs_g_error( t_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::V
+
+void
+symbol_is_valued_set( v_wrapper, symbol_id, value )
+    V_Wrapper *v_wrapper;
+    Marpa_Symbol_ID symbol_id;
+    int value;
+PPCODE:
+{
+  Marpa_Value self = v_wrapper->v;
+  int gp_result = marpa_v_symbol_is_valued_set(self, symbol_id, value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && v_wrapper->base->throw ) {
+    croak( "Problem in v->symbol_is_valued_set(%d, %d): %s",
+     symbol_id, value, xs_g_error( v_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+rule_is_valued_set( v_wrapper, symbol_id, value )
+    V_Wrapper *v_wrapper;
+    Marpa_Rule_ID symbol_id;
+    int value;
+PPCODE:
+{
+  Marpa_Value self = v_wrapper->v;
+  int gp_result = marpa_v_rule_is_valued_set(self, symbol_id, value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && v_wrapper->base->throw ) {
+    croak( "Problem in v->rule_is_valued_set(%d, %d): %s",
+     symbol_id, value, xs_g_error( v_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G
 
 void
