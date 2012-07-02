@@ -54,9 +54,9 @@ This manual is for Libmarpa, version @value{VERSION}.
 * Ordering methods::            
 * Tree methods::                
 * Value methods::               
-* Events::                      
-* Error macros and code::       
-* Design considerations::       
+* Event codes::                 
+* Error macros and codes::      
+* Design notes::                
 * Things To Do::                
 
 @detailmenu
@@ -126,6 +126,7 @@ Recognizer methods
 Bocage methods
 
 * Bocage overview::             
+* Bocage constructor::          
 * Bocage reference counting::   
 
 Ordering methods
@@ -159,26 +160,18 @@ Maintaining the stack
 * Sizing the stack::            
 * Initializing locations in the stack::  
 
-Events
-
-* Event codes::                 
-
-Error macros and code
+Error macros and codes
 
 * Methods::                     
 * Error Macros::                
 * External error codes::        
 * Internal error codes::        
 
-Design considerations
+Design notes
 
 * Why so many time objects::    
 * Design of numbered objects::  
 * LHS Terminals::               
-
-Why so many time objects?
-
-* Why ordering objects?::       
 
 @end detailmenu
 @end menu
@@ -1129,13 +1122,44 @@ mentioning.
 For methods that return an integer,
 Libmarpa usually reserves -1 for special purposes,
 such as indicating loop termination in an iterator.
-In Libmarpa, methods typically indicate failure
+In Libmarpa, methods usually indicate failure
 by returning -2.
-Any result greater than -2 indicates success.
+Any result greater than -2 usually indicates success.
 
 If a method returns an pointer value,
-@code{NULL} typically indicates failure.
-Any other result indicates success.
+@code{NULL} usually indicates failure.
+Any other result usually indicates success.
+
+On failure, a Libmarpa method always sets
+the error code.
+On success, a Libmarpa method may take
+one of three actions:
+@itemize
+@item Set
+an informational error code.
+@item Leave
+the error code as it is.
+@item Reset the error code to @code{MARPA_ERROR_NONE}.
+@end itemize
+
+Which of the three actions the method
+takes on success
+should be regarded as unspecified,
+unless stated in the description of the method
+in this document.
+If a method sets an informational error code on
+success, that will always be stated in
+its description, and the description will 
+specify,
+for each informational error code,
+the specific error code value,
+the circumstances under which it is set,
+and what return values will accompany it.
+
+Informational error codes are set
+because some applications may find them convenient.
+Typically information error codes are redundant information,
+which may be ignored.
 
 A method can have many reasons for
 failing, and many of the reasons
@@ -1907,7 +1931,7 @@ This function allows the application to determine if grammar
 As mentioned, most applications will want to treat these
 as fatal errors.
 To determine which rules are in the cycle,
-@var{marpa_g_rule_is_loop()} can be used.
+@code{marpa_g_rule_is_loop()} can be used.
 
 Return value: On success, 1 if the grammar has a cycle,
 0 otherwise.
@@ -1915,7 +1939,7 @@ On failure, -2.
 @end deftypefun
 
 @node Grammar events,  , Grammar precomputation, Grammar methods
-@section Events
+@section Grammar events
 
 @deftypefun Marpa_Event_Type marpa_g_event (Marpa_Grammar @var{g}, @
     Marpa_Event* @var{event}, @
@@ -1952,7 +1976,7 @@ This macro provides access to the ``value'' of the event.
 The semantics of the value varies according to the type
 of the event, and is described in the section on event
 codes.
-@xref{Events}.
+@xref{Event codes}.
 @end deftypefn
 
 @node Recognizer methods, Progress reports, Grammar methods, Top
@@ -1977,7 +2001,7 @@ using the
 @code{marpa_r_unref()} method.
 
 To make a recognizer ready for input,
-Use the @code{marpa_r_start_input()} method.
+use the @code{marpa_r_start_input()} method.
 
 The recognizer starts with its current earleme
 at location 0.
@@ -2020,7 +2044,7 @@ destroying @var{r} once the reference count reaches
 zero.
 When @var{r} is destroyed, the reference count
 of its base grammar is decreased by one.
-It this takes the reference count of the base grammar
+If this takes the reference count of the base grammar
 to zero, it too is destroyed.
 
 @end deftypefun
@@ -2043,23 +2067,25 @@ Reads a token into @var{r}.
 The token will start at the current earleme.
 Libmarpa allows tokens to be ambiguous, to be of
 variable length and to overlap.
-@var{token_id} is the symbol of the token,
+@var{token_id} is the symbol ID of the token,
 which must be a terminal.
 @var{length} is the length of the token.
 
 @var{value} is an
-integer which represents the value of the
+integer that represents the value of the
 token.
-In applications where the token's value is not an integer, it is
-expected that the application will use this value to
-find the application's value, perhaps by using @var{value}
+In applications where the token's actual value is not an integer, it is
+expected that the application will use this value as
+a ``virtual'' value,
+perhaps finding the actual value by using @var{value}
 to index an array.
 @var{value} is not used inside Libmarpa -- it is simply
 stored to be returned by the valuator
 as a convenience for the application.
-Some applications will not want to use Libmarpa's token
-values, instead tracking their own, perhaps based on
-the earleme location, and @var{token_id}.
+Some applications may prefer to track token values on
+their own, perhaps based on
+the earleme location and @var{token_id},
+instead of using Libmarpa's token values.
 
 A @var{value} of 0 has special significance -- it indicates
 that the token is unvalued -- that its value is allowed
@@ -2069,37 +2095,52 @@ it must be the case,
 not just that Libmarpa need not care about its value,
 but also that @strong{the application}
 does not care about the value of the token.
-When a token has a ``whatever'' value, Libmarpa 
-optimizes away the valuator steps which
+When a token is unvalued, Libmarpa 
+optimizes away the valuator steps that
 give the application an opportunity to provide
 a value for that token.
-Applications which do not use Libmarpa's token values,
-but which @strong{do} care about the token's value,
+Applications that do not use Libmarpa's token values,
+but that @strong{do} care about the token's value,
 must tell Libmarpa not to optimize away the
 relevant valuator steps.
 An application can do this by
 letting @var{value} be any non-zero integer.
 
-If, on the first read by
+When @var{value}
+in a call to @code{marpa_r_alternative()}
+is 0,
+symbol @var{token_id} is considered to have
+been used as an unvalued symbol.
+When @var{value}
+in a call to @code{marpa_r_alternative()}
+is not zero,
+symbol @var{token_id} is considered to have
+been used as an valued symbol.
+On the first read by
 @code{marpa_r_alternative()},
-symbol @var{token_id} is not already locked,
-the valued status
-of symbol @var{token_id}
-will be set according to its
-use in that call
-to @code{marpa_r_alternative()},
-and symbol @var{token_id}
-will be locked in that valued status.
-Once symbol
-@var{token_id} is locked in valued status,
-it must be used as a valued symbol.
-Similarly, once symbol
-@var{token_id} is locked in unvalued status,
-it must be used as a unvalued symbol.
+if symbol @var{token_id} is used as a valued
+symbol,
+the valued status of
+symbol @var{token_id} will be set to 1
+and locked.
+On the first read by
+@code{marpa_r_alternative()},
+if symbol @var{token_id} is used as a unvalued
+symbol,
+the valued status of
+symbol @var{token_id} will be set to 0
+and locked.
+
+If the valued status of
+symbol @var{token_id} is locked at 0,
+it is a failure if that symbol is used as an valued symbol.
+If the valued status of
+symbol @var{token_id} is locked at 1,
+it is a failure if that symbol is used as an unvalued symbol.
 
 When @code{marpa_r_alternative()}
 is successful,
-the value of furthest earleme is set to
+the value of the furthest earleme is set to
 the greater of its value before the call,
 and @var{current}+@var{length},
 where @var{current} is the value of the current earleme.
@@ -2154,7 +2195,7 @@ will be the one plus the value of the earleme processed by the call
 to @code{marpa_r_earleme_complete()}.
 If any token was accepted at the earleme being processed,
 @code{marpa_r_earleme_complete()} creates a new Earley set
-which will be the latest Earley set,
+which will be the latest Earley set
 and, after the call, the latest
 earleme will be equal to the new current earleme.
 If no token was accepted at the
@@ -2222,13 +2263,13 @@ the inverse operation (conversion of an earleme to an Earley set
 ID).
 One consideration in writing
 such a method is that not all earlemes correspond to Earley sets.
-Applications which want to map earlemes
+Applications that want to map earlemes
 to Earley sets will have no trouble if they
 are using the standard input model --
 the Earley set
 ID is always exactly equal to the earleme in that model.
-For an
-application that wants an earleme-to-ID mapping to obtain it,
+For other applications
+that want an earleme-to-ID mapping,
 the most general method is create an ID-to-earleme
 array using the @code{marpa_r_earleme()} method
 and invert it.
@@ -2248,12 +2289,12 @@ Always succeeds.
 
 @deftypefun Marpa_Earley_Set_ID marpa_r_latest_earley_set (Marpa_Recognizer @var{r})
 This method returns the Earley set ID (ordinal) of the latest Earley set.
-Applications which want the
+Applications that want the
 value of the latest earleme can convert
 this value using
 the @code{marpa_r_earleme()} method.
 
-Return value: On success, the ID of the latest earley set.
+Return value: On success, the ID of the latest Earley set.
 Always succeeds.
 @end deftypefun
 
@@ -2268,7 +2309,7 @@ Always succeeds.
 @deftypefun int marpa_r_earley_item_warning_threshold (Marpa_Recognizer @var{r})
 @deftypefunx int marpa_r_earley_item_warning_threshold_set (Marpa_Recognizer @var{r}, @
     int @var{threshold})
-These methods, respectively, report and set the earley item warning threshold.
+These methods, respectively, report and set the Earley item warning threshold.
 The @dfn{Earley item warning threshold}
 is a number that is compared with
 the count of Earley items in each Earley set.
@@ -2295,7 +2336,7 @@ Always succeeds.
     Marpa_Recognizer @var{r}, @
     Marpa_Symbol_ID* @var{buffer})
 Returns a list of the ID's of the symbols
-which are acceptable as tokens
+that are acceptable as tokens
 at the current earleme.
 @var{buffer} is expected to be large enough to hold
 the result.
@@ -2356,16 +2397,16 @@ the progress report is positioned before its first item.
 
 If no Earley set with ID
 @var{set_id} exists,
-@code{marpa_r_progress_report_start} fails.
+@code{marpa_r_progress_report_start()} fails.
 The error code is @code{MARPA_ERR_INVALID_LOCATION} if @var{set_id}
 is negative.
 The error code is @code{MARPA_ERR_NO_EARLEY_SET_AT_LOCATION}
-if @var{set_id} is greater than the ID of the 
+if @var{set_id} is greater than the ID of
 the latest Earley set.
 
 Return value: On success, the number of report items available.
-If the recognizer has not been started,
-if @var{set_id} does not exist
+If the recognizer has not been started;
+if @var{set_id} does not exist;
 or on other failure, -2.
 @end deftypefun
 
@@ -2423,10 +2464,11 @@ or on other failure, @code{-2}.
 
 @menu
 * Bocage overview::             
+* Bocage constructor::          
 * Bocage reference counting::   
 @end menu
 
-@node Bocage overview, Bocage reference counting, Bocage methods, Bocage methods
+@node Bocage overview, Bocage constructor, Bocage methods, Bocage methods
 @section Overview
 
 A bocage is structure containing the full set of parses found
@@ -2434,13 +2476,14 @@ by processing the input according to the grammar.
 The bocage structure is new with Libmarpa, but is very similar
 in purpose to the more familar parse forests.
 
-An archtypal application will create
-a bocage.
 To create a bocage, use the @code{marpa_b_new()} method.
 
 When a bocage is no longer in use, its memory can be freed
 using the 
 @code{marpa_b_unref()} method.
+
+@node Bocage constructor, Bocage reference counting, Bocage overview, Bocage methods
+@section Creating a new bocage
 
 @deftypefun Marpa_Bocage marpa_b_new (Marpa_Recognizer @var{r}, @
     Marpa_Earley_Set_ID @var{earley_set_ID})
@@ -2449,15 +2492,15 @@ Creates a new bocage object, with a reference count of 1.
 The reference count of its parent recognizer object, @var{r},
 is increased by 1.
 If there is no parse ending at Earley set @var{earley_set_ID},
-@code{marpa_b_new} fails.
-The error code is set to
+@code{marpa_b_new} fails
+and the error code is set to
 @code{MARPA_ERR_NO_PARSE}.
 
 Return value: On success, the new bocage object.
-On failure, returns @code{NULL}.
+On failure, @code{NULL}.
 @end deftypefun
 
-@node Bocage reference counting,  , Bocage overview, Bocage methods
+@node Bocage reference counting,  , Bocage constructor, Bocage methods
 @section  Reference counting
 @deftypefun Marpa_Bocage marpa_b_ref (Marpa_Bocage @var{b})
 Increases the reference count by 1.
@@ -2474,11 +2517,11 @@ destroying @var{b} once the reference count reaches
 zero.
 When @var{b} is destroyed, the reference count
 of its parent recognizer is decreased by 1.
-It this takes the reference count of the parent recognizer
+If this takes the reference count of the parent recognizer
 to zero, it too is destroyed.
 If the parent recognizer is destroyed, the reference count
 of its base grammar is decreased by 1.
-It this takes the reference count of the base grammar
+If this takes the reference count of the base grammar
 to zero, it too is destroyed.
 
 @end deftypefun
@@ -2577,8 +2620,8 @@ In Libmarpa,
 ``parse tree iterators'' are usually just called @dfn{trees}.
 
 To create a tree, use the @code{marpa_t_new()} method.
-A newly created tree is positioned before the first parse tree.
-When a tree is no longer in use, its memory can be freed
+A newly created tree iterator is positioned before the first parse tree.
+When a tree iterator is no longer in use, its memory can be freed
 using the 
 @code{marpa_t_unref()} method.
 
@@ -2599,7 +2642,7 @@ To position the tree iterator to the first parse,
 the application must call @code{marpa_t_next()}.
 
 Return value:  On success, a newly created tree.
-On failure, returns @code{NULL} and sets the error code.
+On failure, @code{NULL}.
 @end deftypefun
 
 @node Tree reference counting, Tree iteration, Tree constructor, Tree methods
@@ -2641,7 +2684,7 @@ base grammar, if necessary.
 Positions @var{t} at the next parse tree
 in the iteration.
 Tree iterators are initialized to the position
-before the first parse,
+before the first parse tree,
 so this method must be called before creating a valuator
 from a tree.
 
@@ -2649,13 +2692,13 @@ If a tree iterator is positioned after the last parse,
 the tree is said to be ``exhausted''.
 A tree iterator for a bocage with no parse trees
 is considered to be ``exhausted'' when initialized.
-If the tree is exhausted, @code{marpa_t_next}
-return -1 as a termination indicator,
+If the tree iterator is exhausted, @code{marpa_t_next()}
+returns -1 as a termination indicator,
 and sets the error code to 
 @code{MARPA_ERR_TREE_EXHAUSTED}.
 
 Return value: On success, a non-negative value.
-If the tree is exhausted, returns -1
+If the tree iterator is exhausted, -1.
 On failure, -2.
 @end deftypefun
 
@@ -2665,13 +2708,14 @@ The parse counter counts the number of parse trees
 traversed so far.
 The count includes the current iteration of the
 tree, so that a value of 0 indicates that the tree iterator
-is initialized to the position before the first parse tree.
+is at its initialized position,
+before the first parse tree.
 
 Return value: The number of parses traversed so far.
 Always succeeds.
 @end deftypefun
 
-@node Value methods, Events, Tree methods, Top
+@node Value methods, Event codes, Tree methods, Top
 @chapter Value methods
 
 @menu
@@ -2705,11 +2749,9 @@ The archetypal application will need to register
 symbols that contain semantics.
 The primary method for doing this is
 @code{marpa_v_symbol_is_valued()}.
-Applications registering semantics may find
-it convenient to do so directly using
-the @code{marpa_v_rule_is_valued()} method,
-which will save them the trouble
-of looking up the rule's LHS symbol.
+Applications will typically register semantics by rule,
+and these applications will find
+the @code{marpa_v_rule_is_valued()} method more convenient.
 
 The application is required to maintain the stack,
 and the application is also required to implement
@@ -2724,8 +2766,9 @@ use the @code{marpa_v_step()} method.
 of step.
 Most step types has values associated with them.
 To access these values use the methods
-described in @ref{Step accessors}.
+described in the section @ref{Step accessors}.
 How to perform the steps is described in
+the sections
 @ref{How to use the valuator}
 and @ref{Stepping through the valuator}.
 
@@ -2782,25 +2825,25 @@ capable of being any of these things and more.
 
 Step-driven valuation
 hides Libmarpa's grammar rewrites from the application,
-and is actually quite efficient.
+and is quite efficient.
 Libmarpa knows which rules are sequences.
-Based on the ``unvalued'' status,
+Based on the individual symbol's valued statuses,
 Libmarpa also knows which rules
 and terminals have values that it need not bother tracking.
 Libmarpa optimizes stack manipulations based on this knowledge.
 Long sequences,
 as well as unvalued rules and symbols,
-are often very common in practical grammars.
+are very common in practical grammars.
 For these,
 the stack manipulations suggested by Libmarpa's
-step driven valuator
+step-driven valuator
 will be significantly faster than the
 traditional stack evaluation algorithm.
 
 Step-driven evalution has another advantage.
 To illustrate this,
 consider what is a very common case:
-the semantics are implemented in a higher-level language,
+The semantics are implemented in a higher-level language,
 using callbacks.
 If Libmarpa did not use step-driven valuation,
 it would need to provide for this case.
@@ -2835,7 +2878,7 @@ a language boundary will have been crossed four times.
 
 How do
 programmers deal with difficulties like this?
-Usually, it is by
+Usually, by
 doing the absolute minimum possible in the callbacks.
 A horrific debugging enviroment can become a manageable
 one if there is next to no code to be debugged.
@@ -2856,9 +2899,9 @@ not work.
 
 So, while step-driven valuation seems
 a roundabout approach,
-it actually is simpler and more direct than
+it is simpler and more direct than
 the likely alternatives.
-And this is something to be said for pushing
+And there is something to be said for pushing
 semantics up to the higher levels --
 they can be expected to know more about it.
 
@@ -2869,7 +2912,7 @@ The author is under no illusion
 that direct use of Libmarpa's valuator will be found
 satisfactory by most application programmers,
 even those using the C language.
-The author certainly avoids using it directly.
+The author certainly avoids using step-driven valuation directly.
 Libmarpa's valuator is intended
 to be used via an upper layer,
 one which @strong{does} know about semantics.
@@ -2906,30 +2949,33 @@ to stack locations.
 When it does so, it will not
 necessarily optimize away all reads
 to that stack location.
-This means the a location's first access,
+This means that a location's first access,
 as suggested by the Libmarpa step instructions,
 may be a read.
 This possibility
-require a special awareness from the C
+requires a special awareness from the C
 programmer,
 as discussed in
+the sections
 @ref{Sizing the stack} and
 @ref{Initializing locations in the stack}.
 
 In the discussions in this document,
-stack locations are non-negative integers
+stack locations are non-negative integers.
 The bottom of the stack is location 0.
 In moving from the bottom of the stack to the top,
 the numbers increase.
-Stack location @var{X} is said to be ``greater'' 
-than stack location @var{Y} if stack location
-@var{X} is closer to the top of stack than location @var{Y},
+Stack location @var{Y} is said to be ``greater'' 
+than stack location @var{X} if stack location
+@var{Y} is closer to the top of stack than location @var{X},
 and therefore stack locations are considered greater or
 lesser if the integers that represent them are
 greater or lesser.
-A stack location @var{X} which is greater (lesser)
-than stack location @var{Y} is also said to be
-later (earlier) than stack location @var{Y}.
+Another way to state that
+a stack location @var{Y} is greater (lesser)
+than stack location @var{X} is to say that
+a stack location @var{Y} is later (earlier)
+than stack location @var{X}.
 
 @menu
 * Sizing the stack::            
@@ -2946,7 +2992,7 @@ Specifically, the application must do the following
 
 @itemize
 @item Ensure location 0 exists -- in other
-words that the stack is length 1.
+words that the stack is at least length 1.
 @item For @code{MARPA_STEP_TOKEN} steps,
 ensure that location @code{marpa_v_result(v)}
 exists.
@@ -2954,7 +3000,7 @@ exists.
 ensure that location @code{marpa_v_result(v)}
 exists.
 @item For @code{MARPA_STEP_RULE} steps,
-ensure that that stack locations from @code{marpa_v_arg_0(v)}
+ensure that stack locations from @code{marpa_v_arg_0(v)}
 to @code{marpa_v_arg_n(v)} exist.
 @end itemize
 
@@ -3010,9 +3056,10 @@ containing a trap value.)
 The requirement that locations be initialized before
 reading occurs in other implementations.
 Uninitialized locations will correspond to unvalued symbols,
-but ``unvalued'' means ``not having a specific predictable value'' --
-an implementation may require even ``unvalued'' symbols to have
+but an implementation may require even ``unvalued'' symbols to have
 a value that belongs to its ``universe'' of values.
+A symbol is
+``unvalued'' if it does not have a predictable @strong{specific} value.
 For example, an application may be implemented
 expecting every item on the stack
 to belong to a class,
@@ -3039,13 +3086,12 @@ initialize every stack location added.
 
 Applications which try to optimize out some of
 these initializations
-need to be prepared for
-step instructions that revisit earlier
-sections of the stack.
-The application must always be prepared for a step
-instruction to specify a read anywhere in the current stack,
-as well as a read beyond the end of the current
-stack.
+need to be aware that
+an application can never assume that activity in
+the stack is safely ``beyond'' an uninitialized location.
+Libmarpa steps often revisit earlier sections of the stack,
+and these revisits may include reads of previously
+unvisited stack locations.
 
 @node Valuator constructor, Valuator reference counting, Maintaining the stack, Value methods
 @section Creating a new valuator
@@ -3066,10 +3112,10 @@ until the valuator is destroyed.
 Many valuators of the same parse tree
 can exist at once.
 A tree iterator is ``unpaused'' when
-all of the valuators of a parse tree are destroyed.
+all of the valuators of that tree iterator are destroyed.
 
 Return value:  On success, the newly created valuator.
-On failure, returns @code{NULL} and sets the error code.
+On failure, @code{NULL}.
 @end deftypefun
 
 @node Valuator reference counting, Registering semantics, Valuator constructor, Value methods
@@ -3116,18 +3162,17 @@ base grammar, if necessary.
     int @var{value} )
 These methods, respectively, report and set to @var{value}
 the valued status for symbol @var{symid}.
-A valued status is either 1 or 0.
 A valued status of 1 indicates that the symbol is valued.
 A valued status of 0 indicates that the symbol is unvalued.
-
 If the valued status is locked,
 an attempt to change to a status different from the
-current one will fail.
-The error code will be @code{MARPA_ERR_VALUED_IS_LOCKED}.
+current one will fail
+(error code @code{MARPA_ERR_VALUED_IS_LOCKED}).
 
 Return value:  On success, the valued status @strong{after}
 the call.
-On failure, -2.
+If @var{value} is not either 0 or 1,
+or on other failure, -2.
 @end deftypefun
 
 @deftypefun int marpa_v_rule_is_valued ( @
@@ -3140,9 +3185,12 @@ On failure, -2.
 These methods, respectively, report and set to @var{value}
 the valued status
 for the LHS symbol of rule @var{rule_id}.
-A valued status is either 1 or 0.
 A valued status of 1 indicates that the symbol is valued.
 A valued status of 0 indicates that the symbol is unvalued.
+If the valued status is locked,
+an attempt to change to a status different from the
+current one will fail
+(error code @code{MARPA_ERR_VALUED_IS_LOCKED}).
 
 Rules have no valued status of their own.
 The valued status of a rule
@@ -3151,16 +3199,11 @@ These methods are conveniences -- they
 save the application the trouble of looking
 up the rule's LHS.
 
-@code{marpa_v_rule_is_valued_set} fails if
-@var{value} is not either 0 or 1.
-It also fails if the valued status of
-the LHS symbol of @var{rule_id} is locked
-and @var{value} is different from its locked-in value.
-
 Return value:  On success, the valued status of the
 rule @var{rule_id}'s LHS symbol @strong{after}
 the call.
-On failure, -2.
+If @var{value} is not either 0 or 1,
+or on other failure, -2.
 @end deftypefun
 
 @node Stepping through the valuator, Valuator steps by type, Registering semantics, Value methods
@@ -3170,9 +3213,10 @@ On failure, -2.
     Marpa_Value @var{v})
 This method ``steps through'' the valuator.
 The return value is a @code{Marpa_Step_Type},
-a integer which indicates the type of step.
+an integer which indicates the type of step.
 How the application is expected to act on
 each step is described below.
+@xref{Valuator steps by type}.
 When the iteration through the steps is finished,
 @code{marpa_v_step} returns @code{MARPA_STEP_INACTIVE}.
 
@@ -3198,17 +3242,16 @@ and the result placed in
 @code{marpa_v_result(v)}.
 The stack location of
 @code{marpa_v_result(v)} is guaranteed to
-be equal to 
-to @code{marpa_v_arg_0(v)}.
+be equal to @code{marpa_v_arg_0(v)}.
 @end deftypevr
 
 @deftypevr Macro Marpa_Step_Type MARPA_STEP_TOKEN
 The semantics of a non-null token should be performed.
-The value of the token whose ID is
+The application's value for the token whose ID is
 @code{marpa_v_token(v)} should be
 placed in
 stack location @code{marpa_v_result(v)}.
-Its value will be in
+Its value according to Libmarpa will be in
 @code{marpa_v_token_value(v)}.
 @end deftypevr
 
@@ -3224,17 +3267,11 @@ stack location @code{marpa_v_result(v)}.
 The valuator has gone through all of its steps
 and is now inactive.
 The value of the parse will be in stack location 0.
-
 Because of unvalued symbols,
 it is quite possible for valuator to immediately
 became inactive -- @code{MARPA_STEP_INACTIVE} could
-be the first and last step.
-For similar reasons, the application
-may need, on its own initiative,
-to initialize the stack
-to ensure there is a stack with a location 0 --
-there will not necessarily be a valuator step that
-prompts to do so.
+be both the first and last step.
+
 @end deftypevr
 
 @deftypevr Macro Marpa_Step_Type MARPA_STEP_INTERNAL1
@@ -3261,7 +3298,8 @@ macro.
 @end deftypefn
 
 @deftypefn {Macro} void* marpa_v_token_value (Marpa_Value @var{v})
-Return value: Returns the integer which is (or represents)
+Return value: Returns the integer which is
+(or which represents)
 the value of the token for the
 @code{MARPA_STEP_TOKEN} step.
 @end deftypefn
@@ -3291,59 +3329,56 @@ returns the stack location where the value of the last child
 can be found.
 @end deftypefn
 
-@node Events, Error macros and code, Value methods, Top
-@chapter Events
-
-@menu
-* Event codes::                 
-@end menu
-
-@node Event codes,  , Events, Events
-@section Event codes
+@node Event codes, Error macros and codes, Value methods, Top
+@chapter Event codes
 
 @deftypevr Macro int MARPA_EVENT_NONE
 Applications should never see this event.
+Event value: Undefined.
 Suggested message: "No event"
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_EXHAUSTED
-The event value is undefined.
+The parse is exhausted.
+Event value: Undefined.
 Suggested message: "Recognizer is exhausted"
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_EARLEY_ITEM_THRESHOLD
-The event value is undefined.
+The user-settable Earley item threshold was exceeded.
+Event value: Undefined.
 Suggested message: "Too many Earley items"
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_LOOP_RULES
-A rule is part of a cycle.
+One or more rules are loop rules -- rules
+that are part of a cycle.
 Cycles are pathological cases of recursion,
 in which the same symbol string derives itself
 a potentially infinite number of times.
 Nonetheless, Marpa parses in the presence of these,
 and it is up to the application to treat these
 as fatal errors,
-something most of them will wish to do.
-The value of the event is the count of loop rules.
+something they almost always will wish to do.
+Event value: The count of loop rules.
 Suggested message: "Grammar contains a infinite loop"
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_COUNTED_NULLABLE
-A nullable is either the separator
-for, or the right hand side of a sequence.
-The value of the event is the ID of the symbol.
+A nullable symbol is either the separator
+for, or the right hand side of, a sequence.
+Event value: The ID of the symbol.
 Suggested message: "This symbol is a counted nullable"
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_NULLING_TERMINAL
 A nulling symbol is also a terminal.
-The value of the event is the ID of the symbol.
+Event value: The ID of the symbol.
 Suggested message: "This symbol is a nulling terminal"
 @end deftypevr
 
-@node Error macros and code, Design considerations, Events, Top
-@chapter Error macros and code
+@node Error macros and codes, Design notes, Event codes, Top
+@chapter Error macros and codes
 
 @menu
 * Methods::                     
@@ -3352,7 +3387,7 @@ Suggested message: "This symbol is a nulling terminal"
 * Internal error codes::        
 @end menu
 
-@node Methods, Error Macros, Error macros and code, Error macros and code
+@node Methods, Error Macros, Error macros and codes, Error macros and codes
 @section Methods
 
 @deftypefun Marpa_Error_Code marpa_g_error @
@@ -3382,14 +3417,17 @@ Return value: @code{MARPA_ERR_NONE}.
 Always succeeds.
 @end deftypefun
 
-@node Error Macros, External error codes, Methods, Error macros and code
+@node Error Macros, External error codes, Methods, Error macros and codes
 @section Error Macros
 
 @deftypevr Macro int MARPA_ERRCODE_COUNT
 The number of error codes.
+All error codes, whether internal or external,
+will be integers, non-negative but
+strictly less than @code{MARPA_ERRCODE_COUNT}.
 @end deftypevr
 
-@node External error codes, Internal error codes, Error Macros, Error macros and code
+@node External error codes, Internal error codes, Error Macros, Error macros and codes
 @section External error codes
 
 This section lists the external error codes.
@@ -3402,18 +3440,7 @@ Internal error codes are in their own section.
 No error condition.
 The error code is initialized to this value.
 Methods which do not result in failure
-sometimes reset the error code to @code{MARPA_ERR_NONE}
-and sometimes leave it at its current value.
-Which of the two a method does is unspecified
-unless explicitly stated in that method's description.
-The current implementation,
-for efficiency and simplicity,
-will usually leave the error code as it
-found it.
-On the other, as stated in its description,
-@code{marpa_r_alternative()}
-sets the error code to @code{MARPA_ERR_NONE}
-on success.
+sometimes reset the error code to @code{MARPA_ERR_NONE}.
 Suggested message: "No error"
 @end deftypevr
 
@@ -3425,18 +3452,16 @@ Suggested message: "Separator has invalid symbol ID"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_COUNTED_NULLABLE
-A "counted" symbol was found,
+A ``counted'' symbol was found
 that is also a nullable symbol.
-A "counted" symbol is one that appears on the RHS
+A ``counted'' symbol is one that appears on the RHS
 of a sequence rule.
 If a symbol is nullable,
-counting occurrences of it,
-which is what sequence rules do for their RHS
-symbols,
-becomes very difficult.
+counting its occurrences becomes difficult.
 Questions of definition and
 problems of implementation arise.
-At a minimum, such a sequence would be wildly
+At a minimum, a sequence with counted nullables
+would be wildly
 ambigious.
 
 Sequence rules are simply an optimized shorthand
@@ -3446,22 +3471,27 @@ really what your application needs,
 nothing in Libmarpa prevents you from specifying
 that sequence
 with ordinary BNF rules.
+
 Suggested message: "Nullable symbol on RHS of a sequence rule"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_DUPLICATE_RULE
-This error indicates an attempt to add a rule which
-is a duplicate of a rule already in the grammar.
-Two rules are considered duplicates if
+This error indicates an attempt to add a BNF rule which
+is a duplicate of a BNF rule already in the grammar.
+Two BNF rules are considered duplicates if
 
 @itemize @bullet
 @item
-Both rules have the same left hand symbol.
+Both rules have the same left hand symbol, and
 @item
 Both rules have the same right hand symbols in the same order.
 @end itemize
 
-This definition applies to sequence rules, as well as to ordinary rules. As a consequence, sequence rules can be considered duplicates even when they have different separators and/or different minimum counts.
+Duplication of sequence rules,
+and duplication between BNF rules and sequence rules,
+is dealt with by requiring that the LHS of a sequence rule
+not be the LHS of any other rule.
+
 Suggested message: "Duplicate rule"
 @end deftypevr
 
@@ -3475,10 +3505,10 @@ Suggested message: "Duplicate token"
 @deftypevr Macro int MARPA_ERR_EIM_COUNT
 This error code indicates that
 an implementation-defined limit on the
-number of earley items per Earley set
+number of Earley items per Earley set
 was exceedeed.
 This limit is different from
-the earley item warning threshold,
+the Earley item warning threshold,
 an optional limit on the number
 of Earley items in an Earley set,
 which can be set by the application.
@@ -3486,16 +3516,11 @@ which can be set by the application.
 The implementation defined-limit is very large,
 at least 500,000,000 earlemes.
 An application is unlikely ever to see this
-error for two reasons.
-First, Libmarpa's use of memory
+error.
+Libmarpa's use of memory
 would almost certainly exceed the implementation's
 limits before it occurred.
-Second, applications will almost always want
-to use the earley item warning threshold to implement
-a much smaller limit.
-Typically, this will be under 1,000 Earley items
-per Earley set.
-Suggested message: "Maximum number of earley items exceeded"
+Suggested message: "Maximum number of Earley items exceeded"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_EVENT_IX_NEGATIVE
@@ -3535,28 +3560,32 @@ This error code indicates that
 indicates that
 the token symbol is an inaccessible symbol -- one which
 cannot be reached from the start symbol.
+
 Since the inaccessibility of a symbol is a property of the grammar,
 this error code typically indicates an application error.
-A retry at this location, using another token ID,
+Nevertheless, a retry at this location, using another token ID,
 may succeed.
 At this writing,
 the author knows of no uses of this technique.
+
 Suggested message: "Token symbol is inaccessible"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_INVALID_BOOLEAN
-A function was called which takes a boolean argument,
-one which must be either 0 or 1,
-and that argument has some other value.
+A function was called that takes a boolean argument,
+but the value of that argument was not either 0 or 1.
 Suggested message: "Argument is not boolean"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_INVALID_LOCATION
 The location (Earley set ID) is not valid.
-It may be invalid because it is negative,
-and is not being used as an argument where
-a negative Earley set ID has a special meaning.
-It may be invalid because it is after the latest Earley set.
+It may be invalid for one of two reasons:
+@itemize
+@item It is negative,
+and it is being used as the argument to a method
+for which that negative value does not have a special meaning.
+@item It is after the latest Earley set.
+@end itemize
 
 For users of input models other than the standard one,
 the term ``location'', as used in association
@@ -3565,6 +3594,7 @@ means Earley set ID or Earley set ordinal.
 In the standard input model, this will always
 be identical with Libmarpa's other idea of
 location, the earleme.
+
 Suggested message: "Location is not valid"
 @end deftypevr
 
@@ -3575,12 +3605,12 @@ Suggested message: "Specified start symbol is not valid"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_INVALID_RULE_ID
-A method was called with an invalid external rule ID.
+A method was called with an invalid rule ID.
 Suggested message: "No rule with that ID exists"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_INVALID_SYMBOL_ID
-A method was called with an invalid external symbol ID.
+A method was called with an invalid symbol ID.
 Suggested message: "No symbol with that ID exists"
 @end deftypevr
 
@@ -3616,9 +3646,10 @@ Suggested message: "Earley set ID is after latest Earley set"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_NOT_PRECOMPUTED
-An attempt was made to use a grammar
-that is not precomputed
-in a way that is not allowed.
+The grammar is not precomputed,
+and attempt was made to do something with it
+that is not allowed for unprecomputed
+grammars.
 For example, a recognizer cannot be
 created from a grammar until it is precomputed.
 Suggested message: "This grammar is not precomputed"
@@ -3627,7 +3658,7 @@ Suggested message: "This grammar is not precomputed"
 @deftypevr Macro int MARPA_ERR_NO_PARSE
 The application attempted to create a bocage
 from a recognizer without a parse.
-The application will often treat this as
+Applications will often want to treat this as
 a soft error.
 Suggested message: "No parse"
 @end deftypevr
@@ -3637,9 +3668,6 @@ A grammar which has no rules is being used
 in a way that is not allowed.
 Usually the problem is that the user is
 trying to precompute the grammar.
-The precomputations are not defined
-for grammar without rules,
-in large part because it would be useless to do so.
 Suggested message: "This grammar does not have any rules"
 @end deftypevr
 
@@ -3647,16 +3675,17 @@ Suggested message: "This grammar does not have any rules"
 The grammar has no start symbol,
 and an attempt was made to perform an
 operation which requires one.
-For example, no grammar without a start
-symbol can be precomputed.
+Usually the problem is that the user is
+trying to precompute the grammar.
 Suggested message: "This grammar has no start symbol"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_NO_TOKEN_EXPECTED_HERE
 This error code indicates that
-in this case no tokens at all were expected at this earleme
+no tokens at all were expected at this earleme
 location.
 This can only happen in alternative input models.
+
 Typically, this indicates an application programming
 error.
 Retrying input at this location will always fail.
@@ -3666,6 +3695,7 @@ using this or another token,
 may succeed.
 At this writing,
 the author knows of no uses of this technique.
+
 Suggested message: "No token is expected at this earleme location"
 @end deftypevr
 
@@ -3677,13 +3707,15 @@ Suggested message: "A symbol is both terminal and nulling"
 
 @deftypevr Macro int MARPA_ERR_ORDER_FROZEN
 The Marpa order object has been frozen.
-Multiple tree iterators can share a Marpa order object,
-but that order object is @dfn{frozen} after the first tree
-iterator is created from it.
-If a Marpa order object is @dfn{frozen}, it cannot be
+If a Marpa order object is frozen, it cannot be
 changed.
+
+Multiple tree iterators can share a Marpa order object,
+but that order object is frozen after the first tree
+iterator is created from it.
 Applications can order an bocage in many ways,
 but they must do so by creating multiple order objects.
+
 Suggested message: "The ordering is frozen"
 @end deftypevr
 
@@ -3696,10 +3728,15 @@ Suggested message: "The parse is exhausted"
 The parse is too long.
 The limit on the length of a parse is implementation
 dependent, but it is very large,
-is at least 500,000,000 earlemes.
+at least 500,000,000 earlemes.
+
+This error code is unlikely in the standard input model.
+Almost certainly memory would be exceeded
+before it could occur.
 If an application sees this error,
 it almost certainly using one of the non-standard
 input models.
+
 Most often this messsage will occur because
 of a request to add a single extremely long token,
 perhaps as a result of an application error.
@@ -3707,9 +3744,6 @@ But it is also possible this error condition will
 occur after the input of a large number
 of long tokens.
 
-This error code is unlikely in the standard input model.
-Almost certainly memory would be exceeded
-before it could occur.
 Suggested message: "This input would make the parse too long"
 @end deftypevr
 
@@ -3770,8 +3804,8 @@ Suggested message: "The recognizer has been started"
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_RHS_IX_NEGATIVE
-The index of RHS symbol was specified,
-but it was negative.
+The index of a RHS symbol was specified,
+and it was negative.
 That is not allowed.
 Suggested message: "RHS index cannot be negative"
 @end deftypevr
@@ -3789,9 +3823,9 @@ An attempt was made to add a rule with too many
 right hand side symbols.
 The limit on the RHS symbol count is implementation
 dependent, but it is very large,
-is at least 500,000,000.
+at least 500,000,000 symbols.
 This is
-far beyond that required in any current practical grammar.
+far beyond what is required in any current practical grammar.
 An application with rules of this length is almost
 certain to run into memory and other limits.
 Suggested message: "The RHS is too long"
@@ -3848,7 +3882,7 @@ Suggested message: "Token length must greater than zero"
 The token length is too long.
 The limit on the length of a token
 is implementation dependent, but it
-is at least 500,000,000.
+is at least 500,000,000 earlemes.
 An application using a token that long
 is almost certain to run into some other
 limit.
@@ -3865,7 +3899,7 @@ Suggested message: "Tree iterator is exhausted"
 @deftypevr Macro int MARPA_ERR_TREE_PAUSED
 A Libmarpa tree is ``paused''
 and an operation was attempted which
-is inconsistent with that face.
+is inconsistent with that fact.
 Typically, this operation will be
 a call of the @code{marpa_t_next()} method.
 Suggested message: "Tree iterator is paused"
@@ -3875,7 +3909,7 @@ Suggested message: "Tree iterator is paused"
 An attempt was made to read a token
 where a token with that symbol ID is not
 expected.
-This message will also occur when an
+This message can also occur when an
 attempt is made to read a token
 at a location where no token is expected.
 Suggested message: "Unexpected token"
@@ -3903,7 +3937,7 @@ current one.
 Suggested message: "The valued status of the symbol is locked"
 @end deftypevr
 
-@node Internal error codes,  , External error codes, Error macros and code
+@node Internal error codes,  , External error codes, Error macros and codes
 @section Internal error codes
 
 An internal error code may be one of two things:
@@ -3940,10 +3974,11 @@ They usually do not have descriptions or suggested messages.
 @deftypevr Macro int MARPA_ERR_DEVELOPMENT
 "Development" errors were used heavily during
 Libmarpa's development,
-when it is not yet clear how precisely
+when it was not yet clear how precisely
 to classify every error condition.
-Users of the external interface in released
-non-developer's versions should never
+Unless they are using a developer's version,
+users of the external interface 
+should never
 see development errors.
 
 Development errors has an error string
@@ -4013,11 +4048,16 @@ A ``catchall'' internal error.
 @end deftypevr
 @deftypevr Macro int MARPA_ERR_SOURCE_TYPE_IS_UNKNOWN
 @end deftypevr
-@node Design considerations, Things To Do, Error macros and code, Top
-@chapter Design considerations
 
-This section details some of the design choices
-in Libmarpa.
+@node Design notes, Things To Do, Error macros and codes, Top
+@chapter Design notes
+
+Design apologetics are
+throughout this document,
+dispersed among sections where it is
+hoped that they motivate the description or discussion.
+The notes in this section 
+did not find a home elsewhere.
 
 @menu
 * Why so many time objects::    
@@ -4025,57 +4065,27 @@ in Libmarpa.
 * LHS Terminals::               
 @end menu
 
-@node Why so many time objects, Design of numbered objects, Design considerations, Design considerations
+@node Why so many time objects, Design of numbered objects, Design notes, Design notes
 @section Why so many time objects?
 
-Readers accustomed to other appraoches to parsing,
-particular those in fashion at this writing,
-may wonder on the number of time objects
-in the Marpa architecture.
-Several of Marpa's time objects (bocages,
-orderings and trees) are required
-because Marpa allows,
-and offers powerful tools for dealing with,
-ambigious grammars.
-
-It may seem, then, that users of unambiguous grammars,
-are paying a considerable price in time effiency
-for the ability to parse
-ambiguous ones.
-This is not the case.
-In the trivial case, the cost of the orderings
-object is a single, very brief, subroutine call.
-
-Bocage objects come at minimal cost,
-because the same pass which creates the bocage
-also deals with other issues which are of major
-significance even for unambiguous parses.
-The same pass which creates the bocage
-enables Marpa to do both left-
-and right-recursion in linear time.
-
-Tree objects come at mininal cost to unambiguous grammars,
-because the same pass that allows iteration through multiple
-parse trees does the tree traversal, so that the valuation time object
-has very litle to do -- it just steps through the sequence.
-
-But what about the many passes over the data this requires?
 Marpa is an aggressively multi-pass algorithm.
 Marpa achieves its efficiency,
 not in spite of making multiple
 passes over the data, but because of it.
-Marpa is O(@var{n}) for LR-regular grammars,
-both in theory and in implementation,
-because Marpa regularly substitutes
+Marpa regularly substitutes
 two fast O(@var{n}) passes for a single
 O(@var{n} log @var{n}) pass.
+Marpa's proliferation of time objects is in
+keeping with its multi-pass approach.
 
-@menu
-* Why ordering objects?::       
-@end menu
-
-@node Why ordering objects?,  , Why so many time objects, Why so many time objects
-@subsection Why ordering objects?
+Bocage objects come at no cost,
+even for unambiguous parses,
+because the same pass which creates the bocage
+also deals with other issues which are of major
+significance for unambiguous parses.
+It is the post-processing of the bocage pass
+that enables Marpa to do both left-
+and right-recursion in linear time.
 
 Of the various objects, the best
 case for elimination is of the
@@ -4084,7 +4094,6 @@ In many cases, the ordering is trivial.
 Either the parse is unambiguous, or the
 application does not care about the order in
 which parses are returned.
-
 But while it would be easy to add an option
 to bypass creation of an ordering object,
 there is little to be gained from it.
@@ -4094,18 +4103,31 @@ essentially a handful of subroutine calls.
 Many orderings accomplish nothing,
 but these cost next to nothing.
 
-@node Design of numbered objects, LHS Terminals, Why so many time objects, Design considerations
+Tree objects come at minimal cost to unambiguous grammars,
+because the same pass that allows iteration through multiple
+parse trees does the tree traversal.
+This eliminates much of the work that otherwise would
+need to be done in
+the valuation time object.
+In the current implement, the valuation time object
+needs only to step through a sequence already determined
+in the tree iterator.
+
+@node Design of numbered objects, LHS Terminals, Why so many time objects, Design notes
 @section Numbered objects
 
 As the name suggests,
 the choice was made to implement
-numbered objects and not as
+numbered objects as integers,
+and not as
 pointers.
-Integers can be easily and safely checked for validity,
-while pointer cannot.
+In standard-conformant C,
+integers can be safely checked for validity,
+while pointers cannot.
 
 There are efficiency tradeoffs between pointers and
-integers but they are complications and go both ways.
+integers but they are complicated,
+and they go both ways.
 Pointers can be faster, but integers can be used
 as indexes into more than one data structure.
 Which is actually faster depends on the design.
@@ -4114,16 +4136,23 @@ so that once the choice is settled on,
 careful programming can make them a win,
 possibly a very big one.
 
-The approach taken in Libmarpa was to settle
+The approach taken in Libmarpa was to settle,
 from the outset,
 on integers as the implementation for numbered
-objects and optimize on that basis.
-In any case, the difference is speed on
-modern architectures is
-a small price to pay for
-safe, portable validity checking.
+objects,
+and to optimize on that basis.
+The author concedes that it is
+possible that
+others redoing Libmarpa from scratch
+might find that pointers are faster.
+But the author is confident
+that they will also discover,
+on modern architectures,
+that the lack of safe validity checking
+is far too high a price to pay
+for the difference in speed.
 
-@node LHS Terminals,  , Design of numbered objects, Design considerations
+@node LHS Terminals,  , Design of numbered objects, Design notes
 @section LHS terminals
 
 Marpa's idea
@@ -4131,22 +4160,22 @@ in losing the sharp division between terminals
 and non-terminals is that the distinction,
 while helpful for proving theorems,
 is not essential in practice.
-If LHS symbols
-appear in the input they, in effect,
+LHS symbols
+in the input might be useful for
 ``short circuiting'' the rules in which they occur.
 This may
-be helpful in debugging, or have other applications.
+prove helpful in debugging, or have other applications.
 
 However,
 it also can be useful,
 for checking input validity as well as for efficiency,
-to follow tradition and distingush
+to follow tradition and distinguish
 non-terminals from terminals.
 For this reason,
 the traditional behavior is the default
-in Marpa.
+in Libmarpa.
 
-@node Things To Do,  , Design considerations, Top
+@node Things To Do,  , Design notes, Top
 @chapter Things to do
 
 @itemize
