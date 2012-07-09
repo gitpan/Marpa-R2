@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION @ISA $DEBUG);
-$VERSION        = '2.010000';
+$VERSION        = '2.011_000';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -65,7 +65,7 @@ if ( not $ENV{'MARPA_AUTHOR_TEST'} ) {
     $Marpa::R2::DEBUG = 0;
 }
 else {
-    Marpa::R2::Internal::debug_level_set(1);
+    Marpa::R2::Thin::debug_level_set(1);
     $Marpa::R2::DEBUG = 1;
 }
 

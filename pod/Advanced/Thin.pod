@@ -484,6 +484,7 @@ of Libmarpa's time classes is converted
 to the corresponding Marpa thin interface class.
 Arguments which belong to Libmarpa's numbered 
 classes (C<Marpa_Earley_Set_ID>,
+C<Marpa_Rank>,
 C<Marpa_Rule_ID> and C<Marpa_Symbol_ID>)
 are converted to Perl scalar integers.
 C language C<int>'s are also
@@ -582,7 +583,7 @@ a call to any other Marpa thin method
 will overwrite the error code and error description.
 For C<error()> to successfully query
 the error code or error description of a method,
-it should be
+C<error()> should be
 the next Marpa thin interface method called.
 
 =head2 C<< $g->error_clear() >>

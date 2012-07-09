@@ -879,6 +879,46 @@ are marked useless.
 @ @<Initialize grammar elements@> =
 g->t_max_rule_length = 0;
 
+@*0 The default rank.
+The default rank for rules and symbols.
+For minimum rank we want 
+negative numbers rounded toward 0, not down.
+@ @d MAXIMUM_RANK (INT_MAX/4)
+@d MINIMUM_RANK (INT_MIN/4 + (INT_MIN%4 > 0 ? 1 : 0))
+@<Public typedefs@> =
+typedef int Marpa_Rank;
+@ @d Default_Rank_of_G(g) ((g)->t_default_rank)
+@<Int aligned grammar elements@> = Marpa_Rank t_default_rank;
+@ @<Initialize grammar elements@> =
+g->t_default_rank = 0;
+@ @<Function definitions@> =
+Marpa_Rank marpa_g_default_rank(Marpa_Grammar g)
+{
+   @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    return Default_Rank_of_G(g);
+}
+@ Returns the symbol ID on success,
+|-2| on failure.
+@<Function definitions@> =
+Marpa_Rank marpa_g_default_rank_set(Marpa_Grammar g, Marpa_Rank rank)
+{
+  @<Return |-2| on failure@>@;
+  @<Fail if fatal error@>@;
+  @<Fail if precomputed@>@;
+  if (UNLIKELY (rank < MINIMUM_RANK))
+    {
+      MARPA_ERROR (MARPA_ERR_RANK_TOO_LOW);
+      return failure_indicator;
+    }
+  if (UNLIKELY (rank > MAXIMUM_RANK))
+    {
+      MARPA_ERROR (MARPA_ERR_RANK_TOO_HIGH);
+      return failure_indicator;
+    }
+  return Default_Rank_of_G (g) = rank;
+}
+
 @*0 Grammar is precomputed?.
 @ @d G_is_Precomputed(g) ((g)->t_is_precomputed)
 @<Bit aligned grammar elements@> = unsigned int t_is_precomputed:1;
@@ -1183,6 +1223,58 @@ marpa_g_symbol_new (Marpa_Grammar g)
   return ID_of_SYM(symbol);
 }
 
+@*0 Symbol is start?.
+@<Bit aligned symbol elements@> = unsigned int t_is_start:1;
+@ @<Initialize symbol elements@> = symbol->t_is_start = 0;
+@ @<Function definitions@> =
+int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID xsyid) 
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if |xsyid| is invalid@>@;
+   return SYM_by_ID(xsyid)->t_is_start;
+}
+
+@*0 Symbol rank.
+@<Int aligned symbol elements@> = 
+  Marpa_Rank t_rank;
+@ @<Initialize symbol elements@> =
+symbol->t_rank = Default_Rank_of_G(g);
+@ @d Rank_of_XSY(symbol) ((symbol)->t_rank)
+@<Function definitions@> =
+int marpa_g_symbol_rank(Marpa_Grammar g,
+  Marpa_Symbol_ID xsyid)
+{
+    SYM xsy;
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if |xsyid| is invalid@>@;
+    xsy = SYM_by_ID (xsyid);
+    return Rank_of_XSY(xsy);
+}
+@ @<Function definitions@> =
+int marpa_g_symbol_rank_set(
+Marpa_Grammar g, Marpa_Symbol_ID xsyid, Marpa_Rank rank)
+{
+    SYM xsy;
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if precomputed@>@;
+    @<Fail if |xsyid| is invalid@>@;
+    xsy = SYM_by_ID (xsyid);
+    if (UNLIKELY (rank < MINIMUM_RANK))
+      {
+	MARPA_ERROR (MARPA_ERR_RANK_TOO_LOW);
+	return failure_indicator;
+      }
+    if (UNLIKELY (rank > MAXIMUM_RANK))
+      {
+	MARPA_ERROR (MARPA_ERR_RANK_TOO_HIGH);
+	return failure_indicator;
+      }
+    return Rank_of_XSY (xsy) = rank;
+}
+
 @*0 Symbol is LHS?.
 Is this (external) symbol on the LHS of any rule,
 whether sequence or BNF.
@@ -1402,18 +1494,6 @@ int marpa_g_symbol_is_productive(
     return XSY_is_Productive(XSY_by_ID(xsyid));
 }
 
-@*0 Symbol is start?.
-@<Bit aligned symbol elements@> = unsigned int t_is_start:1;
-@ @<Initialize symbol elements@> = symbol->t_is_start = 0;
-@ @<Function definitions@> =
-int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID xsyid) 
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if fatal error@>@;
-    @<Fail if |xsyid| is invalid@>@;
-   return SYM_by_ID(xsyid)->t_is_start;
-}
-
 @*0 Primary internal equivalent.
 This is the internal
 equivalent of the external symbol.
@@ -1508,6 +1588,7 @@ struct s_isy {
   int t_or_node_type;
   ISYID t_isyid;
   @<Widely aligned ISY elements@>@;
+  @<Int aligned ISY elements@>@;
   @<Bit aligned ISY elements@>@;
 };
 @ |t_isyid| is initialized when the symbol is
@@ -1531,22 +1612,26 @@ isy_start(GRAMMAR g)
 }
 
 @ Create an ISY from scratch.
+A source symbol must be specified.
 @<Function definitions@> =
 PRIVATE ISY
 isy_new(GRAMMAR g, XSY source)
 {
   const ISY new_isy = isy_start(g);
   Source_XSY_of_ISY(new_isy) = source;
+  Rank_of_ISY(new_isy) = ISY_Rank_by_XSY(source);
   return new_isy;
 }
 
 @ Clone an ISY from an XSY.
+An XSY must be specified.
 @<Function definitions@> =
 PRIVATE ISY
 isy_clone(GRAMMAR g, XSY xsy)
 {
   const ISY new_isy = isy_start(g);
   Source_XSY_of_ISY(new_isy) = xsy;
+  Rank_of_ISY(new_isy) = ISY_Rank_by_XSY(xsy);
   ISY_is_Nulling(new_isy) = XSY_is_Nulling(xsy);
   return new_isy;
 }
@@ -1630,11 +1715,12 @@ Marpa_Rule_ID _marpa_g_source_xsy(
 }
 
 @*0 Source rule and offset.
-In the case of sequences and CHAF rules, internal symbol
+In the case of sequences and CHAF rules, internal symbols
 are created to act as the LHS of internal rules.
+These fields record the symbol's source information
+with the symbol.
 The semantics need this information so that they can
 simulate the external ``source'' rule.
-These fields record that information.
 @ @d LHS_XRL_of_ISY(isy) ((isy)->t_lhs_xrl)
 @d XRL_Offset_of_ISY(isy) ((isy)->t_xrl_offset)
 @<Widely aligned ISY elements@> =
@@ -1685,6 +1771,24 @@ int _marpa_g_isy_xrl_offset(Marpa_Grammar g, Marpa_ISY_ID isy_id)
   return XRL_Offset_of_ISY(isy);
 }
 
+@*0 Rank.
+The rank of the internal symbol.
+@d ISY_Rank_by_XSY(xsy)
+  ((xsy)->t_rank * EXTERNAL_RANK_FACTOR + MAXIMUM_CHAF_RANK)
+@d Rank_of_ISY(isy) ((isy)->t_rank)
+@<Int aligned ISY elements@> = Marpa_Rank t_rank;
+@ @<Initialize ISY elements@> =
+  Rank_of_ISY(isy) = Default_Rank_of_G(g) * EXTERNAL_RANK_FACTOR + MAXIMUM_CHAF_RANK;
+@ @<Function definitions@> =
+Marpa_Rank _marpa_g_isy_rank(
+    Marpa_Grammar g,
+    Marpa_ISY_ID isy_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if |isy_id| is invalid@>@;
+    return Rank_of_ISY(ISY_by_ID(isy_id));
+}
+
 @** External rule (XRL) code.
 @s Marpa_Rule_ID int
 @<Public typedefs@> =
@@ -1723,7 +1827,7 @@ PRIVATE
   XRL xrl;
   const int sizeof_xrl = offsetof (struct s_xrl, t_symbols) +
     (length + 1) * sizeof (xrl->t_symbols[0]);
-  my_obstack_blank (g->t_xrl_obs, sizeof_xrl);
+  my_obstack_reserve (g->t_xrl_obs, sizeof_xrl);
   xrl = my_obstack_base (g->t_xrl_obs);
   Length_of_XRL (xrl) = length;
   xrl->t_symbols[0] = lhs;
@@ -1784,6 +1888,7 @@ irl_finish( GRAMMAR g, IRL irl)
   int symbol_ix;
   const IRL new_irl = irl_start (g, rewrite_xrl_length);
   Source_XRL_of_IRL (new_irl) = rule;
+  Rank_of_IRL(new_irl) = IRL_Rank_by_XRL(rule);
   for (symbol_ix = 0; symbol_ix <= rewrite_xrl_length; symbol_ix++)
     {
       new_irl->t_isyid_array[symbol_ix] =
@@ -2054,6 +2159,86 @@ added to the list of rules.
 @d ID_of_XRL(xrl) ((xrl)->t_id)
 @d ID_of_RULE(rule) ID_of_XRL(rule)
 @<Int aligned rule elements@> = Marpa_Rule_ID t_id;
+
+@*0 Rule rank.
+@<Int aligned rule elements@> = 
+  Marpa_Rank t_rank;
+@ @<Initialize rule elements@> =
+rule->t_rank = Default_Rank_of_G(g);
+@ @d Rank_of_XRL(rule) ((rule)->t_rank)
+@<Function definitions@> =
+int marpa_g_rule_rank(Marpa_Grammar g,
+  Marpa_Rule_ID xrl_id)
+{
+    XRL xrl;
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if |xrl_id| is invalid@>@;
+    xrl = XRL_by_ID (xrl_id);
+    return Rank_of_XRL(xrl);
+}
+@ @<Function definitions@> =
+int marpa_g_rule_rank_set(
+Marpa_Grammar g, Marpa_Rule_ID xrl_id, Marpa_Rank rank)
+{
+    XRL xrl;
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if precomputed@>@;
+    @<Fail if |xrl_id| is invalid@>@;
+    xrl = XRL_by_ID (xrl_id);
+    if (UNLIKELY (rank < MINIMUM_RANK))
+      {
+	MARPA_ERROR (MARPA_ERR_RANK_TOO_LOW);
+	return failure_indicator;
+      }
+    if (UNLIKELY (rank > MAXIMUM_RANK))
+      {
+	MARPA_ERROR (MARPA_ERR_RANK_TOO_HIGH);
+	return failure_indicator;
+      }
+    return Rank_of_XRL (xrl) = rank;
+}
+
+@*0 Rule ranks high?.
+The ``rule ranks high'' setting affects the
+ranking of the null variants, for rules
+with properly nullable symbols on their
+RHS.
+@<Bit aligned rule elements@> = 
+  unsigned int t_null_ranks_high:1;
+@ @<Initialize rule elements@> =
+rule->t_null_ranks_high = 0;
+@ 
+@d Null_Ranks_High_of_RULE(rule) ((rule)->t_null_ranks_high)
+@<Function definitions@> =
+int marpa_g_rule_null_high (Marpa_Grammar g,
+  Marpa_Rule_ID xrl_id)
+{
+    XRL xrl;
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if |xrl_id| is invalid@>@;
+    xrl = XRL_by_ID (xrl_id);
+    return Null_Ranks_High_of_RULE(xrl);
+}
+@ @<Function definitions@> =
+int marpa_g_rule_null_high_set(
+Marpa_Grammar g, Marpa_Rule_ID xrl_id, int flag)
+{
+    XRL xrl;
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if precomputed@>@;
+    @<Fail if |xrl_id| is invalid@>@;
+    xrl = XRL_by_ID (xrl_id);
+    if (UNLIKELY (flag < 0 || flag > 1))
+      {
+	MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+	return failure_indicator;
+      }
+    return Null_Ranks_High_of_RULE(xrl) = flag;
+}
 
 @*0 Rule is user-created BNF?.
 True for if the rule is a user-created
@@ -2475,6 +2660,32 @@ Marpa_Rule_ID _marpa_g_source_xrl(
     @<Fail if |irl_id| is invalid@>@;
     source_xrl = Source_XRL_of_IRL(IRL_by_ID(irl_id));
     return source_xrl ? ID_of_XRL(source_xrl) : -1;
+}
+
+@*0 Rank.
+The rank of the internal rule.
+|IRL_Rank_by_XRL| and |IRL_CHAF_Rank_by_XRL|
+assume that |t_source_xrl| is not |NULL|.
+@d EXTERNAL_RANK_FACTOR 4
+@d MAXIMUM_CHAF_RANK 3
+@d IRL_CHAF_Rank_by_XRL( xrl, chaf_rank) (
+  ((xrl)->t_rank * EXTERNAL_RANK_FACTOR) +
+    (((xrl)->t_null_ranks_high) ? (MAXIMUM_CHAF_RANK -
+				   (chaf_rank)) : (chaf_rank))
+)
+@d IRL_Rank_by_XRL(xrl) IRL_CHAF_Rank_by_XRL((xrl), MAXIMUM_CHAF_RANK)
+@d Rank_of_IRL(irl) ((irl)->t_rank)
+@<Int aligned IRL elements@> = Marpa_Rank t_rank;
+@ @<Initialize IRL elements@> =
+  Rank_of_IRL(irl) = Default_Rank_of_G(g) * EXTERNAL_RANK_FACTOR + MAXIMUM_CHAF_RANK;
+@ @<Function definitions@> =
+Marpa_Rank _marpa_g_irl_rank(
+    Marpa_Grammar g,
+    Marpa_IRL_ID irl_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if |irl_id| is invalid@>@;
+    return Rank_of_IRL(IRL_by_ID(irl_id));
 }
 
 @*0 First AIM.
@@ -3136,6 +3347,7 @@ if (0)
     RHSID_of_IRL(rewrite_irl, 0) = internal_lhs_isyid;
     irl_finish(g, rewrite_irl);
     Source_XRL_of_IRL(rewrite_irl) = rule;
+    Rank_of_IRL(rewrite_irl) = IRL_Rank_by_XRL(rule);
     /* Real symbol count remains at default of 0 */
     IRL_has_Virtual_RHS (rewrite_irl) = 1;
 }
@@ -3150,6 +3362,7 @@ if (0)
   RHSID_of_IRL (rewrite_irl, 1) = separator_isyid;
   irl_finish (g, rewrite_irl);
   Source_XRL_of_IRL (rewrite_irl) = rule;
+  Rank_of_IRL(rewrite_irl) = IRL_Rank_by_XRL(rule);
   IRL_has_Virtual_RHS (rewrite_irl) = 1;
   Real_SYM_Count_of_IRL (rewrite_irl) = 1;
 }
@@ -3164,6 +3377,7 @@ That's the core of Marpa's rewrite.
   RHSID_of_IRL (rewrite_irl, 0) = rhs_isyid;
   irl_finish (g, rewrite_irl);
   Source_XRL_of_IRL (rewrite_irl) = rule;
+  Rank_of_IRL(rewrite_irl) = IRL_Rank_by_XRL(rule);
   IRL_has_Virtual_LHS (rewrite_irl) = 1;
   Real_SYM_Count_of_IRL (rewrite_irl) = 1;
 }
@@ -3180,6 +3394,7 @@ That's the core of Marpa's rewrite.
   RHSID_of_IRL (rewrite_irl, rhs_ix) = rhs_isyid;
   irl_finish (g, rewrite_irl);
   Source_XRL_of_IRL (rewrite_irl) = rule;
+  Rank_of_IRL(rewrite_irl) = IRL_Rank_by_XRL(rule);
   IRL_has_Virtual_LHS (rewrite_irl) = 1;
   IRL_has_Virtual_RHS (rewrite_irl) = 1;
   Real_SYM_Count_of_IRL (rewrite_irl) = length - 1;
@@ -3437,6 +3652,7 @@ end before the second proper nullable (or factor).
 	Nulling_ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
     }
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 2);
   @<Add CHAF IRL@>@;
 }
 
@@ -3482,6 +3698,7 @@ the Marpa parse engine.
 				 (rule, piece_start + piece_ix));
 	}
       irl_finish (g, chaf_irl);
+      Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 0);
       @<Add CHAF IRL@>@;
     }
 }
@@ -3511,6 +3728,7 @@ the Marpa parse engine.
     }
   RHSID_of_IRL (chaf_irl, chaf_irl_length - 1) = chaf_virtual_isyid;
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 3);
   @<Add CHAF IRL@>@;
 }
 
@@ -3538,6 +3756,7 @@ the Marpa parse engine.
     }
   RHSID_of_IRL (chaf_irl, chaf_irl_length - 1) = chaf_virtual_isyid;
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 2);
   @<Add CHAF IRL@>@;
 }
 
@@ -3565,6 +3784,7 @@ the Marpa parse engine.
     }
   RHSID_of_IRL (chaf_irl, chaf_irl_length - 1) = chaf_virtual_isyid;
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 1);
   @<Add CHAF IRL@>@;
 }
 
@@ -3602,6 +3822,7 @@ the Marpa parse engine.
     }
   RHSID_of_IRL (chaf_irl, chaf_irl_length-1) = chaf_virtual_isyid;
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 0);
   @<Add CHAF IRL@>@;
 }
 
@@ -3632,6 +3853,7 @@ Open block, declarations and setup.
 	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
     }
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 3);
   @<Add CHAF IRL@>@;
 }
 
@@ -3658,6 +3880,7 @@ Open block, declarations and setup.
 	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
     }
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 2);
   @<Add CHAF IRL@>@;
 }
 
@@ -3684,6 +3907,7 @@ Open block, declarations and setup.
 	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
     }
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 1);
   @<Add CHAF IRL@>@;
 }
 
@@ -3723,6 +3947,7 @@ a nulling rule.
 				 (rule, piece_start + piece_ix));
 	}
       irl_finish (g, chaf_irl);
+      Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 0);
       @<Add CHAF IRL@>@;
   }
 }
@@ -3751,6 +3976,7 @@ a nulling rule.
 	ISYID_by_XSYID(RHS_ID_of_RULE (rule, piece_start + piece_ix));
     }
   irl_finish (g, chaf_irl);
+  Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 3);
   @<Add CHAF IRL@>@;
 }
 
@@ -3781,6 +4007,7 @@ a nulling rule.
 				 (rule, piece_start + piece_ix));
 	}
       irl_finish (g, chaf_irl);
+      Rank_of_IRL(chaf_irl) = IRL_CHAF_Rank_by_XRL(rule, 0);
       @<Add CHAF IRL@>@;
     }
 }
@@ -8281,7 +8508,7 @@ altered by the attempt.
   struct obstack * const token_obstack = TOK_Obs_of_I (input);
   if (value)
     {
-      my_obstack_blank (TOK_Obs_of_I (input), sizeof (*token));
+      my_obstack_reserve (TOK_Obs_of_I (input), sizeof (*token));
       token = my_obstack_base (token_obstack);
       ISYID_of_TOK (token) = token_isyid;
       Type_of_TOK (token) = VALUED_TOKEN_OR_NODE;
@@ -8289,7 +8516,7 @@ altered by the attempt.
     }
   else
     {
-      my_obstack_blank (TOK_Obs_of_I (input), sizeof (token->t_unvalued));
+      my_obstack_reserve (TOK_Obs_of_I (input), sizeof (token->t_unvalued));
       token = my_obstack_base (token_obstack);
       ISYID_of_TOK (token) = token_isyid;
       Type_of_TOK (token) = UNVALUED_TOKEN_OR_NODE;
@@ -11245,18 +11472,17 @@ typedef struct marpa_order* Marpa_Order;
 @ @<Public incomplete structures@> =
 typedef Marpa_Order ORDER;
 @
-|t_obs| is
-an obstack with the lifetime of the Marpa order object.
-|t_and_node_orderings| is used as the "safe boolean"
-for the obstack.  They have the same lifetime, so
-that it is safe to destroy the obstack if
-and only if
+|t_ordering_obs| is
+an obstack which contains the ordering information
+for non-default orderings.
+It is non-null if and only if
 |t_and_node_orderings| is non-null.
-@d OBS_of_O(order) ((order)->t_obs)
+@d OBS_of_O(order) ((order)->t_ordering_obs)
+@d O_is_Default(order) (!OBS_of_O(order))
 @d O_is_Frozen(o) ((o)->t_is_frozen)
 @<Private structures@> =
 struct marpa_order {
-    struct obstack* t_obs;
+    struct obstack* t_ordering_obs;
     Bit_Vector t_and_node_in_use;
     ANDID** t_and_node_orderings;
     @<Widely aligned order elements@>@;
@@ -11331,30 +11557,16 @@ marpa_o_ref (Marpa_Order o)
 }
 
 @ @<Function definitions@> =
-PRIVATE void order_strip(ORDER o)
+PRIVATE void order_free(ORDER o)
 {
+  @<Unpack order objects@>@;
+  bocage_unref(b);
   if (o->t_and_node_in_use)
     {
       bv_free (o->t_and_node_in_use);
 	o->t_and_node_in_use = NULL;
     }
-}
-@ @<Function definitions@> =
-PRIVATE void order_freeze(ORDER o)
-{
-  order_strip(o);
-  O_is_Frozen(o) = 0;
-}
-@ @<Function definitions@> =
-PRIVATE void order_free(ORDER o)
-{
-  @<Unpack order objects@>@;
-  bocage_unref(b);
-  order_strip(o);
-  if (o->t_and_node_orderings) {
-      o->t_and_node_orderings = NULL;
-      my_obstack_free(OBS_of_O(o));
-  }
+  my_obstack_free(OBS_of_O(o));
   my_slice_free(*o, o);
 }
 
@@ -11367,6 +11579,47 @@ Is this order for a nulling parse?
 @d O_is_Nulling(o) ((o)->t_is_nulling)
 @ @<Bit aligned order elements@> =
 unsigned int t_is_nulling:1;
+
+@ In the future perhaps,
+a ``high rank count'' of $n$
+might indicate that
+the $n$ highest ranks should be included.
+Right now the only values allowed are 0 (allow everything)
+and 1.
+@d High_Rank_Count_of_O(order) ((order)->t_high_rank_count)
+@<Int aligned order elements@>= int t_high_rank_count;
+@ @<Pre-initialize order elements@> =
+    High_Rank_Count_of_O(o) = 1;
+@ @<Function definitions@> =
+int marpa_o_high_rank_only_set(
+    Marpa_Order o,
+    int count)
+{
+  @<Return |-2| on failure@>@;
+  @<Unpack order objects@>@;
+  @<Fail if fatal error@>@;
+  if (O_is_Frozen (o))
+    {
+      MARPA_ERROR (MARPA_ERR_ORDER_FROZEN);
+      return failure_indicator;
+    }
+  if (UNLIKELY (count < 0 || count > 1))
+    {
+      MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+      return failure_indicator;
+    }
+  return High_Rank_Count_of_O (o) = count;
+}
+
+@
+@<Function definitions@> =
+int marpa_o_high_rank_only( Marpa_Order o)
+{
+  @<Return |-2| on failure@>@;
+  @<Unpack order objects@>@;
+  @<Fail if fatal error@>@;
+  return High_Rank_Count_of_O(o);
+}
 
 @*0 Set the order of and-nodes.
 This function
@@ -11442,7 +11695,7 @@ int _marpa_o_and_order_set(
       ANDID and_count_of_or;
 	and_node_orderings = o->t_and_node_orderings;
 	and_node_in_use = o->t_and_node_in_use;
-	if (!and_node_orderings)
+	if (O_is_Default(o))
 	  {
 	    int and_id;
 	    const int and_count_of_r = AND_Count_of_B (b);
@@ -11495,17 +11748,179 @@ int _marpa_o_and_order_set(
   return 1;
 }
 
+@ @<Set |and_node_rank| from |and_node|@> =
+{
+    const OR cause_or = Cause_OR_of_AND (and_node);
+    if (OR_is_Token(cause_or)) {
+       const ISYID isy_id = ISYID_of_OR(cause_or);
+       and_node_rank = Rank_of_ISY(ISY_by_ID(isy_id));
+    } else {
+       and_node_rank = Rank_of_IRL(IRL_of_OR(cause_or));
+    }
+}
+
+@ @<Function definitions@> =
+int marpa_o_rank( Marpa_Order o)
+{
+  ANDID** and_node_orderings;
+  struct obstack *obs;
+  int bocage_was_reordered = 0;
+  @<Return |-2| on failure@>@;
+  @<Unpack order objects@>@;
+  @<Fail if fatal error@>@;
+  if (O_is_Frozen (o))
+    {
+      MARPA_ERROR (MARPA_ERR_ORDER_FROZEN);
+      return failure_indicator;
+    }
+  @<Initialize |obs| and |and_node_orderings|@>@;
+  if (High_Rank_Count_of_O (o)) {
+    @<Sort bocage for "high rank only"@>@;
+  } else {
+    @<Sort bocage for "rank by rule"@>@;
+  }
+  if (!bocage_was_reordered) {
+    my_obstack_free(obs);
+    OBS_of_O(o) = NULL;
+    o->t_and_node_orderings = NULL;
+  }
+  O_is_Frozen(o) = 1;
+  return 1;
+}
+
+@ @<Sort bocage for "high rank only"@> =
+{
+  const AND and_nodes = ANDs_of_B (b);
+  OR *const or_nodes = ORs_of_B (b);
+  const int or_node_count_of_b = OR_Count_of_B (b);
+  int or_node_id = 0;
+  while (or_node_id < or_node_count_of_b)
+    {
+      const OR work_or_node = or_nodes[or_node_id];
+      const ANDID and_count_of_or = AND_Count_of_OR (work_or_node);
+	@<Sort |work_or_node| for "high rank only"@>@;
+      or_node_id++;
+    }
+}
+
+@ @<Sort |work_or_node| for "high rank only"@> =
+{
+  if (and_count_of_or > 1)
+    {
+      int high_rank_so_far = INT_MIN;
+      const ANDID first_and_node_id = First_ANDID_of_OR (work_or_node);
+      const ANDID last_and_node_id =
+	(first_and_node_id + and_count_of_or) - 1;
+      ANDID *const order_base =
+	(my_obstack_reserve (obs, sizeof (ANDID) * (and_count_of_or + 1)),
+	 my_obstack_base (obs));
+      ANDID *order = order_base + 1;
+      ANDID and_node_id;
+      bocage_was_reordered = 1;
+      for (and_node_id = first_and_node_id; and_node_id <= last_and_node_id;
+	   and_node_id++)
+	{
+	  const AND and_node = and_nodes + and_node_id;
+	  int and_node_rank;
+	  @<Set |and_node_rank| from |and_node|@>@;
+	  if (and_node_rank > high_rank_so_far)
+	    {
+	      order = order_base + 1;
+	      high_rank_so_far = and_node_rank;
+	    }
+	  if (and_node_rank >= high_rank_so_far)
+	    *order++ = and_node_id;
+	}
+      {
+	int final_count = (order - order_base) - 1;
+	*order_base = final_count;
+	my_obstack_confirm_fast (obs, sizeof (ANDID) * (final_count + 1));
+	and_node_orderings[or_node_id] = my_obstack_finish (obs);
+      }
+    }
+}
+
+@ @<Sort bocage for "rank by rule"@> =
+{
+  const AND and_nodes = ANDs_of_B (b);
+  OR *const or_nodes = ORs_of_B (b);
+  const int or_node_count_of_b = OR_Count_of_B (b);
+  const int and_node_count_of_b = AND_Count_of_B (b);
+  int or_node_id = 0;
+  int *rank_by_and_id = my_new (int, and_node_count_of_b);
+  int and_node_id;
+  for (and_node_id = 0; and_node_id < and_node_count_of_b; and_node_id++)
+    {
+      const AND and_node = and_nodes + and_node_id;
+      int and_node_rank;
+      @<Set |and_node_rank| from |and_node|@>@;
+      rank_by_and_id[and_node_id] = and_node_rank;
+    }
+  while (or_node_id < or_node_count_of_b)
+    {
+      const OR work_or_node = or_nodes[or_node_id];
+      const ANDID and_count_of_or = AND_Count_of_OR (work_or_node);
+	@<Sort |work_or_node| for "rank by rule"@>@;
+      or_node_id++;
+    }
+   my_free(rank_by_and_id);
+}
+
+@ @<Sort |work_or_node| for "rank by rule"@> =
+{
+  if (and_count_of_or > 1)
+    {
+      const ANDID first_and_node_id = First_ANDID_of_OR (work_or_node);
+      ANDID *const order_base =
+	my_obstack_alloc (obs, sizeof (ANDID) * (and_count_of_or + 1));
+      ANDID *order = order_base + 1;
+      int nodes_inserted_so_far;
+      bocage_was_reordered = 1;
+      and_node_orderings[or_node_id] = order_base;
+      *order_base = and_count_of_or;
+      for (nodes_inserted_so_far = 0; nodes_inserted_so_far < and_count_of_or;
+	   nodes_inserted_so_far++)
+	{
+	  const ANDID new_and_node_id =
+	    first_and_node_id + nodes_inserted_so_far;
+	  int pre_insertion_ix = nodes_inserted_so_far - 1;
+	  while (pre_insertion_ix >= 0)
+	    {
+	      if (rank_by_and_id[new_and_node_id] <=
+		  rank_by_and_id[order[pre_insertion_ix]])
+		break;
+	      order[pre_insertion_ix + 1] = order[pre_insertion_ix];
+	      pre_insertion_ix--;
+	    }
+	  order[pre_insertion_ix + 1] = new_and_node_id;
+	}
+    }
+}
+
+@ @<Initialize |obs| and |and_node_orderings|@> =
+{
+  int and_id;
+  const int and_count_of_r = AND_Count_of_B (b);
+  obs = OBS_of_O (o) = my_obstack_init;
+  o->t_and_node_orderings =
+    and_node_orderings =
+    my_obstack_alloc (obs, sizeof (ANDID *) * and_count_of_r);
+  for (and_id = 0; and_id < and_count_of_r; and_id++)
+    {
+      and_node_orderings[and_id] = (ANDID *) NULL;
+    }
+}
+
 @
 Check that |ix| is the index of a valid and-node
 in |or_node|.
 @<Function definitions@> =
 PRIVATE ANDID and_order_ix_is_valid(ORDER o, OR or_node, int ix)
 {
-  ANDID **and_node_orderings;
   if (ix >= AND_Count_of_OR (or_node)) return 0;
-  and_node_orderings = o->t_and_node_orderings;
-  if (and_node_orderings)
+  if (!O_is_Default(o))
     {
+      ANDID ** const and_node_orderings = o->t_and_node_orderings;
       ORID or_node_id = ID_of_OR(or_node);
       ANDID *ordering = and_node_orderings[or_node_id];
       if (ordering)
@@ -11523,9 +11938,9 @@ is valid.
 @<Function definitions@> =
 PRIVATE ANDID and_order_get(ORDER o, OR or_node, int ix)
 {
-  ANDID **and_node_orderings = o->t_and_node_orderings;
-  if (and_node_orderings)
+  if (!O_is_Default(o))
     {
+      ANDID ** const and_node_orderings = o->t_and_node_orderings;
       ORID or_node_id = ID_of_OR (or_node);
       ANDID *ordering = and_node_orderings[or_node_id];
       if (ordering)
@@ -11623,7 +12038,7 @@ Marpa_Tree marpa_t_new(Marpa_Order o)
     t = my_slice_new(*t);
     O_of_T(t) = o;
     order_ref(o);
-    order_freeze(o);
+    O_is_Frozen(o) = 1;
     @<Pre-initialize tree elements@>@;
     @<Initialize tree elements@>@;
     return t;

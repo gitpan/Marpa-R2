@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.010000';
+$VERSION        = '2.011_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -54,7 +54,6 @@ BEGIN {
     :package=Marpa::R2::Internal::Symbol
     ID { Unique ID }
     NAME
-    RANK
 END_OF_STRUCTURE
     Marpa::R2::offset($structure);
 } ## end BEGIN
@@ -67,8 +66,6 @@ BEGIN {
     ID
     NAME
     ACTION { action for this rule as specified by user }
-    RANK
-    NULL_RANKS_HIGH
     DISCARD_SEPARATION
 
 END_OF_STRUCTURE
@@ -85,7 +82,6 @@ BEGIN {
     SYMBOLS { array of symbol refs }
     ACTIONS { Default package in which to find actions }
     DEFAULT_ACTION { Action for rules without one }
-    DEFAULT_RANK { Rank for rules and symbols without one }
     TRACE_FILE_HANDLE
     WARNINGS { print warnings about grammar? }
     RULE_NAME_REQUIRED
@@ -235,7 +231,6 @@ sub Marpa::R2::Grammar::new {
     $grammar->[Marpa::R2::Internal::Grammar::INACCESSIBLE_OK] = {};
     $grammar->[Marpa::R2::Internal::Grammar::UNPRODUCTIVE_OK] = {};
     $grammar->[Marpa::R2::Internal::Grammar::INFINITE_ACTION] = 'fatal';
-    $grammar->[Marpa::R2::Internal::Grammar::DEFAULT_RANK]    = 0;
 
     $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS]            = [];
     $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH]        = {};
@@ -309,9 +304,9 @@ sub Marpa::R2::Grammar::set {
 
         if ( defined( my $value = $args->{'default_rank'} ) ) {
             Marpa::R2::exception(
-                'default_rank option not allowed after grammar is precomputed')
-                if $grammar_c->is_precomputed();
-            $grammar->[Marpa::R2::Internal::Grammar::DEFAULT_RANK] = $value;
+                'default_rank option not allowed after grammar is precomputed'
+            ) if $grammar_c->is_precomputed();
+            $grammar_c->default_rank_set($value);
         } ## end if ( defined( my $value = $args->{'default_rank'} ) )
 
         # Second pass options
@@ -607,14 +602,6 @@ sub Marpa::R2::Grammar::precompute {
         Marpa::R2::exception('Cycles in grammar, fatal error')
             if $infinite_action eq 'fatal';
     } ## end if ( $loop_rule_count and $infinite_action ne 'quiet')
-
-    my $default_rank = $grammar->[Marpa::R2::Internal::Grammar::DEFAULT_RANK];
-
-    # LHS_RANK is left undefined if not explicitly set
-    SYMBOL: for my $symbol ( @{$symbols} ) {
-        $symbol->[Marpa::R2::Internal::Symbol::RANK] //=
-            $default_rank;
-    }
 
     # A bit hackish here: INACCESSIBLE_OK is not a HASH ref iff
     # it is a Boolean TRUE indicating that all inaccessibles are OK.
@@ -923,7 +910,7 @@ sub assign_user_symbol {
             Marpa::R2::exception(qq{Symbol "$name": rank must be an integer})
                 if not Scalar::Util::looks_like_number($value)
                     or int($value) != $value;
-            $symbol->[Marpa::R2::Internal::Symbol::RANK] = $value;
+	    $grammar_c->symbol_rank_set($symbol_id) = $value;
         } ## end if ( $property eq 'rank' )
     } ## end while ( my ( $property, $value ) = each %{$options} )
 
@@ -1010,7 +997,7 @@ sub add_user_rule {
 
     my $grammar_c    = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $rules        = $grammar->[Marpa::R2::Internal::Grammar::RULES];
-    my $default_rank = $grammar->[Marpa::R2::Internal::Grammar::DEFAULT_RANK];
+    my $default_rank = $grammar_c->default_rank();
 
     my ( $lhs_name, $rhs_names, $action );
     my ( $min, $separator_name );
@@ -1141,10 +1128,11 @@ sub add_user_rule {
         shadow_rule( $grammar, $ordinary_rule_id );
         my $ordinary_rule = $rules->[$ordinary_rule_id];
         action_set( $ordinary_rule_id, $grammar, $action );
-        $ordinary_rule->[Marpa::R2::Internal::Rule::RANK] = $rank
-            // $default_rank;
-        $ordinary_rule->[Marpa::R2::Internal::Rule::NULL_RANKS_HIGH] =
-            $null_ranking eq 'high';
+	if (defined $rank) {
+	   $grammar_c->rule_rank_set($ordinary_rule_id, $rank);
+	}
+	$grammar_c->rule_null_high_set( $ordinary_rule_id,
+	    ( $null_ranking eq 'high' ? 1 : 0 ) );
         if ( defined $rule_name ) {
             $ordinary_rule->[Marpa::R2::Internal::Rule::NAME] = $rule_name;
             $rules_by_name->{$rule_name} = $ordinary_rule;
@@ -1201,8 +1189,9 @@ sub add_user_rule {
     action_set( $original_rule_id, $grammar, $action );
     $original_rule->[Marpa::R2::Internal::Rule::DISCARD_SEPARATION] =
         $separator_id >= 0 && !$keep_separation;
-    $original_rule->[Marpa::R2::Internal::Rule::NULL_RANKS_HIGH] = $null_ranking eq 'high';
-    $original_rule->[Marpa::R2::Internal::Rule::RANK]         = $rank;
+    $grammar_c->rule_null_high_set( $original_rule_id,
+	( $null_ranking eq 'high' ? 1 : 0 ) );
+    $grammar_c->rule_rank_set($original_rule_id, $rank);
 
     if ( defined $rule_name ) {
         $original_rule->[Marpa::R2::Internal::Rule::NAME] = $rule_name;
@@ -1282,6 +1271,16 @@ sub Marpa::R2::Grammar::brief_irl {
     } ## end if ( my $rh_length = $grammar_c->_marpa_g_irl_length($irl_id))
     return $text;
 } ## end sub Marpa::R2::Grammar::brief_irl
+
+sub Marpa::R2::Grammar::show_IRLs {
+    my ($grammar) = @_;
+    my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
+    my $text      = q{};
+    for my $irl_id ( 0 .. $grammar_c->_marpa_g_irl_count() - 1 ) {
+        $text .= $grammar->brief_irl($irl_id) . "\n";
+    }
+    return $text;
+} ## end sub Marpa::R2::Grammar::show_IRLs
 
 sub Marpa::R2::Grammar::rule_is_used {
     my ( $grammar, $rule_id ) = @_;
