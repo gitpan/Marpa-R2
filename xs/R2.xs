@@ -223,18 +223,61 @@ PPCODE:
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G
 
-G_Wrapper *
-new( class )
-    char * class;
+void
+new( ... )
 PPCODE:
 {
   Marpa_Grammar g;
-  SV *sv;
   G_Wrapper *g_wrapper;
-  SV *throw_sv = get_sv ("Marpa::R2::Thin::C::THROW", 0);
-  const int throw = throw_sv && SvTRUE (throw_sv);
+  int throw = 1;
+  int interface = 0;
   Marpa_Config marpa_configuration;
-  Marpa_Error_Code error_code =
+  Marpa_Error_Code error_code;
+
+  switch (items)
+    {
+    case 1: {
+      /* If we are using the (deprecated) interface 0,
+       * get the throw setting from a (deprecated) global variable
+       */
+      SV *throw_sv = get_sv ("Marpa::R2::Thin::C::THROW", 0);
+      throw = throw_sv && SvTRUE (throw_sv);
+    }
+    break;
+    default: croak_xs_usage (cv, "class, arg_hash");
+    case 2:
+      {
+	I32 retlen;
+	char *key;
+	SV *arg_value;
+	SV *arg = ST (1);
+	HV *named_args;
+	if (!SvROK (arg) || SvTYPE (SvRV (arg)) != SVt_PVHV)
+	    croak ("Problem in $g->new(): argument is not hash ref");
+	named_args = (HV *) SvRV (arg);
+	hv_iterinit (named_args);
+	while ((arg_value = hv_iternextsv (named_args, &key, &retlen)))
+	  {
+	    if ((*key == 'i') && strnEQ (key, "if", (unsigned) retlen))
+	      {
+		interface = SvIV (arg_value);
+		if (interface != 1)
+		  {
+		    croak ("Problem in $g->new(): interface value must be 1");
+		  }
+		continue;
+	      }
+	    croak ("Problem in $g->new(): unknown named argument: %s", key);
+	  }
+	if (interface != 1)
+	  {
+	    croak
+	      ("Problem in $g->new(): 'interface' named argument is required");
+	  }
+      }
+    }
+
+  error_code =
     marpa_check_version (MARPA_MAJOR_VERSION, MARPA_MINOR_VERSION,
 			 MARPA_MICRO_VERSION);
   if (error_code == MARPA_ERR_NONE)
@@ -243,6 +286,7 @@ PPCODE:
       g = marpa_g_new (&marpa_configuration);
       if (g)
 	{
+	  SV *sv;
 	  Newx (g_wrapper, 1, G_Wrapper);
 	  g_wrapper->throw = throw;
 	  g_wrapper->g = g;
@@ -1912,44 +1956,6 @@ PPCODE:
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::O
-
-int
-_marpa_o_and_node_order_set( o_wrapper, or_node_id, and_node_id_av )
-    O_Wrapper *o_wrapper;
-    Marpa_Or_Node_ID or_node_id;
-    AV *and_node_id_av;
-PPCODE:
-{
-  Marpa_Order o = o_wrapper->o;
-  int length = av_len (and_node_id_av) + 1;
-  int result;
-  Marpa_And_Node_ID *and_node_ids;
-  int i;
-  Newx (and_node_ids, length, Marpa_And_Node_ID);
-  for (i = 0; i < length; i++)
-    {
-      SV **elem = av_fetch (and_node_id_av, i, 0);
-      if (elem == NULL)
-	{
-	  Safefree (and_node_ids);
-	  XSRETURN_UNDEF;
-	}
-      else
-	{
-	  and_node_ids[i] = SvIV (*elem);
-	}
-    }
-  result = _marpa_o_and_order_set (o, or_node_id, and_node_ids, length);
-  Safefree (and_node_ids);
-  if (result < -1) {
-    croak ("Problem in o->_marpa_o_and_node_order_set(): %s", xs_g_error(o_wrapper->base));
-  }
-  if (result < 0)
-    {
-      XSRETURN_NO;
-    }
-  XSRETURN_YES;
-}
 
 int
 _marpa_o_and_node_order_get( o_wrapper, or_node_id, and_ix )

@@ -214,7 +214,7 @@ The Marpa thin interface handles this.
 =head1 The throw setting
 
 One of the most important functions of
-the Marpa thin interface to to adapt Libmarpa's
+the Marpa thin interface to adapt Libmarpa's
 error reporting to Perl.
 Perl allows two kinds of error reporting.
 Perl methods can communicate failure via their return values,
@@ -240,11 +240,8 @@ setting.
 If the throw setting is 1, failure is thrown.
 If the throw setting is 0, failure is returned.
 
-Newly created grammar objects take their
-throw setting from the
-L<C<$Marpa::R2::Thin::C::THROW>|"$Marpa::R2::Thin::C::THROW">
-configuration variable.
-By default, C<$Marpa::R2::Thin::C::THROW> is set to 1.
+The throw setting is 1 in newly created grammar
+objects.
 Once created, the throw setting of a grammar object
 can be changed using the L<< C<throw_set()>
 method|"$g->throw_set()" >>
@@ -252,13 +249,16 @@ The throw setting of other objects is that
 of their base grammar.
 
 Nearly every Marpa thin method always obeys the throw setting.
-Only two methods never obey the throw setting.
+Only three methods never obey the throw setting.
+They are exceptions because their logic
+controls the throw setting, so that a problem with them
+suggests the throw setting itself may not be correct.
+The methods which never obey the throw setting,
+are
+L<< C<< Marpa::R2::Thin::G->new() >>|"Marpa::R2::Thin::G->new()" >>,
 L<< C<throw_set()>|"$g->throw_set()" >>
-and L<< C<ruby_slippers_set()>|"$r->ruby_slippers_set()" >>
-themselves change
-the logic that controls the throwing of exceptions.
-For this reason it is safest to have these two
-methods throw all failures.
+and L<< C<ruby_slippers_set()>|"$r->ruby_slippers_set()" >>.
+These methods throw all failures.
 
 One method allows the throw setting to be overriden.
 For convenience in using the Ruby Slippers technique,
@@ -617,28 +617,6 @@ not a numeric 0 or 1.
 C<throw_set()> itself never returns failure --
 it always throws an exception.
 
-=head1 Configuration variables
-
-The Marpa thin interface has one configuration
-variable:
-
-=head2 C<< $Marpa::R2::Thin::C::THROW >>
-
-If a Perl true, the Marpa thin interface throws
-failures as exceptions.
-If a Perl false, the Marpa thin interface methods return
-failure, as described for each method.
-Defaults to true.
-
-Each grammar has its own "throw" flag.
-The C< $Marpa::R2::Thin::C::THROW > variable
-determines the initial setting of
-a grammar's throw flag.
-A grammar's "throw" flag can be reset using
-the C<< $g->throw_set() >> method,
-after which its setting is independent of the
-C< $Marpa::R2::Thin::C::THROW > variable.
-
 =head2 Omitted methods
 
 All of
@@ -657,25 +635,41 @@ name: Thin example
 partial: 1
 normalize-whitespace: 1
 
-    my $grammar  = Marpa::R2::Thin::G->new();
+    my $grammar = Marpa::R2::Thin::G->new( { if => 1 } );
 
 =for Marpa::R2::Display::End
 
-There are no arguments to the Marpa thin interface's
-grammar constructor.
+The one argument to the Marpa thin interface's
+grammar constructor,
+is a reference to a hash of named arguments.
 On success,
-its return value is a thin interface grammar object.
+the return value is a thin interface grammar object.
+C<new()> does not obey the throw setting --
+errors are always thrown.
 
-A failure occurs if there is a version mismatch, which should
-not happen -- it indicates a problem with the way that the library
-was built.
-C<new()> obeys the throw setting.
-On unthrown failure in scalar context, C<new()> returns
-a Perl C<undef>.
-On unthrown failure in array context,
-C<new()> returns a 2-element array
-whose first element is a Perl C<undef>
-and whose second element is the error code.
+At present the only named argument allowed is C<if>,
+the interface number.
+This argument is required and currently is required
+to have a value of 1,
+which specifies interface 1.
+The intent of the C<if> argument is to provide
+for backward compatibility in the future.
+
+Although there is no error message or warning if the hash
+ref argument
+is omitted, new code should treat
+the hash ref argument as a required argument.
+Calling C<new()> without an argument is deprecated.
+If the hash ref argument is omitted, the thin
+layer uses interface 0.
+Interface 0 cannot be specified directly,
+and is deprecated.
+The difference between interface 0 and interface 1
+is that, in interface 0, the default throw setting
+of the newly created grammar object
+is unspecified.
+(In fact, the interface 0 throw setting depends on an
+undocumented and deprecated global variable.)
 
 =head2 C<< $g->event() >>
 
@@ -1289,7 +1283,7 @@ L<above|"The general pattern">.
 name: Thin example
 normalize-whitespace: 1
 
-    my $grammar  = Marpa::R2::Thin::G->new();
+    my $grammar = Marpa::R2::Thin::G->new( { if => 1 } );
     my $symbol_S = $grammar->symbol_new();
     my $symbol_E = $grammar->symbol_new();
     $grammar->start_symbol_set($symbol_S);

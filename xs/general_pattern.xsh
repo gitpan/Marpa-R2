@@ -13,8 +13,8 @@
  # General Public License along with Marpa::R2.  If not, see
  # http://www.gnu.org/licenses/.
 
- # Generated automatically by xs/gp_generate.pl
- # NOTE: Changes made to this file will be lost: look at xs/gp_generate.pl.
+ # Generated automatically by gp_generate.pl
+ # NOTE: Changes made to this file will be lost: look at gp_generate.pl.
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G
 
