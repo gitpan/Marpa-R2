@@ -238,13 +238,7 @@ sub do_assign {
 
 sub do_THING {
     my ( undef, $value ) = @_;
-    if ( Scalar::Util::looks_like_number($value) ) {
-
-## no critic(BuiltinFunctions::ProhibitStringyEval)
         $value = eval $value;
-## use critic
-
-    } ## end if ( Scalar::Util::looks_like_number($value) )
     return [ 'R', \$value ];
 } ## end sub do_THING
 
@@ -456,7 +450,7 @@ my %closure = ();
 
 ## Tests from dumper.t
 
-my $parser = Marpa::R2::Perl->new( \&gen_closure );
+my $parser = Marpa::R2::Perl->new( { closures => \&gen_closure } );
 
 # Perlcritic cannot figure out that $a and $b are not magic variables
 # for a sort comparison

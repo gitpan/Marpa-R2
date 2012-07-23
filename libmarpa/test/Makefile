@@ -1,6 +1,14 @@
 
-all:
-	(cd lib; sh ../../dist/configure)
-	(cd lib; make CFLAGS='-g -O2 -fno-inline -Wno-inline')
-	(cd build; sh ../dev/configure)
-	(cd build; make)
+all: libmarpa/libmarpa.la
+
+libmarpa/libmarpa.la: libmarpa/stamp
+	cd libmarpa && sh configure
+	cd libmarpa && make CFLAGS='-g -O2 -fno-inline -Wno-inline'
+
+libmarpa/stamp: ../libmarpa.tar
+	test -d libmarpa && rm -rf libmarpa
+	tar -xvf ../libmarpa.tar
+	version=`../stage/configure --version | sed -ne '1s/^marpa configure *//p'`; \
+	  untar_dir=marpa-$$version ; \
+	  mv $$untar_dir libmarpa
+	touch libmarpa/stamp
