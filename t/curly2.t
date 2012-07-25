@@ -88,7 +88,6 @@ my $result = q{};
 PERL_CODE: while (1) {
     last PERL_CODE if $next_start >= $count_of_tokens;
     my ( $start, $end ) = $finder->find_perl($next_start);
-    my @issues = @{ $finder->{token_issues} };
     if ( not defined $start ) {
         $next_start = $end + 1;
         next PERL_CODE;
@@ -98,7 +97,7 @@ PERL_CODE: while (1) {
     $perl_code =~ s/^\s*//;
     $perl_code =~ s/\s*$//;
     $result .= "Perl fragment: $perl_code\n";
-    $result .= find_curly( $parser, $start, $end - 1 );
+    $result .= find_curly( $parser, $start, $end );
     $next_start = $end + 1;
 } ## end PERL_CODE: while (1)
 
@@ -157,9 +156,9 @@ sub find_curly {
                 :                             undef;
             next ITEM if not defined $blocktype;
             my $token = $PPI_tokens->[ $earleme_to_token->[$origin_earleme] ];
-            push @hash_locations, [ $origin_earleme, $earley_set_id ]
+            push @hash_locations, [ $origin_earleme, $earley_set_id-1 ]
                 if $blocktype eq 'hash';
-            push @code_locations, [ $origin_earleme, $earley_set_id ]
+            push @code_locations, [ $origin_earleme, $earley_set_id-1 ]
                 if $blocktype eq 'code';
 
         } ## end ITEM: for my $progress_item ( @{$progress_report} )
@@ -169,15 +168,8 @@ sub find_curly {
         for my $hash_location (@hash_locations) {
             my ( $start, $end ) = @{$hash_location};
             my $start_ix = $earleme_to_token->[$start];
-            my $end_ix   = $earleme_to_token->[$end];
-            if ( defined $end_ix ) {
-                $end_ix--;
-            }
-            else {
-                do { }
-                    while not
-                        defined( $end_ix = $earleme_to_token->[ --$end ] );
-            }
+	    my $end_ix   = $earleme_to_token->[$end];
+	    while (not defined $end_ix) { $end_ix = $earleme_to_token->[ --$end ] };
             my $string = join q{},
                 map { $_->content() } @{$tokens}[ $start_ix .. $end_ix ];
             $string =~ s/^\s*//;
@@ -191,14 +183,7 @@ sub find_curly {
             my ( $start, $end ) = @{$code_location};
             my $start_ix = $earleme_to_token->[$start];
             my $end_ix   = $earleme_to_token->[$end];
-            if ( defined $end_ix ) {
-                $end_ix--;
-            }
-            else {
-                do { }
-                    while not
-                        defined( $end_ix = $earleme_to_token->[ --$end ] );
-            }
+	    while (not defined $end_ix) { $end_ix = $earleme_to_token->[ --$end ] };
             my $string = join q{},
                 map { $_->content() } @{$tokens}[ $start_ix .. $end_ix ];
             $string =~ s/^\s*//;
