@@ -732,6 +732,23 @@ PPCODE:
 }
 
 void
+expected_symbol_event_set( r_wrapper, xsyid, value )
+    R_Wrapper *r_wrapper;
+    Marpa_Symbol_ID xsyid;
+    int value;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_expected_symbol_event_set(self, xsyid, value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->expected_symbol_event_set(%d, %d): %s",
+     xsyid, value, xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
 latest_earley_set( r_wrapper )
     R_Wrapper *r_wrapper;
 PPCODE:

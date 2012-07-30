@@ -804,8 +804,8 @@ rule_add (GRAMMAR g, RULE rule)
   const RULEID new_id = DSTACK_LENGTH ((g)->t_xrl_stack);
   *DSTACK_PUSH ((g)->t_xrl_stack, RULE) = rule;
   rule->t_id = new_id;
-  External_Size_of_G (g) += 1 + Length_of_RULE (rule);
-  g->t_max_rule_length = MAX (Length_of_RULE (rule), g->t_max_rule_length);
+  External_Size_of_G (g) += 1 + Length_of_XRL (rule);
+  g->t_max_rule_length = MAX (Length_of_XRL (rule), g->t_max_rule_length);
 }
 
 @ Check that rule is in valid range.
@@ -1502,6 +1502,9 @@ it is the non-nullable ISY.
 @d ISY_of_XSY(xsy) ((xsy)->t_isy_equivalent)
 @d ISYID_of_XSY(xsy) ID_of_ISY(ISY_of_XSY(xsy))
 @d ISY_by_XSYID(xsyid) (XSY_by_ID(xsyid)->t_isy_equivalent)
+@ Note that it is up to the calling environment for
+|ISYID_by_XSYID(xsyid)| to ensure that
+|ISY_of_XSY(xsy)| exists.
 @d ISYID_by_XSYID(xsyid) ID_of_ISY(ISY_of_XSY(XSY_by_ID(xsyid)))
 @<Widely aligned symbol elements@> = ISY t_isy_equivalent;
 @ @<Initialize symbol elements@> = ISY_of_XSY(symbol) = NULL;
@@ -1530,6 +1533,9 @@ If the external symbol is non-nulling,
 there is no nulling internal equivalent.
 @d Nulling_ISY_of_XSY(xsy) ((xsy)->t_nulling_isy)
 @d Nulling_ISY_by_XSYID(xsy) (XSY_by_ID(xsy)->t_nulling_isy)
+@ Note that it is up to the calling environment for
+|Nulling_ISYID_by_XSYID(xsyid)| to ensure that
+|Nulling_ISY_of_XSY(xsy)| exists.
 @d Nulling_ISYID_by_XSYID(xsy) ID_of_ISY(XSY_by_ID(xsy)->t_nulling_isy)
 @<Widely aligned symbol elements@> = ISY t_nulling_isy;
 @ @<Initialize symbol elements@> = Nulling_ISY_of_XSY(symbol) = NULL;
@@ -2092,7 +2098,6 @@ I believe
 by the time 64-bit machines become universal,
 nobody will have noticed this restriction.
 @d MAX_RHS_LENGTH (INT_MAX >> (2))
-@d Length_of_RULE(rule) ((rule)->t_rhs_length)
 @d Length_of_XRL(xrl) ((xrl)->t_rhs_length)
 @<Int aligned rule elements@> = int t_rhs_length;
 @ The symbols come at the end of the |marpa_rule| structure,
@@ -2126,22 +2131,20 @@ Marpa_Symbol_ID marpa_g_rule_rhs(Marpa_Grammar g, Marpa_Rule_ID xrl_id, int ix) 
       MARPA_ERROR(MARPA_ERR_RHS_IX_NEGATIVE);
       return failure_indicator;
     }
-    if (Length_of_RULE(rule) <= ix) {
+    if (Length_of_XRL(rule) <= ix) {
       MARPA_ERROR(MARPA_ERR_RHS_IX_OOB);
       return failure_indicator;
     }
     return RHS_ID_of_RULE(rule, ix);
 }
-@ @<Function definitions@> =
-PRIVATE size_t rule_length_get(RULE rule)
-{
-    return Length_of_RULE(rule); }
+
 @ @<Function definitions@> =
 int marpa_g_rule_length(Marpa_Grammar g, Marpa_Rule_ID xrl_id) {
     @<Return |-2| on failure@>@;
     @<Fail if fatal error@>@;
     @<Fail if |xrl_id| is invalid@>@;
-    return rule_length_get(XRL_by_ID(xrl_id)); }
+    return Length_of_XRL(XRL_by_ID(xrl_id));
+}
 
 @*1 Symbols of the rule.
 @d LHS_ID_of_RULE(rule) ((rule)->t_symbols[0])
@@ -2940,7 +2943,7 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
     {
       const XRL rule = XRL_by_ID (rule_id);
       const Marpa_Symbol_ID lhs_id = LHS_ID_of_RULE (rule);
-      const int rule_length = Length_of_RULE (rule);
+      const int rule_length = Length_of_XRL (rule);
       const int is_sequence = XRL_is_Sequence (rule);
 
       bv_bit_set (lhs_v, (unsigned int) lhs_id);
@@ -3157,7 +3160,7 @@ where many of the right hand sides repeat symbols.
     {
       XRL rule = XRL_by_ID (rule_id);
       SYMID lhs_id = LHS_ID_of_RULE (rule);
-      unsigned int rhs_ix, rule_length = Length_of_RULE (rule);
+      unsigned int rhs_ix, rule_length = Length_of_XRL (rule);
       for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
 	{
 	  matrix_bit_set (reach_matrix,
@@ -3832,8 +3835,8 @@ Open block, declarations and setup.
 {
   const int first_factor_position = factor_positions[factor_position_ix];
   const int second_factor_position = factor_positions[factor_position_ix + 1];
-  const int real_symbol_count = Length_of_RULE (rule) - piece_start;
-  piece_end = Length_of_RULE (rule) - 1;
+  const int real_symbol_count = Length_of_XRL (rule) - piece_start;
+  piece_end = Length_of_XRL (rule) - 1;
   @<Add final CHAF PP rule for two factors@>@;
   @<Add final CHAF PN rule for two factors@>@;
   @<Add final CHAF NP rule for two factors@>@;
@@ -3957,7 +3960,7 @@ a nulling rule.
 {
   int real_symbol_count;
   const int first_factor_position = factor_positions[factor_position_ix];
-  piece_end = Length_of_RULE (rule) - 1;
+  piece_end = Length_of_XRL (rule) - 1;
   real_symbol_count = piece_end - piece_start + 1;
   @<Add final CHAF P rule for one factor@>@;
   @<Add final CHAF N rule for one factor@>@;
@@ -4138,7 +4141,7 @@ unit transitions are not in general reflexive.
       SYMID nonnulling_id = -1;
       int nonnulling_count = 0;
       int rhs_ix, rule_length;
-      rule_length = Length_of_RULE (rule);
+      rule_length = Length_of_XRL (rule);
       for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
 	{
 	  XSYID xsyid = RHS_ID_of_RULE (rule, rhs_ix);
@@ -6283,14 +6286,7 @@ can tell if there is a boolean vector to be freed.
 @ @<Allocate recognizer containers@> = 
     r->t_bv_isyid_is_expected = bv_obs_create( r->t_obs, (unsigned int)isy_count );
 @ Returns |-2| if there was a failure.
-There is a check that the expectations of this
-function and its caller about size of the |GArray| elements match.
-This is a check worth making.
-Mistakes happen,
-a mismatch might arise as a portability issue,
-and if I do not ``fail fast" here the ultimate problem
-could be very hard to debug.
-@ The buffer is expected to be large enough to hold
+The buffer is expected to be large enough to hold
 the result.
 This will be the case if the length of the buffer
 is greater than or equal to the number of symbols
@@ -6316,6 +6312,56 @@ int marpa_r_terminals_expected(Marpa_Recognizer r, Marpa_Symbol_ID* buffer)
 	  }
       }
     return ix;
+}
+
+@*0 Expected symbol is event?.
+A boolean vector by symbol ID,
+with the bits set if, when
+that symbol is an expected symbol,
+an event should be created.
+@<Widely aligned recognizer elements@> = LBV t_isy_expected_is_event;
+@ @<Initialize recognizer elements@> = r->t_isy_expected_is_event = NULL;
+@ @<Allocate recognizer containers@> = 
+  r->t_isy_expected_is_event = lbv_obs_new0(r->t_obs, isy_count);
+@ Returns |-2| if there was a failure.
+The buffer is expected to be large enough to hold
+the result.
+This will be the case if the length of the buffer
+is greater than or equal to the number of symbols
+in the grammar.
+@ For the moment, at least, it is a no-op if there is
+no internal symbol.
+@<Function definitions@> =
+int marpa_r_expected_symbol_event_set(Marpa_Recognizer r, Marpa_Symbol_ID xsyid, int value)
+{
+    XSY xsy;
+    ISY isy;
+    ISYID isyid;
+    @<Return |-2| on failure@>@;
+    @<Unpack recognizer objects@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if recognizer not started@>@;
+    @<Fail if |xsyid| is invalid@>@;
+    if (UNLIKELY (value < 0 || value > 1))
+      {
+	MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+	return failure_indicator;
+      }
+    xsy = XSY_by_ID(xsyid);
+    if (UNLIKELY(XSY_is_Nulling(xsy))) {
+      MARPA_ERROR (MARPA_ERR_SYMBOL_IS_NULLING);
+    }
+    isy = ISY_of_XSY(xsy);
+    if (UNLIKELY(!isy)) {
+      MARPA_ERROR (MARPA_ERR_SYMBOL_IS_UNUSED);
+    }
+    isyid = ID_of_ISY(isy);
+    if (value) {
+      lbv_bit_set(r->t_isy_expected_is_event, isyid);
+    } else {
+      lbv_bit_clear(r->t_isy_expected_is_event, isyid);
+    }
+    return value;
 }
 
 @*0 Leo-related booleans.
@@ -9270,6 +9316,11 @@ of the base EIM.
 	ISYID isyid;
 	for (isyid = (ISYID)min; isyid <= (ISYID) max; isyid++) {
             PIM this_pim = r->t_pim_workarea[isyid];
+	    if (lbv_bit_test(r->t_isy_expected_is_event, isyid)) {
+	      ISY isy = ISY_by_ID(isyid);
+	      XSY xsy = Source_XSY_of_ISY(isy);
+	      int_event_new (g, MARPA_EVENT_SYMBOL_EXPECTED, ID_of_XSY(xsy));
+	    }
 	    if (this_pim) postdot_array[postdot_array_ix++] = this_pim;
 	}
     }
