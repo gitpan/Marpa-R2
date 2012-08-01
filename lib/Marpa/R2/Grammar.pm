@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.015_002';
+$VERSION        = '2.015_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -853,16 +853,6 @@ sub Marpa::R2::Grammar::symbol_name {
     }
     return '[SYMBOL' . $id . ']';
 } ## end sub Marpa::R2::Grammar::symbol_name
-
-# TO BE DELETED
-# This function is for use during development
-sub Marpa::R2::Grammar::xsy_name {
-    my ( $grammar, $id ) = @_;
-    my $symbols = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
-    if ( defined $symbols->[$id] ) {
-        return $symbols->[$id]->[Marpa::R2::Internal::Symbol::NAME];
-    }
-}
 
 sub shadow_symbol {
     my ( $grammar, $symbol_id, $name ) = @_;

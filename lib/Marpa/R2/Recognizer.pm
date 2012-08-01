@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.015_002';
+$VERSION        = '2.015_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -47,27 +47,28 @@ BEGIN {
 
     END
     CLOSURES
-    TRACE_ACTIONS
-    TRACE_AND_NODES
-    TRACE_BOCAGE
-    TRACE_OR_NODES
-    TRACE_VALUES
-    TRACE_TASKS
     MAX_PARSES
     NULL_VALUES
     RANKING_METHOD
+    TRACE_ACTIONS
+    TRACE_AND_NODES
+    TRACE_BOCAGE
+    TRACE_EARLEY_SETS
+    TRACE_OR_NODES
+    TRACE_TASKS
+    TRACE_TERMINALS
+    TRACE_VALUES
+    WARNINGS
 
     { The following fields must be reinitialized when
     evaluation is reset }
 
     RULE_CLOSURES
+    EVENTS
 
     { This is the end of the list of fields which
     must be reinitialized when evaluation is reset }
 
-    TRACE_EARLEY_SETS
-    TRACE_TERMINALS
-    WARNINGS
 
 END_OF_STRUCTURE
     Marpa::R2::offset($structure);
@@ -150,8 +151,6 @@ sub Marpa::R2::Recognizer::new {
         Marpa::R2::exception( 'Recognizer start of input failed: ', $error );
     }
 
-    my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
-
     $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR] = $grammar;
 
     if ( $trace_terminals > 1 ) {
@@ -198,6 +197,7 @@ sub Marpa::R2::Recognizer::reset_evaluation {
     $recce->[Marpa::R2::Internal::Recognizer::O_C]           = undef;
     $recce->[Marpa::R2::Internal::Recognizer::T_C]           = undef;
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES] = [];
+    $recce->[Marpa::R2::Internal::Recognizer::EVENTS] = [];
     return;
 } ## end sub Marpa::R2::Recognizer::reset_evaluation
 
@@ -428,15 +428,16 @@ sub Marpa::R2::Recognizer::earleme {
     return $recce_c->earleme($earley_set_id);
 }
 
-# Deprecated -- obsolete
-sub Marpa::R2::Recognizer::status {
-    my ($recce) = @_;
-    my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
-    return ( $recce_c->current_earleme(), $recce->terminals_expected() )
-        if wantarray;
-    return $recce->current_earleme();
-
-} ## end sub Marpa::R2::Recognizer::status
+sub Marpa::R2::Recognizer::expected_symbol_event_set {
+    my ( $recce, $symbol_name, $value ) = @_;
+    my $recce_c     = $recce->[Marpa::R2::Internal::Recognizer::C];
+    my $grammar     = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    my $symbol_hash = $grammar->[Marpa::R2::Internal::Grammar::SYMBOL_HASH];
+    my $symbol_id   = $symbol_hash->{$symbol_name};
+    Marpa::exception(qq{Unknown symbol: "$symbol_name"})
+        if not defined $symbol_id;
+    return $recce_c->expected_symbol_event_set( $symbol_id, $value );
+} ## end sub Marpa::R2::Recognizer::expected_symbol_event_set
 
 # Now useless and deprecated
 sub Marpa::R2::Recognizer::strip { return 1; }
@@ -672,19 +673,28 @@ sub Marpa::R2::Recognizer::earleme_complete {
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
 
     my $event_count = $recce_c->earleme_complete();
+    my @cooked_events = ();
     EVENT: for my $event_ix ( 0 .. $event_count - 1 ) {
         my ( $event_type, $value ) = $grammar_c->event($event_ix);
-        next EVENT if $event_type eq 'MARPA_EVENT_EXHAUSTED';
         if ( $event_type eq 'MARPA_EVENT_EARLEY_ITEM_THRESHOLD' ) {
             say {
                 $recce->[Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE] }
                 "Earley item count ($value) exceeds warning threshold"
                 or die "say: $ERRNO";
+            push @cooked_events, ['EARLEY_ITEM_THRESHOLD'];
             next EVENT;
         } ## end if ( $event_type eq 'MARPA_EVENT_EARLEY_ITEM_THRESHOLD')
-        Marpa::R2::exception(
-            qq{Unknown earleme completion event; type="$event_type"});
+        if ( $event_type eq 'MARPA_EVENT_SYMBOL_EXPECTED' ) {
+            push @cooked_events,
+                [ 'SYMBOL_EXPECTED', $grammar->symbol_name($value) ];
+            next EVENT;
+        }
+        if ( $event_type eq 'MARPA_EVENT_EXHAUSTED' ) {
+            push @cooked_events, ['EXHAUSTED'];
+            next EVENT;
+        }
     } ## end EVENT: for my $event_ix ( 0 .. $event_count - 1 )
+    $recce->[Marpa::R2::Internal::Recognizer::EVENTS] = \@cooked_events;
 
     if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_EARLEY_SETS] ) {
         my $latest_set = $recce_c->latest_earley_set();
@@ -710,6 +720,11 @@ sub Marpa::R2::Recognizer::earleme_complete {
     return $event_count;
 
 } ## end sub Marpa::R2::Recognizer::earleme_complete
+
+sub Marpa::R2::Recognizer::events {
+    my ($recce) = @_;
+    return $recce->[Marpa::R2::Internal::Recognizer::EVENTS];
+}
 
 # INTERNAL OK AFTER HERE _marpa_
 
