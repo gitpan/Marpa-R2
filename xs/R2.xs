@@ -42,6 +42,11 @@ typedef struct {
      Marpa_Recce r;
      Marpa_Symbol_ID* terminals_buffer;
      G_Wrapper* base;
+     STRLEN character_ix; /* character position, taking into account Unicode */
+     STRLEN input_offset; /* byte position, ignoring Unicode */
+     SV* input;
+     UV** oplists_by_byte;
+     HV* per_codepoint_ops;
      unsigned int ruby_slippers:1;
 } R_Wrapper;
 
@@ -196,6 +201,15 @@ static int marpa_r2_warn(const char* format, ...)
    return 1;
 }
 
+enum marpa_recce_op {
+   op_alternative,
+   op_alternative_ignore,
+   op_alternative_args,
+   op_alternative_args_ignore,
+   op_earleme_complete,
+   op_unregistered,
+};
+
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
 PROTOTYPES: DISABLE
@@ -219,6 +233,34 @@ PPCODE:
       const char *error_name = marpa_error_description[error_code].name;
       XPUSHs (sv_2mortal (newSVpv (error_name, 0)));
     }
+}
+
+void
+op( op_name )
+     char *op_name;
+PPCODE:
+{
+  if (strEQ (op_name, "alternative"))
+    {
+      XSRETURN_IV (op_alternative);
+    }
+  if (strEQ (op_name, "alternative;ignore"))
+    {
+      XSRETURN_IV (op_alternative_ignore);
+    }
+  if (strEQ (op_name, "alternative;args"))
+    {
+      XSRETURN_IV (op_alternative_args);
+    }
+  if (strEQ (op_name, "alternative;args;ignore"))
+    {
+      XSRETURN_IV (op_alternative_args_ignore);
+    }
+  if (strEQ (op_name, "earleme_complete"))
+    {
+      XSRETURN_IV (op_earleme_complete);
+    }
+  XSRETURN_UNDEF;
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G
@@ -562,6 +604,20 @@ PPCODE:
   Newx (r_wrapper->terminals_buffer, symbol_count, Marpa_Symbol_ID);
   r_wrapper->ruby_slippers = 0;
   r_wrapper->base = g_wrapper;
+  r_wrapper->input = newSVpvn("", 0);
+  r_wrapper->character_ix = 0;
+  r_wrapper->input_offset = 0;
+  r_wrapper->per_codepoint_ops = newHV();
+  {
+    const int number_of_bytes = 0x100;
+    int codepoint;
+    UV **oplists;
+    Newx(oplists, number_of_bytes, UV*);
+    r_wrapper->oplists_by_byte = oplists;
+    for (codepoint = 0; codepoint < number_of_bytes; codepoint++) {
+        oplists[codepoint] = (UV*)NULL;
+    }
+  }
   sv = sv_newmortal ();
   sv_setref_pv (sv, recce_c_class_name, (void *) r_wrapper);
   XPUSHs (sv);
@@ -570,13 +626,24 @@ PPCODE:
 void
 DESTROY( r_wrapper )
     R_Wrapper *r_wrapper;
-PREINIT:
-    struct marpa_r *r;
-CODE:
-    r = r_wrapper->r;
+PPCODE:
+{
+    struct marpa_r *r = r_wrapper->r;
+    UV **oplists = r_wrapper->oplists_by_byte;
+    if (oplists) {
+      const int number_of_bytes = 0x100;
+      int codepoint;
+      for (codepoint = 0; codepoint < number_of_bytes; codepoint++) {
+	  Safefree(oplists[codepoint]);
+      }
+      Safefree(r_wrapper->oplists_by_byte);
+    }
+    SvREFCNT_dec(r_wrapper->input);
+    SvREFCNT_dec(r_wrapper->per_codepoint_ops);
     Safefree(r_wrapper->terminals_buffer);
     marpa_r_unref( r );
     Safefree( r_wrapper );
+}
 
 void
 ruby_slippers_set( r_wrapper, boolean )
@@ -655,6 +722,245 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (rule_id)));
   XPUSHs (sv_2mortal (newSViv (position)));
   XPUSHs (sv_2mortal (newSViv (origin)));
+}
+
+void
+_per_codepoint_ops( r_wrapper )
+     R_Wrapper *r_wrapper;
+PPCODE:
+{
+  XPUSHs (sv_2mortal (newRV ((SV*)r_wrapper->per_codepoint_ops)));
+}
+
+void
+char_register( r_wrapper, codepoint, ... )
+     R_Wrapper *r_wrapper;
+     unsigned long codepoint;
+PPCODE:
+{
+  /* OP Count is args less two, then plus two for codepoint and length fields */
+  const STRLEN op_count = items;
+  if (codepoint > 0xFF)
+    {
+      croak
+	("Problem in r->char_register(0x%lx): More than 8bit codepoint not yet implemented",
+	 codepoint);
+    }
+  {
+    STRLEN op_ix;
+    UV **const ops_by_byte = r_wrapper->oplists_by_byte;
+    UV *ops = ops_by_byte[codepoint];
+    Renew (ops, op_count, UV);
+    r_wrapper->oplists_by_byte[codepoint] = ops;
+    ops[0] = codepoint;
+    ops[1] = op_count;
+    for (op_ix = 2; op_ix < op_count; op_ix++)
+      {
+	/* By coincidence, offset of individual ops is 2 both in the
+	 * method arguments and in the op_list, so that arg IX == op_ix
+	 */
+	ops[op_ix] = SvUV (ST (op_ix));
+      }
+  }
+}
+
+void
+input_string_set( r_wrapper, string )
+     R_Wrapper *r_wrapper;
+     SV *string;
+PPCODE:
+{
+  r_wrapper->character_ix = 0;
+  r_wrapper->input_offset = 0;
+  sv_setsv (r_wrapper->input, string);
+  SvPV_nolen (r_wrapper->input);
+}
+
+void
+input_string_pos( r_wrapper )
+     R_Wrapper *r_wrapper;
+PPCODE:
+{
+  XSRETURN_IV(r_wrapper->character_ix);
+}
+
+void
+input_string_offset( r_wrapper )
+     R_Wrapper *r_wrapper;
+PPCODE:
+{
+  XSRETURN_IV(r_wrapper->input_offset);
+}
+
+void
+input_string_hop( r_wrapper, hop )
+     R_Wrapper *r_wrapper;
+     int hop;
+PPCODE:
+{
+  /* *SAFELY* move the pointer backward or forward
+   * This requires care in UTF8
+   * Returns the hop actually performed
+   */
+  int input_is_utf8 = SvUTF8 (r_wrapper->input);
+  STRLEN len;
+  char *input;
+  if (hop == 0) XSRETURN_IV(0);
+  if (input_is_utf8) {
+      croak ("Problem in r->read_string(): UTF8 not yet implemented");
+  }
+  input = SvPV (r_wrapper->input, len);
+  if (hop > 0) {
+     const int maximum_hop = len - r_wrapper->input_offset;
+     const int actual_hop = hop > maximum_hop ? maximum_hop : hop;
+     r_wrapper->input_offset += actual_hop;
+     r_wrapper->character_ix += actual_hop;
+     XSRETURN_IV(actual_hop);
+  }
+  if (hop < 0) {
+     const int minimum_hop = -r_wrapper->input_offset;
+     const int actual_hop = hop < minimum_hop ? minimum_hop : hop;
+     r_wrapper->input_offset += actual_hop;
+     r_wrapper->character_ix += actual_hop;
+     XSRETURN_IV(actual_hop);
+  }
+  /* Never reached */
+  XSRETURN_UNDEF;
+}
+
+void
+input_string_read( r_wrapper )
+     R_Wrapper *r_wrapper;
+PPCODE:
+{
+  struct marpa_r *const r = r_wrapper->r;
+  char *input;
+  int input_is_utf8;
+  STRLEN len;
+  input_is_utf8 = SvUTF8 (r_wrapper->input);
+  input = SvPV (r_wrapper->input, len);
+  for (;;)
+    {
+      UV codepoint;
+      STRLEN op_ix;
+      STRLEN op_count;
+      UV *ops;
+      if (r_wrapper->input_offset >= len)
+	break;
+      if (input_is_utf8)
+	{
+	  croak ("Problem in r->read_string(): UTF8 not yet implemented");
+	}
+      else
+	{
+	  codepoint = (UV) input[r_wrapper->input_offset];
+	  if (codepoint > 0xFF)
+	    {
+	      croak
+		("Problem in r->string_read(0x%lx): More than 8bit codepoints not yet implemented",
+		 codepoint);
+	    }
+	}
+      ops = r_wrapper->oplists_by_byte[codepoint];
+      if (!ops)
+	{
+	  croak ("Unregistered codepoint (0x%lx)", (unsigned long) codepoint);
+	}
+      /* ops[0] is codepoint */
+      op_count = ops[1];
+      for (op_ix = 2; op_ix < op_count; op_ix++)
+	{
+	  int ignore_is_on = 0;
+	  UV op_code = ops[op_ix];
+	  switch (op_code)
+	    {
+	    case op_alternative:
+	    case op_alternative_args:
+	    case op_alternative_args_ignore:
+	    case op_alternative_ignore:
+	      {
+		int result;
+		int symbol_id;
+		const int ignore_is_on = op_code == op_alternative_ignore
+		  || op_code == op_alternative_args_ignore;
+		int length = 1;
+		int value = 0;
+
+		op_ix++;
+		if (op_ix >= op_count)
+		  {
+		    croak
+		      ("Missing operand for op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
+		       (unsigned long) op_code, (unsigned long) codepoint,
+		       (unsigned long) op_ix);
+		  }
+		symbol_id = (int) ops[op_ix];
+		if (op_code == op_alternative_args
+		    || op_code == op_alternative_args_ignore)
+		  {
+		    if (op_ix + 2 >= op_count)
+		      {
+			croak
+			  ("Missing operand for op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
+			   (unsigned long) op_code, (unsigned long) codepoint,
+			   (unsigned long) op_ix);
+		      }
+		    value = (int) ops[++op_ix];
+		    length = (int) ops[++op_ix];
+		  }
+		result = marpa_r_alternative (r, symbol_id, value, length);
+		switch (result)
+		  {
+		  case MARPA_ERR_UNEXPECTED_TOKEN_ID:
+		    if (!ignore_is_on)
+		      {
+			XSRETURN_IV (-1);
+		      }
+		    /* fall through */
+		  case MARPA_ERR_NONE:
+		    break;
+		  default:
+		    croak
+		      ("Problem in r->input_string_read(), alternative() failed: %s",
+		       xs_g_error (r_wrapper->base));
+		  }
+	      }
+	      break;
+	    case op_earleme_complete:
+	      {
+		const int result = marpa_r_earleme_complete (r);
+		if (result > 0)
+		  {
+		    XSRETURN_IV (result);
+		  }
+		if (result < 0)
+		  {
+		    croak
+		      ("Problem in r->input_string_read(), earleme_complete() failed: %s",
+		       xs_g_error (r_wrapper->base));
+		  }
+	      }
+	      break;
+	    case op_unregistered:
+	      croak ("Unregistered codepoint (0x%lx)",
+		     (unsigned long) codepoint);
+	    default:
+	      croak ("Unknown op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
+		     (unsigned long) op_code, (unsigned long) codepoint,
+		     (unsigned long) op_ix);
+	    }
+	}
+      if (input_is_utf8)
+	{
+	  croak ("Problem in r->read_string(): UTF8 not yet implemented");
+	}
+      else
+	{
+	  r_wrapper->input_offset++;
+	}
+      r_wrapper->character_ix++;
+    }
+  XSRETURN_UNDEF;
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::B
