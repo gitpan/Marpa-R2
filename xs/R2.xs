@@ -841,6 +841,7 @@ PPCODE:
   input = SvPV (r_wrapper->input, len);
   for (;;)
     {
+      int return_value = 0;
       UV codepoint;
       STRLEN op_ix;
       STRLEN op_count;
@@ -862,10 +863,7 @@ PPCODE:
 	    }
 	}
       ops = r_wrapper->oplists_by_byte[codepoint];
-      if (!ops)
-	{
-	  croak ("Unregistered codepoint (0x%lx)", (unsigned long) codepoint);
-	}
+      if ( !ops ) { XSRETURN_IV(-2); }
       /* ops[0] is codepoint */
       op_count = ops[1];
       for (op_ix = 2; op_ix < op_count; op_ix++)
@@ -931,7 +929,17 @@ PPCODE:
 		const int result = marpa_r_earleme_complete (r);
 		if (result > 0)
 		  {
-		    XSRETURN_IV (result);
+		    return_value = result;
+		    /* Advance one character before returning */
+		    goto ADVANCE_ONE_CHAR;
+		  }
+		if (result == -2)
+		  {
+		    const Marpa_Error_Code error = marpa_g_error (r_wrapper->base->g, NULL);
+		    if (error == MARPA_ERR_PARSE_EXHAUSTED)
+		      {
+			XSRETURN_IV(-3);
+		      }
 		  }
 		if (result < 0)
 		  {
@@ -950,6 +958,7 @@ PPCODE:
 		     (unsigned long) op_ix);
 	    }
 	}
+      ADVANCE_ONE_CHAR: ;
       if (input_is_utf8)
 	{
 	  croak ("Problem in r->read_string(): UTF8 not yet implemented");
@@ -959,6 +968,10 @@ PPCODE:
 	  r_wrapper->input_offset++;
 	}
       r_wrapper->character_ix++;
+      /* This logic does not allow a return value of 0,
+       * but at the moment that is not an issue.
+       */
+      if (return_value) { XSRETURN_IV(return_value); }
     }
   XSRETURN_UNDEF;
 }
