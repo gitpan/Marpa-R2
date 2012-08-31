@@ -1460,74 +1460,87 @@ otherwise the ID of the new start symbol.
 
 @deftypefun Marpa_Symbol_ID marpa_g_start_symbol_set ( @
     Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{id})
+    Marpa_Symbol_ID @var{sym_id})
 
 Sets the start symbol of grammar @var{g} to symbol @var{id}.
 
 Return value: On success, the ID of the new start symbol.
+If @var{sym_id} is well-formed, but there is no
+such symbol, -1.
 On failure, @minus{}2.
 
 @end deftypefun
 
-@deftypefun int marpa_g_symbol_count (Marpa_Grammar @var{g})
-Return value:
-On success, the symbol count of the grammar.
+@deftypefun int marpa_g_highest_symbol_id (Marpa_Grammar @var{g})
+Return value: On success, the numerically largest symbol ID
+of @var{g}.
 On failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_accessible (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
+    Marpa_Symbol_ID @var{sym_id})
 A symbol is @dfn{accessible} if it can be reached from the start symbol.
 
-Return value: On success, 1 if symbol @var{symid} is accessible, 0 if not.
+Return value: On success, 1 if symbol @var{sym_id} is accessible, 0 if not.
+If @var{sym_id} is well-formed, but there is no
+such symbol, -1.
 If the grammar is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_nullable ( @
-  Marpa_Grammar g, Marpa_Symbol_ID symid)
+  Marpa_Grammar g, Marpa_Symbol_ID sym_id)
 A symbol is @dfn{nullable} if it sometimes produces the empty string.
 A @strong{nulling} symbol is always a @strong{nullable} symbol,
 but not all @strong{nullable} symbols are @strong{nulling} symbols.
 
-Return value: On success, 1 if symbol @var{symid} is nullable, 0 if not.
+Return value: On success, 1 if symbol @var{sym_id} is nullable, 0 if not.
+If @var{sym_id} is well-formed, but there is no
+such symbol, -1.
 If the grammar is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_nulling (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
+    Marpa_Symbol_ID @var{sym_id})
 A symbol is @dfn{nulling} if it always produces the empty string.
 
-Return value: On success, 1 if symbol @var{symid} is nulling, 0 if not.
+Return value: On success, 1 if symbol @var{sym_id} is nulling, 0 if not.
+If @var{sym_id} is well-formed, but there is no
+such symbol, -1.
 If the grammar is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_productive (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
+    Marpa_Symbol_ID @var{sym_id})
 A symbol is @dfn{productive} if it can produce a string of terminals.
 All nullable symbols are considered productive.
 
-Return value: On success, 1 if symbol @var{symid} is productive, 0 if not.  If the grammar
+Return value: On success, 1 if symbol @var{sym_id} is productive, 0 if not.  If the grammar
+If @var{sym_id} is well-formed, but there is no
+such symbol, -1.
 is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_start ( Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
+    Marpa_Symbol_ID @var{sym_id})
 
-This return value of this call indicates whether @var{symid}
+This return value of this call indicates whether @var{sym_id}
 is the start symbol.
 
-Return value: @minus{}2 if @var{symid} is not valid;
-    1 if @var{symid} is the start symbol;
-    0 otherwise.
+Return value:
+On success, 1 if @var{sym_id} is the start symbol;
+0 otherwise.
+If @var{sym_id} is well-formed, but there is no
+such symbol, -1.
+On other failure, @minus{}2.
 
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_terminal ( @
     Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
+    Marpa_Symbol_ID @var{sym_id})
 @deftypefunx int marpa_g_symbol_is_terminal_set ( @
     Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid}, @
+    Marpa_Symbol_ID @var{sym_id}, @
  int @var{value})
 
 These methods, respectively, set
@@ -1535,7 +1548,7 @@ and query the ``terminal status'' of a symbol.
 To be used as an input symbol
 in the @code{marpa_r_alternative()} method,
 a symbol must be a terminal.
-This function flags symbol @var{symid} as a terminal if
+This function flags symbol @var{sym_id} as a terminal if
 @var{value} is 1,
 or flags it as a non-terminal if @var{value} is 0.
 
@@ -1545,7 +1558,7 @@ the terminal status of a symbol is ``locked'' at that value.
 A subsequent call to 
 @code{marpa_g_symbol_is_terminal_set()} that attempts
 to change the terminal status
-of @var{symid} to a value different from its current one
+of @var{sym_id} to a value different from its current one
 will fail.
 The error code will be @code{MARPA_ERR_TERMINAL_IS_LOCKED}.
 
@@ -1555,7 +1568,7 @@ An attempt to flag a nulling symbol
 as a terminal will cause a failure,
 but this is not necesssarily detected before precomputation.
 
-Return value: On success, 1 if symbol @var{symid}
+Return value: On success, 1 if symbol @var{sym_id}
 is a terminal symbol after the
 call, 0 otherwise.
 If @var{value} is not 0 or 1;
@@ -1581,8 +1594,8 @@ the valued status of a symbol is ``locked'' at that value.
 It cannot thereafter be changed.
 Subsequent calls to 
 @code{marpa_g_symbol_is_valued_set()}
-for the same @var{symid} will fail,
-leaving @var{symid}'s valued status unchanged,
+for the same @var{sym_id} will fail,
+leaving @var{sym_id}'s valued status unchanged,
 unless @var{value} is the same as the locked-in value.
 
 Return value: On success, 1 if the symbol @var{symbol_id}
@@ -1606,31 +1619,36 @@ On failure, @minus{}2.
 @node Rules, Sequences, Symbols, Grammar methods
 @section Rules
 
-@deftypefun int marpa_g_rule_count (Marpa_Grammar @var{g})
-Return value: On success, the current number of rules in grammar @var{g}.
+@deftypefun int marpa_g_highest_rule_id (Marpa_Grammar @var{g})
+Return value: On success, the numerically largest rule ID
+of @var{g}.
 On failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_rule_is_accessible (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{id})
+    Marpa_Rule_ID @var{rule_id})
 A rule is @dfn{accessible} if it can be reached from the start symbol.
 A rule is accessible if and only if its LHS symbol is accessible.
 The start rule is always an accessible rule.
 
 Return value: On success, 1 if rule @var{rule_id}
 is accessible, 0 if not.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
 If the grammar
 is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_rule_is_nullable ( @
-  Marpa_Grammar g, Marpa_Rule_ID ruleid)
+  Marpa_Grammar @var{g}, Marpa_Rule_ID @var{ruleid})
 A rule is @dfn{nullable} if it sometimes produces the empty string.
 A @strong{nulling} rule is always a @strong{nullable} rule,
 but not all @strong{nullable} rules are @strong{nulling} rules.
 
 Return value: On success,
 1 if rule @var{ruleid} is nullable, 0 if not.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
 If the grammar is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
@@ -1640,6 +1658,8 @@ A rule is @dfn{nulling} if it always produces the empty string.
 
 Return value: On success,
 1 if rule @var{ruleid} is nulling, 0 if not.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
 If the grammar is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
@@ -1661,12 +1681,14 @@ loop rules.
 
 Return value: On success,
 1 if rule @var{rule_id} is a loop rule, 0 if not.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
 If the grammar
 is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_rule_is_productive (Marpa_Grammar @var{g}, @
-    Marpa_Rule_ID @var{id})
+    Marpa_Rule_ID @var{rule_id})
 A rule is @dfn{productive} if it can produce a string of terminals.
 An rule is productive if and only if all the symbols on
 its RHS are productive.
@@ -1677,6 +1699,8 @@ an empty rule is considered productive.
 
 Return value: On success,
 1 if rule @var{rule_id} is productive, 0 if not.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
 If the grammar is not precomputed, or on other failure, @minus{}2.
 @end deftypefun
 
@@ -1693,7 +1717,9 @@ On failure, @minus{}2.
     Marpa_Grammar @var{g}, @
     Marpa_Rule_ID @var{rule_id})
 Return value: On success, the LHS symbol of rule @var{rule_id}.
-On failure, @minus{}2.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
+On other failure, @minus{}2.
 @end deftypefun
 
 @deftypefun Marpa_Rule_ID marpa_g_rule_new (Marpa_Grammar @var{g}, @
@@ -1734,6 +1760,8 @@ The RHS position, @var{ix}, is zero-based.
 Return value: On success,
 the ID of the symbol in position @var{ix}
 on the rules RHS.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
 If @var{ix} is greater than or equal to the length of
 the rule,
 or on other failure, @minus{}2.
@@ -1754,6 +1782,8 @@ is set, 1.
 On success, if rule @var{rule_id}
 is a sequence rule where the proper separation flag
 is @strong{not} set, 0.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
 On failure, @minus{}2.
 @end deftypefun
 
@@ -1764,6 +1794,8 @@ Return value:
 On success,
 if rule @var{rule_id} is a sequence rule, 1;
 otherwise, 0.
+If @var{rule_id} is well-formed, but there is no
+such rule, -1.
 On failure, @minus{}2.
 @end deftypefun
 
@@ -1837,14 +1869,14 @@ On failure, @minus{}2.
 @end deftypefun
 
 @deftypefun int marpa_g_symbol_is_counted (Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symid})
+    Marpa_Symbol_ID @var{sym_id})
 A symbol is @dfn{counted}
 if it appears on the RHS of a sequence rule,
 or if it is used as
 the separator symbol of a sequence rule.
 
 Return value: On success,
-1 if symbol @var{symid} is counted, 0 if not.
+1 if symbol @var{sym_id} is counted, 0 if not.
 On failure, @minus{}2.
 @end deftypefun
 
@@ -2766,8 +2798,11 @@ When a tree iterator is no longer in use, its memory can be freed
 using the 
 @code{marpa_t_unref()} method.
 
-To position a tree iterator at the next parse tree,
+To position a newly created tree iterator at the first parse tree,
 use the @code{marpa_t_next()} method.
+Once the tree iterator is positioned at a parse tree,
+the same @code{marpa_t_next()} method is used
+to position it to the next parse tree.
 
 @node Tree constructor, Tree reference counting, Tree overview, Tree methods
 @section Creating a new tree iterator
@@ -3297,14 +3332,14 @@ base grammar, if necessary.
 
 @deftypefun int marpa_v_symbol_is_valued ( @
     Marpa_Value @var{v}, @
-    Marpa_Symbol_ID @var{symid} )
+    Marpa_Symbol_ID @var{sym_id} )
 @deftypefunx int marpa_v_symbol_is_valued_set ( @
     Marpa_Value @var{v}, @
-    Marpa_Symbol_ID @var{symid}, @
+    Marpa_Symbol_ID @var{sym_id}, @
     int @var{value} )
 These methods, respectively,
 discover and set to @var{value},
-the valued status for symbol @var{symid}.
+the valued status for symbol @var{sym_id}.
 A valued status of 1 indicates that the symbol is valued.
 A valued status of 0 indicates that the symbol is unvalued.
 If the valued status is locked,
@@ -3744,6 +3779,18 @@ Numeric value: 6.
 Suggested message: "Separator has invalid symbol ID".
 @end deftypevr
 
+@deftypevr Macro int MARPA_ERR_BEFORE_FIRST_TREE
+A tree iterator is positioned before the first tree,
+and it was specified in a context where that is not
+allowed.
+A newly created tree is positioned before the first
+tree.
+To position a newly created tree iterator to the first tree
+use the @code{marpa_t_next()} method.
+Numeric value: 91.
+Suggested message: "Tree iterator is before first tree".
+@end deftypevr
+
 @deftypevr Macro int MARPA_ERR_COUNTED_NULLABLE
 A ``counted'' symbol was found
 that is also a nullable symbol.
@@ -3911,14 +3958,20 @@ Suggested message: "Specified start symbol is not valid".
 
 @deftypevr Macro int MARPA_ERR_INVALID_RULE_ID
 A method was called with an invalid rule ID.
+This is a rule ID which not only does
+not exist, but cannot exist.
+Currently that means its value is less than zero.
 Numeric value: 26.
-Suggested message: "No rule with that ID exists".
+Suggested message: "Rule ID is malformed".
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_INVALID_SYMBOL_ID
 A method was called with an invalid symbol ID.
+This is a symbol ID which not only does
+not exist, but cannot exist.
+Currently that means its value is less than zero.
 Numeric value: 28.
-Suggested message: "No symbol with that ID exists".
+Suggested message: "Symbol ID is malformed".
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_MAJOR_VERSION_MISMATCH
@@ -3993,6 +4046,20 @@ Usually the problem is that the user is
 trying to precompute the grammar.
 Numeric value: 43.
 Suggested message: "This grammar has no start symbol".
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NO_SUCH_RULE_ID
+A method was called with a rule ID which is well-formed,
+but the rule does not exist.
+Numeric value: 89.
+Suggested message: "No rule with this ID exists".
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_NO_SUCH_SYMBOL_ID
+A method was called with a symbol ID which is well-formed,
+but the symbol does not exist.
+Numeric value: 90.
+Suggested message: "No symbol with this ID exists".
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_NO_TOKEN_EXPECTED_HERE

@@ -582,7 +582,7 @@ new( class, g_wrapper )
     G_Wrapper *g_wrapper;
 PPCODE:
 {
-  int symbol_count;
+  int highest_symbol_id;
   Marpa_Grammar g = g_wrapper->g;
   SV *sv;
   R_Wrapper *r_wrapper;
@@ -593,15 +593,15 @@ PPCODE:
       if (!g_wrapper->throw) { XSRETURN_UNDEF; }
       croak ("failure in marpa_r_new: %s", xs_g_error (g_wrapper));
     };
-  symbol_count = marpa_g_symbol_count (g);
-  if (symbol_count < 0)
+  highest_symbol_id = marpa_g_highest_symbol_id (g);
+  if (highest_symbol_id < 0)
     {
       if (!g_wrapper->throw) { XSRETURN_UNDEF; }
-      croak ("failure in marpa_g_symbol_count: %s", xs_g_error (g_wrapper));
+      croak ("failure in marpa_g_highest_symbol_id: %s", xs_g_error (g_wrapper));
     };
   Newx (r_wrapper, 1, R_Wrapper);
   r_wrapper->r = r;
-  Newx (r_wrapper->terminals_buffer, symbol_count, Marpa_Symbol_ID);
+  Newx (r_wrapper->terminals_buffer, highest_symbol_id+1, Marpa_Symbol_ID);
   r_wrapper->ruby_slippers = 0;
   r_wrapper->base = g_wrapper;
   r_wrapper->input = newSVpvn("", 0);
@@ -863,7 +863,10 @@ PPCODE:
 	    }
 	}
       ops = r_wrapper->oplists_by_byte[codepoint];
-      if ( !ops ) { XSRETURN_IV(-2); }
+      if (!ops)
+	{
+	  XSRETURN_IV (-2);
+	}
       /* ops[0] is codepoint */
       op_count = ops[1];
       for (op_ix = 2; op_ix < op_count; op_ix++)
@@ -919,7 +922,9 @@ PPCODE:
 		    break;
 		  default:
 		    croak
-		      ("Problem in r->input_string_read(), alternative() failed: %s",
+		      ("Problem alternative() failed at char ix %d; symbol id %d; codepoint 0x%lx\n"
+		       "Problem in r->input_string_read(), alternative() failed: %s",
+		       (int)r_wrapper->character_ix, symbol_id, codepoint,
 		       xs_g_error (r_wrapper->base));
 		  }
 	      }
@@ -935,10 +940,11 @@ PPCODE:
 		  }
 		if (result == -2)
 		  {
-		    const Marpa_Error_Code error = marpa_g_error (r_wrapper->base->g, NULL);
+		    const Marpa_Error_Code error =
+		      marpa_g_error (r_wrapper->base->g, NULL);
 		    if (error == MARPA_ERR_PARSE_EXHAUSTED)
 		      {
-			XSRETURN_IV(-3);
+			XSRETURN_IV (-3);
 		      }
 		  }
 		if (result < 0)
@@ -958,7 +964,7 @@ PPCODE:
 		     (unsigned long) op_ix);
 	    }
 	}
-      ADVANCE_ONE_CHAR: ;
+    ADVANCE_ONE_CHAR:;
       if (input_is_utf8)
 	{
 	  croak ("Problem in r->read_string(): UTF8 not yet implemented");
@@ -971,7 +977,10 @@ PPCODE:
       /* This logic does not allow a return value of 0,
        * but at the moment that is not an issue.
        */
-      if (return_value) { XSRETURN_IV(return_value); }
+      if (return_value)
+	{
+	  XSRETURN_IV (return_value);
+	}
     }
   XSRETURN_UNDEF;
 }
@@ -1641,7 +1650,13 @@ PPCODE:
   int result_count;
   int *buffer;
   Marpa_Grammar g = g_wrapper->g;
-  const int symbol_count = marpa_g_symbol_count(g);
+  const int highest_symbol_id = marpa_g_highest_symbol_id(g);
+  const int symbol_count = highest_symbol_id+1;
+  if (highest_symbol_id < 0)
+    {
+      if (!g_wrapper->throw) { XSRETURN_UNDEF; }
+      croak ("failure in marpa_g_highest_symbol_id: %s", xs_g_error (g_wrapper));
+    };
   Newx( buffer, 2 * symbol_count, int);
   result_count =
     _marpa_g_AHFA_state_transitions (g, AHFA_state_id, buffer, 2*symbol_count*sizeof(int));

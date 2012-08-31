@@ -95,6 +95,36 @@ PPCODE:
 }
 
 void
+highest_rule_id( g_wrapper )
+    G_Wrapper *g_wrapper;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_highest_rule_id(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->highest_rule_id(): %s",
+     xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+highest_symbol_id( g_wrapper )
+    G_Wrapper *g_wrapper;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_highest_symbol_id(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->highest_symbol_id(): %s",
+     xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
 is_precomputed( g_wrapper )
     G_Wrapper *g_wrapper;
 PPCODE:
@@ -119,21 +149,6 @@ PPCODE:
   if ( gp_result == -1 ) { XSRETURN_UNDEF; }
   if ( gp_result < 0 && g_wrapper->throw ) {
     croak( "Problem in g->precompute(): %s",
-     xs_g_error( g_wrapper ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
-rule_count( g_wrapper )
-    G_Wrapper *g_wrapper;
-PPCODE:
-{
-  Marpa_Grammar self = g_wrapper->g;
-  int gp_result = marpa_g_rule_count(self);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && g_wrapper->throw ) {
-    croak( "Problem in g->rule_count(): %s",
      xs_g_error( g_wrapper ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
@@ -393,21 +408,6 @@ PPCODE:
   if ( gp_result < 0 && g_wrapper->throw ) {
     croak( "Problem in g->start_symbol_set(%d): %s",
      id, xs_g_error( g_wrapper ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
-symbol_count( g_wrapper )
-    G_Wrapper *g_wrapper;
-PPCODE:
-{
-  Marpa_Grammar self = g_wrapper->g;
-  int gp_result = marpa_g_symbol_count(self);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && g_wrapper->throw ) {
-    croak( "Problem in g->symbol_count(): %s",
-     xs_g_error( g_wrapper ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }

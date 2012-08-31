@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.018000';
+$VERSION        = '2.019_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -116,6 +116,9 @@ END_OF_STRUCTURE
 package Marpa::R2::Internal::Grammar;
 
 use English qw( -no_match_vars );
+
+our %DEFAULT_SYMBOLS_RESERVED;
+%DEFAULT_SYMBOLS_RESERVED = map { $_, 1 } split //xms, '}]>)';
 
 sub Marpa::R2::Internal::code_problems {
     my $args = shift;
@@ -461,6 +464,26 @@ sub Marpa::R2::Grammar::set {
     return 1;
 } ## end sub Marpa::R2::Grammar::set
 
+sub Marpa::R2::Grammar::symbol_reserved_set {
+    my ( $grammar, $final_character, $boolean ) = @_;
+    if ( length $final_character != 1 ) {
+        Marpa::R2::exception( 'symbol_reserved_set(): "',
+            $final_character, '" is not a symbol' );
+    }
+    if ( $final_character eq ']' ) {
+        return if $boolean;
+        Marpa::R2::exception(
+            q{symbol_reserved_set(): Attempt to unreserve ']'; this is not allowed}
+        );
+    } ## end if ( $final_character eq ']' ) ([)
+    if ( not exists $DEFAULT_SYMBOLS_RESERVED{$final_character} ) {
+        Marpa::R2::exception(
+            qq{symbol_reserved_set(): "$final_character" is not a reservable symbol}
+        );
+    }
+    $DEFAULT_SYMBOLS_RESERVED{$final_character} = $boolean ? 1 : 0;
+} ## end sub Marpa::R2::Grammar::symbol_reserved_set
+
 sub Marpa::R2::Grammar::precompute {
     my $grammar = shift;
 
@@ -571,11 +594,18 @@ sub Marpa::R2::Grammar::precompute {
     } ## end if ( $precompute_error_code != $Marpa::R2::Error::NONE)
 
     # Shadow all the new rules
-    RULE:
-    for my $rule_id ( grep { not defined $rules->[$_] }
-        ( 0 .. $grammar_c->rule_count - 1 ) )
     {
-        shadow_rule( $grammar, $rule_id );
+        my $highest_rule_id = $grammar_c->highest_rule_id();
+        RULE:
+        for ( my $rule_id = 0; $rule_id <= $highest_rule_id; $rule_id++ )
+        {
+            next RULE if defined $rules->[$rule_id];
+
+            # The Marpa::R2 logic assumes no "gaps" in the rule numbering,
+            # which is currently the case for Libmarpa,
+            # but not guaranteed.
+            shadow_rule( $grammar, $rule_id );
+        } ## end RULE: for ( my $rule_id = 0; $rule_id <= $highest_rule_id; ...)
     }
 
     my $infinite_action =
@@ -805,11 +835,16 @@ sub Marpa::R2::Grammar::show_rules {
     return $text;
 } ## end sub Marpa::R2::Grammar::show_rules
 
+# This logic tests for gaps in the rule numbering.
+# Currently there are none, but Libmarpa does not
+# guarantee this.
 sub Marpa::R2::Grammar::rule_ids {
-    my ( $grammar ) = @_;
-    my $grammar_c   = $grammar->[Marpa::R2::Internal::Grammar::C];
-    return  0 .. $grammar_c->rule_count() - 1;
-}
+    my ($grammar) = @_;
+    my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
+    return
+        grep { $grammar_c->rule_length($_); }
+        0 .. $grammar_c->highest_rule_id();
+} ## end sub Marpa::R2::Grammar::rule_ids
 
 sub Marpa::R2::Grammar::rule {
     my ( $grammar, $rule_id ) = @_;
@@ -899,9 +934,10 @@ sub assign_user_symbol {
         Marpa::R2::exception(
             "Symbol name was ref to $type; it must be a scalar string");
     }
-    if ( $name =~ / ( [\]>)}] ) \z /xms ) {
+    my $final_symbol = substr $name, -1;
+    if ( $DEFAULT_SYMBOLS_RESERVED{$final_symbol} ) {
         Marpa::R2::exception(
-            qq{Symbol name $name ends in "$1": that's not allowed});
+            qq{Symbol name $name ends in "$final_symbol": that's not allowed});
     }
     my $symbol = assign_symbol( $grammar, $name );
     my $symbol_id = $symbol->[Marpa::R2::Internal::Symbol::ID];
