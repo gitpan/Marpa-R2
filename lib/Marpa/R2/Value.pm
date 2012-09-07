@@ -21,7 +21,7 @@ use strict;
 use integer;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.019_000';
+$VERSION        = '2.019_001';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -146,14 +146,12 @@ sub Marpa::R2::Internal::Recognizer::resolve_semantics {
 } ## end sub Marpa::R2::Internal::Recognizer::resolve_semantics
 
 sub Marpa::R2::Internal::Recognizer::set_actions {
-    my ( $recce, $value ) = @_;
+    my ( $recce ) = @_;
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
-    my $bocage    = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-    my $order     = $recce->[Marpa::R2::Internal::Recognizer::O_C];
-    my $tree      = $recce->[Marpa::R2::Internal::Recognizer::T_C];
     my $rules     = $grammar->[Marpa::R2::Internal::Grammar::RULES];
     my $symbols   = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
+    my $rule_closures = [];
     my $trace_actions =
         $recce->[Marpa::R2::Internal::Recognizer::TRACE_ACTIONS] // 0;
 
@@ -238,29 +236,29 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
             );
         } ## end if ( $new_resolution ne $current_resolution and ( ...))
         if ( $new_resolution ne '::whatever' ) {
-            my $result = $value->rule_is_valued_set( $rule_id, 1 );
-            if ( not $result ) {
-                my $lhs_name = $grammar->symbol_name($lhs_id);
-                Marpa::R2::exception(
-                    qq{Cannot assign values to rule $rule_id (lhs is "$lhs_name") },
-                    q{because the LHS was already treated as an unvalued symbol}
-                );
-            } ## end if ( not $result )
-            $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES]
-                ->[$rule_id] = $closure;
+            $rule_closures->[$rule_id] = $closure;
         } ## end if ( $new_resolution ne '::whatever' )
         push @{ $nullable_ruleids_by_lhs[$lhs_id] }, $rule_id
             if $grammar_c->rule_is_nullable($rule_id);
     } ## end for my $rule_id ( 0 .. $#{$rules} )
 
+    # A LHS can be nullable via more than one rule,
+    # and that means more than one semantics might be specified for
+    # the nullable symbol.  This logic deals with that.
     my @null_symbol_closures;
     LHS:
     for ( my $lhs_id = 0; $lhs_id <= $#nullable_ruleids_by_lhs; $lhs_id++ ) {
         my $ruleids = $nullable_ruleids_by_lhs[$lhs_id];
         my $resolution_rule;
+
+	# No nullable rules for this LHS?  No problem.
         next LHS if not defined $ruleids;
         my $rule_count = scalar @{$ruleids};
+
+	# I am not sure if this test is necessary 
         next LHS if $rule_count <= 0;
+
+	# Just one nullable rule?  Then that's our semantics.
         if ( $rule_count == 1 ) {
             $resolution_rule = $ruleids->[0];
             my ( $resolution_name, $closure ) =
@@ -276,6 +274,9 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
             $null_symbol_closures[$lhs_id] = $closure;
             next LHS;
         } ## end if ( $rule_count == 1 )
+
+	# More than one rule?  Are any empty?
+	# If so, use the semantics of the empty rule
         my @empty_rules =
             grep { $grammar_c->rule_length($_) <= 0 } @{$ruleids};
         if ( scalar @empty_rules ) {
@@ -293,8 +294,13 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
             $null_symbol_closures[$lhs_id] = $closure;
             next LHS;
         } ## end if ( scalar @empty_rules )
+
+	# Multiple rules, none of them empty.
         my ( $first_resolution_name, @other_resolution_names ) =
             map { $rule_resolutions->[$_]->[0] } @{$ruleids};
+
+	# Do they have more than one semantics?
+	# Just call it an error and let the user sort it out.
         if ( grep { $_ ne $first_resolution_name } @other_resolution_names ) {
             my %seen = map { ( $_, 1 ); } $first_resolution_name,
                 @other_resolution_names;
@@ -307,6 +313,9 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
                 qq{  Marpa needs there to be only one\n}
             );
         } ## end if ( grep { $_ ne $first_resolution_name } ...)
+
+	# Multiple rules, but they all have one semantics.
+	# So (obviously) use that semantics
         $resolution_rule = $ruleids->[0];
         my ( $resolution_name, $closure ) =
             @{ $rule_resolutions->[$resolution_rule] };
@@ -319,10 +328,12 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
                 or Marpa::R2::exception('print to trace handle failed');
         } ## end if ($trace_actions)
         $null_symbol_closures[$lhs_id] = $closure;
+
     } ## end for ( my $lhs_id = 0; $lhs_id <= $#nullable_ruleids_by_lhs...)
 
     $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES] =
         \@null_symbol_closures;
+    $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES] = $rule_closures;
 
     return 1;
 }    # set_actions
@@ -345,9 +356,6 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
 
     local $Marpa::R2::Context::grammar = $grammar;
     local $Marpa::R2::Context::rule = undef;
-
-    my $rule_closures =
-        $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES];
 
     my $action_object_class =
         $grammar->[Marpa::R2::Internal::Grammar::ACTION_OBJECT];
@@ -397,11 +405,27 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
 
     $action_object //= {};
 
-    my $value = Marpa::R2::Thin::V->new($tree);
-
-    Marpa::R2::Internal::Recognizer::set_actions( $recce, $value );
+    my $rule_closures = $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES];
+    if (not defined $rule_closures )
+    {
+        Marpa::R2::Internal::Recognizer::set_actions($recce);
+	$rule_closures = $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES];
+    }
 
     my $null_values = $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES];
+
+    my $value = Marpa::R2::Thin::V->new($tree);
+    for my $rule_id ( 0 .. $#{$rule_closures} ) {
+        my $result = $value->rule_is_valued_set( $rule_id, 1 );
+        if ( not $result ) {
+	    my $lhs_id = $grammar_c->rule_lhs($rule_id);
+            my $lhs_name = $grammar->symbol_name($lhs_id);
+            Marpa::R2::exception(
+                qq{Cannot assign values to rule $rule_id (lhs is "$lhs_name") },
+                q{because the LHS was already treated as an unvalued symbol}
+            );
+        } ## end if ( not $result )
+    } ## end for my $rule_id ( 0 .. $#{$rule_closures} )
 
     for my $token_id ( grep { defined $null_values->[$_] }
         0 .. $#{$null_values} )

@@ -22,7 +22,7 @@ use integer;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.019_000';
+$VERSION        = '2.019_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -49,7 +49,6 @@ BEGIN {
     CLOSURES
     EVENT_IF_EXPECTED
     MAX_PARSES
-    NULL_VALUES
     RANKING_METHOD
     TRACE_ACTIONS
     TRACE_AND_NODES
@@ -65,6 +64,7 @@ BEGIN {
     evaluation is reset }
 
     RULE_CLOSURES
+    NULL_VALUES
     EVENTS
 
     { This is the end of the list of fields which
@@ -223,8 +223,9 @@ sub Marpa::R2::Recognizer::reset_evaluation {
     $recce->[Marpa::R2::Internal::Recognizer::B_C]           = undef;
     $recce->[Marpa::R2::Internal::Recognizer::O_C]           = undef;
     $recce->[Marpa::R2::Internal::Recognizer::T_C]           = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES] = [];
-    $recce->[Marpa::R2::Internal::Recognizer::EVENTS] = [];
+    $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES] = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES]   = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::EVENTS]        = [];
     return;
 } ## end sub Marpa::R2::Recognizer::reset_evaluation
 

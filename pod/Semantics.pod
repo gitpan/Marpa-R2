@@ -128,6 +128,23 @@ For safety therefore,
 the "C<::undef>" reserved action name must be used
 to specify a constant whose value is a Perl C<undef>.
 
+It is important to note that,
+when Perl closures are used for the semantics,
+they must be visible in the scope where the semantics are
+B<resolved>.
+The action names are usually B<specified> with the grammar,
+but action B<resolution> takes place
+in the recognizer's
+L<C<value>|Marpa::R2::Recognizer/"value">
+and
+L<C<reset_evaluation>|Marpa::R2::Recognizer/"reset_evaluation">
+methods.
+This can sometimes be a source of confusion,
+because if a Perl closure is visible when the
+action is specified,
+but goes out of scope before the action name is resolved,
+resolution will fail.
+
 =head1 Valued and unvalued symbols
 
 An unvalued (or
@@ -169,7 +186,7 @@ At lexing time,
 they can be assigned a B<token value>.
 If no token value is assigned at lex time,
 the token value has an "whatever" value.
-A "whatever" value in one that
+A "whatever" value is one that
 cannot be relied on.
 It may, for example,
 vary from instance to instance,
@@ -275,15 +292,37 @@ For more details,
 see L<the document on
 null semantics|Marpa::R2::Semantics::Null>.
 
-=head1 Overview of the semantic phases
+=head1 Action context
 
-Most applications will find that the order in which
-Marpa executes its semantics "just works".
-This section describes that order in detail.
-These details can matter in some applications,
-for example, those which exploit side effects.
+=for Marpa::R2::Display
+name: Action context synopsis
+normalize-whitespace: 1
 
-=head2 Parse trees, parse results and parse series
+    sub do_S {
+        my ($action_object) = @_;
+        my $rule_id         = $Marpa::R2::Context::rule;
+        my $grammar         = $Marpa::R2::Context::grammar;
+        my ( $lhs, @rhs ) = $grammar->rule($rule_id);
+        $action_object->{text}
+            .= "rule $rule_id: $lhs ::= " . ( join q{ }, @rhs ) . "\n";
+        return $action_object;
+    } ## end sub do_S
+
+=for Marpa::R2::Display::End
+
+In addition to the per-parse-tree variable
+and their child arguments,
+rule evaluation closures also have access
+to B<context variables>.
+C<$Marpa::R2::Context::grammar> is set to
+the grammar being parsed.
+C<$Marpa::R2::Context::rule> is the ID of the
+current rule.
+Given the rule ID, an application can find
+its LHS and RHS symbols using
+L<the grammar's C<rule()> method|Marpa::R2::Grammar/"rule">.
+
+=head1 Parse trees, parse results and parse series
 
 When the semantics are applied to a parse tree,
 it produces a value called a B<parse result>.
@@ -316,70 +355,14 @@ L<the C<reset_evaluation>
 method|Marpa::R2::Recognizer/"reset_evaluation">,
 or until the recognizer is destroyed.
 
-=head2 Summary of the phases
-
-While processing a parse series, we have:
-
-=over
-
-=item * A Series Setup Phase, which occurs during
-the first call of the recognizer's C<value> method
-for that series.
-It is followed by
-
-=item * the processing of zero or more parse trees.
-
-=back
-
-While processing a parse tree, we have:
-
-=over
-
-=item * A Tree Setup Phase, which occurs during
-the call of the recognizer's C<value> method
-for that parse tree.
-It is followed by
-
-=item * a Tree Traveral Phase.
-
-=back
-
-B<Node Evaluation Time>
-is the Tree Traversal Phase, as seen from the point of view of
-each rule node.  It is not a separate phase.
-
-=head1 The phases in detail
-
-=head2 Series Setup Phase
-
-During the Series Setup Phase
-all value action names are resolved to
-value actions --
-constants
-or rule evaluation closures.
-The rule evaluation closures are never called in the Series Setup Phase.
-They will be called later,
-in the Tree Traversal Phase.
-Also, during the Series Setup Phase,
-the logic which
-ranks parse trees is executed.
-
-=head2 Tree Setup Phase
-
-In the Tree Setup Phase,
-the per-parse-tree variable is created.
-If a constructor was found for the C<action_object>,
-it is run at this point, and the per-parse-tree variable is
-its return value.
-Exactly one Tree Setup Phase occurs
-for each parse tree.
-
-=head2 Tree Traversal Phase
-
-During the Tree Traversal Phase,
-the rule evaluation closures are called.
-Node Evaluation Time is the Tree Traversal Phase,
-as seen from the point of view of the individual nodes of the parse tree.
+Most applications will find that the order in which
+Marpa executes its semantics "just works".
+L<A separate
+document|Marpa::R2::Semantics::Phases>
+describes that order
+in detail.
+The details can matter in some applications,
+for example, those which exploit side effects.
 
 =head1 Finding the action for a rule
 
@@ -408,15 +391,16 @@ if one is defined.
 
 Resolution of action names is L<described
 below|/"Resolving action names">.
-If the C<action> property
+If the C<action> property,
 the C<default_action> named argument,
 or the C<default_empty_action> named argument
 is defined,
 but does not resolve successfully, Marpa
 throws an exception.
 Marpa prefers to "fast fail" in these cases,
-because they often indicate a mistake in
-writing the application.
+because they usually indicate a mistake
+that the application's author
+will want to correct.
 
 =head1 Resolving action names
 
@@ -520,14 +504,16 @@ is to require that the programmer be specific about action names.
 This can be an inconvenience, but Marpa prefers this to
 silently executing unintended code.
 
-It can be good practice to keep
-the rule evaluation closures
-in their own namespace.
-But if, for example, the user wants to leave the
+But if  the user wants to leave the
 rule evaluation closures in the C<main> namespace,
 she can specify
 C<"main">
 as the value of the C<actions> named argument.
+But
+it can be good practice to keep
+the rule evaluation closures
+in their own namespace,
+particularly if the application is not small.
 
 =head1 The per-parse-tree variable
 
