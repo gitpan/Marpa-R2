@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.020000';
+$VERSION        = '2.021_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -855,6 +855,14 @@ sub Marpa::R2::Grammar::rule {
     push @symbol_ids, map { $grammar_c->rule_rhs( $rule_id, $_ ) } (0 .. $rule_length - 1);
     return map { $grammar->symbol_name($_) } @symbol_ids;
 } ## end sub Marpa::R2::Grammar::rule
+
+sub Marpa::R2::Grammar::action {
+    my ( $grammar, $rule_id ) = @_;
+    my $rules = $grammar->[Marpa::R2::Internal::Grammar::RULES];
+    my $rule  = $rules->[$rule_id];
+    Marpa::R2::exception("No such rule ID: $rule_id") if not defined $rule;
+    return $rule->[Marpa::R2::Internal::Rule::ACTION];
+} ## end sub Marpa::R2::Grammar::action
 
 sub Marpa::R2::Grammar::show_dotted_rule {
     my ( $grammar, $rule_id, $dot_position ) = @_;
