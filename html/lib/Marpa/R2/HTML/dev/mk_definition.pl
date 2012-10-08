@@ -25,6 +25,9 @@ use lib '../../../../';
 use Marpa::R2::HTML::dev::Core;
 use Marpa::R2::HTML::dev::Configuration;
 
+my %predefined_groups =
+    ( GRP_mixed => [qw( GRP_anywhere GRP_block GRP_inline cdata pcdata)] );
+
 # Make sure the last resort defaults are always defined
 for my $required_rubies_desc (qw( !start_tag !end_tag !non_element )) {
     $HTML_Configuration::RUBY_CONFIG{$required_rubies_desc} //= [];
@@ -54,16 +57,12 @@ my %tag_descriptor = ();
 
 my %element_containments = ();
 my %flow_containments = ();
-my %element_defined = ();
-my %element_included = ();
-my %species_defined = ();
-for my $bnf_set_data (
-    [ \$HTML_Core::CORE_BNF,         1 ],
-    [ \$HTML_Configuration::CONFIGURATION_BNF, 0 ]
-    )
+my %symbol_defined = ();
+my %symbol_included = ();
+my %core_symbol = ();
+
 {
-    my ( $bnf_set, $is_pure_bnf_rule_ok ) = @{$bnf_set_data};
-    LINE: for my $line ( split /\n/xms, ${$bnf_set} ) {
+    LINE: for my $line ( split /\n/xms, $HTML_Core::CORE_BNF ) {
         my $definition = $line;
         chomp $definition;
         $definition =~ s/ [#] .* //xms;    # Remove comments
@@ -72,17 +71,16 @@ for my $bnf_set_data (
         my $sequence = ( $definition =~ s/ [*] \s* $//xms );
         if ( $definition =~ s/ \s* [:][:][=] \s* / /xms ) {
 
-            die "Pure BNF rules are not allowed in the configuration"
-                if not $is_pure_bnf_rule_ok;
-
             # Production is Ordinary BNF rule
             my @symbols = ( split q{ }, $definition );
             my $lhs = shift @symbols;
-            for my $contained_element ( grep { ( substr $_, 0, 4 ) eq 'ELE_' }
-                @symbols )
-            {
-                $element_included{$contained_element} = 1;
-            }
+	    @{$symbol_defined{$lhs} } = ('BNF');
+	    $core_symbol{$lhs} = 1;
+	    for my $symbol (@symbols) {
+	      $symbol_included{$symbol} = 1;
+	      $core_symbol{$symbol} = 1;
+	    }
+
             my %rule_descriptor = (
                 lhs => $lhs,
                 rhs => \@symbols,
@@ -91,89 +89,24 @@ for my $bnf_set_data (
                 $rule_descriptor{min} = 0;
             }
             if ( my $handler = $species_handler{$lhs} ) {
-                $species_defined{$lhs} = 1;
                 $rule_descriptor{action} = $handler;
             }
             elsif ( $lhs =~ /^ELE_/xms ) {
-                push @{ $element_defined{$lhs} }, 'BNF';
                 $rule_descriptor{action} = "$lhs";
             }
             push @core_rules, \%rule_descriptor;
             next LINE;
         } ## end if ( $definition =~ s/ \s* [:][:][=] \s* / /xms )
-        if ($definition =~ m{
-      \A \s* (ELE_\w+) \s+
-      is \s+ included \s+ in \s+ (GRP_\w+) \s* \z}xms
-            )
-        {
-            my $element = $1;
-            my $group   = $2;
-            push @core_rules,
-                {
-                lhs => $group,
-                rhs => [$element],
-                };
-            $element_included{$element} = 1;
-            next LINE;
-        } ## end if ( $definition =~ m{ ) (})
-        if ($definition =~ m{
-      \A \s* ELE_(\w+) \s+
-      is \s+ a \s+ (FLO_\w+) \s+
-      included \s+ in \s+ (GRP_\w+) \s* \z}xms
-            )
-        {
-            my $tag      = $1;
-            my $contents = $2;
-            my $group    = $3;
-            push @{ $element_defined{ 'ELE_' . $tag } }, 'is-a-included';
-            $element_included{ 'ELE_' . $tag } = 1;
-            $tag_descriptor{$tag} = [ $group, $contents ];
-            next LINE;
-        } ## end if ( $definition =~ m{ ) (})
-        if ( $definition
-            =~ s/ \A \s* ELE_(\w+) \s+ is \s+ (FLO_\w+) \s* \z/ /xms )
-        {
-            # Production is Element with flow, but no group specified
-            my $tag = $1;
-            push @{ $element_defined{ 'ELE_' . $tag } }, 'is-a';
-            my $contents        = $2;
-            my $lhs             = 'ELE_' . $tag;
-            my %rule_descriptor = (
-                lhs    => $lhs,
-                rhs    => [ "S_$tag", $contents, "E_$tag" ],
-                action => $lhs
-            );
-            push @core_rules, \%rule_descriptor;
-            next LINE;
-        } ## end if ( $definition =~ ...)
-        if ( $definition =~ s/ \A \s* ((ELE)_\w+) \s+ contains \s+ / /xms ) {
-
-            # Production is Element with custom flow
-            my $element_symbol = $1;
-            my @contents = split q{ }, $definition;
-            push @{ $element_defined{$element_symbol} },      'contains';
-            push @{ $element_containments{$element_symbol} }, @contents;
-            for my $contained_element ( grep { ( substr $_, 0, 4 ) eq 'ELE_' }
-                @contents )
-            {
-                $element_included{$contained_element} = 1;
-            }
-            next LINE;
-        } ## end if ( $definition =~ ...)
-        if ( $definition =~ s/ \A \s* ((FLO)_\w+) \s+ contains \s+ / /xms ) {
-
-            # Production is Flow
-            my $element_symbol = $1;
-            my @contents = split q{ }, $definition;
-            push @{ $flow_containments{$element_symbol} }, @contents;
-            next LINE;
-        } ## end if ( $definition =~ ...)
         die "Badly formed line in grammar description: $line";
-    } ## end LINE: for my $line ( split /\n/xms, ${$bnf_set} )
-} ## end for my $bnf_set_data ( \[ \$HTML_Configuration::CORE_BNF, 0 ...])
+    } ## end LINE: for my $line ( split /\n/xms, $HTML_Core::CORE_BNF )
+}
+
+# A few symbols are allowed as contents as special cases
+my %allowed_contents = map { $_ => 1 } qw(cdata pcdata);
+my %banned_contents = grep { not $_ =~ m/\A GRP_ /xms } %core_symbol;
 
 {
-    my @species_not_defined = grep { not defined $species_defined{$_} }
+    my @species_not_defined = grep { not defined $symbol_defined{$_} }
         keys %species_handler;
     if ( scalar @species_not_defined ) {
         die
@@ -182,10 +115,102 @@ for my $bnf_set_data (
     }
 }
 
-ELEMENT: for my $element ( keys %element_defined ) {
-    my $definitions = $element_defined{$element};
+LINE: for my $line ( split /\n/xms, $HTML_Configuration::CONFIGURATION_BNF ) {
+    my $definition = $line;
+    chomp $definition;
+    $definition =~ s/ [#] .* //xms;    # Remove comments
+    next LINE
+        if not $definition =~ / \S /xms;    # ignore all-whitespace line
+    if ($definition =~ m{
+      \A \s* (ELE_\w+) \s+
+      is \s+ included \s+ in \s+ (GRP_\w+) \s* \z}xms
+        )
+    {
+        my $element = $1;
+        my $group   = $2;
+	die "Core symbol context cannot be changed: $definition"
+	    if $core_symbol{$element};
+        push @core_rules,
+            {
+            lhs => $group,
+            rhs => [$element],
+            };
+        $symbol_included{$element} = 1;
+        next LINE;
+    } ## end if ( $definition =~ m{ ) (})
+    if ($definition =~ m{
+      \A \s* ELE_(\w+) \s+
+      is \s+ a \s+ (FLO_\w+) \s+
+      included \s+ in \s+ (GRP_\w+) \s* \z}xms
+        )
+    {
+        my $tag      = $1;
+        my $contents = $2;
+        my $group    = $3;
+	my $element = 'ELE_' . $tag;
+	die "Core symbol context cannot be changed: $definition"
+	    if $core_symbol{$element};
+        push @{ $symbol_defined{ $element } }, 'is-a-included';
+        $symbol_included{ $element } = 1;
+        $tag_descriptor{$tag} = [ $group, $contents ];
+        next LINE;
+    } ## end if ( $definition =~ m{ ) (})
+    if ($definition =~ s/ \A \s* ELE_(\w+) \s+ is \s+ (FLO_\w+) \s* \z/ /xms )
+    {
+        # Production is Element with flow, but no group specified
+        my $tag = $1;
+        push @{ $symbol_defined{ 'ELE_' . $tag } }, 'is-a';
+        my $contents        = $2;
+        my $lhs             = 'ELE_' . $tag;
+        my %rule_descriptor = (
+            lhs    => $lhs,
+            rhs    => [ "S_$tag", $contents, "E_$tag" ],
+            action => $lhs
+        );
+        push @core_rules, \%rule_descriptor;
+        next LINE;
+    } ## end if ( $definition =~ ...)
+    if ( $definition =~ s/ \A \s* ((ELE)_\w+) \s+ contains \s+ / /xms ) {
+
+        # Production is Element with custom flow
+        my $element_symbol = $1;
+        my @contents = split q{ }, $definition;
+	@contents = map { defined $predefined_groups{$_} ?  @{$predefined_groups{$_}  } : $_ } @contents;
+        push @{ $symbol_defined{$element_symbol} },      'contains';
+        push @{ $element_containments{$element_symbol} }, @contents;
+	
+        for my $contained_symbol ( @contents )
+        {
+            if ( not $allowed_contents{$contained_symbol} ) {
+                die
+                    qq{Symbol "$contained_symbol" cannot be in the contents of an element: },
+                    $line
+                    if $banned_contents{$contained_symbol};
+		my $prefix = substr $contained_symbol, 0, 4;
+                die qq{Symbol "$contained_symbol" is not an element or a group: }, $line
+                    if $prefix ne 'ELE_' and $prefix ne 'GRP_';
+            } ## end if ( not $allowed_contents{$contained_symbol} )
+            $symbol_included{$contained_symbol} = 1;
+        }
+        next LINE;
+    } ## end if ( $definition =~ ...)
+    if ( $definition =~ s/ \A \s* ((FLO)_\w+) \s+ contains \s+ / /xms ) {
+
+        die "Not yet implemented: ", $definition;
+
+        # Production is Flow
+        my $flow_symbol = $1;
+        my @contents = split q{ }, $definition;
+        push @{ $flow_containments{$flow_symbol} }, @contents;
+        next LINE;
+    } ## end if ( $definition =~ ...)
+    die "Badly formed line in grammar description: $line";
+} ## end LINE: for my $line ( split /\n/xms, ...)
+
+ELEMENT: for my $element ( keys %symbol_defined ) {
+    my $definitions = $symbol_defined{$element};
     if ( $definitions->[0] ne 'BNF'
-        and !$element_included{$element} )
+        and !$symbol_included{$element} )
     {
         die "$element not included anywhere";
     }
@@ -195,26 +220,13 @@ ELEMENT: for my $element ( keys %element_defined ) {
     if ( grep { $_ ne $first } @{$definitions} ) {
         die "$element multiply defined";
     }
-} ## end ELEMENT: for my $element ( keys %element_defined )
-
-# Check rules, prefixes starting with '_'
-# are reserved.
-# Actually, checking for starting with any non-alphabetic.
-
-{
-    my @symbols = map { $_->{lhs}, @{ $_->{rhs} } } @core_rules;
-    push @symbols, keys %flow_containments, keys %element_containments;
-    push @symbols, map { @{$_} } values %flow_containments,
-        values %element_containments;
-    my @reserved = grep { $_ =~ /\A [[:^alpha:]] /xms } @symbols;
-    die "Reserved symbols in use: ", join " ", @reserved if scalar @reserved;
-}
+} ## end ELEMENT: for my $element ( keys %symbol_defined )
 
 my %sgml_flow_included = ();
 ELEMENT: for my $main_symbol ( keys %element_containments ) {
     my @contents        = @{ $element_containments{$main_symbol} };
     my $tag             = substr $main_symbol, 4;
-    my $contents_symbol = '_C_ELE_' . $tag;
+    my $contents_symbol = 'Contents_ELE_' . $tag;
     my $item_symbol     = 'ITEM_ELE_' . $tag;
     push @core_rules, {
         lhs    => $main_symbol,
@@ -244,6 +256,7 @@ ELEMENT: for my $main_symbol ( keys %element_containments ) {
 } ## end ELEMENT: for my $main_symbol ( keys %element_containments )
 
 ELEMENT: for my $main_symbol ( keys %flow_containments ) {
+    die "Internal: Flow containments not yet implemented";
     my @contents    = @{ $flow_containments{$main_symbol} };
     my $item_symbol = 'ITEM_' . substr $main_symbol, 4;
     push @core_rules,
@@ -325,6 +338,61 @@ $output .= "\n\n";
 }
 
 {
+    # Make sure groups are non-overlapping
+    my %group_rules =
+        map { $_->{lhs}, $_->{rhs} }
+        grep { ( substr $_->{lhs}, 0, 4 ) eq 'GRP_' } @core_rules;
+    my %group_by_member = ();
+    my %members_by_group = ();
+    while ( my ( $group, $contents ) = each %group_rules ) {
+	die "Misformed rule for group contents: $group ::= ", join " ",
+	    @{$contents} if scalar @{$contents} != 1;
+        my $member = $contents->[0];
+            die qq{"$member" is a member of two groups: "$group" and "},
+                $group_by_member{$member}
+                if defined $group_by_member{$member};
+            $group_by_member{$member} = $group;
+	    push @{$members_by_group{$group}}, $member;
+    } ## end while ( my ( $group, $contents ) = each %group_rules )
+    for my $tag (keys %tag_descriptor) {
+        my $descriptor = $tag_descriptor{$tag};
+        my ($group)    = @{$descriptor};
+        my $member     = 'ELE_' . $tag;
+        die qq{"$member" is a member of two groups: "$group" and "},
+            $group_by_member{$member}
+            if defined $group_by_member{$member};
+	$group_by_member{$member} = $group;
+	push @{$members_by_group{$group}}, $member;
+    } ## end for my $tag (%tag_descriptor)
+
+    # Now ensure item lists are non-overlapping
+    my @item_rules =
+        grep { ( substr $_->{lhs}, 0, 5 ) eq 'ITEM_' } @core_rules;
+
+    my %members_by_item_list = ();
+    for my $rule (@item_rules) {
+	my $item_list = $rule->{lhs};
+	my $rhs = $rule->{rhs};
+        die "Misformed rule for item list contents: $item_list ::= ",
+            join " ", @{$rhs}
+            if scalar @{$rhs} != 1;
+        my $raw_member =  $rhs->[0] ;
+        my @members = ( $raw_member );
+        if ( ( substr $raw_member, 0, 4 ) eq 'GRP_' ) {
+            @members = @{ $members_by_group{$raw_member} };
+        }
+
+        for my $member (@members) {
+
+            my $count = $members_by_item_list{$item_list}{$member}++;
+            if ( $count > 0 ) {
+                die qq{"$member" is in item list "$item_list" more than once};
+            }
+        } ## end for my $member (@members)
+    } ## end while ( my ( $item_list, $contents ) = each %item_rules)
+}
+
+{
     # Find the tag descriptors which refer to required
     # elements and add them
 
@@ -345,7 +413,10 @@ $output .= "\n\n";
     my %required_tags = map { ( substr $_, 2 ) => 1 } @ruby_start_tags;
     TAG: for my $tag ( keys %required_tags ) {
         next TAG if $defined_in_core_rules{$tag};
-        my ( $group, $flow ) = @{ $tag_descriptor{$tag} };
+        my $descriptor = $tag_descriptor{$tag};
+	die qq{Required element "ELE_$tag" was never defined}
+	   if not defined $descriptor;
+        my ( $group, $flow ) = @{$descriptor};
         my $element = 'ELE_' . $tag;
         push @core_rules,
             {

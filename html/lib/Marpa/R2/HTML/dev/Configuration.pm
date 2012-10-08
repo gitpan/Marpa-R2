@@ -23,13 +23,19 @@ package HTML_Configuration;
 
 use English qw( -no_match_vars );
 
-# Alphabetically, by tagname
 our $CONFIGURATION_BNF = <<'END_OF_CONFIG_BNF';
+
+# Only the contents of these can be changed,
+# not the context
+ELE_body is FLO_block
+ELE_head is FLO_head
+
+# Now alphabetically, by tagname
 ELE_a is a FLO_inline included in GRP_inline
 ELE_abbr is a FLO_inline included in GRP_inline
 ELE_acronym is a FLO_inline included in GRP_inline
 ELE_address is a FLO_inline included in GRP_block
-ELE_applet contains ELE_param ITEM_mixed
+ELE_applet contains ELE_param GRP_mixed
 ELE_applet is included in GRP_inline
 ELE_area is FLO_empty
 ELE_audio is a FLO_inline included in GRP_inline
@@ -88,7 +94,7 @@ ELE_meter is a FLO_inline included in GRP_inline
 ELE_nobr is a FLO_inline included in GRP_inline
 ELE_noframes is a FLO_mixed included in GRP_block
 ELE_noscript is a FLO_mixed included in GRP_block
-ELE_object contains ELE_param ITEM_mixed
+ELE_object contains ELE_param GRP_mixed
 ELE_object is included in GRP_anywhere
 ELE_ol contains ELE_li
 ELE_ol is included in GRP_block

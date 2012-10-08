@@ -33,8 +33,6 @@ cdata ::= CDATA
 whitespace ::= WHITESPACE
 cruft ::= CRUFT
 
-# FLO_SGML and ITEM_SGML defined by BNF rules,
-# because they must explicity include cruft
 FLO_SGML ::= ITEM_SGML*
 ITEM_SGML ::= comment
 ITEM_SGML ::= pi
@@ -52,25 +50,56 @@ ITEM_SGML ::= cruft
 document ::= prolog ELE_html trailer EOF
 prolog ::= FLO_SGML
 trailer ::= FLO_SGML
-ELE_html ::= S_html EC_html E_html
-EC_html ::= FLO_SGML ELE_head FLO_SGML ELE_body FLO_SGML
-ELE_head is FLO_head
-ELE_body is FLO_block
+ELE_html ::= S_html Contents_html E_html
+Contents_html ::= FLO_SGML ELE_head FLO_SGML ELE_body FLO_SGML
 
-# FLO_empty, FLO_cdata and ITEM_cdata defined by "hand" (BNF)
-# because they do NOT allow SGML items as part of
+# FLO_empty, FLO_cdata and ITEM_cdata 
+# do NOT allow SGML items as part of
 # their flow
 FLO_empty ::=
-FLO_cdata ::= ITEM_cdata*
-ITEM_cdata ::= cdata
-ITEM_cdata ::= CRUFT
 
-FLO_mixed contains GRP_anywhere GRP_block GRP_inline
-FLO_mixed contains cdata pcdata
-FLO_block contains GRP_block GRP_anywhere
-FLO_head contains GRP_head GRP_anywhere
-FLO_inline contains pcdata cdata GRP_inline GRP_anywhere
-FLO_pcdata contains cdata pcdata
+# In FLO_cdata, disallow all SGML components,
+# but include cruft. ITEM_cdata is redundant,
+# but is defined for orthogonality.
+FLO_cdata ::= SITEM_cdata*
+SITEM_cdata ::= CRUFT
+SITEM_cdata ::= ITEM_cdata
+ITEM_cdata ::= cdata
+
+FLO_mixed ::= SITEM_mixed*
+SITEM_mixed ::= ITEM_SGML
+SITEM_mixed ::= ITEM_mixed
+ITEM_mixed ::= GRP_anywhere
+ITEM_mixed ::= GRP_block
+ITEM_mixed ::= GRP_inline
+ITEM_mixed ::= cdata
+ITEM_mixed ::= pcdata
+
+FLO_block ::= SITEM_block*
+SITEM_block ::= ITEM_SGML
+SITEM_block ::= ITEM_block
+ITEM_block ::= GRP_block
+ITEM_block ::= GRP_anywhere
+
+FLO_head ::= SITEM_head*
+SITEM_head ::= ITEM_SGML
+SITEM_head ::= ITEM_head
+ITEM_head ::= GRP_head
+ITEM_head ::= GRP_anywhere
+
+FLO_inline ::= SITEM_inline*
+SITEM_inline ::= ITEM_SGML
+SITEM_inline ::= ITEM_inline
+ITEM_inline ::= pcdata
+ITEM_inline ::= cdata
+ITEM_inline ::= GRP_inline
+ITEM_inline ::= GRP_anywhere
+
+FLO_pcdata ::= SITEM_pcdata*
+SITEM_pcdata ::= ITEM_SGML
+SITEM_pcdata ::= ITEM_pcdata
+ITEM_pcdata ::= pcdata
+ITEM_pcdata ::= cdata
 
 END_OF_CORE_BNF
 
