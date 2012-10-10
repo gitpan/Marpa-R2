@@ -32,15 +32,23 @@ sub usage
 my $help_flag              = 0;
 my @avoid_whitespace_flags = qw(comment yes);
 my $avoid_whitespace_flag  = 'yes';
+local $main::ADDED_TAG_COMMENT_FLAG = 1;
 my $ws_ok_before_end_tag_flag = 0;
+my $dump_config_flag = 0;
 my $trace_terminals_flag = 0;
 my $trace_cruft_flag = 0;
 my $trace_values_flag = 0;
+my $compile_flag;
 usage()
     if not Getopt::Long::GetOptions(
     'help'               => \$help_flag,
     'avoid-whitespace=s' => \$avoid_whitespace_flag,
     'ws-ok-before-end-tag' => \$ws_ok_before_end_tag_flag,
+    'added-tag-comment!' => \$main::ADDED_TAG_COMMENT_FLAG,
+
+    # undocumented
+    'dump-config' => \$dump_config_flag,
+    'compile=s' => \$compile_flag,
     'trace-terminals' => \$trace_terminals_flag,
     'trace-cruft' => \$trace_cruft_flag,
     'trace-values' => \$trace_values_flag,
@@ -363,7 +371,6 @@ sub do_pre {
     my $start_tag     = Marpa::R2::HTML::start_tag();
     my $end_tag       = Marpa::R2::HTML::end_tag();
 
-
     CHILD:
     for my $value ( @{ Marpa::R2::HTML::values() } ) {
         for my $line_data ( @{$value} ) {
@@ -378,7 +385,8 @@ sub do_pre {
     } ## end CHILD: for my $value ( @{ Marpa::R2::HTML::values() } )
 
     if ( not defined $start_tag ) {
-        push @new_line_data, [ 'msg: missing pre start tag', 0 ];
+        push @new_line_data, [ 'msg: missing pre start tag', 0 ]
+	   if $main::ADDED_TAG_COMMENT_FLAG;
         push @new_line_data, [ 'start tag', 0, '<pre>' ];
     }
 
@@ -386,9 +394,9 @@ sub do_pre {
     push @new_line_data, [ 'pre', 0, $original ];
 
     if ( not defined $end_tag ) {
-        push @new_line_data,
-            [ 'end tag', 0, '</pre>' ],
-            [ 'msg: missing pre end tag', 0 ];
+        push @new_line_data, [ 'end tag', 0, '</pre>' ]
+	   if $main::ADDED_TAG_COMMENT_FLAG;
+        push @new_line_data, [ 'msg: missing pre end tag', 0 ];
     }
     return \@new_line_data;
 } ## end sub do_pre
@@ -425,8 +433,9 @@ sub do_default {
         else {
             push @new_line_data, [ $tag_type, 0, '<' . $tagname . '>' ];
             push @new_line_data,
-                [ 'msg: missing start tag', 0, 'preceeding', $tagname ];
-        }
+                [ 'msg: missing start tag', 0, 'preceeding', $tagname ]
+                if $main::ADDED_TAG_COMMENT_FLAG;
+        } ## end else [ if ( defined $start_tag ) ]
     }
 
     my @descendant_data = @{ Marpa::R2::HTML::descendants('value,original') };
@@ -452,7 +461,8 @@ sub do_default {
         }
         else {
             push @new_line_data,
-                [ 'msg: missing end tag', 0, 'following', $tagname ];
+                [ 'msg: missing end tag', 0, 'following', $tagname ]
+                if $main::ADDED_TAG_COMMENT_FLAG;
             push @new_line_data, [ 'end tag', 0, '</' . $tagname . '>' ];
         }
     } ## end if ( not $is_empty_element )
@@ -460,7 +470,7 @@ sub do_default {
     return \@new_line_data;
 } ## end sub do_default
 
-my $html_args = {
+my %html_args = (
     'script' => sub {
         return [ [ 'script', 0, Marpa::R2::HTML::original() ] ];
     },
@@ -469,17 +479,28 @@ my $html_args = {
     'pre'      => \&do_pre,
     q{*}       => \&do_default,
     ':TOP'     => sub { return Marpa::R2::HTML::values(); }
-};
-
-my $value_ref = Marpa::R2::HTML::html(
-    \$document,
-    $html_args,
-    \{  trace_terminals => $trace_terminals_flag,
-        trace_cruft    => $trace_cruft_flag,
-        trace_values    => $trace_values_flag,
-    }
 );
+
+my %flags = (
+    trace_terminals => $trace_terminals_flag,
+    trace_cruft     => $trace_cruft_flag,
+    trace_values    => $trace_values_flag,
+    dump_config     => $dump_config_flag,
+);
+if (defined $compile_flag) {
+  open my $fh, q{<}, $compile_flag;
+  my $source = join q{}, <$fh>;
+  close $fh;
+  $flags{compile} = \$source;
+}
+
+my $value_ref = Marpa::R2::HTML::html( \$document, \%html_args, \\%flags );
 die 'Internal error: no parse' if not defined $value_ref;
+if ($dump_config_flag) {
+  print ${$value_ref};
+  exit 0;
+}
+
 print post_process($value_ref) or die "print failed: $ERRNO";
 
 exit 0;
