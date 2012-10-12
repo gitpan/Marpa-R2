@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw( $VERSION $STRING_VERSION );
-$VERSION        = '2.021_006';
+$VERSION        = '2.021_007';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -90,7 +90,8 @@ ERROR: for my $error_number ( 0 .. $#LIBMARPA_ERROR_NAMES ) {
 BEGIN {
     my $structure = <<'END_OF_STRUCTURE';
     :package=Marpa::R2::HTML::Internal::Token
-    TOKEN_NAME
+    TOKEN_ID
+    =TAG_NAME
     TYPE
     LINE
     COL
@@ -476,151 +477,10 @@ sub parse {
 
     my $document = $self->{document} = $document_ref;
 
-    my @raw_tokens = ();
-    my $p          = HTML::Parser->new(
-        api_version => 3,
-        start_h     => [
-            \@raw_tokens, q{tagname,'S',line,column,offset,offset_end,is_cdata,attr}
-        ],
-        end_h =>
-            [ \@raw_tokens, q{tagname,'E',line,column,offset,offset_end,is_cdata} ],
-        text_h => [
-            \@raw_tokens,
-            q{'WHITESPACE','T',line,column,offset,offset_end,is_cdata}
-        ],
-        comment_h =>
-            [ \@raw_tokens, q{'C','C',line,column,offset,offset_end,is_cdata} ],
-        declaration_h =>
-            [ \@raw_tokens, q{'D','D',line,column,offset,offset_end,is_cdata} ],
-        process_h =>
-            [ \@raw_tokens, q{'PI','PI',line,column,offset,offset_end,is_cdata} ],
-        unbroken_text => 1
-    );
-
-    $p->parse( ${$document} );
-    $p->eof;
-
-    my @html_parser_tokens = ();
-    HTML_PARSER_TOKEN:
-    for my $raw_token (@raw_tokens) {
-        my ( $dummy, $token_type, $line, $column, $offset, $offset_end, $is_cdata, $attr ) =
-            @{$raw_token};
-
-        PROCESS_BY_TYPE: {
-            if ($is_cdata) {
-                $raw_token->[Marpa::R2::HTML::Internal::Token::TOKEN_NAME] =
-                    'CDATA';
-                last PROCESS_BY_TYPE;
-            }
-            if ( $token_type eq 'T' ) {
-
-                # White space as defined in HTML 4.01
-                # space (x20); ASCII tab (x09); ASCII form feed (x0C;); Zero-width space (x200B)
-                # and the two characters which appear in line breaks:
-                # carriage return (x0D) and line feed (x0A)
-                # I avoid the Perl character codes because I do NOT want
-                # localization
-
-                if (substr(
-                        ${$document}, $offset, ( $offset_end - $offset )
-                    ) =~ / [^\x09\x0A\x0C\x0D\x20\x{200B}] /oxms
-                    )
-                {
-                    $raw_token->[Marpa::R2::HTML::Internal::Token::TOKEN_NAME]
-                        = 'PCDATA';
-                } ## end if ( substr( ${$document}, $offset, ( $offset_end - ...)))
-                last PROCESS_BY_TYPE;
-            } ## end if ( $token_type eq 'T' )
-            if ( $token_type eq 'S' ) {
-                my $tag_name = $raw_token
-                    ->[Marpa::R2::HTML::Internal::Token::TOKEN_NAME];
-                $tags{$tag_name}++;
-                my $terminal = "S_$tag_name";
-                $raw_token->[Marpa::R2::HTML::Internal::Token::TOKEN_NAME] =
-                    $terminal;
-                last PROCESS_BY_TYPE;
-            } ## end if ( $token_type eq 'S' )
-            if ( $token_type eq 'E' ) {
-
-                # If it's a virtual token from HTML::Parser,
-                # pretend it never existed.
-                # HTML::Parser supplies missing
-                # end tags for title elements, but for no
-                # others.
-                # This is not helpful and we need to special-case
-                # these zero-length tags and throw them away.
-                next HTML_PARSER_TOKEN if $offset_end <= $offset;
-
-                my $tag_name = $raw_token
-                    ->[Marpa::R2::HTML::Internal::Token::TOKEN_NAME];
-                $tags{$tag_name}++;
-                my $terminal = "E_$tag_name";
-                $raw_token->[Marpa::R2::HTML::Internal::Token::TOKEN_NAME] =
-                    $terminal;
-                last PROCESS_BY_TYPE;
-            } ## end if ( $token_type eq 'E' )
-        } ## end PROCESS_BY_TYPE:
-        push @html_parser_tokens, $raw_token;
-    } ## end HTML_PARSER_TOKEN: for my $raw_token (@raw_tokens)
-
-    # Points AFTER the last HTML
-    # Parser token.
-    # The other logic needs to be ready for this.
-    {
-        my $document_length = length ${$document};
-        my $last_token      = $html_parser_tokens[-1];
-        push @html_parser_tokens,
-            [
-            'EOF', 'EOF',
-            @{$last_token}[
-                Marpa::R2::HTML::Internal::Token::LINE,
-            Marpa::R2::HTML::Internal::Token::COLUMN
-            ],
-            $document_length,
-            $document_length
-            ];
-    }
-
-    # conserve memory
-    $p          = undef;
-    @raw_tokens = ();
-
-    my ($core_rules, $descriptor_by_tag, $rank_by_name) = $self->{config}->contents();
+    my ($core_rules, $compiled_descriptor_by_tag, $rank_by_name) = $self->{config}->contents();
     if ($self->{dump_config}) {
          return $self->{config}->as_string();
     }
-    my @rules     = @{$core_rules};
-
-    for my $rule (@rules) {
-        my $lhs = $rule->{lhs};
-        if ( 0 == index $lhs, 'ELE_' ) {
-            my $tag = substr $lhs, 4;
-            delete $tags{$tag};
-        }
-    } ## end for my $rule (@rules)
-
-    ELEMENT: for my $tag ( keys %tags ) {
-        my $start_tag    = "S_$tag";
-        my $end_tag      = "E_$tag";
-        my $element_type = 'GRP_anywhere';
-        my $contents     = 'FLO_mixed';
-        my $tag_descriptor = $descriptor_by_tag->{$tag};
-        if ( defined $tag_descriptor ) {
-            ( $element_type, $contents ) = @{$tag_descriptor};
-        }
-
-        push @rules,
-            {
-            lhs => $element_type,
-            rhs => ["ELE_$tag"],
-            },
-            {
-            lhs    => "ELE_$tag",
-            rhs    => [ $start_tag, $contents, $end_tag ],
-            action => "ELE_$tag",
-            };
-
-    } ## end ELEMENT: for my $tag ( keys %tags )
 
     my %symbol_id_by_name = ();
     $self->{symbol_id_by_name} = \%symbol_id_by_name;
@@ -631,7 +491,7 @@ sub parse {
     my $thin_grammar = Marpa::R2::Thin::G->new( { if => 1 } );
     $self->{grammar}                  = $thin_grammar;
 
-    RULE: for my $rule (@rules) {
+    RULE: for my $rule (@{$core_rules}) {
         my $lhs    = $rule->{lhs};
         my $rhs    = $rule->{rhs};
         my $min    = $rule->{min};
@@ -656,6 +516,146 @@ sub parse {
         }
         $action_by_rule_id[$rule_id] = $action;
     } ## end RULE: for my $rule (@rules)
+
+    # Some constants that we will use a lot
+    my $SYMID_CRUFT = $symbol_id_by_name{'CRUFT'};
+    my $SYMID_CDATA = $symbol_id_by_name{'CDATA'};
+    my $SYMID_PCDATA = $symbol_id_by_name{'PCDATA'};
+    my $SYMID_WHITESPACE = $symbol_id_by_name{'WHITESPACE'};
+    my $SYMID_PI = $symbol_id_by_name{'PI'};
+    my $SYMID_C = $symbol_id_by_name{'C'};
+    my $SYMID_D = $symbol_id_by_name{'D'};
+    my $SYMID_EOF = $symbol_id_by_name{'EOF'};
+
+    my @raw_tokens = ();
+    my $p          = HTML::Parser->new(
+        api_version => 3,
+        start_h     => [
+            \@raw_tokens, q{tagname,'S',line,column,offset,offset_end,is_cdata,attr}
+        ],
+        end_h =>
+            [ \@raw_tokens, q{tagname,'E',line,column,offset,offset_end,is_cdata} ],
+        text_h => [
+            \@raw_tokens,
+            qq{'$SYMID_WHITESPACE','T',line,column,offset,offset_end,is_cdata}
+        ],
+        comment_h =>
+            [ \@raw_tokens, qq{'$SYMID_C','C',line,column,offset,offset_end,is_cdata} ],
+        declaration_h =>
+            [ \@raw_tokens, qq{'$SYMID_D','D',line,column,offset,offset_end,is_cdata} ],
+        process_h =>
+            [ \@raw_tokens, qq{'$SYMID_PI','PI',line,column,offset,offset_end,is_cdata} ],
+        unbroken_text => 1
+    );
+
+    $p->parse( ${$document} );
+    $p->eof;
+
+    my @html_parser_tokens = ();
+    HTML_PARSER_TOKEN:
+    for my $raw_token (@raw_tokens) {
+        my ( undef, $token_type, $line, $column, $offset, $offset_end, $is_cdata, $attr ) =
+            @{$raw_token};
+
+        PROCESS_TOKEN_TYPE: {
+            if ($is_cdata) {
+                $raw_token->[Marpa::R2::HTML::Internal::Token::TOKEN_ID] =
+		    $SYMID_CDATA;
+                last PROCESS_TOKEN_TYPE;
+            }
+            if ( $token_type eq 'T' ) {
+
+                # White space as defined in HTML 4.01
+                # space (x20); ASCII tab (x09); ASCII form feed (x0C;); Zero-width space (x200B)
+                # and the two characters which appear in line breaks:
+                # carriage return (x0D) and line feed (x0A)
+                # I avoid the Perl character codes because I do NOT want
+                # localization
+                $raw_token->[Marpa::R2::HTML::Internal::Token::TOKEN_ID] =
+                 $SYMID_PCDATA if
+                    substr(
+                        ${$document}, $offset, ( $offset_end - $offset )
+                    ) =~ / [^\x09\x0A\x0C\x0D\x20\x{200B}] /oxms;
+
+                last PROCESS_TOKEN_TYPE;
+            } ## end if ( $token_type eq 'T' )
+            if ( $token_type eq 'E' or $token_type eq 'S' ) {
+
+                # If it's a virtual token from HTML::Parser,
+                # pretend it never existed.
+                # HTML::Parser supplies missing
+                # end tags for title elements, but for no
+                # others.
+                # This is not helpful and we need to special-case
+                # these zero-length tags and throw them away.
+                next HTML_PARSER_TOKEN if $offset_end <= $offset;
+
+                my $tag_name = $raw_token
+                    ->[Marpa::R2::HTML::Internal::Token::TAG_NAME];
+                my $terminal    = $token_type . q{_} . $tag_name;
+                my $terminal_id = $symbol_id_by_name{$terminal};
+                if ( not defined $terminal_id ) {
+                    my $element_type = 'GRP_anywhere';
+                    my $contents     = 'FLO_mixed';
+                    my $tag_descriptor =
+                        $compiled_descriptor_by_tag->{$tag_name};
+                    if ( defined $tag_descriptor ) {
+                        ( $element_type, $contents ) = @{$tag_descriptor};
+                    }
+                    my @symbol_names = (
+                        $element_type,
+                        'ELE_' . $tag_name,
+                        'S_' . $tag_name,
+                        $contents, 'E_' . $tag_name
+                    );
+                    my @symbol_ids = ();
+                    SYMBOL: for my $symbol_name (@symbol_names) {
+                        my $symbol_id = $symbol_id_by_name{$symbol_name};
+                        if ( not defined $symbol_id ) {
+                            $symbol_id = $thin_grammar->symbol_new();
+                            $symbol_name_by_id[$symbol_id] = $symbol_name;
+                            $symbol_id_by_name{$symbol_name} = $symbol_id;
+                        }
+                        push @symbol_ids, $symbol_id;
+                    } ## end SYMBOL: for my $symbol_name (@symbol_names)
+                    my ( $top_id, $lhs_id, @rhs_ids ) = @symbol_ids;
+                    $thin_grammar->rule_new( $top_id, [$lhs_id] );
+                    my $element_rule_id =
+                        $thin_grammar->rule_new( $lhs_id, \@rhs_ids );
+                    $action_by_rule_id[$element_rule_id] = 'ELE_' . $tag_name;
+                    $terminal_id = $symbol_id_by_name{$terminal};
+
+                } ## end if ( not defined $terminal_id )
+                $raw_token->[Marpa::R2::HTML::Internal::Token::TOKEN_ID] =
+                    $terminal_id;
+                last PROCESS_TOKEN_TYPE;
+            } ## end if ( $token_type eq 'E' or $token_type eq 'S' )
+        } ## end PROCESS_TOKEN_TYPE:
+        push @html_parser_tokens, $raw_token;
+    } ## end HTML_PARSER_TOKEN: for my $raw_token (@raw_tokens)
+
+    # Points AFTER the last HTML
+    # Parser token.
+    # The other logic needs to be ready for this.
+    {
+        my $document_length = length ${$document};
+        my $last_token      = $html_parser_tokens[-1];
+        push @html_parser_tokens,
+            [
+            $SYMID_EOF, 'EOF',
+            @{$last_token}[
+                Marpa::R2::HTML::Internal::Token::LINE,
+            Marpa::R2::HTML::Internal::Token::COLUMN
+            ],
+            $document_length,
+            $document_length
+            ];
+    }
+
+    # conserve memory
+    $p          = undef;
+    @raw_tokens = ();
+
     $thin_grammar->start_symbol_set( $symbol_id_by_name{'document'} );
     $thin_grammar->precompute();
 
@@ -797,9 +797,8 @@ sub parse {
     RECCE_RESPONSE: while ( $token_number < $token_count ) {
         my $token = $html_parser_tokens[$token_number];
 
-        my $attempted_symbol_id =
-            $symbol_id_by_name{ $token
-                ->[Marpa::R2::HTML::Internal::Token::TOKEN_NAME] };
+        my $attempted_symbol_id = $token
+                ->[Marpa::R2::HTML::Internal::Token::TOKEN_ID];
         my $read_result =
             $recce->alternative( $attempted_symbol_id, PHYSICAL_TOKEN, 1 );
         if ( $read_result != $UNEXPECTED_TOKEN_ID ) {
@@ -808,7 +807,7 @@ sub parse {
             }
             if ($trace_terminals) {
                 say {$trace_fh} 'Token accepted: ',
-                    $token->[Marpa::R2::HTML::Internal::Token::TOKEN_NAME],
+                    $symbol_name_by_id[$attempted_symbol_id]
                     or Carp::croak("Cannot print: $ERRNO");
             }
             if ( $recce->earleme_complete() < 0 ) {
@@ -909,7 +908,7 @@ sub parse {
 
         # Cruft tokens are not virtual.
         # They are the real things, hacked up.
-        $token->[0] = 'CRUFT';
+        $token->[Marpa::R2::HTML::Internal::Token::TOKEN_ID] = $SYMID_CRUFT;
         if ($trace_cruft) {
             my $current_earleme = $recce->current_earleme();
             die $thin_grammar->error() if not defined $current_earleme;
