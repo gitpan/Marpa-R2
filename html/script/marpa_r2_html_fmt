@@ -19,7 +19,6 @@ use strict;
 use warnings;
 use English qw( -no_match_vars );
 use Marpa::R2::HTML;
-use HTML::Tagset;
 use Fatal qw(open close);
 use Getopt::Long;
 
@@ -35,6 +34,7 @@ my $avoid_whitespace_flag  = 'yes';
 local $main::ADDED_TAG_COMMENT_FLAG = 1;
 my $ws_ok_before_end_tag_flag = 0;
 my $dump_config_flag = 0;
+my $dump_AHFA_flag = 0;
 my $trace_terminals_flag = 0;
 my $trace_cruft_flag = 0;
 my $trace_values_flag = 0;
@@ -48,6 +48,7 @@ usage()
 
     # undocumented
     'dump-config' => \$dump_config_flag,
+    'dump-AHFA' => \$dump_AHFA_flag,
     'compile=s' => \$compile_flag,
     'trace-terminals' => \$trace_terminals_flag,
     'trace-cruft' => \$trace_cruft_flag,
@@ -417,13 +418,13 @@ sub do_default {
     my $tagname       = Marpa::R2::HTML::tagname();
     my @new_line_data = ();
 
-    my $start_tag        = Marpa::R2::HTML::start_tag();
-    my $end_tag          = Marpa::R2::HTML::end_tag();
-    my $is_empty_element = $HTML::Tagset::emptyElement{$tagname};
+    my $start_tag = Marpa::R2::HTML::start_tag();
+    my $end_tag   = Marpa::R2::HTML::end_tag();
+    my $is_empty_element  = Marpa::R2::HTML::is_empty_element();
     {
         ## no critic(Variables::ProhibitPackageVars)
         my $tag_type =
-            $HTML::Tagset::emptyElement{$tagname}
+            $is_empty_element
             ? 'empty element'
             : 'start tag';
         ##use critic
@@ -464,7 +465,7 @@ sub do_default {
                 [ 'msg: missing end tag', 0, 'following', $tagname ]
                 if $main::ADDED_TAG_COMMENT_FLAG;
             push @new_line_data, [ 'end tag', 0, '</' . $tagname . '>' ];
-        }
+        } ## end else [ if ( defined $end_tag ) ]
     } ## end if ( not $is_empty_element )
 
     return \@new_line_data;
@@ -486,6 +487,7 @@ my %flags = (
     trace_cruft     => $trace_cruft_flag,
     trace_values    => $trace_values_flag,
     dump_config     => $dump_config_flag,
+    dump_AHFA     => $dump_AHFA_flag,
 );
 if (defined $compile_flag) {
   open my $fh, q{<}, $compile_flag;
@@ -496,7 +498,7 @@ if (defined $compile_flag) {
 
 my $value_ref = Marpa::R2::HTML::html( \$document, \%html_args, \\%flags );
 die 'Internal error: no parse' if not defined $value_ref;
-if ($dump_config_flag) {
+if ($dump_config_flag or $dump_AHFA_flag) {
   print ${$value_ref};
   exit 0;
 }

@@ -14,7 +14,7 @@
 # http://www.gnu.org/licenses/.
 
 # This file was generated automatically by Marpa::R2::HTML::Config
-# The date of generation was Tue Oct  9 20:57:02 2012
+# The date of generation was Sun Oct 14 20:54:26 2012
 
 package Marpa::R2::HTML::Internal::Config::Default;
 
@@ -72,35 +72,35 @@ $CORE_RULES = [
                   'lhs' => 'FLO_SGML',
                   'min' => 0,
                   'rhs' => [
-                             'ITEM_SGML'
+                             'GRP_SGML'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_SGML',
+                  'lhs' => 'GRP_SGML',
                   'rhs' => [
                              'comment'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_SGML',
+                  'lhs' => 'GRP_SGML',
                   'rhs' => [
                              'pi'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_SGML',
+                  'lhs' => 'GRP_SGML',
                   'rhs' => [
                              'decl'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_SGML',
+                  'lhs' => 'GRP_SGML',
                   'rhs' => [
                              'whitespace'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_SGML',
+                  'lhs' => 'GRP_SGML',
                   'rhs' => [
                              'cruft'
                            ]
@@ -156,23 +156,17 @@ $CORE_RULES = [
                   'lhs' => 'FLO_cdata',
                   'min' => 0,
                   'rhs' => [
-                             'SITEM_cdata'
+                             'GRP_cdata'
                            ]
                 },
                 {
-                  'lhs' => 'SITEM_cdata',
+                  'lhs' => 'GRP_cdata',
                   'rhs' => [
                              'CRUFT'
                            ]
                 },
                 {
-                  'lhs' => 'SITEM_cdata',
-                  'rhs' => [
-                             'ITEM_cdata'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_cdata',
+                  'lhs' => 'GRP_cdata',
                   'rhs' => [
                              'cdata'
                            ]
@@ -181,78 +175,36 @@ $CORE_RULES = [
                   'lhs' => 'FLO_mixed',
                   'min' => 0,
                   'rhs' => [
-                             'SITEM_mixed'
+                             'GRP_mixed'
                            ]
                 },
                 {
-                  'lhs' => 'SITEM_mixed',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'lhs' => 'SITEM_mixed',
-                  'rhs' => [
-                             'ITEM_mixed'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_mixed',
-                  'rhs' => [
-                             'GRP_anywhere'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_mixed',
+                  'lhs' => 'GRP_mixed',
                   'rhs' => [
                              'GRP_block'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_mixed',
+                  'lhs' => 'GRP_mixed',
                   'rhs' => [
                              'GRP_inline'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_mixed',
-                  'rhs' => [
-                             'cdata'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_mixed',
-                  'rhs' => [
-                             'pcdata'
                            ]
                 },
                 {
                   'lhs' => 'FLO_block',
                   'min' => 0,
                   'rhs' => [
-                             'SITEM_block'
-                           ]
-                },
-                {
-                  'lhs' => 'SITEM_block',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'lhs' => 'SITEM_block',
-                  'rhs' => [
-                             'ITEM_block'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_block',
-                  'rhs' => [
                              'GRP_block'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_block',
+                  'lhs' => 'GRP_block',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_block',
                   'rhs' => [
                              'GRP_anywhere'
                            ]
@@ -261,29 +213,17 @@ $CORE_RULES = [
                   'lhs' => 'FLO_head',
                   'min' => 0,
                   'rhs' => [
-                             'SITEM_head'
-                           ]
-                },
-                {
-                  'lhs' => 'SITEM_head',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'lhs' => 'SITEM_head',
-                  'rhs' => [
-                             'ITEM_head'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_head',
-                  'rhs' => [
                              'GRP_head'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_head',
+                  'lhs' => 'GRP_head',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_head',
                   'rhs' => [
                              'GRP_anywhere'
                            ]
@@ -292,41 +232,29 @@ $CORE_RULES = [
                   'lhs' => 'FLO_inline',
                   'min' => 0,
                   'rhs' => [
-                             'SITEM_inline'
+                             'GRP_inline'
                            ]
                 },
                 {
-                  'lhs' => 'SITEM_inline',
+                  'lhs' => 'GRP_inline',
                   'rhs' => [
-                             'ITEM_SGML'
+                             'GRP_SGML'
                            ]
                 },
                 {
-                  'lhs' => 'SITEM_inline',
-                  'rhs' => [
-                             'ITEM_inline'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_inline',
+                  'lhs' => 'GRP_inline',
                   'rhs' => [
                              'pcdata'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_inline',
+                  'lhs' => 'GRP_inline',
                   'rhs' => [
                              'cdata'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_inline',
-                  'rhs' => [
-                             'GRP_inline'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_inline',
+                  'lhs' => 'GRP_inline',
                   'rhs' => [
                              'GRP_anywhere'
                            ]
@@ -335,103 +263,65 @@ $CORE_RULES = [
                   'lhs' => 'FLO_pcdata',
                   'min' => 0,
                   'rhs' => [
-                             'SITEM_pcdata'
+                             'GRP_pcdata'
                            ]
                 },
                 {
-                  'lhs' => 'SITEM_pcdata',
+                  'lhs' => 'GRP_pcdata',
                   'rhs' => [
-                             'ITEM_SGML'
+                             'GRP_SGML'
                            ]
                 },
                 {
-                  'lhs' => 'SITEM_pcdata',
-                  'rhs' => [
-                             'ITEM_pcdata'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_pcdata',
+                  'lhs' => 'GRP_pcdata',
                   'rhs' => [
                              'pcdata'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_pcdata',
+                  'lhs' => 'GRP_pcdata',
                   'rhs' => [
                              'cdata'
                            ]
                 },
                 {
-                  'action' => 'ELE_body',
-                  'lhs' => 'ELE_body',
+                  'action' => 'ELE_applet',
+                  'lhs' => 'ELE_applet',
                   'rhs' => [
-                             'S_body',
-                             'FLO_block',
-                             'E_body'
+                             'S_applet',
+                             'Contents_ELE_applet',
+                             'E_applet'
                            ]
                 },
                 {
-                  'action' => 'ELE_head',
-                  'lhs' => 'ELE_head',
+                  'lhs' => 'Contents_ELE_applet',
+                  'min' => 0,
                   'rhs' => [
-                             'S_head',
-                             'FLO_head',
-                             'E_head'
+                             'GRP_ELE_applet'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_applet',
+                  'rhs' => [
+                             'ELE_param'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_applet',
+                  'rhs' => [
+                             'GRP_mixed'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_applet',
+                  'rhs' => [
+                             'GRP_SGML'
                            ]
                 },
                 {
                   'lhs' => 'GRP_inline',
                   'rhs' => [
                              'ELE_applet'
-                           ]
-                },
-                {
-                  'action' => 'ELE_area',
-                  'lhs' => 'ELE_area',
-                  'rhs' => [
-                             'S_area',
-                             'FLO_empty',
-                             'E_area'
-                           ]
-                },
-                {
-                  'action' => 'ELE_caption',
-                  'lhs' => 'ELE_caption',
-                  'rhs' => [
-                             'S_caption',
-                             'FLO_inline',
-                             'E_caption'
-                           ]
-                },
-                {
-                  'action' => 'ELE_col',
-                  'lhs' => 'ELE_col',
-                  'rhs' => [
-                             'S_col',
-                             'FLO_empty',
-                             'E_col'
-                           ]
-                },
-                {
-                  'action' => 'ELE_dd',
-                  'lhs' => 'ELE_dd',
-                  'rhs' => [
-                             'S_dd',
-                             'FLO_mixed',
-                             'E_dd'
-                           ]
-                },
-                {
-                  'lhs' => 'GRP_block',
-                  'rhs' => [
-                             'ELE_dir'
-                           ]
-                },
-                {
-                  'lhs' => 'GRP_block',
-                  'rhs' => [
-                             'ELE_dl'
                            ]
                 },
                 {
@@ -444,45 +334,30 @@ $CORE_RULES = [
                            ]
                 },
                 {
-                  'action' => 'ELE_li',
-                  'lhs' => 'ELE_li',
+                  'action' => 'ELE_caption',
+                  'lhs' => 'ELE_caption',
                   'rhs' => [
-                             'S_li',
-                             'FLO_mixed',
-                             'E_li'
+                             'S_caption',
+                             'FLO_inline',
+                             'E_caption'
                            ]
                 },
                 {
-                  'lhs' => 'GRP_inline',
+                  'action' => 'ELE_area',
+                  'lhs' => 'ELE_area',
                   'rhs' => [
-                             'ELE_map'
+                             'S_area',
+                             'FLO_empty',
+                             'E_area'
                            ]
                 },
                 {
-                  'lhs' => 'GRP_block',
+                  'action' => 'ELE_body',
+                  'lhs' => 'ELE_body',
                   'rhs' => [
-                             'ELE_menu'
-                           ]
-                },
-                {
-                  'lhs' => 'GRP_anywhere',
-                  'rhs' => [
-                             'ELE_object'
-                           ]
-                },
-                {
-                  'lhs' => 'GRP_block',
-                  'rhs' => [
-                             'ELE_ol'
-                           ]
-                },
-                {
-                  'action' => 'ELE_option',
-                  'lhs' => 'ELE_option',
-                  'rhs' => [
-                             'S_option',
-                             'FLO_pcdata',
-                             'E_option'
+                             'S_body',
+                             'FLO_block',
+                             'E_body'
                            ]
                 },
                 {
@@ -495,24 +370,83 @@ $CORE_RULES = [
                            ]
                 },
                 {
-                  'lhs' => 'GRP_inline',
+                  'action' => 'ELE_dl',
+                  'lhs' => 'ELE_dl',
                   'rhs' => [
-                             'ELE_select'
+                             'S_dl',
+                             'Contents_ELE_dl',
+                             'E_dl'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_dl',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_dl'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_dl',
+                  'rhs' => [
+                             'ELE_dt'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_dl',
+                  'rhs' => [
+                             'ELE_dd'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_dl',
+                  'rhs' => [
+                             'GRP_SGML'
                            ]
                 },
                 {
                   'lhs' => 'GRP_block',
                   'rhs' => [
-                             'ELE_table'
+                             'ELE_dl'
                            ]
                 },
                 {
-                  'action' => 'ELE_td',
-                  'lhs' => 'ELE_td',
+                  'action' => 'ELE_map',
+                  'lhs' => 'ELE_map',
                   'rhs' => [
-                             'S_td',
-                             'FLO_mixed',
-                             'E_td'
+                             'S_map',
+                             'Contents_ELE_map',
+                             'E_map'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_map',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_map'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_map',
+                  'rhs' => [
+                             'GRP_block'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_map',
+                  'rhs' => [
+                             'ELE_area'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_map',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_inline',
+                  'rhs' => [
+                             'ELE_map'
                            ]
                 },
                 {
@@ -522,6 +456,43 @@ $CORE_RULES = [
                              'S_th',
                              'FLO_mixed',
                              'E_th'
+                           ]
+                },
+                {
+                  'action' => 'ELE_col',
+                  'lhs' => 'ELE_col',
+                  'rhs' => [
+                             'S_col',
+                             'FLO_empty',
+                             'E_col'
+                           ]
+                },
+                {
+                  'action' => 'ELE_ul',
+                  'lhs' => 'ELE_ul',
+                  'rhs' => [
+                             'S_ul',
+                             'Contents_ELE_ul',
+                             'E_ul'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_ul',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_ul'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_ul',
+                  'rhs' => [
+                             'ELE_li'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_ul',
+                  'rhs' => [
+                             'GRP_SGML'
                            ]
                 },
                 {
@@ -543,377 +514,19 @@ $CORE_RULES = [
                   'lhs' => 'Contents_ELE_optgroup',
                   'min' => 0,
                   'rhs' => [
-                             'ITEM_ELE_optgroup'
+                             'GRP_ELE_optgroup'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_optgroup',
+                  'lhs' => 'GRP_ELE_optgroup',
                   'rhs' => [
                              'ELE_option'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_optgroup',
+                  'lhs' => 'GRP_ELE_optgroup',
                   'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_table',
-                  'lhs' => 'ELE_table',
-                  'rhs' => [
-                             'S_table',
-                             'Contents_ELE_table',
-                             'E_table'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_table',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_table'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_table',
-                  'rhs' => [
-                             'ELE_caption'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_table',
-                  'rhs' => [
-                             'ELE_col'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_table',
-                  'rhs' => [
-                             'ELE_colgroup'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_table',
-                  'rhs' => [
-                             'ELE_tbody'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_table',
-                  'rhs' => [
-                             'ELE_tfoot'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_table',
-                  'rhs' => [
-                             'ELE_thead'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_table',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_menu',
-                  'lhs' => 'ELE_menu',
-                  'rhs' => [
-                             'S_menu',
-                             'Contents_ELE_menu',
-                             'E_menu'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_menu',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_menu'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_menu',
-                  'rhs' => [
-                             'ELE_li'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_menu',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_tr',
-                  'lhs' => 'ELE_tr',
-                  'rhs' => [
-                             'S_tr',
-                             'Contents_ELE_tr',
-                             'E_tr'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_tr',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_tr'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_tr',
-                  'rhs' => [
-                             'ELE_th'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_tr',
-                  'rhs' => [
-                             'ELE_td'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_tr',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_dl',
-                  'lhs' => 'ELE_dl',
-                  'rhs' => [
-                             'S_dl',
-                             'Contents_ELE_dl',
-                             'E_dl'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_dl',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_dl'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_dl',
-                  'rhs' => [
-                             'ELE_dt'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_dl',
-                  'rhs' => [
-                             'ELE_dd'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_dl',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_applet',
-                  'lhs' => 'ELE_applet',
-                  'rhs' => [
-                             'S_applet',
-                             'Contents_ELE_applet',
-                             'E_applet'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_applet',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_applet'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_applet',
-                  'rhs' => [
-                             'ELE_param'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_applet',
-                  'rhs' => [
-                             'GRP_anywhere'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_applet',
-                  'rhs' => [
-                             'GRP_block'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_applet',
-                  'rhs' => [
-                             'GRP_inline'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_applet',
-                  'rhs' => [
-                             'cdata'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_applet',
-                  'rhs' => [
-                             'pcdata'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_applet',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_map',
-                  'lhs' => 'ELE_map',
-                  'rhs' => [
-                             'S_map',
-                             'Contents_ELE_map',
-                             'E_map'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_map',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_map'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_map',
-                  'rhs' => [
-                             'GRP_block'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_map',
-                  'rhs' => [
-                             'ELE_area'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_map',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_ol',
-                  'lhs' => 'ELE_ol',
-                  'rhs' => [
-                             'S_ol',
-                             'Contents_ELE_ol',
-                             'E_ol'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_ol',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_ol'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_ol',
-                  'rhs' => [
-                             'ELE_li'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_ol',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_tbody',
-                  'lhs' => 'ELE_tbody',
-                  'rhs' => [
-                             'S_tbody',
-                             'Contents_ELE_tbody',
-                             'E_tbody'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_tbody',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_tbody'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_tbody',
-                  'rhs' => [
-                             'ELE_tr'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_tbody',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_ul',
-                  'lhs' => 'ELE_ul',
-                  'rhs' => [
-                             'S_ul',
-                             'Contents_ELE_ul',
-                             'E_ul'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_ul',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_ul'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_ul',
-                  'rhs' => [
-                             'ELE_li'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_ul',
-                  'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_dir',
-                  'lhs' => 'ELE_dir',
-                  'rhs' => [
-                             'S_dir',
-                             'Contents_ELE_dir',
-                             'E_dir'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_dir',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_dir'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_dir',
-                  'rhs' => [
-                             'ELE_li'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_dir',
-                  'rhs' => [
-                             'ITEM_SGML'
+                             'GRP_SGML'
                            ]
                 },
                 {
@@ -929,49 +542,240 @@ $CORE_RULES = [
                   'lhs' => 'Contents_ELE_object',
                   'min' => 0,
                   'rhs' => [
-                             'ITEM_ELE_object'
+                             'GRP_ELE_object'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_object',
+                  'lhs' => 'GRP_ELE_object',
                   'rhs' => [
                              'ELE_param'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_object',
+                  'lhs' => 'GRP_ELE_object',
                   'rhs' => [
-                             'GRP_anywhere'
+                             'GRP_mixed'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_object',
+                  'lhs' => 'GRP_ELE_object',
                   'rhs' => [
-                             'GRP_block'
+                             'GRP_SGML'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_object',
+                  'lhs' => 'GRP_anywhere',
                   'rhs' => [
-                             'GRP_inline'
+                             'ELE_object'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_object',
+                  'action' => 'ELE_dd',
+                  'lhs' => 'ELE_dd',
                   'rhs' => [
-                             'cdata'
+                             'S_dd',
+                             'FLO_mixed',
+                             'E_dd'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_object',
+                  'action' => 'ELE_head',
+                  'lhs' => 'ELE_head',
                   'rhs' => [
-                             'pcdata'
+                             'S_head',
+                             'FLO_head',
+                             'E_head'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_object',
+                  'action' => 'ELE_td',
+                  'lhs' => 'ELE_td',
                   'rhs' => [
-                             'ITEM_SGML'
+                             'S_td',
+                             'FLO_mixed',
+                             'E_td'
+                           ]
+                },
+                {
+                  'action' => 'ELE_menu',
+                  'lhs' => 'ELE_menu',
+                  'rhs' => [
+                             'S_menu',
+                             'Contents_ELE_menu',
+                             'E_menu'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_menu',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_menu'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_menu',
+                  'rhs' => [
+                             'ELE_li'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_menu',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_block',
+                  'rhs' => [
+                             'ELE_menu'
+                           ]
+                },
+                {
+                  'action' => 'ELE_li',
+                  'lhs' => 'ELE_li',
+                  'rhs' => [
+                             'S_li',
+                             'FLO_mixed',
+                             'E_li'
+                           ]
+                },
+                {
+                  'action' => 'ELE_tr',
+                  'lhs' => 'ELE_tr',
+                  'rhs' => [
+                             'S_tr',
+                             'Contents_ELE_tr',
+                             'E_tr'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_tr',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_tr'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_tr',
+                  'rhs' => [
+                             'ELE_th'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_tr',
+                  'rhs' => [
+                             'ELE_td'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_tr',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'action' => 'ELE_option',
+                  'lhs' => 'ELE_option',
+                  'rhs' => [
+                             'S_option',
+                             'FLO_pcdata',
+                             'E_option'
+                           ]
+                },
+                {
+                  'action' => 'ELE_ol',
+                  'lhs' => 'ELE_ol',
+                  'rhs' => [
+                             'S_ol',
+                             'Contents_ELE_ol',
+                             'E_ol'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_ol',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_ol'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_ol',
+                  'rhs' => [
+                             'ELE_li'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_ol',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_block',
+                  'rhs' => [
+                             'ELE_ol'
+                           ]
+                },
+                {
+                  'action' => 'ELE_tbody',
+                  'lhs' => 'ELE_tbody',
+                  'rhs' => [
+                             'S_tbody',
+                             'Contents_ELE_tbody',
+                             'E_tbody'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_tbody',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_tbody'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_tbody',
+                  'rhs' => [
+                             'ELE_tr'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_tbody',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'action' => 'ELE_dir',
+                  'lhs' => 'ELE_dir',
+                  'rhs' => [
+                             'S_dir',
+                             'Contents_ELE_dir',
+                             'E_dir'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_dir',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_dir'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_dir',
+                  'rhs' => [
+                             'ELE_li'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_dir',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_block',
+                  'rhs' => [
+                             'ELE_dir'
                            ]
                 },
                 {
@@ -987,47 +791,19 @@ $CORE_RULES = [
                   'lhs' => 'Contents_ELE_tfoot',
                   'min' => 0,
                   'rhs' => [
-                             'ITEM_ELE_tfoot'
+                             'GRP_ELE_tfoot'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_tfoot',
+                  'lhs' => 'GRP_ELE_tfoot',
                   'rhs' => [
                              'ELE_tr'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_tfoot',
+                  'lhs' => 'GRP_ELE_tfoot',
                   'rhs' => [
-                             'ITEM_SGML'
-                           ]
-                },
-                {
-                  'action' => 'ELE_colgroup',
-                  'lhs' => 'ELE_colgroup',
-                  'rhs' => [
-                             'S_colgroup',
-                             'Contents_ELE_colgroup',
-                             'E_colgroup'
-                           ]
-                },
-                {
-                  'lhs' => 'Contents_ELE_colgroup',
-                  'min' => 0,
-                  'rhs' => [
-                             'ITEM_ELE_colgroup'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_colgroup',
-                  'rhs' => [
-                             'ELE_col'
-                           ]
-                },
-                {
-                  'lhs' => 'ITEM_ELE_colgroup',
-                  'rhs' => [
-                             'ITEM_SGML'
+                             'GRP_SGML'
                            ]
                 },
                 {
@@ -1043,19 +819,47 @@ $CORE_RULES = [
                   'lhs' => 'Contents_ELE_thead',
                   'min' => 0,
                   'rhs' => [
-                             'ITEM_ELE_thead'
+                             'GRP_ELE_thead'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_thead',
+                  'lhs' => 'GRP_ELE_thead',
                   'rhs' => [
                              'ELE_tr'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_thead',
+                  'lhs' => 'GRP_ELE_thead',
                   'rhs' => [
-                             'ITEM_SGML'
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'action' => 'ELE_colgroup',
+                  'lhs' => 'ELE_colgroup',
+                  'rhs' => [
+                             'S_colgroup',
+                             'Contents_ELE_colgroup',
+                             'E_colgroup'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_colgroup',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_colgroup'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_colgroup',
+                  'rhs' => [
+                             'ELE_col'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_colgroup',
+                  'rhs' => [
+                             'GRP_SGML'
                            ]
                 },
                 {
@@ -1071,25 +875,95 @@ $CORE_RULES = [
                   'lhs' => 'Contents_ELE_select',
                   'min' => 0,
                   'rhs' => [
-                             'ITEM_ELE_select'
+                             'GRP_ELE_select'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_select',
+                  'lhs' => 'GRP_ELE_select',
                   'rhs' => [
                              'ELE_optgroup'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_select',
+                  'lhs' => 'GRP_ELE_select',
                   'rhs' => [
                              'ELE_option'
                            ]
                 },
                 {
-                  'lhs' => 'ITEM_ELE_select',
+                  'lhs' => 'GRP_ELE_select',
                   'rhs' => [
-                             'ITEM_SGML'
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_inline',
+                  'rhs' => [
+                             'ELE_select'
+                           ]
+                },
+                {
+                  'action' => 'ELE_table',
+                  'lhs' => 'ELE_table',
+                  'rhs' => [
+                             'S_table',
+                             'Contents_ELE_table',
+                             'E_table'
+                           ]
+                },
+                {
+                  'lhs' => 'Contents_ELE_table',
+                  'min' => 0,
+                  'rhs' => [
+                             'GRP_ELE_table'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_table',
+                  'rhs' => [
+                             'ELE_caption'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_table',
+                  'rhs' => [
+                             'ELE_col'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_table',
+                  'rhs' => [
+                             'ELE_colgroup'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_table',
+                  'rhs' => [
+                             'ELE_tbody'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_table',
+                  'rhs' => [
+                             'ELE_tfoot'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_table',
+                  'rhs' => [
+                             'ELE_thead'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_ELE_table',
+                  'rhs' => [
+                             'GRP_SGML'
+                           ]
+                },
+                {
+                  'lhs' => 'GRP_block',
+                  'rhs' => [
+                             'ELE_table'
                            ]
                 },
                 {
@@ -1108,342 +982,114 @@ $CORE_RULES = [
                            ]
                 }
               ];
-$TAG_DESCRIPTOR = {
-                    'a' => [
-                             'GRP_inline',
-                             'FLO_inline'
-                           ],
-                    'abbr' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'acronym' => [
-                                   'GRP_inline',
-                                   'FLO_inline'
-                                 ],
-                    'address' => [
-                                   'GRP_block',
-                                   'FLO_inline'
-                                 ],
-                    'audio' => [
-                                 'GRP_inline',
-                                 'FLO_inline'
-                               ],
-                    'b' => [
-                             'GRP_inline',
-                             'FLO_inline'
-                           ],
-                    'base' => [
-                                'GRP_head',
-                                'FLO_empty'
-                              ],
-                    'basefont' => [
-                                    'GRP_inline',
-                                    'FLO_empty'
-                                  ],
-                    'bdo' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'big' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'blink' => [
-                                 'GRP_inline',
-                                 'FLO_inline'
-                               ],
-                    'blockquote' => [
-                                      'GRP_block',
-                                      'FLO_mixed'
-                                    ],
-                    'br' => [
-                              'GRP_inline',
-                              'FLO_empty'
-                            ],
-                    'button' => [
-                                  'GRP_inline',
-                                  'FLO_inline'
-                                ],
-                    'center' => [
-                                  'GRP_block',
-                                  'FLO_mixed'
-                                ],
-                    'cite' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'code' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'command' => [
-                                   'GRP_inline',
-                                   'FLO_inline'
-                                 ],
-                    'dfn' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'div' => [
-                               'GRP_block',
-                               'FLO_mixed'
-                             ],
-                    'em' => [
-                              'GRP_inline',
-                              'FLO_inline'
-                            ],
-                    'embed' => [
-                                 'GRP_inline',
-                                 'FLO_inline'
-                               ],
-                    'fieldset' => [
-                                    'GRP_block',
-                                    'FLO_mixed'
-                                  ],
-                    'font' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'form' => [
-                                'GRP_block',
-                                'FLO_mixed'
-                              ],
-                    'h1' => [
-                              'GRP_block',
-                              'FLO_inline'
-                            ],
-                    'h2' => [
-                              'GRP_block',
-                              'FLO_inline'
-                            ],
-                    'h3' => [
-                              'GRP_block',
-                              'FLO_inline'
-                            ],
-                    'h4' => [
-                              'GRP_block',
-                              'FLO_inline'
-                            ],
-                    'h5' => [
-                              'GRP_block',
-                              'FLO_inline'
-                            ],
-                    'h6' => [
-                              'GRP_block',
-                              'FLO_inline'
-                            ],
-                    'hr' => [
-                              'GRP_block',
-                              'FLO_empty'
-                            ],
-                    'i' => [
-                             'GRP_inline',
-                             'FLO_inline'
-                           ],
-                    'img' => [
-                               'GRP_inline',
-                               'FLO_empty'
-                             ],
-                    'input' => [
-                                 'GRP_inline',
-                                 'FLO_empty'
-                               ],
-                    'isindex' => [
-                                   'GRP_anywhere',
-                                   'FLO_empty'
-                                 ],
-                    'kbd' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'keygen' => [
-                                  'GRP_inline',
-                                  'FLO_inline'
-                                ],
-                    'label' => [
-                                 'GRP_inline',
-                                 'FLO_inline'
-                               ],
-                    'link' => [
-                                'GRP_head',
-                                'FLO_empty'
-                              ],
-                    'mark' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'meta' => [
-                                'GRP_head',
-                                'FLO_empty'
-                              ],
-                    'meter' => [
-                                 'GRP_inline',
-                                 'FLO_inline'
-                               ],
-                    'nobr' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'noframes' => [
-                                    'GRP_block',
-                                    'FLO_mixed'
-                                  ],
-                    'noscript' => [
-                                    'GRP_block',
-                                    'FLO_mixed'
-                                  ],
-                    'output' => [
-                                  'GRP_inline',
-                                  'FLO_inline'
-                                ],
-                    'plaintext' => [
-                                     'GRP_block',
-                                     'FLO_cdata'
-                                   ],
-                    'pre' => [
-                               'GRP_block',
-                               'FLO_inline'
-                             ],
-                    'progress' => [
-                                    'GRP_inline',
-                                    'FLO_inline'
-                                  ],
-                    'q' => [
-                             'GRP_inline',
-                             'FLO_inline'
-                           ],
-                    'rb' => [
-                              'GRP_inline',
-                              'FLO_inline'
-                            ],
-                    'rbc' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'rp' => [
-                              'GRP_inline',
-                              'FLO_inline'
-                            ],
-                    'rt' => [
-                              'GRP_inline',
-                              'FLO_inline'
-                            ],
-                    'rtc' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'ruby' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    's' => [
-                             'GRP_inline',
-                             'FLO_inline'
-                           ],
-                    'samp' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'script' => [
-                                  'GRP_anywhere',
-                                  'FLO_cdata'
-                                ],
-                    'small' => [
-                                 'GRP_inline',
-                                 'FLO_inline'
-                               ],
-                    'span' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'strike' => [
-                                  'GRP_inline',
-                                  'FLO_inline'
-                                ],
-                    'strong' => [
-                                  'GRP_inline',
-                                  'FLO_inline'
-                                ],
-                    'style' => [
-                                 'GRP_head',
-                                 'FLO_cdata'
-                               ],
-                    'sub' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'sup' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'textarea' => [
-                                    'GRP_anywhere',
-                                    'FLO_cdata'
-                                  ],
-                    'time' => [
-                                'GRP_inline',
-                                'FLO_inline'
-                              ],
-                    'title' => [
-                                 'GRP_head',
-                                 'FLO_pcdata'
-                               ],
-                    'tt' => [
-                              'GRP_inline',
-                              'FLO_inline'
-                            ],
-                    'u' => [
-                             'GRP_inline',
-                             'FLO_inline'
-                           ],
-                    'var' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'video' => [
-                                 'GRP_inline',
-                                 'FLO_inline'
-                               ],
-                    'wbr' => [
-                               'GRP_inline',
-                               'FLO_inline'
-                             ],
-                    'xmp' => [
-                               'GRP_block',
-                               'FLO_cdata'
-                             ]
-                  };
+$RUNTIME_TAG = {
+                 'a' => 'FLO_inline',
+                 'abbr' => 'FLO_inline',
+                 'acronym' => 'FLO_inline',
+                 'address' => 'FLO_inline',
+                 'audio' => 'FLO_inline',
+                 'b' => 'FLO_inline',
+                 'base' => 'FLO_empty',
+                 'basefont' => 'FLO_empty',
+                 'bdo' => 'FLO_inline',
+                 'big' => 'FLO_inline',
+                 'blink' => 'FLO_inline',
+                 'blockquote' => 'FLO_mixed',
+                 'br' => 'FLO_empty',
+                 'button' => 'FLO_inline',
+                 'center' => 'FLO_mixed',
+                 'cite' => 'FLO_inline',
+                 'code' => 'FLO_inline',
+                 'command' => 'FLO_inline',
+                 'dfn' => 'FLO_inline',
+                 'div' => 'FLO_mixed',
+                 'em' => 'FLO_inline',
+                 'embed' => 'FLO_inline',
+                 'fieldset' => 'FLO_mixed',
+                 'font' => 'FLO_inline',
+                 'form' => 'FLO_mixed',
+                 'h1' => 'FLO_inline',
+                 'h2' => 'FLO_inline',
+                 'h3' => 'FLO_inline',
+                 'h4' => 'FLO_inline',
+                 'h5' => 'FLO_inline',
+                 'h6' => 'FLO_inline',
+                 'hr' => 'FLO_empty',
+                 'i' => 'FLO_inline',
+                 'img' => 'FLO_empty',
+                 'input' => 'FLO_empty',
+                 'isindex' => 'FLO_empty',
+                 'kbd' => 'FLO_inline',
+                 'keygen' => 'FLO_inline',
+                 'label' => 'FLO_inline',
+                 'link' => 'FLO_empty',
+                 'mark' => 'FLO_inline',
+                 'meta' => 'FLO_empty',
+                 'meter' => 'FLO_inline',
+                 'nobr' => 'FLO_inline',
+                 'noframes' => 'FLO_mixed',
+                 'noscript' => 'FLO_mixed',
+                 'output' => 'FLO_inline',
+                 'plaintext' => 'FLO_cdata',
+                 'pre' => 'FLO_inline',
+                 'progress' => 'FLO_inline',
+                 'q' => 'FLO_inline',
+                 'rb' => 'FLO_inline',
+                 'rbc' => 'FLO_inline',
+                 'rp' => 'FLO_inline',
+                 'rt' => 'FLO_inline',
+                 'rtc' => 'FLO_inline',
+                 'ruby' => 'FLO_inline',
+                 's' => 'FLO_inline',
+                 'samp' => 'FLO_inline',
+                 'script' => 'FLO_cdata',
+                 'small' => 'FLO_inline',
+                 'span' => 'FLO_inline',
+                 'strike' => 'FLO_inline',
+                 'strong' => 'FLO_inline',
+                 'style' => 'FLO_cdata',
+                 'sub' => 'FLO_inline',
+                 'sup' => 'FLO_inline',
+                 'textarea' => 'FLO_cdata',
+                 'time' => 'FLO_inline',
+                 'title' => 'FLO_pcdata',
+                 'tt' => 'FLO_inline',
+                 'u' => 'FLO_inline',
+                 'var' => 'FLO_inline',
+                 'video' => 'FLO_inline',
+                 'wbr' => 'FLO_inline',
+                 'xmp' => 'FLO_cdata'
+               };
 $RUBY_SLIPPERS_RANK_BY_NAME = {
-                                '!end_tag' => {
-                                                '!non_final_end' => 1
-                                              },
-                                '!head_start_tag' => {
-                                                       '!non_final_end' => 1,
-                                                       'S_head' => 2,
-                                                       'S_html' => 3
-                                                     },
-                                '!inline_start_tag' => {
-                                                         '!non_final_end' => 1,
-                                                         'S_body' => 6,
-                                                         'S_head' => 7,
-                                                         'S_html' => 8,
-                                                         'S_p' => 2,
-                                                         'S_tbody' => 5,
-                                                         'S_td' => 3,
-                                                         'S_tr' => 4
-                                                       },
-                                '!non_element' => {
-                                                    '!non_final_end' => 1
-                                                  },
-                                '!start_tag' => {
-                                                  '!non_final_end' => 1,
-                                                  'S_body' => 2,
-                                                  'S_head' => 3,
-                                                  'S_html' => 4
+                                '<!element>' => {
+                                                  '</*>' => 1
                                                 },
+                                '<%head>' => {
+                                               '</*>' => 1,
+                                               'S_head' => 2,
+                                               'S_html' => 3
+                                             },
+                                '<%inline>' => {
+                                                 '</*>' => 1,
+                                                 'S_body' => 6,
+                                                 'S_head' => 7,
+                                                 'S_html' => 8,
+                                                 'S_p' => 2,
+                                                 'S_tbody' => 5,
+                                                 'S_td' => 3,
+                                                 'S_tr' => 4
+                                               },
+                                '<*>' => {
+                                           '</*>' => 1,
+                                           'S_body' => 2,
+                                           'S_head' => 3,
+                                           'S_html' => 4
+                                         },
+                                '</*>' => {
+                                            '</*>' => 1
+                                          },
                                 'CDATA' => {
-                                             '!non_final_end' => 1,
+                                             '</*>' => 1,
                                              'S_body' => 6,
                                              'S_head' => 7,
                                              'S_html' => 8,
@@ -1453,7 +1099,7 @@ $RUBY_SLIPPERS_RANK_BY_NAME = {
                                              'S_tr' => 4
                                            },
                                 'EOF' => {
-                                           '!non_final_end' => 3,
+                                           '</*>' => 3,
                                            'E_body' => 2,
                                            'E_html' => 1,
                                            'S_body' => 4,
@@ -1461,27 +1107,27 @@ $RUBY_SLIPPERS_RANK_BY_NAME = {
                                            'S_html' => 6
                                          },
                                 'E_body' => {
-                                              '!non_final_end' => 1,
+                                              '</*>' => 1,
                                               'S_body' => 2,
                                               'S_head' => 3,
                                               'S_html' => 4
                                             },
                                 'E_html' => {
-                                              '!non_final_end' => 2,
+                                              '</*>' => 2,
                                               'E_body' => 1,
                                               'S_body' => 3,
                                               'S_head' => 4,
                                               'S_html' => 5
                                             },
                                 'E_table' => {
-                                               '!non_final_end' => 2,
+                                               '</*>' => 2,
                                                'S_body' => 3,
                                                'S_head' => 4,
                                                'S_html' => 5,
                                                'S_table' => 1
                                              },
                                 'PCDATA' => {
-                                              '!non_final_end' => 1,
+                                              '</*>' => 1,
                                               'S_body' => 6,
                                               'S_head' => 7,
                                               'S_html' => 8,
@@ -1491,68 +1137,68 @@ $RUBY_SLIPPERS_RANK_BY_NAME = {
                                               'S_tr' => 4
                                             },
                                 'S_area' => {
-                                              '!non_final_end' => 1,
+                                              '</*>' => 1,
                                               'S_body' => 3,
                                               'S_head' => 4,
                                               'S_html' => 5,
                                               'S_map' => 2
                                             },
                                 'S_body' => {
-                                              '!non_final_end' => 1,
+                                              '</*>' => 1,
                                               'S_head' => 2,
                                               'S_html' => 3
                                             },
                                 'S_caption' => {
-                                                 '!non_final_end' => 2,
+                                                 '</*>' => 2,
                                                  'S_body' => 3,
                                                  'S_head' => 4,
                                                  'S_html' => 5,
                                                  'S_table' => 1
                                                },
                                 'S_col' => {
-                                             '!non_final_end' => 2,
+                                             '</*>' => 2,
                                              'S_body' => 3,
                                              'S_head' => 4,
                                              'S_html' => 5,
                                              'S_table' => 1
                                            },
                                 'S_colgroup' => {
-                                                  '!non_final_end' => 2,
+                                                  '</*>' => 2,
                                                   'S_body' => 3,
                                                   'S_head' => 4,
                                                   'S_html' => 5,
                                                   'S_table' => 1
                                                 },
                                 'S_dd' => {
-                                            '!non_final_end' => 1,
+                                            '</*>' => 1,
                                             'S_body' => 3,
                                             'S_dl' => 2,
                                             'S_head' => 4,
                                             'S_html' => 5
                                           },
                                 'S_dt' => {
-                                            '!non_final_end' => 1,
+                                            '</*>' => 1,
                                             'S_body' => 3,
                                             'S_dl' => 2,
                                             'S_head' => 4,
                                             'S_html' => 5
                                           },
                                 'S_head' => {
-                                              '!non_final_end' => 1,
+                                              '</*>' => 1,
                                               'S_html' => 2
                                             },
                                 'S_html' => {
-                                              '!non_final_end' => 1
+                                              '</*>' => 1
                                             },
                                 'S_li' => {
-                                            '!non_final_end' => 2,
+                                            '</*>' => 2,
                                             'S_body' => 3,
                                             'S_head' => 4,
                                             'S_html' => 5,
                                             'S_ul' => 1
                                           },
                                 'S_optgroup' => {
-                                                  '!non_final_end' => 1,
+                                                  '</*>' => 1,
                                                   'S_body' => 7,
                                                   'S_head' => 8,
                                                   'S_html' => 9,
@@ -1563,7 +1209,7 @@ $RUBY_SLIPPERS_RANK_BY_NAME = {
                                                   'S_tr' => 5
                                                 },
                                 'S_option' => {
-                                                '!non_final_end' => 1,
+                                                '</*>' => 1,
                                                 'S_body' => 7,
                                                 'S_head' => 8,
                                                 'S_html' => 9,
@@ -1574,21 +1220,21 @@ $RUBY_SLIPPERS_RANK_BY_NAME = {
                                                 'S_tr' => 5
                                               },
                                 'S_param' => {
-                                               '!non_final_end' => 1,
+                                               '</*>' => 1,
                                                'S_body' => 3,
                                                'S_head' => 4,
                                                'S_html' => 5,
                                                'S_object' => 2
                                              },
                                 'S_tbody' => {
-                                               '!non_final_end' => 2,
+                                               '</*>' => 2,
                                                'S_body' => 3,
                                                'S_head' => 4,
                                                'S_html' => 5,
                                                'S_table' => 1
                                              },
                                 'S_td' => {
-                                            '!non_final_end' => 2,
+                                            '</*>' => 2,
                                             'S_body' => 5,
                                             'S_head' => 6,
                                             'S_html' => 7,
@@ -1597,14 +1243,14 @@ $RUBY_SLIPPERS_RANK_BY_NAME = {
                                             'S_tr' => 3
                                           },
                                 'S_tfoot' => {
-                                               '!non_final_end' => 2,
+                                               '</*>' => 2,
                                                'S_body' => 3,
                                                'S_head' => 4,
                                                'S_html' => 5,
                                                'S_table' => 1
                                              },
                                 'S_th' => {
-                                            '!non_final_end' => 2,
+                                            '</*>' => 2,
                                             'S_body' => 6,
                                             'S_head' => 7,
                                             'S_html' => 8,
@@ -1614,14 +1260,14 @@ $RUBY_SLIPPERS_RANK_BY_NAME = {
                                             'S_tr' => 3
                                           },
                                 'S_thead' => {
-                                               '!non_final_end' => 2,
+                                               '</*>' => 2,
                                                'S_body' => 3,
                                                'S_head' => 4,
                                                'S_html' => 5,
                                                'S_table' => 1
                                              },
                                 'S_tr' => {
-                                            '!non_final_end' => 2,
+                                            '</*>' => 2,
                                             'S_body' => 4,
                                             'S_head' => 5,
                                             'S_html' => 6,
@@ -1629,3 +1275,106 @@ $RUBY_SLIPPERS_RANK_BY_NAME = {
                                             'S_tbody' => 3
                                           }
                               };
+$IS_EMPTY_ELEMENT = {
+                      'area' => 1,
+                      'base' => 1,
+                      'basefont' => 1,
+                      'br' => 1,
+                      'col' => 1,
+                      'hr' => 1,
+                      'img' => 1,
+                      'input' => 1,
+                      'isindex' => 1,
+                      'link' => 1,
+                      'meta' => 1,
+                      'param' => 1
+                    };
+$PRIMARY_GROUP_BY_TAG = {
+                          'a' => 'GRP_inline',
+                          'abbr' => 'GRP_inline',
+                          'acronym' => 'GRP_inline',
+                          'address' => 'GRP_block',
+                          'applet' => 'GRP_inline',
+                          'audio' => 'GRP_inline',
+                          'b' => 'GRP_inline',
+                          'base' => 'GRP_head',
+                          'basefont' => 'GRP_inline',
+                          'bdo' => 'GRP_inline',
+                          'big' => 'GRP_inline',
+                          'blink' => 'GRP_inline',
+                          'blockquote' => 'GRP_block',
+                          'br' => 'GRP_inline',
+                          'button' => 'GRP_inline',
+                          'center' => 'GRP_block',
+                          'cite' => 'GRP_inline',
+                          'code' => 'GRP_inline',
+                          'command' => 'GRP_inline',
+                          'dfn' => 'GRP_inline',
+                          'dir' => 'GRP_block',
+                          'div' => 'GRP_block',
+                          'dl' => 'GRP_block',
+                          'em' => 'GRP_inline',
+                          'embed' => 'GRP_inline',
+                          'fieldset' => 'GRP_block',
+                          'font' => 'GRP_inline',
+                          'form' => 'GRP_block',
+                          'h1' => 'GRP_block',
+                          'h2' => 'GRP_block',
+                          'h3' => 'GRP_block',
+                          'h4' => 'GRP_block',
+                          'h5' => 'GRP_block',
+                          'h6' => 'GRP_block',
+                          'hr' => 'GRP_block',
+                          'i' => 'GRP_inline',
+                          'img' => 'GRP_inline',
+                          'input' => 'GRP_inline',
+                          'isindex' => 'GRP_anywhere',
+                          'kbd' => 'GRP_inline',
+                          'keygen' => 'GRP_inline',
+                          'label' => 'GRP_inline',
+                          'link' => 'GRP_head',
+                          'map' => 'GRP_inline',
+                          'mark' => 'GRP_inline',
+                          'menu' => 'GRP_block',
+                          'meta' => 'GRP_head',
+                          'meter' => 'GRP_inline',
+                          'nobr' => 'GRP_inline',
+                          'noframes' => 'GRP_block',
+                          'noscript' => 'GRP_block',
+                          'object' => 'GRP_anywhere',
+                          'ol' => 'GRP_block',
+                          'output' => 'GRP_inline',
+                          'p' => 'GRP_block',
+                          'plaintext' => 'GRP_block',
+                          'pre' => 'GRP_block',
+                          'progress' => 'GRP_inline',
+                          'q' => 'GRP_inline',
+                          'rb' => 'GRP_inline',
+                          'rbc' => 'GRP_inline',
+                          'rp' => 'GRP_inline',
+                          'rt' => 'GRP_inline',
+                          'rtc' => 'GRP_inline',
+                          'ruby' => 'GRP_inline',
+                          's' => 'GRP_inline',
+                          'samp' => 'GRP_inline',
+                          'script' => 'GRP_anywhere',
+                          'select' => 'GRP_inline',
+                          'small' => 'GRP_inline',
+                          'span' => 'GRP_inline',
+                          'strike' => 'GRP_inline',
+                          'strong' => 'GRP_inline',
+                          'style' => 'GRP_head',
+                          'sub' => 'GRP_inline',
+                          'sup' => 'GRP_inline',
+                          'table' => 'GRP_block',
+                          'textarea' => 'GRP_anywhere',
+                          'time' => 'GRP_inline',
+                          'title' => 'GRP_head',
+                          'tt' => 'GRP_inline',
+                          'u' => 'GRP_inline',
+                          'ul' => 'GRP_block',
+                          'var' => 'GRP_inline',
+                          'video' => 'GRP_inline',
+                          'wbr' => 'GRP_inline',
+                          'xmp' => 'GRP_block'
+                        };

@@ -21,7 +21,7 @@ use integer;
 package Marpa::R2::HTML::Callback;
 
 use vars qw( $VERSION $STRING_VERSION );
-$VERSION = '2.021_008';
+$VERSION = '2.021_009';
 $STRING_VERSION = $VERSION;
 ## use critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -379,6 +379,12 @@ package Marpa::R2::HTML::Internal::Callback;
 
 sub Marpa::R2::HTML::tagname {
     return $Marpa::R2::HTML::Internal::ELEMENT;
+}
+
+sub Marpa::R2::HTML::is_empty_element {
+    return undef if not defined $Marpa::R2::HTML::Internal::ELEMENT;
+    my $self = $Marpa::R2::HTML::Internal::PARSE_INSTANCE;
+    return $self->{is_empty_element}->{$Marpa::R2::HTML::Internal::ELEMENT};
 }
 
 sub Marpa::R2::HTML::species {

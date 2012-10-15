@@ -23,9 +23,13 @@ use Data::Dumper;
 use English qw( -no_match_vars );
 
 use Marpa::R2::HTML::Config::Core;
+use Marpa::R2::Thin::Trace;
 
-my %predefined_groups =
-    ( GRP_mixed => [qw( GRP_anywhere GRP_block GRP_inline cdata pcdata)] );
+# Indexes into the symbol table
+use constant CONTEXT_CLOSED  => 0;
+use constant CONTENTS_CLOSED => 1;
+use constant CONTEXT         => 2;
+use constant CONTENTS        => 3;
 
 sub compile {
     my ($source_ref) = @_;
@@ -43,14 +47,9 @@ sub compile {
         trailer    => 'SPE_TRAILER',
     );
 
-    my @core_rules        = ();
-    my %descriptor_by_tag = ();
-
-    my %element_containments = ();
-    my %flow_containments    = ();
-    my %symbol_defined       = ();
-    my %symbol_included      = ();
-    my %core_symbol          = ();
+    my @core_rules           = ();
+    my %runtime_tag          = ();
+    my %primary_group_by_tag = ();
 
     {
         LINE: for my $line ( split /\n/xms, $HTML_Core::CORE_BNF ) {
@@ -63,15 +62,8 @@ sub compile {
             if ( $definition =~ s/ \s* [:][:][=] \s* / /xms ) {
 
                 # Production is Ordinary BNF rule
-                my @symbols = ( split q{ }, $definition );
-                my $lhs = shift @symbols;
-                @{ $symbol_defined{$lhs} } = ('BNF');
-                $core_symbol{$lhs} = 1;
-                for my $symbol (@symbols) {
-                    $symbol_included{$symbol} = 1;
-                    $core_symbol{$symbol}     = 1;
-                }
-
+                my @symbols         = ( split q{ }, $definition );
+                my $lhs             = shift @symbols;
                 my %rule_descriptor = (
                     lhs => $lhs,
                     rhs => \@symbols,
@@ -92,12 +84,53 @@ sub compile {
         } ## end LINE: for my $line ( split /\n/xms, $HTML_Core::CORE_BNF )
     }
 
-# A few symbols are allowed as contents as special cases
-    my %allowed_contents = map { $_ => 1 } qw(cdata pcdata);
-    my %banned_contents = grep { not $_ =~ m/\A GRP_ /xms } %core_symbol;
+    my @core_symbols = map { $_->{lhs}, @{ $_->{rhs} } } @core_rules;
+
+    # Start out by closing the context and contents of everything
+    my %symbol_table = map {
+        $_ =>
+            [ 'Reserved by the core grammar', 'Reserved by the core grammar' ]
+    } @core_symbols;
+
+    # A few token symbols are allowed as contents -- most non-element
+    # tokens are included via the SGML group
+    for my $token_symbol (qw(cdata pcdata)) {
+        $symbol_table{$token_symbol}->[CONTEXT_CLOSED] = 0;
+    }
+
+    # Many groups are defined to to be used
+    for my $group_symbol (
+        qw( GRP_anywhere GRP_pcdata GRP_cdata GRP_mixed GRP_block GRP_head GRP_inline)
+        )
+    {
+        $symbol_table{$group_symbol}->[CONTEXT_CLOSED] = 0;
+    } ## end for my $group_symbol ( ...)
+
+    # Flow symbols are almost all allowed as contents
+    FLOW_SYMBOL:
+    for my $flow_symbol ( grep { $_ =~ m/\A FLO_ /xms } @core_symbols ) {
+
+        # The SGML flow is included automatically as needed
+        # and should not be explicity specified
+        next FLOW_SYMBOL if $flow_symbol eq 'FLO_SGML';
+        $symbol_table{$flow_symbol}->[CONTEXT_CLOSED] = 0;
+    } ## end for my $flow_symbol ( grep { $_ =~ m/\A FLO_ /xms } ...)
+
+    # A few groups are also extensible
+    for my $group_symbol (qw( GRP_anywhere GRP_block GRP_head GRP_inline )) {
+        $symbol_table{$group_symbol}->[CONTENTS_CLOSED] = 0;
+    }
+
+    # As very special cases the contents of the <head> and <body>
+    # elements can be changed
+    for my $element_symbol (qw( ELE_head ELE_body )) {
+        $symbol_table{$element_symbol}->[CONTENTS_CLOSED] = 0;
+    }
 
     {
-        my @species_not_defined = grep { not defined $symbol_defined{$_} }
+        # Make sure everything for which we have a handler was defined in
+        # the core grammar
+        my @species_not_defined = grep { not defined $symbol_table{$_} }
             keys %species_handler;
         if ( scalar @species_not_defined ) {
             die
@@ -107,106 +140,228 @@ sub compile {
     }
 
     my %ruby_config = ();
-    my %lists = ();
+    my %lists       = ();
 
     LINE:
-    for my $line ( split /\n/xms, ${$source_ref} )
-    {
+    for my $line ( split /\n/xms, ${$source_ref} ) {
         my $definition = $line;
         chomp $definition;
         $definition =~ s/ [#] .* //xms;    # Remove comments
         next LINE
             if not $definition =~ / \S /xms;    # ignore all-whitespace line
         if ($definition =~ m{
-      \A \s* (ELE_\w+) \s+
-      is \s+ included \s+ in \s+ (GRP_\w+) \s* \z}xms
+	\A \s* [<](\w+)[>] \s+
+	is \s+ included \s+ in \s+ [%](\w+) \s* \z}xms
             )
         {
-            my $element = $1;
-            my $group   = $2;
-            die "Core symbol context cannot be changed: $definition"
-                if $core_symbol{$element};
-            push @core_rules,
-                {
-                lhs => $group,
-                rhs => [$element],
-                };
-            $symbol_included{$element} = 1;
+            my $tag = $1;
+            my $element       = 'ELE_' . $tag;
+            my $group         = 'GRP_' . $2;
+            my $element_entry = $symbol_table{$element} //= [];
+            my $group_entry   = $symbol_table{$group};
+
+            # For now, new groups cannot be defined
+            Carp::croak(
+                qq{Group "$group" does not exist\n},
+                qq{  Problem was in this line: $line}
+            ) if not defined $group_entry;
+
+            my $closed_reason = $element_entry->[CONTEXT_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Context of "$element" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
+            $closed_reason = $group_entry->[CONTENTS_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Contents of "$group" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
+
+
+            # If this is the first, it sets the primary group
+            $primary_group_by_tag{$tag} //= $group;
+            push @{ $element_entry->[CONTEXT] }, $group;
+
             next LINE;
+
         } ## end if ( $definition =~ m{ ) (})
         if ($definition =~ m{
-      \A \s* ELE_(\w+) \s+
-      is \s+ a \s+ (FLO_\w+) \s+
-      included \s+ in \s+ (GRP_\w+) \s* \z}xms
+	\A \s* [<](\w+)[>] \s+
+	is \s+ a \s+ [*](\w+) \s+
+      included \s+ in \s+ [%](\w+) \s* \z}xms
             )
         {
-            my $tag      = $1;
-            my $contents = $2;
-            my $group    = $3;
-            my $element  = 'ELE_' . $tag;
-            die "Core symbol context cannot be changed: $definition"
-                if $core_symbol{$element};
-            push @{ $symbol_defined{$element} }, 'is-a-included';
-            $symbol_included{$element} = 1;
-            $descriptor_by_tag{$tag} = [ $group, $contents ];
+            my $tag           = $1;
+            my $flow          = 'FLO_' . $2;
+            my $group         = 'GRP_' . $3;
+            my $element       = 'ELE_' . $tag;
+            my $element_entry = $symbol_table{$element} //= [];
+            my $group_entry   = $symbol_table{$group};
+            my $flow_entry    = $symbol_table{$flow};
+
+            # For now, new flows and groups cannot be defined
+            Carp::croak(
+                qq{Group "$group" does not exist\n},
+                qq{  Problem was in this line: $line}
+            ) if not defined $group_entry;
+            Carp::croak(
+                qq{Flow "$flow" does not exist\n},
+                qq{  Problem was in this line: $line}
+            ) if not defined $flow_entry;
+
+            my $closed_reason = $element_entry->[CONTEXT_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Context of "$element" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
+            $closed_reason = $element_entry->[CONTENTS_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Contents of "$element" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
+            $closed_reason = $flow_entry->[CONTEXT_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Context of "$flow" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
+            $closed_reason = $group_entry->[CONTENTS_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Contents of "$group" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
+
+            Carp::croak(
+                qq{Contents of "$element" are already being defined:\n},
+                qq{  Problem was in this line: $line} )
+                if defined $element_entry->[CONTENTS];
+            Carp::croak(
+                qq{Context of "$element" is already being defined:\n},
+                qq{  Problem was in this line: $line} )
+                if defined $element_entry->[CONTEXT];
+
+            # Always sets the primary group
+            $primary_group_by_tag{$tag} = $group;
+            $element_entry->[CONTENTS]  = $flow;
+            $element_entry->[CONTEXT]   = $group;
+            $element_entry->[CONTEXT_CLOSED] =
+                $element_entry->[CONTENTS_CLOSED] =
+                'Element is already fully defined';
+
             next LINE;
         } ## end if ( $definition =~ m{ ) (})
+
         if ( $definition
-            =~ s/ \A \s* ELE_(\w+) \s+ is \s+ (FLO_\w+) \s* \z/ /xms )
+            =~ s/ \A \s* [<](\w+)[>] \s+ is \s+ [*](\w+) \s* \z/ /xms )
         {
             # Production is Element with flow, but no group specified
-            my $tag = $1;
-            push @{ $symbol_defined{ 'ELE_' . $tag } }, 'is-a';
-            my $contents        = $2;
-            my $lhs             = 'ELE_' . $tag;
-	    # Special case
-	    die "ELE_body cannot contain FLO_empty"
-	        if $tag eq 'body' and $contents eq 'FLO_empty';
-            my %rule_descriptor = (
-                lhs    => $lhs,
-                rhs    => [ "S_$tag", $contents, "E_$tag" ],
-                action => $lhs
-            );
-            push @core_rules, \%rule_descriptor;
+            my $tag           = $1;
+            my $flow          = 'FLO_' . $2;
+            my $element       = 'ELE_' . $tag;
+            my $element_entry = $symbol_table{$element} //= [];
+            my $flow_entry    = $symbol_table{$flow};
+
+            # For now, new flows cannot be defined
+            Carp::croak(
+                qq{Flow "$flow" does not exist\n},
+                qq{  Problem was in this line: $line}
+            ) if not defined $flow_entry;
+
+            my $closed_reason = $element_entry->[CONTENTS_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Contents of "$element" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
+            $closed_reason = $flow_entry->[CONTEXT_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Context of "$flow" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
+
+            Carp::croak(
+                qq{Contents of "$element" are already being defined:\n},
+                qq{  Problem was in this line: $line} )
+                if defined $element_entry->[CONTENTS];
+
+            $element_entry->[CONTENTS] = $flow;
+            $element_entry->[CONTENTS_CLOSED] =
+                'Contents of Element are already defined';
+
             next LINE;
         } ## end if ( $definition =~ ...)
-        if ( $definition =~ s/ \A \s* ((ELE)_\w+) \s+ contains \s+ / /xms ) {
+        if ( $definition =~ s/ \A \s* [<](\w+)[>] \s+ contains \s+ / /xms ) {
 
             # Production is Element with custom flow
-            my $element_symbol = $1;
-            my @contents = split q{ }, $definition;
-            @contents = map {
-                defined $predefined_groups{$_}
-                    ? @{ $predefined_groups{$_} }
-                    : $_
-            } @contents;
-            push @{ $symbol_defined{$element_symbol} },       'contains';
-            push @{ $element_containments{$element_symbol} }, @contents;
+            my $tag = $1;
+            my $element_symbol = 'ELE_' . $tag;
+            my $element_entry  = $symbol_table{$element_symbol} //= [];
+            my $closed_reason  = $element_entry->[CONTENTS_CLOSED];
+            if ($closed_reason) {
+                Carp::croak(
+                    qq{Contents of "$element_symbol" cannot be changed:\n},
+                    qq{  Reason: $closed_reason\n},
+                    qq{  Problem was in this line: $line}
+                );
+            } ## end if ($closed_reason)
 
-            for my $contained_symbol (@contents) {
-                if ( not $allowed_contents{$contained_symbol} ) {
-                    die
-                        qq{Symbol "$contained_symbol" cannot be in the contents of an element: },
-                        $line
-                        if $banned_contents{$contained_symbol};
-                    my $prefix = substr $contained_symbol, 0, 4;
-                    die
-                        qq{Symbol "$contained_symbol" is not an element or a group: },
-                        $line
-                        if $prefix ne 'ELE_' and $prefix ne 'GRP_';
-                } ## end if ( not $allowed_contents{$contained_symbol} )
-                $symbol_included{$contained_symbol} = 1;
-            } ## end for my $contained_symbol (@contents)
-            next LINE;
-        } ## end if ( $definition =~ ...)
-        if ( $definition =~ s/ \A \s* ((FLO)_\w+) \s+ contains \s+ / /xms ) {
+            my @external_contents = split q{ }, $definition;
+	    my @contents = ();
 
-            die "Not yet implemented: ", $definition;
+            CONTAINED_SYMBOL: for my $external_content_symbol (@external_contents) {
+		my $content_symbol;
+		if ($external_content_symbol =~ /\A [<] (\w+) [>] \z/xms) {
+		    $content_symbol = 'ELE_' . $1;
+		}
+		if ($external_content_symbol =~ /\A [%] (\w+)  \z/xms) {
+		    $content_symbol = 'GRP_' . $1;
+		}
+		$content_symbol //= $external_content_symbol;
+                my $content_entry = $symbol_table{$content_symbol};
+                if ( not defined $content_entry ) {
+                    if ( not $content_symbol =~ /\A ELE_ /xms ) {
+                        Carp::croak(
+                            qq{Symbol "$external_content_symbol" is undefined\n},
+                            qq{  Problem was in this line: $line}
+                        ) if not defined $content_entry;
+                    } ## end if ( not $content_symbol =~ /\A ELE_ /xms )
+                    $content_entry = [];
+                } ## end if ( not defined $content_entry )
+                $closed_reason = $content_entry->[CONTEXT_CLOSED];
+                if ($closed_reason) {
+                    Carp::croak(
+                        qq{Context of "$external_content_symbol" cannot be changed:\n},
+                        qq{  Reason: $closed_reason\n},
+                        qq{  Problem was in this line: $line}
+                    );
+                } ## end if ($closed_reason)
+		push @contents, $content_symbol;
+            } ## end CONTAINED_SYMBOL: for my $content_symbol (@contents)
 
-            # Production is Flow
-            my $flow_symbol = $1;
-            my @contents = split q{ }, $definition;
-            push @{ $flow_containments{$flow_symbol} }, @contents;
+            push @{ $element_entry->[CONTENTS] }, @contents;
+
             next LINE;
         } ## end if ( $definition =~ ...)
         if ( $definition =~ s/ \A \s* [@](\w+) \s* = \s* / /xms ) {
@@ -224,16 +379,16 @@ sub compile {
                         if not defined $lists{$member_list};
                     push @members, @{ $lists{$member_list} };
                     next RAW_MEMBER;
-                } ## end if ( $member =~ / \A [@] (.*) \z/xms )
+                } ## end if ( $raw_member =~ / \A [@] (.*) \z/xms )
                 push @members, $raw_member;
             } ## end RAW_MEMBER: for my $raw_member (@raw_members)
             $lists{$new_list} = \@members;
-	    next LINE;
+            next LINE;
         } ## end if ( $definition =~ s/ \A \s* [@](\w+) \s* = \s* / /xms)
-        if ( $definition =~ s{ \A \s* ([\w<!>/]+) \s* [-][>] \s* }{}xms ) {
+        if ( $definition =~ s{ \A \s* ([\w<*%>/]+) \s* [-][>] \s* }{}xms ) {
             my $rejected_symbol = $1;
-            my @raw_candidates = split q{ }, $definition;
-            my @symbols = ($rejected_symbol);
+            my @raw_candidates  = split q{ }, $definition;
+            my @symbols         = ($rejected_symbol);
             RAW_CANDIDATE: for my $raw_candidate (@raw_candidates) {
                 if ( $raw_candidate =~ / \A [@] (.*) \z/xms ) {
                     my $list = $1;
@@ -243,228 +398,182 @@ sub compile {
                     push @symbols, @{ $lists{$list} };
                     next RAW_CANDIDATE;
                 } ## end if ( $raw_candidate =~ / \A [@] (.*) \z/xms )
-		push @symbols, $raw_candidate;
+                push @symbols, $raw_candidate;
             } ## end RAW_CANDIDATE: for my $raw_candidate (@raw_candidates)
-	    my @internal_symbols = ();
-	    SYMBOL: for my $symbol (@symbols) {
-	        if ($symbol =~ /\A \w+ \z/xms) {
-		     push @internal_symbols, $symbol;
-		     next SYMBOL;
-		}
-	        if ($symbol =~ /\A [<] ([!]\w+) [>] \z/xms) {
-		     my $special_symbol = $1;
-		     push @internal_symbols, $special_symbol;
-		     next SYMBOL;
-		}
-	        if ($symbol =~ /\A [<] (\w+) [>] \z/xms) {
-		     my $start_tag = 'S_' . $1;
-		     push @internal_symbols, $start_tag;
-		     next SYMBOL;
-		}
-	        if ($symbol =~ m{\A [<] [/](\w+) [>] \z}xms) {
-		     my $end_tag = 'E_' . $1;
-		     push @internal_symbols, $end_tag;
-		     next SYMBOL;
-		}
-		die "Problem in line: $line\n", qq{Misformed symbol "$symbol"};
-	    }
-	    $rejected_symbol = shift @internal_symbols;
+            my @internal_symbols = ();
+            SYMBOL: for my $symbol (@symbols) {
+                if ( $symbol =~ /\A (EOF|CDATA|PCDATA) \z/xms ) {
+                    push @internal_symbols, $symbol;
+                    next SYMBOL;
+                }
+                if ( $symbol
+                    =~ /\A ( [<] [%] (inline|head|block) [>] ) \z/xms )
+                {
+                    my $special_symbol = $1;
+                    push @internal_symbols, $special_symbol;
+                    next SYMBOL;
+                } ## end if ( $symbol =~ ...)
+                if ( $symbol
+                    =~ m{\A ( [<] [/] [%] (inline|head|block) [>] ) \z}xms )
+                {
+                    my $special_symbol = $1;
+                    push @internal_symbols, $special_symbol;
+                    next SYMBOL;
+                } ## end if ( $symbol =~ ...)
+                if ( $symbol =~ m{\A ( [<] [*] [>] ) \z}xms ) {
+                    my $special_symbol = $1;
+                    push @internal_symbols, $special_symbol;
+                    next SYMBOL;
+                }
+                if ( $symbol =~ m{\A ( [<] [/] [*] [>] ) \z}xms ) {
+                    my $special_symbol = $1;
+                    push @internal_symbols, $special_symbol;
+                    next SYMBOL;
+                }
+                if ( $symbol =~ /\A [<] (\w+) [>] \z/xms ) {
+                    my $start_tag = 'S_' . $1;
+                    push @internal_symbols, $start_tag;
+                    next SYMBOL;
+                }
+                if ( $symbol =~ m{\A [<] [/](\w+) [>] \z}xms ) {
+                    my $end_tag = 'E_' . $1;
+                    push @internal_symbols, $end_tag;
+                    next SYMBOL;
+                }
+                die "Problem in line: $line\n",
+                    qq{Misformed symbol "$symbol"};
+            } ## end SYMBOL: for my $symbol (@symbols)
+            $rejected_symbol = shift @internal_symbols;
             $ruby_config{$rejected_symbol} = \@internal_symbols;
-	    next LINE;
-	}
+            next LINE;
+        } ## end if ( $definition =~ ...)
         die "Badly formed line in grammar description: $line";
-    } ## end LINE: for my $line ( split /\n/xms, ...)
+    } ## end LINE: for my $line ( split /\n/xms, ${$source_ref} )
 
-# Make sure the last resort defaults are always defined
-    for my $required_rubies_desc (qw( !start_tag !end_tag !non_element )) {
+    my %sgml_flow_included = ();
+    SYMBOL: for my $element_symbol ( keys %symbol_table ) {
+        next SYMBOL if not 'ELE_' eq substr $element_symbol, 0, 4;
+        my $tag      = substr $element_symbol, 4;
+        my $entry    = $symbol_table{$element_symbol};
+        my $context  = $entry->[CONTEXT];
+        my $contents = $entry->[CONTENTS];
+        next SYMBOL if not defined $context and not defined $contents;
+        if ( defined $context and not defined $contents ) {
+            Carp::croak(
+                qq{Element <$tag> was defined but was never given any contents}
+            );
+        }
+
+        # Contents without context are OK at this point
+        # We will check later for elements defined but not used
+        $context //= [];
+
+        # The special case where both are defined and both
+        # are scalars is for elements to be created at runtime
+        if ( not ref $context and not ref $contents ) {
+            $runtime_tag{$tag} = $contents;
+            next SYMBOL;
+        }
+
+        if ( ref $contents ) {
+            my $contents_symbol = 'Contents_ELE_' . $tag;
+            my $item_symbol     = 'GRP_ELE_' . $tag;
+            push @core_rules,
+                {
+                lhs    => $element_symbol,
+                rhs    => [ "S_$tag", $contents_symbol, "E_$tag" ],
+                action => $element_symbol,
+                },
+                {
+                lhs => $contents_symbol,
+                rhs => [$item_symbol],
+                min => 0
+                };
+            for my $content_item ( @{$contents} ) {
+                push @core_rules,
+                    {
+                    lhs => $item_symbol,
+                    rhs => [$content_item],
+                    };
+            } ## end for my $content_item ( @{$contents} )
+            if ( !$sgml_flow_included{$item_symbol} ) {
+                $sgml_flow_included{$item_symbol} = 1;
+                push @core_rules,
+                    {
+                    lhs => $item_symbol,
+                    rhs => ['GRP_SGML'],
+                    };
+            } ## end if ( !$sgml_flow_included{$item_symbol} )
+        } ## end if ( ref $contents )
+        else {
+            push @core_rules,
+                {
+                lhs    => $element_symbol,
+                rhs    => [ "S_$tag", $contents, "E_$tag" ],
+                action => $element_symbol,
+                };
+        } ## end else [ if ( ref $contents ) ]
+
+        $context = [$context] if not ref $context;
+        for my $context_item ( @{$context} ) {
+            push @core_rules,
+                {
+                lhs => $context_item,
+                rhs => [$element_symbol],
+                };
+        } ## end for my $context_item ( @{$context} )
+    } ## end SYMBOL: for my $element_symbol ( keys %symbol_table )
+
+    # Finish out the Ruby Slippers configuration
+    # Make sure the last resort defaults are always defined
+    for my $required_rubies_desc (qw( <*> </*> <!element> )) {
         $ruby_config{$required_rubies_desc} //= [];
     }
 
     DESC: for my $rubies_desc ( keys %ruby_config ) {
         my $candidates = $ruby_config{$rubies_desc};
-        next DESC if '!non_final_end' ~~ $candidates;
-        $ruby_config{$rubies_desc} =
-            [ @{$candidates}, '!non_final_end' ];
-    } ## end DESC: for my $rubies_desc ( keys %ruby_config)
+        next DESC if '</*>' ~~ $candidates;
+        $ruby_config{$rubies_desc} = [ @{$candidates}, '</*>' ];
+    }
 
-    ELEMENT: for my $element ( keys %symbol_defined ) {
-        my $definitions = $symbol_defined{$element};
-        if ( $definitions->[0] ne 'BNF'
-            and !$symbol_included{$element} )
+    my %is_empty_element = ();
+    {
+        for my $tag ( keys %runtime_tag ) {
+            my $contents = $runtime_tag{$tag};
+            $is_empty_element{$tag} = 1 if $contents eq 'FLO_empty';
+        }
+        RULE: for my $rule (@core_rules) {
+            my $lhs = $rule->{lhs};
+            next RULE if not 'ELE_' eq substr $lhs, 0, 4;
+            my $contents = $rule->{rhs}->[1];
+            $is_empty_element{ substr $lhs, 4 } = 1
+                if $contents eq 'FLO_empty';
+        } ## end RULE: for my $rule (@core_rules)
+    }
+
+    {
+        # Make sure no ruby candidates or rejected symbols are
+        # end tags of empty elements
+        SYMBOL: for my $rejected_symbol ( keys %ruby_config ) {
+            next SYMBOL if 'E_' ne substr $rejected_symbol, 0, 2;
+            my $tag = substr $rejected_symbol, 2;
+            next SYMBOL if not $is_empty_element{$tag};
+            Carp::croak(
+                qq{Ruby Slippers alternatives specified for </$tag>\n},
+                qq{  "$tag" is an empty element and this is not allowed"}
+            );
+        } ## end SYMBOL: for my $rejected_symbol ( keys %ruby_config )
+        SYMBOL:
+        for my $candidate_symbol ( map { @{$_} } values %ruby_config )
         {
-            die "$element not included anywhere";
-        }
-
-        next ELEMENT if scalar @{$definitions} <= 1;
-        my $first = $definitions->[0];
-        if ( grep { $_ ne $first } @{$definitions} ) {
-            die "$element multiply defined";
-        }
-	if ($first ne 'contains') {
-            die "$element multiply defined";
-	}
-    } ## end ELEMENT: for my $element ( keys %symbol_defined )
-
-    my %sgml_flow_included = ();
-    ELEMENT: for my $main_symbol ( keys %element_containments ) {
-        my @contents        = @{ $element_containments{$main_symbol} };
-        my $tag             = substr $main_symbol, 4;
-        my $contents_symbol = 'Contents_ELE_' . $tag;
-        my $item_symbol     = 'ITEM_ELE_' . $tag;
-        push @core_rules,
-            {
-            lhs    => $main_symbol,
-            rhs    => [ "S_$tag", $contents_symbol, "E_$tag" ],
-            action => $main_symbol,
-            },
-            {
-            lhs => $contents_symbol,
-            rhs => [$item_symbol],
-            min => 0
-            };
-        for my $content_item (@contents) {
-            push @core_rules,
-                {
-                lhs => $item_symbol,
-                rhs => [$content_item],
-                };
-        } ## end for my $content_item (@contents)
-        if ( !$sgml_flow_included{$item_symbol} ) {
-            $sgml_flow_included{$item_symbol} = 1;
-            push @core_rules,
-                {
-                lhs => $item_symbol,
-                rhs => ['ITEM_SGML'],
-                };
-        } ## end if ( !$sgml_flow_included{$item_symbol} )
-    } ## end ELEMENT: for my $main_symbol ( keys %element_containments )
-
-    ELEMENT: for my $main_symbol ( keys %flow_containments ) {
-        die "Internal: Flow containments not yet implemented";
-        my @contents = @{ $flow_containments{$main_symbol} };
-        my $item_symbol = 'ITEM_' . substr $main_symbol, 4;
-        push @core_rules,
-            {
-            lhs => $main_symbol,
-            rhs => [$item_symbol],
-            min => 0
-            };
-        for my $content_item (@contents) {
-            push @core_rules,
-                {
-                lhs => $item_symbol,
-                rhs => [$content_item],
-                };
-        } ## end for my $content_item (@contents)
-        if ( !$sgml_flow_included{$item_symbol} ) {
-            $sgml_flow_included{$item_symbol} = 1;
-            push @core_rules,
-                {
-                lhs => $item_symbol,
-                rhs => ['ITEM_SGML'],
-                };
-        } ## end if ( !$sgml_flow_included{$item_symbol} )
-    } ## end ELEMENT: for my $main_symbol ( keys %flow_containments )
-
-    {
-        # Make sure all item symbols have a flow
-        my @symbols = map { $_->{lhs}, @{ $_->{rhs} } } @core_rules;
-        my %ITEM_symbols =
-            map { $_ => 1 } grep { ( substr $_, 0, 5 ) eq 'ITEM_' } @symbols;
-        my %FLO_symbols =
-            map { $_ => 1 } grep { ( substr $_, 0, 4 ) eq 'FLO_' } @symbols;
-        my %ELE_symbols =
-            map { $_ => 1 } grep { ( substr $_, 0, 4 ) eq 'ELE_' } @symbols;
-        my @problem = ();
-        ITEM: for my $item_symbol ( keys %ITEM_symbols ) {
-            if ( ( substr $item_symbol, 0, 9 ) eq 'ITEM_ELE_' ) {
-                push @problem, "No matching element for $item_symbol"
-                    if not defined $ELE_symbols{ substr $item_symbol, 5 };
-                next ITEM;
-            }
-            push @problem, "No matching flow for $item_symbol"
-                if not
-                    defined $FLO_symbols{ 'FLO_'
-                            . ( substr $item_symbol, 5 ) };
-        } ## end ITEM: for my $item_symbol ( keys %ITEM_symbols )
-        die join "\n", @problem if scalar @problem;
-    }
-
-    {
-        # Check that the tag descriptors refer to groups and flows
-        # which are defined
-        my %flows =
-            map { $_ => 'core' }
-            grep {m/\A FLO_ /xms} map { $_->{lhs} } @core_rules;
-        my %groups =
-            map { $_ => 'core' }
-            grep {m/\A GRP_ /xms}
-            map { $_->{lhs}, @{ $_->{rhs} } } @core_rules;
-        for my $tag ( keys %descriptor_by_tag ) {
-            my ( $group, $flow ) = @{ $descriptor_by_tag{$tag} };
-            die qq{$tag is a "$flow", which is not defined}
-                if not $flows{$flow};
-            die qq{$tag included in "$group", which is not defined}
-                if not $groups{$group};
-        } ## end for my $tag ( keys %descriptor_by_tag )
-    }
-
-    {
-        # Make sure groups are non-overlapping
-        my %group_rules =
-            map { $_->{lhs}, $_->{rhs} }
-            grep { ( substr $_->{lhs}, 0, 4 ) eq 'GRP_' } @core_rules;
-        my %group_by_member  = ();
-        my %members_by_group = ();
-        while ( my ( $group, $contents ) = each %group_rules ) {
-            die "Misformed rule for group contents: $group ::= ", join " ",
-                @{$contents}
-                if scalar @{$contents} != 1;
-            my $member = $contents->[0];
-            die qq{"$member" is a member of two groups: "$group" and "},
-                $group_by_member{$member}
-                if defined $group_by_member{$member};
-            $group_by_member{$member} = $group;
-            push @{ $members_by_group{$group} }, $member;
-        } ## end while ( my ( $group, $contents ) = each %group_rules )
-        for my $tag ( keys %descriptor_by_tag ) {
-            my $descriptor = $descriptor_by_tag{$tag};
-            my ($group)    = @{$descriptor};
-            my $member     = 'ELE_' . $tag;
-            die qq{"$member" is a member of two groups: "$group" and "},
-                $group_by_member{$member}
-                if defined $group_by_member{$member};
-            $group_by_member{$member} = $group;
-            push @{ $members_by_group{$group} }, $member;
-        } ## end for my $tag ( keys %descriptor_by_tag )
-
-        # Now ensure item lists are non-overlapping
-        my @item_rules =
-            grep { ( substr $_->{lhs}, 0, 5 ) eq 'ITEM_' } @core_rules;
-
-        my %members_by_item_list = ();
-        for my $rule (@item_rules) {
-            my $item_list = $rule->{lhs};
-            my $rhs       = $rule->{rhs};
-            die "Misformed rule for item list contents: $item_list ::= ",
-                join " ", @{$rhs}
-                if scalar @{$rhs} != 1;
-            my $raw_member = $rhs->[0];
-            my @members    = ($raw_member);
-            if ( ( substr $raw_member, 0, 4 ) eq 'GRP_' ) {
-		my $members_ref = $members_by_group{$raw_member} // [];
-                @members = @{ $members_ref };
-            }
-
-            for my $member (@members) {
-
-                my $count = $members_by_item_list{$item_list}{$member}++;
-                if ( $count > 0 ) {
-                    die
-                        qq{"$member" is in item list "$item_list" more than once};
-                }
-            } ## end for my $member (@members)
-        } ## end for my $rule (@item_rules)
+            next SYMBOL if 'E_' ne substr $candidate_symbol, 0, 2;
+            my $tag = substr $candidate_symbol, 2;
+            next SYMBOL if not $is_empty_element{$tag};
+            Carp::croak(
+                qq{Tag </$tag> specified as a Ruby Slippers alternative\n},
+                qq{  "$tag" is an empty element and this is not allowed"}
+            );
+        } ## end for my $candidate_symbol ( map { @{$_} } values ...)
     }
 
     {
@@ -488,10 +597,10 @@ sub compile {
         my %required_tags = map { ( substr $_, 2 ) => 1 } @ruby_start_tags;
         TAG: for my $tag ( keys %required_tags ) {
             next TAG if $defined_in_core_rules{$tag};
-            my $descriptor = $descriptor_by_tag{$tag};
+            my $flow = $runtime_tag{$tag};
             die qq{Required element "ELE_$tag" was never defined}
-                if not defined $descriptor;
-            my ( $group, $flow ) = @{$descriptor};
+                if not defined $flow;
+            my $group   = $primary_group_by_tag{$tag};
             my $element = 'ELE_' . $tag;
             push @core_rules,
                 {
@@ -503,7 +612,7 @@ sub compile {
                 lhs => $group,
                 rhs => [$element],
                 };
-            delete $descriptor_by_tag{$tag};
+            delete $runtime_tag{$tag};
         } ## end TAG: for my $tag ( keys %required_tags )
     }
 
@@ -515,27 +624,53 @@ sub compile {
             map { ( substr $_, 4 ) => 'core' }
             grep {m/\A ELE_ /xms} map { $_->{lhs} } @core_rules;
         my @symbols_with_no_ruby_status =
-            grep { !$defined_in_core{$_} and !$descriptor_by_tag{$_} }
+            grep { !$defined_in_core{$_} and !$runtime_tag{$_} }
             @mentioned_in_core;
         die "symbols with no ruby status: ", join " ",
             @symbols_with_no_ruby_status
             if scalar @symbols_with_no_ruby_status;
     }
 
+    # Calculate the numeric Ruby ranks
     my %ruby_rank = ();
     for my $rejected_symbol ( keys %ruby_config ) {
         my $rank = 1;
-        for my $candidate (
-            reverse @{ $ruby_config{$rejected_symbol} } )
-        {
+        for my $candidate ( reverse @{ $ruby_config{$rejected_symbol} } ) {
             $ruby_rank{$rejected_symbol}{$candidate} = $rank++;
         }
-    } ## end for my $rejected_symbol ( keys %ruby_config)
+    } ## end for my $rejected_symbol ( keys %ruby_config )
+
+    {
+        my %element_used =
+            map { ( $_ => 1 ) }
+            grep {m/\A ELE_ /xms} map { @{ $_->{rhs} } } @core_rules;
+        my @elements_defined_but_not_used =
+            grep { !$element_used{$_} }
+            grep {m/\A ELE_ /xms} map { $_->{lhs} } @core_rules;
+        die "elements defined but never used: ", join " ",
+            @elements_defined_but_not_used
+            if scalar @elements_defined_but_not_used;
+    }
+
+    {
+        my %seen = ();
+        for my $rule (@core_rules) {
+            my $lhs  = $rule->{lhs};
+            my $rhs  = $rule->{rhs};
+            my $desc = join q{ }, $lhs, '::=', @{$rhs};
+            if ( $seen{$desc} ) {
+                Carp::croak("Duplicate rule: $desc");
+            }
+            $seen{$desc}++;
+        } ## end for my $rule (@core_rules)
+    }
 
     return {
         rules                      => \@core_rules,
-        descriptor_by_tag          => \%descriptor_by_tag,
-        ruby_slippers_rank_by_name => \%ruby_rank
+        runtime_tag                => \%runtime_tag,
+        ruby_slippers_rank_by_name => \%ruby_rank,
+        is_empty_element           => \%is_empty_element,
+        primary_group_by_tag       => \%primary_group_by_tag
     };
 
 } ## end sub compile

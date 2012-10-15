@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw( $VERSION $STRING_VERSION );
-$VERSION        = '2.021_008';
+$VERSION        = '2.021_009';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -39,7 +39,6 @@ use Marpa::R2::HTML::Config;
 use Carp ();
 use HTML::Parser 3.69;
 use HTML::Entities qw(decode_entities);
-use HTML::Tagset ();
 
 # versions below must be coordinated with
 # those required in Build.PL
@@ -54,6 +53,8 @@ use Marpa::R2;
         $Marpa::R2::HTML::VERSION
         if $submodule_version != $Marpa::R2::HTML::VERSION;
 }
+
+use Marpa::R2::Thin::Trace;
 
 # constants
 
@@ -251,7 +252,7 @@ sub create {
                     qw(trace_fh trace_values trace_handlers
                         trace_conflicts
                         trace_terminals trace_cruft
-			dump_config compile
+			dump_AHFA dump_config compile
 			)
                 ]
                 )
@@ -443,14 +444,14 @@ sub range_and_values_to_literal {
 
 sub symbol_names_by_rule_id {
     my ( $self, $rule_id ) = @_;
-    my $grammar           = $self->{grammar};
-    my $symbol_name_by_id = $self->{symbol_name_by_id};
+    my $tracer = $self->{tracer};
+    my $grammar           = $tracer->grammar();
     my $rule_length       = $grammar->rule_length($rule_id);
     return if not defined $rule_length;
     my @symbol_ids = ( $grammar->rule_lhs($rule_id) );
     push @symbol_ids,
         map { $grammar->rule_rhs( $rule_id, $_ ) } ( 0 .. $rule_length - 1 );
-    return map { $symbol_name_by_id->[$_] } @symbol_ids;
+    return map { $tracer->symbol_name($_) } @symbol_ids;
 } ## end sub symbol_names_by_rule_id
 
 sub parse {
@@ -477,34 +478,32 @@ sub parse {
 
     my $document = $self->{document} = $document_ref;
 
-    my ($core_rules, $compiled_descriptor_by_tag, $rank_by_name) = $self->{config}->contents();
+    my ($core_rules,   $runtime_tag,
+        $rank_by_name, $is_empty_element,
+	$primary_group_by_tag
+    ) = $self->{config}->contents();
+    $self->{is_empty_element} = $is_empty_element;
     if ($self->{dump_config}) {
          return $self->{config}->as_string();
     }
-
-    my %symbol_id_by_name = ();
-    $self->{symbol_id_by_name} = \%symbol_id_by_name;
-    my @symbol_name_by_id = ();
-    $self->{symbol_name_by_id} = \@symbol_name_by_id;
     my @action_by_rule_id = ();
     $self->{action_by_rule_id} = \@action_by_rule_id;
     my $thin_grammar = Marpa::R2::Thin::G->new( { if => 1 } );
-    $self->{grammar}                  = $thin_grammar;
+    my $tracer = Marpa::R2::Thin::Trace->new($thin_grammar);
+    $self->{tracer}                  = $tracer;
 
-    RULE: for my $rule (@{$core_rules}) {
+    RULE: for my $rule ( @{$core_rules} ) {
         my $lhs    = $rule->{lhs};
         my $rhs    = $rule->{rhs};
         my $min    = $rule->{min};
         my $action = $rule->{action};
-        for my $symbol_name ( grep { not defined $symbol_id_by_name{$_} }
-            ( $lhs, @{$rhs} ) )
-        {
-            my $symbol_id = $thin_grammar->symbol_new();
-            $symbol_name_by_id[$symbol_id] = $symbol_name;
-            $symbol_id_by_name{$symbol_name} = $symbol_id;
-        } ## end for my $symbol_name ( grep { not defined $symbol_id_by_name...})
-        my $lhs_id = $symbol_id_by_name{$lhs};
-        my @rhs_ids = map { $symbol_id_by_name{$_} } @{$rhs};
+	my @symbol_ids = ();
+        for my $symbol_name ( $lhs, @{$rhs} ) {
+            push @symbol_ids,
+                $tracer->symbol_by_name($symbol_name)
+                // $tracer->symbol_new($symbol_name);
+        }
+        my ($lhs_id, @rhs_ids) = @symbol_ids;
         my $rule_id;
         if ( defined $min ) {
             $rule_id =
@@ -515,17 +514,17 @@ sub parse {
             $rule_id = $thin_grammar->rule_new( $lhs_id, \@rhs_ids );
         }
         $action_by_rule_id[$rule_id] = $action;
-    } ## end RULE: for my $rule (@rules)
+    } ## end RULE: for my $rule ( @{$core_rules} )
 
     # Some constants that we will use a lot
-    my $SYMID_CRUFT = $symbol_id_by_name{'CRUFT'};
-    my $SYMID_CDATA = $symbol_id_by_name{'CDATA'};
-    my $SYMID_PCDATA = $symbol_id_by_name{'PCDATA'};
-    my $SYMID_WHITESPACE = $symbol_id_by_name{'WHITESPACE'};
-    my $SYMID_PI = $symbol_id_by_name{'PI'};
-    my $SYMID_C = $symbol_id_by_name{'C'};
-    my $SYMID_D = $symbol_id_by_name{'D'};
-    my $SYMID_EOF = $symbol_id_by_name{'EOF'};
+    my $SYMID_CRUFT = $tracer->symbol_by_name('CRUFT');
+    my $SYMID_CDATA = $tracer->symbol_by_name('CDATA');
+    my $SYMID_PCDATA = $tracer->symbol_by_name('PCDATA');
+    my $SYMID_WHITESPACE = $tracer->symbol_by_name('WHITESPACE');
+    my $SYMID_PI = $tracer->symbol_by_name('PI');
+    my $SYMID_C = $tracer->symbol_by_name('C');
+    my $SYMID_D = $tracer->symbol_by_name('D');
+    my $SYMID_EOF = $tracer->symbol_by_name('EOF');
 
     my @raw_tokens = ();
     my $p          = HTML::Parser->new(
@@ -593,28 +592,22 @@ sub parse {
                 my $tag_name = $raw_token
                     ->[Marpa::R2::HTML::Internal::Token::TAG_NAME];
                 my $terminal    = $token_type . q{_} . $tag_name;
-                my $terminal_id = $symbol_id_by_name{$terminal};
+                my $terminal_id = $tracer->symbol_by_name($terminal);
                 if ( not defined $terminal_id ) {
-                    my $element_type = 'GRP_anywhere';
-                    my $contents     = 'FLO_mixed';
-                    my $tag_descriptor =
-                        $compiled_descriptor_by_tag->{$tag_name};
-                    if ( defined $tag_descriptor ) {
-                        ( $element_type, $contents ) = @{$tag_descriptor};
-                    }
+                    my $group_symbol = $primary_group_by_tag->{$tag_name}
+                        // 'GRP_anywhere';
+                    my $contents = $runtime_tag->{$tag_name} // 'FLO_mixed';
                     my @symbol_names = (
-                        $element_type,
+                        $group_symbol,
                         'ELE_' . $tag_name,
                         'S_' . $tag_name,
                         $contents, 'E_' . $tag_name
                     );
                     my @symbol_ids = ();
                     SYMBOL: for my $symbol_name (@symbol_names) {
-                        my $symbol_id = $symbol_id_by_name{$symbol_name};
+                        my $symbol_id = $tracer->symbol_by_name($symbol_name);
                         if ( not defined $symbol_id ) {
-                            $symbol_id = $thin_grammar->symbol_new();
-                            $symbol_name_by_id[$symbol_id] = $symbol_name;
-                            $symbol_id_by_name{$symbol_name} = $symbol_id;
+                            $symbol_id = $tracer->symbol_new($symbol_name);
                         }
                         push @symbol_ids, $symbol_id;
                     } ## end SYMBOL: for my $symbol_name (@symbol_names)
@@ -623,7 +616,7 @@ sub parse {
                     my $element_rule_id =
                         $thin_grammar->rule_new( $lhs_id, \@rhs_ids );
                     $action_by_rule_id[$element_rule_id] = 'ELE_' . $tag_name;
-                    $terminal_id = $symbol_id_by_name{$terminal};
+                    $terminal_id = $tracer->symbol_by_name($terminal);
 
                 } ## end if ( not defined $terminal_id )
                 $raw_token->[Marpa::R2::HTML::Internal::Token::TOKEN_ID] =
@@ -656,8 +649,12 @@ sub parse {
     $p          = undef;
     @raw_tokens = ();
 
-    $thin_grammar->start_symbol_set( $symbol_id_by_name{'document'} );
+    $thin_grammar->start_symbol_set( $tracer->symbol_by_name('document') );
     $thin_grammar->precompute();
+
+    if ($self->{dump_AHFA}) {
+         return \$tracer->show_AHFA();
+    }
 
     # Memoize these -- we use highest symbol a lot
     my $highest_symbol_id = $thin_grammar->highest_symbol_id();
@@ -673,25 +670,11 @@ sub parse {
         my @non_final_end_tag_ids = ();
         SYMBOL:
         for my $symbol_id ( 0 .. $highest_symbol_id ) {
-            my $symbol_name = $symbol_name_by_id[$symbol_id];
+            my $symbol_name = $tracer->symbol_name($symbol_id);
             next SYMBOL if not 0 == index $symbol_name, 'E_';
             next SYMBOL if $symbol_name ~~ [qw(E_body E_html)];
             push @non_final_end_tag_ids, $symbol_id;
         } ## end SYMBOL: for my $symbol_id ( 0 .. $highest_symbol_id )
-
-	my %element_type = ();
-        RULE: for my $rule_id ( 0 .. $highest_rule_id ) {
-	     # RHS should be length 1
-	     my ($lhs, $rhs) = symbol_names_by_rule_id($self, $rule_id);
-	     # In theory there could be gaps in the rule numbering
-	     next RULE if not defined $lhs;
-	     next RULE if 'GRP_' ne substr $lhs, 0, 4;
-	     next RULE if 'ELE_' ne substr $rhs, 0, 4;
-	     my $group = substr $lhs, 4;
-	     next RULE if not $group ~~ [qw( inline block head )];
-	     my $tag = substr $rhs, 4;
-	     $element_type{$tag} = $group;
-	}
 
         my %ruby_vectors = ();
         for my $rejected_symbol_name ( keys %{$rank_by_name} ) {
@@ -701,11 +684,11 @@ sub parse {
             CANDIDATE:
             for my $candidate_name ( keys %{$rank_by_candidate_name} ) {
                 my $rank = $rank_by_candidate_name->{$candidate_name};
-                if ( $candidate_name eq '!non_final_end' ) {
+                if ( $candidate_name eq '</*>' ) {
                     $ruby_vector_by_id[$_] = $rank for @non_final_end_tag_ids;
                     next CANDIDATE;
                 }
-                my $candidate_id = $symbol_id_by_name{$candidate_name};
+                my $candidate_id = $tracer->symbol_by_name($candidate_name);
                 die "Unknown ruby slippers candidate name: $candidate_name"
                     if not defined $candidate_id;
                 $ruby_vector_by_id[$candidate_id] = $rank
@@ -723,17 +706,17 @@ sub parse {
                 next SYMBOL;
             } ## end if ( not $thin_grammar->symbol_is_terminal(...))
             my $rejected_symbol_name =
-                $symbol_name_by_id[$rejected_symbol_id];
+                $tracer->symbol_name($rejected_symbol_id);
             my $placement;
             FIND_PLACEMENT: {
                 my $prefix = substr $rejected_symbol_name, 0, 2;
                 if ( $prefix eq 'S_' ) {
-                    $placement = 'start';
+                    $placement = '';
                     $is_start_tag[$rejected_symbol_id] = 1;
                     last FIND_PLACEMENT;
                 }
                 if ( $prefix eq 'E_' ) {
-                    $placement = 'end';
+                    $placement = '/';
                 }
             } ## end FIND_PLACEMENT:
             my $ruby_vector = $ruby_vectors{$rejected_symbol_name};
@@ -742,20 +725,26 @@ sub parse {
                 next SYMBOL;
             }
             if ( not defined $placement ) {
+                if ( $rejected_symbol_name eq 'CRUFT' ) {
+                    $ruby_rank_by_id[$rejected_symbol_id] =
+                        \@no_ruby_slippers_vector;
+                    next SYMBOL;
+                }
                 $ruby_rank_by_id[$rejected_symbol_id] =
                     $ruby_vectors{'!non_element'}
                     // \@no_ruby_slippers_vector;
                 next SYMBOL;
             } ## end if ( not defined $placement )
             my $tag = substr $rejected_symbol_name, 2;
-            my $element_type = $element_type{$tag} //  'anywhere';
+	    my $primary_group = $primary_group_by_tag->{$tag};
+            my $element_type = defined $primary_group ? (substr $primary_group, 4) : 'anywhere';
             $ruby_vector =
-                $ruby_vectors{ q{!} . $element_type . q{_} . $placement . q{_tag} };
+                $ruby_vectors{ q{<} . $placement . q{%} . $element_type . q{>} };
             if ( defined $ruby_vector ) {
                 $ruby_rank_by_id[$rejected_symbol_id] = $ruby_vector;
                 next SYMBOL;
             }
-            $ruby_vector = $ruby_vectors{ q{!} . $placement . q{_tag} };
+            $ruby_vector = $ruby_vectors{ q{<} . $placement . q{*>} };
             if ( defined $ruby_vector ) {
                 $ruby_rank_by_id[$rejected_symbol_id] = $ruby_vector;
                 next SYMBOL;
@@ -763,6 +752,16 @@ sub parse {
             $ruby_rank_by_id[$rejected_symbol_id] = \@no_ruby_slippers_vector;
         } ## end SYMBOL: for my $rejected_symbol_id ( 0 .. $highest_symbol_id )
 
+    }
+
+    my @empty_element_end_tag = ();
+    {
+        TAG: for my $tag (keys %{$is_empty_element}) {
+	    my $start_tag_id = $tracer->symbol_by_name('S_' . $tag);
+	    next TAG if not defined $start_tag_id;
+	    my $end_tag_id = $tracer->symbol_by_name('E_' . $tag);
+	    $empty_element_end_tag[$start_tag_id] = $end_tag_id;
+	}
     }
 
     my $recce = Marpa::R2::Thin::R->new($thin_grammar);
@@ -794,7 +793,32 @@ sub parse {
     my @terminal_last_seen = ( (-1) x ( $highest_symbol_id + 1 ) );
 
     $thin_grammar->throw_set(0);
+    my $empty_element_end_tag;
     RECCE_RESPONSE: while ( $token_number < $token_count ) {
+
+	if ( defined $empty_element_end_tag ) {
+	    my $read_result =
+		$recce->alternative( $empty_element_end_tag, RUBY_SLIPPERS_TOKEN,
+		1 );
+	    if ( $read_result != $NO_MARPA_ERROR ) {
+		die $thin_grammar->error();
+	    }
+	    if ($trace_terminals) {
+		say {$trace_fh} 'Virtual end tag accepted: ',
+		    $tracer->symbol_name($empty_element_end_tag)
+		    or Carp::croak("Cannot print: $ERRNO");
+	    }
+	    if ( $recce->earleme_complete() < 0 ) {
+		die $thin_grammar->error();
+	    }
+	    my $current_earleme = $recce->current_earleme();
+	    die $thin_grammar->error() if not defined $current_earleme;
+	    $self->{earleme_to_html_token_ix}->[$current_earleme] =
+		$latest_html_token;
+	    $empty_element_end_tag = undef;
+	    next RECCE_RESPONSE;
+	} ## end if ( defined $empty_element_end_tag )
+
         my $token = $html_parser_tokens[$token_number];
 
         my $attempted_symbol_id = $token
@@ -807,12 +831,13 @@ sub parse {
             }
             if ($trace_terminals) {
                 say {$trace_fh} 'Token accepted: ',
-                    $symbol_name_by_id[$attempted_symbol_id]
+                    $tracer->symbol_name($attempted_symbol_id)
                     or Carp::croak("Cannot print: $ERRNO");
             }
             if ( $recce->earleme_complete() < 0 ) {
                 die $thin_grammar->error();
             }
+
             my $last_html_token_of_marpa_token = $token_number;
             $token_number++;
             if ( defined $last_html_token_of_marpa_token ) {
@@ -822,12 +847,14 @@ sub parse {
             die $thin_grammar->error() if not defined $current_earleme;
             $self->{earleme_to_html_token_ix}->[$current_earleme] =
                 $latest_html_token;
+
+	    $empty_element_end_tag = $empty_element_end_tag[$attempted_symbol_id];
             next RECCE_RESPONSE;
         } ## end if ( $read_result != $UNEXPECTED_TOKEN_ID )
 
         if ($trace_terminals) {
             say {$trace_fh} 'Literal Token not accepted: ',
-                $symbol_name_by_id[$attempted_symbol_id]
+                $tracer->symbol_name($attempted_symbol_id)
                 or Carp::croak("Cannot print: $ERRNO");
         }
 
@@ -840,14 +867,14 @@ sub parse {
             my $this_candidate_rank = $ruby_vector->[$candidate_id];
             if ($trace_terminals) {
                 say {$trace_fh} 'Considering candidate: ',
-                    $symbol_name_by_id[$candidate_id],
+                    $tracer->symbol_name($candidate_id),
                     "; rank is $this_candidate_rank; highest rank so far is $highest_candidate_rank"
                     or Carp::croak("Cannot print: $ERRNO");
             } ## end if ($trace_terminals)
             if ( $this_candidate_rank > $highest_candidate_rank ) {
                 if ($trace_terminals) {
                     say {$trace_fh} 'Considering candidate: ',
-                        $symbol_name_by_id[$candidate_id],
+                        $tracer->symbol_name($candidate_id),
                         '; last seen at ', $terminal_last_seen[$candidate_id],
                         "; current token number is $token_number"
                         or Carp::croak("Cannot print: $ERRNO");
@@ -856,7 +883,7 @@ sub parse {
                     if $terminal_last_seen[$candidate_id] == $token_number;
                 if ($trace_terminals) {
                     say {$trace_fh} 'Current best candidate: ',
-                        $symbol_name_by_id[$candidate_id],
+                        $tracer->symbol_name($candidate_id),
                         or Carp::croak("Cannot print: $ERRNO");
                 }
                 $highest_candidate_rank  = $this_candidate_rank;
@@ -868,7 +895,7 @@ sub parse {
 
             if ($trace_terminals) {
                 say {$trace_fh} 'Adding Ruby Slippers token: ',
-                    $symbol_name_by_id[$virtual_terminal_to_add],
+                    $tracer->symbol_name($virtual_terminal_to_add),
                     or Carp::croak("Cannot print: $ERRNO");
             }
 
@@ -894,6 +921,9 @@ sub parse {
             die $thin_grammar->error() if not defined $current_earleme;
             $self->{earleme_to_html_token_ix}->[$current_earleme] =
                 $latest_html_token;
+
+	    $empty_element_end_tag = $empty_element_end_tag[$virtual_terminal_to_add];
+
             next RECCE_RESPONSE;
         } ## end if ( defined $virtual_terminal_to_add )
 
@@ -902,14 +932,14 @@ sub parse {
 
         if ($trace_terminals) {
             say {$trace_fh} 'Adding rejected token as cruft: ',
-                $symbol_name_by_id[$attempted_symbol_id]
+                $tracer->symbol_name($attempted_symbol_id)
                 or Carp::croak("Cannot print: $ERRNO");
         }
 
-        # Cruft tokens are not virtual.
-        # They are the real things, hacked up.
-        $token->[Marpa::R2::HTML::Internal::Token::TOKEN_ID] = $SYMID_CRUFT;
-        if ($trace_cruft) {
+        my $fatal_cruft_error = $token->[Marpa::R2::HTML::Internal::Token::TOKEN_ID]
+            == $SYMID_CRUFT ? 1 : 0;
+
+        if ( $trace_cruft or $fatal_cruft_error ) {
             my $current_earleme = $recce->current_earleme();
             die $thin_grammar->error() if not defined $current_earleme;
             my ( $line, $col ) =
@@ -929,7 +959,13 @@ sub parse {
                 },
                 q{"}
                 or Carp::croak("Cannot print: $ERRNO");
-        } ## end if ($trace_cruft)
+            die 'Internal error: cruft token was rejected'
+                if $fatal_cruft_error;
+        } ## end if ( $trace_cruft or $fatal_cruft_error )
+
+        # Cruft tokens are not virtual.
+        # They are the real things, hacked up.
+        $token->[Marpa::R2::HTML::Internal::Token::TOKEN_ID] = $SYMID_CRUFT;
 
     } ## end RECCE_RESPONSE: while ( $token_number < $token_count )
     $thin_grammar->throw_set(1);
@@ -965,7 +1001,7 @@ sub parse {
         last STEP if not defined $type;
         if ( $type eq 'MARPA_STEP_TOKEN' ) {
             say {*STDERR} join q{ }, $type, @step_data,
-                $symbol_name_by_id[ $step_data[0] ]
+                $tracer->symbol_name( $step_data[0] )
                 or Carp::croak("Cannot print: $ERRNO")
                 if $trace_values;
             my ( undef, $token_value, $arg_n ) = @step_data;
@@ -1135,7 +1171,7 @@ sub parse {
 
             if ($trace_values) {
                 say {*STDERR} join q{ }, $type, @step_data,
-                    $symbol_name_by_id[$symbol_id]
+                    $tracer->symbol_name($symbol_id)
                     or Carp::croak("Cannot print: $ERRNO");
                 say {*STDERR} "Stack:\n", Data::Dumper::Dumper( \@stack )
                     or Carp::croak("Cannot print: $ERRNO");
