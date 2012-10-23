@@ -21,7 +21,7 @@ use strict;
 use integer;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.022000';
+$VERSION        = '2.023_001';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -271,7 +271,7 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
                     $grammar->brief_rule($resolution_rule)
                     or Marpa::R2::exception('print to trace handle failed');
             } ## end if ($trace_actions)
-            $null_symbol_closures[$lhs_id] = $closure;
+            $null_symbol_closures[$lhs_id] = $resolution_rule;
             next LHS;
         } ## end if ( $rule_count == 1 )
 
@@ -291,7 +291,7 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
                     $grammar->brief_rule($resolution_rule)
                     or Marpa::R2::exception('print to trace handle failed');
             } ## end if ($trace_actions)
-            $null_symbol_closures[$lhs_id] = $closure;
+            $null_symbol_closures[$lhs_id] = $resolution_rule;
             next LHS;
         } ## end if ( scalar @empty_rules )
 
@@ -327,7 +327,7 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
                 $grammar->brief_rule($resolution_rule)
                 or Marpa::R2::exception('print to trace handle failed');
         } ## end if ($trace_actions)
-        $null_symbol_closures[$lhs_id] = $closure;
+        $null_symbol_closures[$lhs_id] = $resolution_rule;
 
     } ## end for ( my $lhs_id = 0; $lhs_id <= $#nullable_ruleids_by_lhs...)
 
@@ -469,7 +469,8 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
 
         if ( $value_type eq 'MARPA_STEP_NULLING_SYMBOL' ) {
             my ( $token_id, $arg_n ) = @value_data;
-            my $value_ref = $null_values->[$token_id];
+            my $semantic_rule_id = $null_values->[$token_id];
+            my $value_ref = $rule_closures->[$semantic_rule_id];
 
             if ( ref $value_ref eq 'CODE' ) {
                 my @warnings;
@@ -482,6 +483,7 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                     };
 
                     $eval_ok = eval {
+			local $Marpa::R2::Context::rule = $semantic_rule_id;
                         $result = $value_ref->($action_object);
                         1;
                     };
@@ -612,6 +614,8 @@ sub Marpa::R2::Recognizer::value {
     Marpa::R2::exception('Too many arguments to Marpa::R2::Recognizer::value')
         if scalar @_ != 1;
 
+    my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
     my $order   = $recce->[Marpa::R2::Internal::Recognizer::O_C];
 
@@ -642,9 +646,11 @@ sub Marpa::R2::Recognizer::value {
     } ## end if ($tree)
     else {
 
+	$grammar_c->throw_set(0);
         my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C] =
             Marpa::R2::Thin::B->new( $recce_c,
             ( $parse_set_arg // -1 ) );
+	$grammar_c->throw_set(1);
 
         return if not defined $bocage;
 

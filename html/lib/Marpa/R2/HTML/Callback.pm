@@ -21,7 +21,7 @@ use integer;
 package Marpa::R2::HTML::Callback;
 
 use vars qw( $VERSION $STRING_VERSION );
-$VERSION = '2.022000';
+$VERSION = '2.023_001';
 $STRING_VERSION = $VERSION;
 ## use critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -428,6 +428,15 @@ sub Marpa::R2::HTML::offset {
     return $tokens->[$start_token_ix]
         ->[Marpa::R2::HTML::Internal::Token::START_OFFSET];
 } ## end sub Marpa::R2::HTML::offset
+
+sub Marpa::R2::HTML::token_type {
+    my $self           = $Marpa::R2::HTML::Internal::PARSE_INSTANCE;
+    my $start_token_ix = $Marpa::R2::HTML::Internal::START_HTML_TOKEN_IX;
+    return undef if not defined $start_token_ix;
+    my $tokens = $self->{tokens};
+    return $tokens->[$start_token_ix]
+        ->[Marpa::R2::HTML::Internal::Token::TYPE];
+} ## end sub Marpa::R2::HTML::token_type
 
 sub Marpa::R2::HTML::original_ref {
 

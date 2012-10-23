@@ -251,22 +251,6 @@ PPCODE:
 }
 
 void
-rule_is_sequence( g_wrapper, rule_id )
-    G_Wrapper *g_wrapper;
-    Marpa_Rule_ID rule_id;
-PPCODE:
-{
-  Marpa_Grammar self = g_wrapper->g;
-  int gp_result = marpa_g_rule_is_sequence(self, rule_id);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && g_wrapper->throw ) {
-    croak( "Problem in g->rule_is_sequence(%d): %s",
-     rule_id, xs_g_error( g_wrapper ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
 rule_length( g_wrapper, rule_id )
     G_Wrapper *g_wrapper;
     Marpa_Rule_ID rule_id;
@@ -377,6 +361,38 @@ PPCODE:
   if ( gp_result < 0 && g_wrapper->throw ) {
     croak( "Problem in g->rule_rhs(%d, %d): %s",
      rule_id, ix, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+sequence_min( g_wrapper, rule_id )
+    G_Wrapper *g_wrapper;
+    Marpa_Rule_ID rule_id;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_sequence_min(self, rule_id);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->sequence_min(%d): %s",
+     rule_id, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+sequence_separator( g_wrapper, rule_id )
+    G_Wrapper *g_wrapper;
+    Marpa_Rule_ID rule_id;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_sequence_separator(self, rule_id);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->sequence_separator(%d): %s",
+     rule_id, xs_g_error( g_wrapper ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }

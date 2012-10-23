@@ -14,21 +14,31 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-=head1 NAME
+=head1 Name
 
 C<html_score> - Show complexity metric and other stats for web page
 
-=head1 SYNOPSIS
+=head1 Synopsis
+
+=for Marpa::R2::Display
+ignore: 1
 
     html_score [--html] [uri|file]
 
-=head1 EXAMPLES
+=for Marpa::R2::Display::End
+
+=head1 Examples
+
+=for Marpa::R2::Display
+ignore: 1
 
     html_score http://perl.org
 
     html_score --html http://perl6.org
 
-=head1 DESCRIPTION
+=for Marpa::R2::Display::End
+
+=head1 Description
 
 Given a URI or a file name,
 treats its referent as HTML
@@ -75,9 +85,12 @@ all else being equal,
 it is reasonable for the nesting to increase logarithmically as
 a web page grows in length.
 
-=head1 SAMPLE OUTPUT
+=head1 Sample output
 
 Here is the first part of the output for C<http://perl.org>.
+
+=for Marpa::R2::Display
+ignore: 1
 
     http://perl.org
     Complexity Score = 0.873
@@ -91,7 +104,9 @@ Here is the first part of the output for C<http://perl.org>.
     h1                   1          1         37         37
     h4                   1         11        559         50
 
-=head1 INTERPRETING THE COMPLEXITY METRIC
+=for Marpa::R2::Display::End
+
+=head1 Interpreting the complexity metric
 
 With caution,
 the complexity metric can be used as a self-assessment
@@ -102,7 +117,7 @@ But high values of the complexity metric do not necessarily mean low quality.
 Everything depends on what the mission is, and how well
 complexity is being used to serve the site's mission.
 
-=head1 PURPOSE
+=head1 Purpose
 
 This program is a demo of a demo.
 It purpose is to show how easy it is to write applications which look
@@ -115,7 +130,7 @@ and its logic
 is a straightforward,
 natural expression of the structure of HTML.
 
-=head1 ACKNOWLEDGEMENTS
+=head1 Acknowledgements
 
 The starting template for this code was
 L<HTML::TokeParser>, by Gisle Aas.

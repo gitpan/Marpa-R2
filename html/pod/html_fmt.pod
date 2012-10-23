@@ -14,16 +14,22 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-=head1 NAME
+=head1 Name
 
-  html_fmt - Reformat HTML, indented according to structure
+html_fmt - Reformat HTML, indented according to structure
 
 =head1 Synopsis
 
-    html_fmt [--avoid-whitespace=[yes|comment]]
-      [--no-ws-ok-before-end-tag|--no-ok-before-end-tag]
+=for Marpa::R2::Display
+ignore: 1
+
+    html_fmt [--avoid-whitespace=[yes|comment|no]]
+      [--no-ws-ok-before-end-tag|--no-ws-ok-before-end-tag]
+      [--no-ws-ok-after-start-tag|--no-ws-ok-after-start-tag]
       [--added-tag-comment|--no-added-tag-comment]
       [uri|file]
+
+=for Marpa::R2::Display::End
 
 =head1 Description
 
@@ -110,11 +116,21 @@ As of this writing, there are only a few.
 
 =head2 avoid-whitespace
 
-The C<--avoid-whitespace> option
-may take one of two values:
-C<yes> and C<comment>.
-If the value is C<yes>,
-C<html_fmt> does not try to add indentation
+When adding indentation,
+C<html_fmt> runs the risk of introducing
+whitespace that will change
+the way in which the document is displayed.
+How C<html_fmt> deals with this risk
+is controlled by the
+the C<--avoid-whitespace> option,
+which
+may take one of three values:
+C<yes>, C<no> and C<comment>.
+
+If the value
+of the C<--avoid-whitespace> option
+is C<yes>,
+C<html_fmt> does not add indentation
 in whitespace-sensitive places.
 This avoids clutter but,
 because of the missed indentation,
@@ -127,6 +143,13 @@ HTML (SGML) comments are used to achieve proper
 indentation without introducing whitespace.
 This works, but does get a bit cluttered.
 
+If the value is C<no>,
+C<html_fmt> 
+adds whitespace whenever it is convenient
+for formatting, regardless of whether or
+not it may change the way in which
+the document displays.
+
 =head2 added-tag-comment
 
 The C<--added-tag-comment> option is a Boolean.
@@ -137,6 +160,29 @@ C<--no-added-tag-comment>,
 C<html_fmt> will be silent when supply missing start
 and end tags.
 C<--added-tag-comment> is the default.
+
+=head2 ws-ok-after-start-tag
+
+The C<--ws-ok-after-start-tag> option is a Boolean.
+If set, C<html_fmt> will add whitespace after an start tag when
+that is useful.
+If the SGML standards
+are adhered to, the added whitespace will not
+be rendered.
+However, the HTML standards, while they allow SGML-adherent behavior
+for whitespace after start tags,
+do not require it.
+In some case in practice,
+browsers will render whitespace found after
+start tags.
+
+If C<--ws-ok-after-start-tag> is false,
+C<html_fmt> will not add whitespace after
+start tags.
+But it increases the ability of
+C<html_fmt> to make its output readable,
+but may result in a change in what some
+browsers display.
 
 =head2 ws-ok-before-end-tag
 
@@ -150,7 +196,7 @@ However, the HTML standards, while they allow SGML-adherent behavior
 for whitespace before end tags,
 do not require it.
 In practice,
-many browsers will render whitespace found before
+browsers will often render whitespace found before
 end tags.
 
 If C<--ws-ok-before-end-tag> is false,
@@ -167,13 +213,26 @@ C<html_fmt> to make its output readable.
 
 Given this input:
 
+=for Marpa::R2::Display
+ignore: 1
+
     <title>Test page<tr>x<head attr="I am cruft"><p>Final graf
+
+=for Marpa::R2::Display::End
 
 to this command:
 
+=for Marpa::R2::Display
+ignore: 1
+
     html_fmt --avoid-whitespace=comment --ws-ok-before-end-tag
 
+=for Marpa::R2::Display::End
+
 the output is
+
+=for Marpa::R2::Display
+ignore: 1
 
   <html>
     <!-- html_fmt: Preceeding start tag is replacement for a missing one -->
@@ -218,6 +277,8 @@ the output is
     <!-- html_fmt: Following end tag is replacement for a missing one -->
   </html>
 
+=for Marpa::R2::Display::End
+
 =head1 Acknowledgements
 
 The starting template for this code was
@@ -244,7 +305,5 @@ ignore: 1
   http://www.gnu.org/licenses/.
 
 =for Marpa::R2::Display::End
-
-=cut
 
 =cut
