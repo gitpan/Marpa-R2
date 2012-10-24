@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.023_001';
+$VERSION        = '2.023_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -126,7 +126,7 @@ use English qw( -no_match_vars );
 use Marpa::R2::Thin::Trace;
 
 our %DEFAULT_SYMBOLS_RESERVED;
-%DEFAULT_SYMBOLS_RESERVED = map { $_, 1 } split //xms, '}]>)';
+%DEFAULT_SYMBOLS_RESERVED = map { ($_, 1) } split //xms, '}]>)';
 
 sub Marpa::R2::Internal::code_problems {
     my $args = shift;
@@ -257,7 +257,7 @@ sub Marpa::R2::Grammar::new {
 } ## end sub Marpa::R2::Grammar::new
 
 sub Marpa::R2::Grammar::thin {
-    $_[0]->[Marpa::R2::Internal::Grammar::C];
+    return $_[0]->[Marpa::R2::Internal::Grammar::C];
 }
 
 sub Marpa::R2::Grammar::thin_symbol {
@@ -425,19 +425,20 @@ sub Marpa::R2::Grammar::set {
                     or Marpa::R2::exception("Could not print: $ERRNO");
 
             } ## end if ( $value && $grammar_c->is_precomputed() )
-            given ( ref $value ) {
-                when (q{}) {
-                    $value //= {}
+            GIVEN_REF_VALUE: {
+                my $ref_value = ref $value;
+                if ( $ref_value eq q{} ) {
+                    $value //= {};
+                    last GIVEN_REF_VALUE;
                 }
-                when ('ARRAY') {
-                    $value = { map { ( $_, 1 ) } @{$value} }
+                if ( $ref_value eq 'ARRAY' ) {
+                    $value = { map { ( $_, 1 ) } @{$value} };
+                    last GIVEN_REF_VALUE;
                 }
-                default {
-                    Marpa::R2::exception(
-                        'value of inaccessible_ok option must be boolean or an array ref'
-                        )
-                }
-            } ## end given
+                Marpa::R2::exception(
+                    'value of inaccessible_ok option must be boolean or an array ref'
+                );
+            } ## end GIVEN_REF_VALUE:
             $grammar->[Marpa::R2::Internal::Grammar::INACCESSIBLE_OK] =
                 $value;
         } ## end if ( defined( my $value = $args->{'inaccessible_ok'}...))
@@ -448,19 +449,20 @@ sub Marpa::R2::Grammar::set {
                     q{"unproductive_ok" option is useless after grammar is precomputed}
                     or Marpa::R2::exception("Could not print: $ERRNO");
             }
-            given ( ref $value ) {
-                when (q{}) {
+            GIVEN_REF_VALUE: {
+                my $ref_value = ref $value;
+                if ( $ref_value eq q{} ) {
                     $value //= {};
+                    last GIVEN_REF_VALUE;
                 }
-                when ('ARRAY') {
-                    $value = { map { ( $_, 1 ) } @{$value} }
+                if ( $ref_value eq 'ARRAY' ) {
+                    $value = { map { ( $_, 1 ) } @{$value} };
+                    last GIVEN_REF_VALUE;
                 }
-                default {
-                    Marpa::R2::exception(
+                Marpa::R2::exception(
                         'value of unproductive_ok option must be boolean or an array ref'
-                        )
-                }
-            } ## end given
+                );
+            } ## end GIVEN_REF_VALUE:
             $grammar->[Marpa::R2::Internal::Grammar::UNPRODUCTIVE_OK] =
                 $value;
         } ## end if ( defined( my $value = $args->{'unproductive_ok'}...))
@@ -487,7 +489,8 @@ sub Marpa::R2::Grammar::symbol_reserved_set {
             qq{symbol_reserved_set(): "$final_character" is not a reservable symbol}
         );
     }
-    $DEFAULT_SYMBOLS_RESERVED{$final_character} = $boolean ? 1 : 0;
+    # Return a value to make perlcritic happy
+    return $DEFAULT_SYMBOLS_RESERVED{$final_character} = $boolean ? 1 : 0;
 } ## end sub Marpa::R2::Grammar::symbol_reserved_set
 
 sub Marpa::R2::Grammar::precompute {
@@ -880,7 +883,7 @@ sub Marpa::R2::Grammar::show_dotted_rule {
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my ( $lhs, @rhs ) = $grammar->rule($rule_id);
     $dot_position = 0 if $dot_position < 0;
-    splice( @rhs, $dot_position, 0, q{.} );
+    splice @rhs, $dot_position, 0, q{.};
     return join q{ }, $lhs, q{->}, @rhs;
 } ## end sub Marpa::R2::Grammar::show_dotted_rule
 
@@ -1000,45 +1003,59 @@ sub action_set {
 sub add_user_rules {
     my ( $grammar, $rules ) = @_;
 
+    my @hash_rules = ();
     RULE: for my $rule ( @{$rules} ) {
 
-        given ( ref $rule ) {
-            when ('ARRAY') {
-                my $arg_count = @{$rule};
+        # Translate other rule formats into hash rules
+        my $ref_rule = ref $rule;
+        if ( not $ref_rule ) {
 
-                if ( $arg_count > 4 or $arg_count < 1 ) {
-                    Marpa::R2::exception(
-                        "Rule has $arg_count arguments: "
-                            . join( ', ',
-                            map { defined $_ ? $_ : 'undef' } @{$rule} )
-                            . "\n"
-                            . 'Rule must have from 1 to 4 arguments'
-                    );
-                } ## end if ( $arg_count > 4 or $arg_count < 1 )
-                my ( $lhs, $rhs, $action ) = @{$rule};
-                add_user_rule(
-                    $grammar,
-                    {   lhs    => $lhs,
-                        rhs    => $rhs,
-                        action => $action,
-                    }
-                );
+            # If it is not a ref, assume it is a string using
+            # the Stuifzand interface
+            my $stuifzand_rules =
+                Marpa::R2::Internal::Stuifzand::parse_rules($rule);
+            push @hash_rules, @{$stuifzand_rules};
+            next RULE;
+        } ## end if ( not $ref_rule )
+        if ( $ref_rule eq 'HASH' ) {
+            $rule->{check_symbols} = 1;
+            push @hash_rules, $rule;
+            next RULE;
+        }
+        if ( $ref_rule eq 'ARRAY' ) {
+            my $arg_count = @{$rule};
 
-            } ## end when ('ARRAY')
-            when ('HASH') {
-                add_user_rule( $grammar, $rule );
-            }
-            default {
+            if ( $arg_count > 4 or $arg_count < 1 ) {
                 Marpa::R2::exception(
-                    'Invalid rule: ',
-                    Data::Dumper->new( [$rule], ['Invalid_Rule'] )->Indent(2)
-                        ->Terse(1)->Maxdepth(2)->Dump,
-                    'Rule must be ref to HASH or ARRAY'
+                    "Rule has $arg_count arguments: "
+                        . join( ', ',
+                        map { defined $_ ? $_ : 'undef' } @{$rule} )
+                        . "\n"
+                        . 'Rule must have from 1 to 4 arguments'
                 );
-            } ## end default
-        } ## end given
+            } ## end if ( $arg_count > 4 or $arg_count < 1 )
+            my ( $lhs, $rhs, $action ) = @{$rule};
+            push @hash_rules,
+                {
+                lhs    => $lhs,
+                rhs    => $rhs,
+                action => $action,
+                check_symbols => 1
+                };
+            next RULE;
+        } ## end if ( $ref_rule eq 'ARRAY' )
+        Marpa::R2::exception(
+            'Invalid rule: ',
+            Data::Dumper->new( [$rule], ['Invalid_Rule'] )->Indent(2)
+                ->Terse(1)->Maxdepth(2)->Dump,
+            'Rule must be ref to HASH or ARRAY'
+        );
 
     }    # RULE
+
+    for my $hash_rule (@hash_rules) {
+        add_user_rule( $grammar, $hash_rule );
+    }
 
     return;
 
@@ -1062,31 +1079,41 @@ sub add_user_rule {
     my $rule_name;
     my $proper_separation = 0;
     my $keep_separation   = 0;
+    my $check_symbols = 0;
 
-    while ( my ( $option, $value ) = each %{$options} ) {
-        given ($option) {
-            when ('name')         { $rule_name         = $value }
-            when ('rhs')          { $rhs_names         = $value }
-            when ('lhs')          { $lhs_name          = $value }
-            when ('action')       { $action            = $value }
-            when ('rank')         { $rank              = $value }
-            when ('null_ranking') { $null_ranking      = $value }
-            when ('min')          { $min               = $value }
-            when ('separator')    { $separator_name    = $value }
-            when ('proper')       { $proper_separation = $value }
-            when ('keep')         { $keep_separation   = $value }
-            default {
-                Marpa::R2::exception("Unknown user rule option: $option");
-            }
-        } ## end given
-    } ## end while ( my ( $option, $value ) = each %{$options} )
+    OPTION: while ( my ( $option, $value ) = each %{$options} ) {
+        if ( $option eq 'check_symbols' )   { $check_symbols = $value; next OPTION; }
+        if ( $option eq 'name' )   { $rule_name = $value; next OPTION; }
+        if ( $option eq 'rhs' )    { $rhs_names = $value; next OPTION }
+        if ( $option eq 'lhs' )    { $lhs_name  = $value; next OPTION }
+        if ( $option eq 'action' ) { $action    = $value; next OPTION }
+        if ( $option eq 'rank' )   { $rank      = $value; next OPTION }
+        if ( $option eq 'null_ranking' ) {
+            $null_ranking = $value;
+            next OPTION;
+        }
+        if ( $option eq 'min' ) { $min = $value; next OPTION }
+        if ( $option eq 'separator' ) {
+            $separator_name = $value;
+            next OPTION;
+        }
+        if ( $option eq 'proper' ) {
+            $proper_separation = $value;
+            next OPTION;
+        }
+        if ( $option eq 'keep' ) { $keep_separation = $value; next OPTION }
+        Marpa::R2::exception("Unknown user rule option: $option");
+    } ## end OPTION: while ( my ( $option, $value ) = each %{$options} )
 
     if ( defined $min and not Scalar::Util::looks_like_number($min) ) {
         Marpa::R2::exception(
-            qq{"min" must be undefined or a valid Perl number});
+            q{"min" must be undefined or a valid Perl number});
     }
 
-    my $lhs = assign_user_symbol( $grammar, $lhs_name );
+    my $lhs =
+        $check_symbols
+        ? assign_user_symbol( $grammar, $lhs_name )
+        : assign_symbol( $grammar, $lhs_name );
     $rhs_names //= [];
 
     my @rule_problems = ();
@@ -1153,7 +1180,13 @@ sub add_user_rule {
         Marpa::R2::exception($msg);
     } ## end if ( scalar @rule_problems )
 
-    my $rhs = [ map { assign_user_symbol( $grammar, $_ ); } @{$rhs_names} ];
+    my $rhs = [
+        map {
+            $check_symbols
+                ? assign_user_symbol( $grammar, $_ )
+                : assign_symbol( $grammar, $_ );
+        } @{$rhs_names}
+    ];
 
     # Is this is an ordinary, non-counted rule?
     my $is_ordinary_rule = scalar @{$rhs_names} == 0 || !defined $min;
@@ -1207,18 +1240,12 @@ sub add_user_rule {
     my $separator;
     my $separator_id = -1;
     if ( defined $separator_name ) {
-        $separator = assign_user_symbol( $grammar, $separator_name );
+        $separator =
+            $check_symbols
+            ? assign_user_symbol( $grammar, $separator_name )
+            : assign_symbol( $grammar, $separator_name );
         $separator_id = $separator->[Marpa::R2::Internal::Symbol::ID];
-    }
-
-    # Name the internal lhs symbol
-    my $sequence_symbol_name_base;
-    {
-        ## Escape any characters in symbol name which may cause dups
-        ( my $rhs_desc = $rhs_names->[0] ) =~ s/ [\[\]%] /%$1/gxms;
-        $sequence_symbol_name_base =
-            $lhs_name . '[' . $rhs_desc . ( $min ? q{+} : q{*} ) . ']';
-    }
+    } ## end if ( defined $separator_name )
 
     my $original_rule_id = $grammar_c->sequence_new(
         $lhs_id,
@@ -1324,7 +1351,7 @@ sub Marpa::R2::Grammar::brief_irl {
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $tracer    = $grammar->[Marpa::R2::Internal::Grammar::TRACER];
     my $lhs_id    = $grammar_c->_marpa_g_irl_lhs($irl_id);
-    my $text .= $irl_id . ': ' . $tracer->isy_name($lhs_id) . ' ->';
+    my $text = $irl_id . ': ' . $tracer->isy_name($lhs_id) . ' ->';
     if ( my $rh_length = $grammar_c->_marpa_g_irl_length($irl_id) ) {
         my @rhs_ids = ();
         for my $ix ( 0 .. $rh_length - 1 ) {
