@@ -31,8 +31,454 @@ use constant CONTENTS_CLOSED => 1;
 use constant CONTEXT         => 2;
 use constant CONTENTS        => 3;
 
+sub do_is_included_statement {
+    my ( $self, $external_element, undef, undef, undef, $external_group ) = @_;
+    my $tag = $external_element;
+    $tag =~ s/\A [<] \s* //xms;
+    $tag =~ s/\s* [>] \z //xms;
+    my $element = 'ELE_' . $tag;
+    ( my $group_name = $external_group ) =~ s/\A [%] //xms;
+    my $group         = 'GRP_' . $group_name;
+
+    my $symbol_table = $self->{symbol_table};
+    my $element_entry = $symbol_table->{$element} //= [];
+    my $group_entry   = $symbol_table->{$group};
+
+    # For now, new groups cannot be defined
+    Carp::croak(
+        qq{Group "$group" does not exist\n},
+        qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+    ) if not defined $group_entry;
+
+    my $closed_reason = $element_entry->[CONTEXT_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Context of "$element" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+    $closed_reason = $group_entry->[CONTENTS_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Contents of "$group" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+
+    # If this is the first, it sets the primary group
+    my $primary_group_by_tag = $self->{primary_group_by_tag};
+    $primary_group_by_tag->{$tag} //= $group;
+    push @{ $element_entry->[CONTEXT] }, $group;
+
+    return;
+
+} ## end sub do_is_included
+
+sub do_is_a_included_statement {
+    my ( $self, $external_element, undef, undef, $external_flow, undef, undef, $external_group ) = @_;
+    my $tag = $external_element;
+    $tag =~ s/\A [<] \s* //xms;
+    $tag =~ s/\s* [>] \z //xms;
+    ( my $flow_name  = $external_flow )  =~ s/\A [*] //xms;
+    ( my $group_name = $external_group ) =~ s/\A [%] //xms;
+    my $flow          = 'FLO_' . $flow_name;
+    my $group         = 'GRP_' . $group_name;
+    my $element       = 'ELE_' . $tag;
+    my $symbol_table = $self->{symbol_table};
+    my $element_entry = $symbol_table->{$element} //= [];
+    my $group_entry   = $symbol_table->{$group};
+    my $flow_entry    = $symbol_table->{$flow};
+
+    # For now, new flows and groups cannot be defined
+    Carp::croak(
+        qq{Group "$group" does not exist\n},
+            qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+    ) if not defined $group_entry;
+    Carp::croak(
+        qq{Flow "$flow" does not exist\n},
+            qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+    ) if not defined $flow_entry;
+
+    my $closed_reason = $element_entry->[CONTEXT_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Context of "$element" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+    $closed_reason = $element_entry->[CONTENTS_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Contents of "$element" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+    $closed_reason = $flow_entry->[CONTEXT_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Context of "$flow" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+    $closed_reason = $group_entry->[CONTENTS_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Contents of "$group" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: }, $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+
+    Carp::croak(
+        qq{Contents of "$element" are already being defined:\n},
+        qq{  Problem was in this line: },
+        $Marpa::R2::HTML::Config::Compile::LINE
+    ) if defined $element_entry->[CONTENTS];
+    Carp::croak(
+        qq{Context of "$element" is already being defined:\n},
+        qq{  Problem was in this line: },
+        $Marpa::R2::HTML::Config::Compile::LINE
+    ) if defined $element_entry->[CONTEXT];
+
+    # Always sets the primary group
+    my $primary_group_by_tag = $self->{primary_group_by_tag};
+    $primary_group_by_tag->{$tag}      = $group;
+    $element_entry->[CONTENTS]       = $flow;
+    $element_entry->[CONTEXT]        = $group;
+    $element_entry->[CONTEXT_CLOSED] = $element_entry->[CONTENTS_CLOSED] =
+        'Element is already fully defined';
+
+    return;
+} ## end sub do_is_a_included
+
+sub do_is_statement {
+
+    my ( $self, $external_element, undef, $external_flow ) = @_;
+    my $tag = $external_element;
+    $tag =~ s/\A [<] \s* //xms;
+    $tag =~ s/\s* [>] \z //xms;
+    ( my $flow_name = $external_flow ) =~ s/\A [*] //xms;
+    my $flow          = 'FLO_' . $flow_name;
+    my $element       = 'ELE_' . $tag;
+    my $symbol_table  = $self->{symbol_table};
+    my $element_entry = $symbol_table->{$element} //= [];
+    my $flow_entry    = $symbol_table->{$flow};
+
+    # For now, new flows cannot be defined
+    Carp::croak(
+        qq{Flow "$flow" does not exist\n},
+        qq{  Problem was in this line: },
+        $Marpa::R2::HTML::Config::Compile::LINE
+    ) if not defined $flow_entry;
+
+    my $closed_reason = $element_entry->[CONTENTS_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Contents of "$element" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: },
+            $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+    $closed_reason = $flow_entry->[CONTEXT_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Context of "$flow" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: },
+            $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+
+    Carp::croak(
+        qq{Contents of "$element" are already being defined:\n},
+        qq{  Problem was in this line: },
+        $Marpa::R2::HTML::Config::Compile::LINE
+    ) if defined $element_entry->[CONTENTS];
+
+    $element_entry->[CONTENTS] = $flow;
+    $element_entry->[CONTENTS_CLOSED] =
+        'Contents of Element are already defined';
+
+    return;
+} ## end sub do_is
+
+sub problem_in_rule {
+    my ($string) = @_;
+    Marpa::R2::Context::bail( [ 'rule', $string, Marpa::R2::Context::location() ] );
+}
+
+sub do_contains_statement {
+    my ( $self, $external_element, undef, $external_contents ) = @_;
+
+    # Production is Element with custom flow
+    my $tag = $external_element;
+    $tag =~ s/\A [<] \s* //xms;
+    $tag =~ s/\s* [>] \z //xms;
+    my $element_symbol = 'ELE_' . $tag;
+    my $symbol_table   = $self->{symbol_table};
+    my $element_entry  = $symbol_table->{$element_symbol} //= [];
+    my $closed_reason  = $element_entry->[CONTENTS_CLOSED];
+    if ($closed_reason) {
+        Carp::croak(
+            qq{Contents of "$element_symbol" cannot be changed:\n},
+            qq{  Reason: $closed_reason\n},
+            qq{  Problem was in this line: },
+            $Marpa::R2::HTML::Config::Compile::LINE
+        );
+    } ## end if ($closed_reason)
+
+    my @contents = ();
+
+    CONTAINED_SYMBOL:
+    for my $external_content_symbol (@{$external_contents}) {
+        my $content_symbol;
+        if ( $external_content_symbol =~ /\A [<] (\w+) [>] \z/xms ) {
+            $content_symbol = 'ELE_' . $1;
+        }
+        if ( $external_content_symbol =~ /\A [%] (\w+)  \z/xms ) {
+            $content_symbol = 'GRP_' . $1;
+        }
+        $content_symbol //= $external_content_symbol;
+        my $content_entry = $symbol_table->{$content_symbol};
+        if ( not defined $content_entry ) {
+            if ( not $content_symbol =~ /\A ELE_ /xms ) {
+                problem_in_rule(
+                    qq{Symbol "$external_content_symbol" is undefined\n});
+            }
+            $content_entry = [];
+        } ## end if ( not defined $content_entry )
+        $closed_reason = $content_entry->[CONTEXT_CLOSED];
+        if ($closed_reason) {
+            Carp::croak(
+                qq{Context of "$external_content_symbol" cannot be changed:\n},
+                qq{  Reason: $closed_reason\n},
+                qq{  Problem was in this line: },
+                $Marpa::R2::HTML::Config::Compile::LINE
+            );
+        } ## end if ($closed_reason)
+        push @contents, $content_symbol;
+    } ## end CONTAINED_SYMBOL: for my $external_content_symbol (@external_contents)
+
+    push @{ $element_entry->[CONTENTS] }, @contents;
+
+    return;
+
+} ## end sub do_contains
+
+sub do_array_assignment {
+    my ( $self, $external_list, undef, $external_members ) = @_;
+    ( my $new_list = $external_list ) =~ s/\A [@] //xms;
+    my $lists = $self->{lists};
+    Carp::croak(
+        "Problem in line: ", $Marpa::R2::HTML::Config::Compile::LINE,
+        "\n",                'list @' . $new_list . ' is already defined'
+    ) if defined $lists->{$new_list};
+    my @members = ();
+    RAW_MEMBER: for my $raw_member (@{$external_members}) {
+        if ( $raw_member =~ / \A [@] (.*) \z/xms ) {
+            my $member_list = $1;
+            Carp::croak(
+                "Problem in line: ",
+                $Marpa::R2::HTML::Config::Compile::LINE,
+                "\n",
+                'member list @' . $member_list . ' is not yet defined'
+            ) if not defined $lists->{$member_list};
+            push @members, @{ $lists->{$member_list} };
+            next RAW_MEMBER;
+        } ## end if ( $raw_member =~ / \A [@] (.*) \z/xms )
+        push @members, $raw_member;
+    } ## end RAW_MEMBER: for my $raw_member (@{$external_members})
+    $lists->{$new_list} = \@members;
+    return;
+} ## end sub do_array_assignment
+
+sub do_ruby_statement {
+    my ( $self, $external_reject_symbol, undef, $external_candidates ) = @_;
+    my $lists = $self->{lists};
+    my @symbols = ($external_reject_symbol);
+    RAW_CANDIDATE: for my $raw_candidate ( @{$external_candidates} ) {
+        if ( $raw_candidate =~ / \A [@] (.*) \z/xms ) {
+            my $list = $1;
+            Carp::croak(
+                "Problem in line: ",
+                $Marpa::R2::HTML::Config::Compile::LINE,
+                "\n", 'candidate list @' . $list . ' is not yet defined'
+            ) if not defined $lists->{$list};
+            push @symbols, @{ $lists->{$list} };
+            next RAW_CANDIDATE;
+        } ## end if ( $raw_candidate =~ / \A [@] (.*) \z/xms )
+        push @symbols, $raw_candidate;
+    } ## end RAW_CANDIDATE: for my $raw_candidate ( @{$external_candidates} )
+    my @internal_symbols = ();
+    SYMBOL: for my $symbol (@symbols) {
+        if ( $symbol eq 'CDATA' or $symbol eq 'PCDATA' ) {
+            push @internal_symbols, $symbol;
+            next SYMBOL;
+        }
+        if ( $symbol =~ /\A ( [<] [%] (inline|head|block) [>] ) \z/xms ) {
+            my $special_symbol = $1;
+            push @internal_symbols, $special_symbol;
+            next SYMBOL;
+        }
+        if ( $symbol =~ m{\A ( [<] [/] [%] (inline|head|block) [>] ) \z}xms )
+        {
+            my $special_symbol = $1;
+            push @internal_symbols, $special_symbol;
+            next SYMBOL;
+        } ## end if ( $symbol =~ ...)
+        if ( $symbol =~ m{\A ( [<] [*] [>] ) \z}xms ) {
+            my $special_symbol = $1;
+            push @internal_symbols, $special_symbol;
+            next SYMBOL;
+        }
+        if ( $symbol =~ m{\A ( [<] [/] [*] [>] ) \z}xms ) {
+            my $special_symbol = $1;
+            push @internal_symbols, $special_symbol;
+            next SYMBOL;
+        }
+        if ( $symbol =~ /\A [<] (\w+) [>] \z/xms ) {
+            my $start_tag = 'S_' . $1;
+            push @internal_symbols, $start_tag;
+            next SYMBOL;
+        }
+        if ( $symbol =~ m{\A [<] [/](\w+) [>] \z}xms ) {
+            my $end_tag = 'E_' . $1;
+            push @internal_symbols, $end_tag;
+            next SYMBOL;
+        }
+        Carp::croak(
+            "Problem in line: ",
+            $Marpa::R2::HTML::Config::Compile::LINE,
+            "\n", qq{Misformed symbol "$symbol"}
+        );
+    } ## end SYMBOL: for my $symbol (@symbols)
+    my $rejected_symbol = shift @internal_symbols;
+    $self->{ruby_config}->{$rejected_symbol} = \@internal_symbols;
+    return;
+} ## end sub do_ruby_statement
+
+sub die_on_read_problem {
+    my ( $rec, $t, $token_value, $string, $position ) = @_;
+    say $rec->show_progress() or die "say failed: $ERRNO";
+    my $problem_position = $position - length $1;
+    my $before_start     = $problem_position - 40;
+    $before_start = 0 if $before_start < 0;
+    my $before_length = $problem_position - $before_start;
+    die "Problem near position $problem_position\n",
+        q{Problem is here: "},
+        ( substr $string, $before_start, $before_length + 40 ),
+        qq{"\n},
+        ( q{ } x ( $before_length + 18 ) ), qq{^\n},
+        q{Token rejected, "}, $t->[0], qq{", "$token_value"},
+        ;
+} ## end sub die_on_read_problem
+
+sub do_array { shift; return [@_]; }
+
+sub do_what_I_mean {
+
+    # The first argument is the per-parse variable.
+    # At this stage, just throw it away
+    shift;
+
+    # Throw away any undef's
+    my @children = grep { defined } @_;
+
+    # Return what's left
+    return scalar @children > 1 ? \@children : shift @children;
+}
+
+# Order matters !!
+my @terminals = (
+    [ kw_CDATA => qr/CDATA\b/xms ],
+    [ kw_PCDATA => qr/PCDATA\b/xms ],
+    [ kw_is => qr/is\b/ixms ],
+    [ kw_a => qr/a\b/ixms ],
+    [ kw_contains => qr/contains\b/ixms ],
+    [ kw_included => qr/included\b/ixms ],
+    [ kw_in => qr/in\b/ixms ],
+    [ flow => qr/[*]\w+\b/xms ],
+    [ group => qr/[%]\w+\b/xms ],
+    [ list => qr/[@]\w+\b/xms ],
+    [ start_tag => qr/[<]\w+[>]/xms ],
+    [ end_tag => qr{[<][/]\w+[>]}xms ],
+    [ wildcard_start_tag => qr/[<][*][>]/xms ],
+    [ wildcard_end_tag => qr{[<][/][*][>]}xms ],
+    [ group_start_tag => qr/[<][%]\w+[>]/xms ],
+    [ group_end_tag => qr/[<][%]\w+[>]/xms ],
+    [ op_assign =>     qr/[=]/xms ],
+    [ op_ruby   =>   qr/[-][>]/xms ],
+    [ semi_colon   =>   qr/[;]/xms ],
+);
+
+sub create_grammar {
+
+my $source = <<'END_OF_GRAMMAR';
+translation_unit ::= statement*
+statement ::= is_included_statement
+    | is_a_included_statement
+    | is_statement
+    | contains_statement
+    | list_assignment
+    | ruby_statement
+is_included_statement ::= element kw_is kw_included kw_in <group>
+    action => do_is_included_statement
+element ::= start_tag
+is_a_included_statement ::= element kw_is kw_a flow kw_included kw_in <group>
+    action => do_is_a_included_statement
+is_statement ::= element kw_is flow
+    action => do_is_statement
+contains_statement ::= element kw_contains contents
+    action => do_contains_statement
+contents ::= content_item*
+    action => do_array
+list_assignment ::= list op_assign list_members
+    action => do_array_assignment
+list_members ::= list_member*
+    action => do_array
+list_member ::= ruby_symbol
+list_member ::= list
+content_item ::= element | <group> | kw_PCDATA | kw_CDATA
+ruby_statement ::= ruby_symbol op_ruby ruby_symbol_list
+    action => do_ruby_statement
+ruby_symbol_list ::= ruby_symbol*
+    action => do_array
+ruby_symbol ::= kw_PCDATA | kw_CDATA
+  | start_tag | group_start_tag | wildcard_start_tag
+  | end_tag | group_end_tag | wildcard_end_tag
+  | list
+END_OF_GRAMMAR
+ 
+    my $grammar = Marpa::R2::Grammar->new(
+       { start => 'translation_unit',
+       action_object => __PACKAGE__,
+       rules =>[$source],
+       default_action => 'do_what_I_mean'
+       }
+    );
+    $grammar->precompute();
+   return $grammar;
+}
+
+sub source_by_location_range {
+    my ( $self, $start, $end ) = @_;
+    my $positions = $self->{positions};
+    my $start_pos = $start > 0 ? $positions->[$start] : 0;
+    my $end_pos   = $positions->[$end];
+    return substr ${ $self->{source_ref} }, $start_pos, $end_pos - $start_pos;
+} ## end sub source_by_location_range
+
 sub compile {
     my ($source_ref) = @_;
+
+    # A quasi-object, not used outside this routine
+    my $self = bless {}, __PACKAGE__;
 
     my %species_handler = (
         cruft      => 'SPE_CRUFT',
@@ -50,6 +496,7 @@ sub compile {
     my @core_rules           = ();
     my %runtime_tag          = ();
     my %primary_group_by_tag = ();
+    $self->{primary_group_by_tag} = \%primary_group_by_tag;
 
     {
         LINE:
@@ -94,6 +541,7 @@ sub compile {
         $_ =>
             [ 'Reserved by the core grammar', 'Reserved by the core grammar' ]
     } @core_symbols;
+    $self->{symbol_table} = \%symbol_table;
 
     # A few token symbols are allowed as contents -- most non-element
     # tokens are included via the SGML group
@@ -144,316 +592,65 @@ sub compile {
 
     my %ruby_config = ();
     my %lists       = ();
+    $self->{ruby_config} = \%ruby_config;
+    $self->{lists} = \%lists;
+    $self->{source_ref} = $source_ref;
+    my @positions = (0);
+    $self->{positions} = \@positions;
 
-    LINE:
-    for my $line ( split /\n/xms, ${$source_ref} ) {
-        my $definition = $line;
-        chomp $definition;
-        $definition =~ s/ [#] .* //xms;    # Remove comments
-        next LINE
-            if not $definition =~ / \S /xms;    # ignore all-whitespace line
-        if ( $definition
-            =~ m{ \A \s* [<](\w+)[>] \s+ is \s+ included \s+ in \s+ [%](\w+) \s* \z}xms
-            )
-        {
-            my $tag           = $1;
-            my $element       = 'ELE_' . $tag;
-            my $group         = 'GRP_' . $2;
-            my $element_entry = $symbol_table{$element} //= [];
-            my $group_entry   = $symbol_table{$group};
+    state $grammar = create_grammar();
+    my $recce = Marpa::R2::Recognizer->new({ grammar => $grammar});
+    my $string = ${$source_ref};
+    my $length = length $string;
+    pos $string = 0;
+    TOKEN: while ( pos $string < $length ) {
 
-            # For now, new groups cannot be defined
-            Carp::croak(
-                qq{Group "$group" does not exist\n},
-                qq{  Problem was in this line: $line}
-            ) if not defined $group_entry;
+        # skip comment
+        next TOKEN if $string =~ m/\G \s* [#] [^\n]* \n/gcxms;
 
-            my $closed_reason = $element_entry->[CONTEXT_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Context of "$element" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
-            $closed_reason = $group_entry->[CONTENTS_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Contents of "$group" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
+        # skip whitespace
+        next TOKEN if $string =~ m/\G\s+/gcxms;
 
-            # If this is the first, it sets the primary group
-            $primary_group_by_tag{$tag} //= $group;
-            push @{ $element_entry->[CONTEXT] }, $group;
+        # read other tokens
+        TOKEN_TYPE: for my $t (@terminals) {
+            next TOKEN_TYPE if not $string =~ m/\G($t->[1])/gcxms;
+	    # say join " ", $t->[0], '->', $1;
+            if ( not defined $recce->read( $t->[0], $1 ) ) {
+                die_on_read_problem( $recce, $t, $1, $string, pos $string );
+            }
+            my $latest_earley_set = $recce->latest_earley_set();
+            $positions[$latest_earley_set] = pos $string;
+            next TOKEN;
+        } ## end TOKEN_TYPE: for my $t (@terminals)
 
-            next LINE;
+        die q{No token at "}, ( substr $string, pos $string, 40 ),
+            q{", position }, pos $string;
+    } ## end TOKEN: while ( pos $string < $length )
 
-        } ## end if ( $definition =~ ...)
-        if ($definition =~ m{
-            \A \s* [<](\w+)[>] \s+
-            is \s+ a \s+ [*](\w+) \s+
-            included \s+
-            in \s+ [%](\w+) \s* \z
-            }xms
-            )
-        {
-            my $tag           = $1;
-            my $flow          = 'FLO_' . $2;
-            my $group         = 'GRP_' . $3;
-            my $element       = 'ELE_' . $tag;
-            my $element_entry = $symbol_table{$element} //= [];
-            my $group_entry   = $symbol_table{$group};
-            my $flow_entry    = $symbol_table{$flow};
+    # Value not used
+    my $parse_value_ref;
+    my $eval_ok = eval {
 
-            # For now, new flows and groups cannot be defined
-            Carp::croak(
-                qq{Group "$group" does not exist\n},
-                qq{  Problem was in this line: $line}
-            ) if not defined $group_entry;
-            Carp::croak(
-                qq{Flow "$flow" does not exist\n},
-                qq{  Problem was in this line: $line}
-            ) if not defined $flow_entry;
-
-            my $closed_reason = $element_entry->[CONTEXT_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Context of "$element" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
-            $closed_reason = $element_entry->[CONTENTS_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Contents of "$element" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
-            $closed_reason = $flow_entry->[CONTEXT_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Context of "$flow" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
-            $closed_reason = $group_entry->[CONTENTS_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Contents of "$group" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
-
-            Carp::croak(
-                qq{Contents of "$element" are already being defined:\n},
-                qq{  Problem was in this line: $line} )
-                if defined $element_entry->[CONTENTS];
-            Carp::croak(
-                qq{Context of "$element" is already being defined:\n},
-                qq{  Problem was in this line: $line} )
-                if defined $element_entry->[CONTEXT];
-
-            # Always sets the primary group
-            $primary_group_by_tag{$tag} = $group;
-            $element_entry->[CONTENTS]  = $flow;
-            $element_entry->[CONTEXT]   = $group;
-            $element_entry->[CONTEXT_CLOSED] =
-                $element_entry->[CONTENTS_CLOSED] =
-                'Element is already fully defined';
-
-            next LINE;
-        } ## end if ( $definition =~ m{ ) (})
-
-        if ( $definition
-            =~ s/ \A \s* [<](\w+)[>] \s+ is \s+ [*](\w+) \s* \z/ /xms )
-        {
-            # Production is Element with flow, but no group specified
-            my $tag           = $1;
-            my $flow          = 'FLO_' . $2;
-            my $element       = 'ELE_' . $tag;
-            my $element_entry = $symbol_table{$element} //= [];
-            my $flow_entry    = $symbol_table{$flow};
-
-            # For now, new flows cannot be defined
-            Carp::croak(
-                qq{Flow "$flow" does not exist\n},
-                qq{  Problem was in this line: $line}
-            ) if not defined $flow_entry;
-
-            my $closed_reason = $element_entry->[CONTENTS_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Contents of "$element" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
-            $closed_reason = $flow_entry->[CONTEXT_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Context of "$flow" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
-
-            Carp::croak(
-                qq{Contents of "$element" are already being defined:\n},
-                qq{  Problem was in this line: $line} )
-                if defined $element_entry->[CONTENTS];
-
-            $element_entry->[CONTENTS] = $flow;
-            $element_entry->[CONTENTS_CLOSED] =
-                'Contents of Element are already defined';
-
-            next LINE;
-        } ## end if ( $definition =~ ...)
-        if ( $definition =~ s/ \A \s* [<](\w+)[>] \s+ contains \s+ / /xms ) {
-
-            # Production is Element with custom flow
-            my $tag            = $1;
-            my $element_symbol = 'ELE_' . $tag;
-            my $element_entry  = $symbol_table{$element_symbol} //= [];
-            my $closed_reason  = $element_entry->[CONTENTS_CLOSED];
-            if ($closed_reason) {
-                Carp::croak(
-                    qq{Contents of "$element_symbol" cannot be changed:\n},
-                    qq{  Reason: $closed_reason\n},
-                    qq{  Problem was in this line: $line}
-                );
-            } ## end if ($closed_reason)
-
-            my @external_contents = split q{ }, $definition;
-            my @contents = ();
-
-            CONTAINED_SYMBOL:
-            for my $external_content_symbol (@external_contents)
-            {
-                my $content_symbol;
-                if ( $external_content_symbol =~ /\A [<] (\w+) [>] \z/xms ) {
-                    $content_symbol = 'ELE_' . $1;
-                }
-                if ( $external_content_symbol =~ /\A [%] (\w+)  \z/xms ) {
-                    $content_symbol = 'GRP_' . $1;
-                }
-                $content_symbol //= $external_content_symbol;
-                my $content_entry = $symbol_table{$content_symbol};
-                if ( not defined $content_entry ) {
-                    if ( not $content_symbol =~ /\A ELE_ /xms ) {
-                        Carp::croak(
-                            qq{Symbol "$external_content_symbol" is undefined\n},
-                            qq{  Problem was in this line: $line}
-                        ) if not defined $content_entry;
-                    } ## end if ( not $content_symbol =~ /\A ELE_ /xms )
-                    $content_entry = [];
-                } ## end if ( not defined $content_entry )
-                $closed_reason = $content_entry->[CONTEXT_CLOSED];
-                if ($closed_reason) {
-                    Carp::croak(
-                        qq{Context of "$external_content_symbol" cannot be changed:\n},
-                        qq{  Reason: $closed_reason\n},
-                        qq{  Problem was in this line: $line}
-                    );
-                } ## end if ($closed_reason)
-                push @contents, $content_symbol;
-            } ## end CONTAINED_SYMBOL: for my $external_content_symbol (@external_contents)
-
-            push @{ $element_entry->[CONTENTS] }, @contents;
-
-            next LINE;
-        } ## end if ( $definition =~ ...)
-        if ( $definition =~ s/ \A \s* [@](\w+) \s* = \s* / /xms ) {
-            my $new_list = $1;
-            die "Problem in line: $line\n",
-                'list @' . $new_list . ' is already defined'
-                if defined $lists{$new_list};
-            my @raw_members = split q{ }, $definition;
-            my @members = ();
-            RAW_MEMBER: for my $raw_member (@raw_members) {
-                if ( $raw_member =~ / \A [@] (.*) \z/xms ) {
-                    my $member_list = $1;
-                    die "Problem in line: $line\n",
-                        'member list @' . $member_list . ' is not yet defined'
-                        if not defined $lists{$member_list};
-                    push @members, @{ $lists{$member_list} };
-                    next RAW_MEMBER;
-                } ## end if ( $raw_member =~ / \A [@] (.*) \z/xms )
-                push @members, $raw_member;
-            } ## end RAW_MEMBER: for my $raw_member (@raw_members)
-            $lists{$new_list} = \@members;
-            next LINE;
-        } ## end if ( $definition =~ s/ \A \s* [@](\w+) \s* = \s* / /xms)
-        if ( $definition =~ s{ \A \s* ([\w<*%>/]+) \s* [-][>] \s* }{}xms ) {
-            my $rejected_symbol = $1;
-            my @raw_candidates  = split q{ }, $definition;
-            my @symbols         = ($rejected_symbol);
-            RAW_CANDIDATE: for my $raw_candidate (@raw_candidates) {
-                if ( $raw_candidate =~ / \A [@] (.*) \z/xms ) {
-                    my $list = $1;
-                    die "Problem in line: $line\n",
-                        'candidate list @' . $list . ' is not yet defined'
-                        if not defined $lists{$list};
-                    push @symbols, @{ $lists{$list} };
-                    next RAW_CANDIDATE;
-                } ## end if ( $raw_candidate =~ / \A [@] (.*) \z/xms )
-                push @symbols, $raw_candidate;
-            } ## end RAW_CANDIDATE: for my $raw_candidate (@raw_candidates)
-            my @internal_symbols = ();
-            SYMBOL: for my $symbol (@symbols) {
-                if ( $symbol eq 'CDATA' or $symbol eq 'PCDATA' ) {
-                    push @internal_symbols, $symbol;
-                    next SYMBOL;
-                }
-                if ( $symbol
-                    =~ /\A ( [<] [%] (inline|head|block) [>] ) \z/xms )
-                {
-                    my $special_symbol = $1;
-                    push @internal_symbols, $special_symbol;
-                    next SYMBOL;
-                } ## end if ( $symbol =~ ...)
-                if ( $symbol
-                    =~ m{\A ( [<] [/] [%] (inline|head|block) [>] ) \z}xms )
-                {
-                    my $special_symbol = $1;
-                    push @internal_symbols, $special_symbol;
-                    next SYMBOL;
-                } ## end if ( $symbol =~ ...)
-                if ( $symbol =~ m{\A ( [<] [*] [>] ) \z}xms ) {
-                    my $special_symbol = $1;
-                    push @internal_symbols, $special_symbol;
-                    next SYMBOL;
-                }
-                if ( $symbol =~ m{\A ( [<] [/] [*] [>] ) \z}xms ) {
-                    my $special_symbol = $1;
-                    push @internal_symbols, $special_symbol;
-                    next SYMBOL;
-                }
-                if ( $symbol =~ /\A [<] (\w+) [>] \z/xms ) {
-                    my $start_tag = 'S_' . $1;
-                    push @internal_symbols, $start_tag;
-                    next SYMBOL;
-                }
-                if ( $symbol =~ m{\A [<] [/](\w+) [>] \z}xms ) {
-                    my $end_tag = 'E_' . $1;
-                    push @internal_symbols, $end_tag;
-                    next SYMBOL;
-                }
-                die "Problem in line: $line\n",
-                    qq{Misformed symbol "$symbol"};
-            } ## end SYMBOL: for my $symbol (@symbols)
-            $rejected_symbol = shift @internal_symbols;
-            $ruby_config{$rejected_symbol} = \@internal_symbols;
-            next LINE;
-        } ## end if ( $definition =~ ...)
-        die "Badly formed line in grammar description: $line";
-    } ## end LINE: for my $line ( split /\n/xms, ${$source_ref} )
+        # Have the new() just return the current $self
+        local *new = sub { return $self };
+        $parse_value_ref = $recce->value();
+        1;
+    };
+    if ( not defined $eval_ok ) {
+        my $eval_ref_type = ref $EVAL_ERROR;
+        die $EVAL_ERROR if not $eval_ref_type;
+        if ( $eval_ref_type eq 'ARRAY' and $EVAL_ERROR->[0] eq 'rule' ) {
+            my ( undef, $message, $start, $end ) = @{$EVAL_ERROR};
+            chomp $message;
+            die $message, "\n",
+                "Rule with problem was: ",
+                $self->source_by_location_range( $start, $end ), "\n";
+        } ## end if ( $eval_ref_type eq 'ARRAY' and $EVAL_ERROR->[0] ...)
+        die "Unknown exception: ", Data::Dumper::Dumper($EVAL_ERROR);
+    } ## end if ( not defined $eval_ok )
+    if ( not defined $parse_value_ref ) {
+        die "Compile of HTML configuration failed: source did not parse";
+    }
 
     my %sgml_flow_included = ();
     SYMBOL: for my $element_symbol ( keys %symbol_table ) {

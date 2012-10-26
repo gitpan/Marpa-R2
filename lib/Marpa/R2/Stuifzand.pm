@@ -23,7 +23,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.023_002';
+$VERSION        = '2.023_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -244,6 +244,9 @@ sub stuifzand_grammar {
     $tracer->rule_new( undef, qw( quantifier op_star ) );
     $tracer->rule_new( undef, qw( quantifier op_plus ) );
     $tracer->sequence_new( do_array => qw(names name), { min => 1 } );
+    $tracer->rule_new( undef, qw( name bare_name ) );
+    $tracer->rule_new( undef, qw( name quoted_name ) );
+    $tracer->rule_new( do_bracketed_name => qw( name bracketed_name ) );
     $grammar->start_symbol_set( $tracer->symbol_by_name('rules') );
     $grammar->precompute();
     return $tracer;
@@ -266,26 +269,30 @@ sub parse_rules {
 
     # Order matters !!!
     my @terminals = (
-        [ 'kw_action', qr/action\b/xms ],
-        [ 'kw_assoc', qr/assoc\b/xms ],
-        [ 'kw_left', qr/left\b/xms ],
-        [ 'kw_right', qr/right\b/xms ],
-        [ 'kw_group', qr/group\b/xms ],
-        [ 'op_declare',    qr/::=/xms ],
-        [ 'op_arrow',      qr/=>/xms ],
-        [ 'op_tighter',    qr/[|][|]/xms ],
-        [ 'op_eq_pri',     qr/[|]/xms ],
+        [ 'kw_action', qr/action\b/xms, qq{"action" keyword} ],
+        [ 'kw_assoc', qr/assoc\b/xms, qq{"assoc" keyword} ],
+        [ 'kw_left', qr/left\b/xms, qq{"left" keyword} ],
+        [ 'kw_right', qr/right\b/xms, qq{"right" keyword} ],
+        [ 'kw_group', qr/group\b/xms, qq{"group" keyword} ],
+        [ 'op_declare',    qr/::=/xms, 'BNF declaration operator' ],
+        [ 'op_arrow',      qr/=>/xms, 'adverb operator' ],
+        [ 'op_tighter',    qr/[|][|]/xms, 'tighten-precedence operator' ],
+        [ 'op_eq_pri',     qr/[|]/xms, 'alternative operator' ],
         # [ 'reserved_name', qr/(::(whatever|undef))/xms ],
-        [ 'op_plus',       qr/[+]/xms ],
-        [ 'op_star',       qr/[*]/xms ],
-        [ 'name',          qr/\w+/xms ],
-        [ 'name',          qr/['][^']+[']/xms ],
+        [ 'op_plus',       qr/[+]/xms, 'plus quantification operator' ],
+        [ 'op_star',       qr/[*]/xms, 'star quantification operator' ],
+        [ 'bare_name',          qr/\w+/xms, ],
+        [ 'bracketed_name',          qr/ [<] \w+ [>] /xms, ],
+        [ 'quoted_name',          qr/['][^']+[']/xms ],
     );
 
     my $length = length $string;
     pos $string = 0;
     my $latest_earley_set_ID = 0;
     TOKEN: while ( pos $string < $length ) {
+
+        # skip comment
+        next TOKEN if $string =~ m/\G \s* [#] [^\n]* \n/gcxms;
 
         # skip whitespace
         next TOKEN if $string =~ m/\G\s+/gcxms;
@@ -302,8 +309,7 @@ sub parse_rules {
                 my $problem_position = $positions[-1];
                 die q{Problem near position }, $problem_position, ': ',
                     ( substr $string, $problem_position, 40 ),
-                    qq{\nToken rejected, "}, $t->[0], qq{", "$1"},
-                    ;
+                    qq{\nToken rejected, "$1", }, ( $t->[2] // $t->[0] );
             }
             $recce->earleme_complete();
             $latest_earley_set_ID = $recce->latest_earley_set();
@@ -377,6 +383,11 @@ sub parse_rules {
             }
             if ( $action eq 'do_alternative' ) {
                 $stack[$arg_0] = [ @stack[ $arg_0 .. $arg_n ] ];
+                next STEP;
+            }
+            if ( $action eq 'do_bracketed_name' ) {
+                $stack[$arg_0] =~ s/\A [<] \s*//xms;
+                $stack[$arg_0] =~ s/ \s* [>] \z//xms;
                 next STEP;
             }
             if ( $action eq 'do_lhs' ) {

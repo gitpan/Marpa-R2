@@ -303,8 +303,11 @@ normalize-whitespace: 1
         my $rule_id         = $Marpa::R2::Context::rule;
         my $grammar         = $Marpa::R2::Context::grammar;
         my ( $lhs, @rhs ) = $grammar->rule($rule_id);
-        $action_object->{text}
-            .= "rule $rule_id: $lhs ::= " . ( join q{ }, @rhs ) . "\n";
+        $action_object->{text} =
+              "rule $rule_id: $lhs ::= "
+            . ( join q{ }, @rhs ) . "\n"
+            . "locations: "
+            . ( join q{-}, Marpa::R2::Context::location() ) . "\n";
         return $action_object;
     } ## end sub do_S
 
@@ -314,13 +317,54 @@ In addition to the per-parse-tree variable
 and their child arguments,
 rule evaluation closures also have access
 to B<context variables>.
-C<$Marpa::R2::Context::grammar> is set to
+
+=over
+
+=item * C<$Marpa::R2::Context::grammar> is set to
 the grammar being parsed.
-C<$Marpa::R2::Context::rule> is the ID of the
+
+=item * C<$Marpa::R2::Context::rule> is the ID of the
 current rule.
 Given the rule ID, an application can find
 its LHS and RHS symbols using
 L<the grammar's C<rule()> method|Marpa::R2::Grammar/"rule">.
+
+=item * C<Marpa::R2::Context::location()> returns the start
+and end locations of the current rule.
+
+=back
+
+=head1 Bailing out of parse evaluation
+
+=for Marpa::R2::Display
+name: Semantics bail synopsis
+normalize-whitespace: 1
+
+    my $bail_message = "This is a bail out message!";
+
+    sub do_bail_with_message_if_A {
+        my ($action_object, $terminal) = @_;
+        Marpa::R2::Context::bail($bail_message) if $terminal eq 'A';
+    }
+
+    sub do_bail_with_object_if_A {
+        my ($action_object, $terminal) = @_;
+        Marpa::R2::Context::bail([$bail_message]) if $terminal eq 'A';
+    }
+
+=for Marpa::R2::Display::End
+
+The C<Marpa::R2::Context::bail()> static method is used to
+"bail out" of the evaluation of a parse tree.
+It will cause an exception to be thrown.
+If its first and only argument is a reference,
+that reference is the exception object.
+Otherwise, an exception message is created
+by converting the method's arguments to strings,
+concatenating them,
+and prepending them with a message indicating
+the file and line number at which the
+C<Marpa::R2::Context::bail()> method was called.
 
 =head1 Parse trees, parse results and parse series
 

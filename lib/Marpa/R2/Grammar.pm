@@ -32,7 +32,7 @@ use integer;
 use utf8;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.023_002';
+$VERSION        = '2.023_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -127,92 +127,6 @@ use Marpa::R2::Thin::Trace;
 
 our %DEFAULT_SYMBOLS_RESERVED;
 %DEFAULT_SYMBOLS_RESERVED = map { ($_, 1) } split //xms, '}]>)';
-
-sub Marpa::R2::Internal::code_problems {
-    my $args = shift;
-
-    my $grammar;
-    my $fatal_error;
-    my $warnings = [];
-    my $where    = '?where?';
-    my $long_where;
-    my @msg = ();
-    my $eval_value;
-    my $eval_given = 0;
-
-    push @msg, q{=} x 60, "\n";
-    while ( my ( $arg, $value ) = each %{$args} ) {
-        given ($arg) {
-            when ('fatal_error') { $fatal_error = $value }
-            when ('grammar')     { $grammar     = $value }
-            when ('where')       { $where       = $value }
-            when ('long_where')  { $long_where  = $value }
-            when ('warnings')    { $warnings    = $value }
-            when ('eval_ok') {
-                $eval_value = $value;
-                $eval_given = 1;
-            }
-            default { push @msg, "Unknown argument to code_problems: $arg" }
-        } ## end given
-    } ## end while ( my ( $arg, $value ) = each %{$args} )
-
-    my @problem_line     = ();
-    my $max_problem_line = -1;
-    for my $warning_data ( @{$warnings} ) {
-        my ( $warning, $package, $filename, $problem_line ) =
-            @{$warning_data};
-        $problem_line[$problem_line] = 1;
-        $max_problem_line = List::Util::max $problem_line, $max_problem_line;
-    } ## end for my $warning_data ( @{$warnings} )
-
-    $long_where //= $where;
-
-    my $warnings_count = scalar @{$warnings};
-    {
-        my @problems;
-        my $false_eval = $eval_given && !$eval_value && !$fatal_error;
-        if ($false_eval) {
-            push @problems, '* THE MARPA SEMANTICS RETURNED A PERL FALSE',
-                'Marpa::R2 requires its semantics to return a true value';
-        }
-        if ($fatal_error) {
-            push @problems, '* THE MARPA SEMANTICS PRODUCED A FATAL ERROR';
-        }
-        if ($warnings_count) {
-            push @problems,
-                "* THERE WERE $warnings_count WARNING(S) IN THE MARPA SEMANTICS:",
-                'Marpa treats warnings as fatal errors';
-        }
-        if ( not scalar @problems ) {
-            push @msg, '* THERE WAS A FATAL PROBLEM IN THE MARPA SEMANTICS';
-        }
-        push @msg, ( join "\n", @problems ) . "\n";
-    }
-
-    push @msg, "* THIS IS WHAT MARPA WAS DOING WHEN THE PROBLEM OCCURRED:\n"
-        . $long_where . "\n";
-
-    for my $warning_ix ( 0 .. ( $warnings_count - 1 ) ) {
-        push @msg, "* WARNING MESSAGE NUMBER $warning_ix:\n";
-        my $warning_message = $warnings->[$warning_ix]->[0];
-        $warning_message =~ s/\n*\z/\n/xms;
-        push @msg, $warning_message;
-    } ## end for my $warning_ix ( 0 .. ( $warnings_count - 1 ) )
-
-    if ($fatal_error) {
-        push @msg, "* THIS WAS THE FATAL ERROR MESSAGE:\n";
-        my $fatal_error_message = $fatal_error;
-        $fatal_error_message =~ s/\n*\z/\n/xms;
-        push @msg, $fatal_error_message;
-    } ## end if ($fatal_error)
-
-    push @msg, q{* ONE PLACE TO LOOK FOR THE PROBLEM IS IN THE CODE};
-    Marpa::R2::exception(@msg);
-
-    # this is to keep perlcritic happy
-    return 1;
-
-} ## end sub Marpa::R2::Internal::code_problems
 
 sub Marpa::R2::uncaught_error {
     my ($error) = @_;
@@ -882,6 +796,12 @@ sub Marpa::R2::Grammar::show_dotted_rule {
     my ( $grammar, $rule_id, $dot_position ) = @_;
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my ( $lhs, @rhs ) = $grammar->rule($rule_id);
+
+    my $minimum = $grammar_c->sequence_min($rule_id);
+    if (defined $minimum) {
+        my $quantifier = $minimum <= 0 ? q{*} : q{+} ;
+        $rhs[0] .= $quantifier;
+    }
     $dot_position = 0 if $dot_position < 0;
     splice @rhs, $dot_position, 0, q{.};
     return join q{ }, $lhs, q{->}, @rhs;
