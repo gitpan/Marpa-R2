@@ -16,12 +16,11 @@
 use 5.010;
 use warnings;
 use strict;
-use integer;
 
 package Marpa::R2::HTML::Callback;
 
 use vars qw( $VERSION $STRING_VERSION );
-$VERSION = '2.023_007';
+$VERSION = '2.023_008';
 $STRING_VERSION = $VERSION;
 ## use critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;

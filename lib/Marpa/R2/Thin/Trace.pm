@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.023_007';
+$VERSION        = '2.023_008';
 $STRING_VERSION = $VERSION;
 $VERSION        = eval $VERSION;
 
@@ -71,6 +71,12 @@ sub symbol_force {
 sub action {
     my ( $self, $rule_id ) = @_;
     return $self->{action_by_rule_id}->[$rule_id];
+}
+
+# Note: no check that $rule_id actually exists
+sub action_set {
+    my ( $self, $rule_id, $action ) = @_;
+    $self->{action_by_rule_id}->[$rule_id] = $action;
 }
 
 sub rule_new {

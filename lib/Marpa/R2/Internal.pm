@@ -18,11 +18,10 @@ package Marpa::R2::Internal;
 use 5.010;
 use strict;
 use warnings;
-use integer;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.023_007';
+$VERSION        = '2.023_008';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
