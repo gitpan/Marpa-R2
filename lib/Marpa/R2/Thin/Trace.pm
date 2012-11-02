@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.023_008';
+$VERSION        = '2.023_009';
 $STRING_VERSION = $VERSION;
 $VERSION        = eval $VERSION;
 
@@ -111,6 +111,17 @@ sub sequence_new {
     $self->{action_by_rule_id}->[$rule_id] = $action if defined $action;
     return $rule_id;
 } ## end sub sequence_new
+
+sub rule {
+    my ( $self, $rule_id ) = @_;
+    my $grammar     = $self->{g};
+    my $rule_length = $grammar->rule_length($rule_id);
+    my $lhs = $self->symbol_name( $grammar->rule_lhs($rule_id) );
+    my @rhs =
+        map { $self->symbol_name( $grammar->rule_rhs( $rule_id, $_ ) ) }
+        ( 0 .. $rule_length - 1 );
+    return ($lhs, @rhs);
+}
 
 sub dotted_rule {
     my ( $self, $rule_id, $dot_position ) = @_;
