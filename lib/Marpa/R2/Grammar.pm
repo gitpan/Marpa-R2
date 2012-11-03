@@ -28,7 +28,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.023_009';
+$VERSION        = '2.023_010';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -88,6 +88,7 @@ BEGIN {
     WARNINGS { print warnings about grammar? }
     RULE_NAME_REQUIRED
     RULE_BY_NAME
+    INTERFACE { current 'standard' or 'stuifzand' }
 
     =LAST_BASIC_DATA_FIELD
 
@@ -282,9 +283,47 @@ sub Marpa::R2::Grammar::set {
             Marpa::R2::exception(
                 'rules option not allowed after grammar is precomputed')
                 if $grammar_c->is_precomputed();
-            Marpa::R2::exception('rules value must be reference to array')
-                if ref $value ne 'ARRAY';
-            add_user_rules( $grammar, $value );
+            DO_RULES: {
+                ## Allow this via a hack for new
+                ## Eventually deprecate and eliminate it
+                if (    ref $value eq 'ARRAY'
+                    and scalar @{$value} == 1
+                    and not ref $value->[0] )
+                {
+                    $value = $value->[0];
+                } ## end if ( ref $value eq 'ARRAY' and scalar @{$value} == 1...)
+                if ( not ref $value ) {
+                    $grammar->[Marpa::R2::Internal::Grammar::INTERFACE] //=
+                        'stuifzand';
+                    Marpa::R2::exception(
+                        qq{Attempt to use the BNF interface with a grammar that is already using the standard interface\n},
+                        qq{  Mixing the BNF and standard interface is not allowed},
+                        )
+                        if $grammar->[Marpa::R2::Internal::Grammar::INTERFACE]
+                            ne 'stuifzand';
+                    for my $rule (
+                        @{  Marpa::R2::Internal::Stuifzand::parse_rules(
+                                $value)
+                        }
+                        )
+                    {
+                        add_user_rule( $grammar, $rule );
+                    } ## end for my $rule ( @{ ...})
+                    last DO_RULES;
+                } ## end if ( not ref $value )
+                Marpa::R2::exception(
+                    qq{"rules" named argument must be string or ref to ARRAY}
+                ) if ref $value ne 'ARRAY';
+                $grammar->[Marpa::R2::Internal::Grammar::INTERFACE] //=
+                    'standard';
+                Marpa::R2::exception(
+                    qq{Attempt to use the standard interface with a grammar that is already using the BNF interface\n},
+                    qq{  Mixing the BNF and standard interface is not allowed}
+                    )
+                    if $grammar->[Marpa::R2::Internal::Grammar::INTERFACE] ne
+                        'standard';
+                add_user_rules( $grammar, $value );
+            } ## end DO_RULES:
         } ## end if ( defined( my $value = $args->{'rules'} ) )
 
         if ( exists $args->{'default_empty_action'} ) {
@@ -908,15 +947,6 @@ sub add_user_rules {
 
         # Translate other rule formats into hash rules
         my $ref_rule = ref $rule;
-        if ( not $ref_rule ) {
-
-            # If it is not a ref, assume it is a string using
-            # the Stuifzand interface
-            my $stuifzand_rules =
-                Marpa::R2::Internal::Stuifzand::parse_rules($rule);
-            push @hash_rules, @{$stuifzand_rules};
-            next RULE;
-        } ## end if ( not $ref_rule )
         if ( $ref_rule eq 'HASH' ) {
             $rule->{check_symbols} = 1;
             push @hash_rules, $rule;
@@ -937,9 +967,9 @@ sub add_user_rules {
             my ( $lhs, $rhs, $action ) = @{$rule};
             push @hash_rules,
                 {
-                lhs    => $lhs,
-                rhs    => $rhs,
-                action => $action,
+                lhs           => $lhs,
+                rhs           => $rhs,
+                action        => $action,
                 check_symbols => 1
                 };
             next RULE;
