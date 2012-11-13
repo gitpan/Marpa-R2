@@ -30,25 +30,25 @@ use Marpa::R2;
 
 my $rules = <<'END_OF_GRAMMAR';
 reduce_op ::=
-    '+' action => do_arg0
-  | '-' action => do_arg0
-  | '/' action => do_arg0
-  | '*' action => do_arg0
+    op_plus action => do_arg0
+  | op_minus action => do_arg0
+  | op_divide action => do_arg0
+  | op_star action => do_arg0
 script ::= e action => do_arg0
-script ::= script ';' e action => do_arg2
+script ::= script op_semicolon e action => do_arg2
 e ::=
      NUM action => do_arg0
    | VAR action => do_is_var
-   | '(' e ')' action => do_arg1 assoc => group
-  || '-' e action => do_negate
-  || e '^' e action => do_binop assoc => right
-  || e '*' e action => do_binop
-   | e '/' e action => do_binop
-  || e '+' e action => do_binop
-   | e '-' e action => do_binop
-  || e ',' e action => do_array
-  || reduce_op 'reduce' e action => do_reduce
-  || VAR '=' e action => do_set_var
+   | op_lparen e op_rparen action => do_arg1 assoc => group
+  || op_minus e action => do_negate
+  || e op_caret e action => do_power assoc => right
+  || e op_star e action => do_multiply
+   | e op_divide e action => do_divide
+  || e op_plus e action => do_addition
+   | e op_minus e action => do_subtract
+  || e op_comma e action => do_array
+  || reduce_op op_reduce e action => do_reduce
+  || VAR op_assign e action => do_set_var
 END_OF_GRAMMAR
 
 my $grammar = Marpa::R2::Grammar->new(
@@ -61,29 +61,19 @@ $grammar->precompute;
 
 # Order matters !!
 my @terminals = (
-    [ q{'reduce'}, qr/reduce\b/xms ],
-    [ 'NUM',       qr/\d+/xms ],
-    [ 'VAR',       qr/\w+/xms ],
-    [ q{'='},      qr/[=]/xms ],
-    [ q{';'},      qr/[;]/xms ],
-    [ q{'*'},      qr/[*]/xms ],
-    [ q{'/'},      qr/[\/]/xms ],
-    [ q{'+'},      qr/[+]/xms ],
-    [ q{'-'},      qr/[-]/xms ],
-    [ q{'^'},      qr/[\^]/xms ],
-    [ q{'('},      qr/[(]/xms ],
-    [ q{')'},      qr/[)]/xms ],
-    [ q{','},      qr/[,]/xms ],
-);
-
-our $DEBUG = 1;
-
-my %binop_closure = (
-    '*' => sub { $_[0] * $_[1] },
-    '/' => sub { $_[0] / $_[1] },
-    '+' => sub { $_[0] + $_[1] },
-    '-' => sub { $_[0] - $_[1] },
-    '^' => sub { $_[0]**$_[1] },
+    [ op_reduce     => qr/reduce\b/xms ],
+    [ NUM           => qr/\d+/xms ],
+    [ VAR           => qr/\w+/xms ],
+    [ op_assign     => qr/[=]/xms ],
+    [ op_semicolon => qr/[;]/xms ],
+    [ op_star       => qr/[*]/xms ],
+    [ op_divide     => qr/[\/]/xms ],
+    [ op_plus       => qr/[+]/xms ],
+    [ op_minus      => qr/[-]/xms ],
+    [ op_caret      => qr/[\^]/xms ],
+    [ op_lparen     => qr/[(]/xms ],
+    [ op_rparen     => qr/[)]/xms ],
+    [ op_comma      => qr/[,]/xms ],
 );
 
 my %symbol_table = ();
@@ -129,15 +119,19 @@ sub do_array {
     return \@value;
 } ## end sub do_array
 
-sub do_binop {
-    my ( undef, $left, $op, $right ) = @_;
+sub do_power { my ( undef, $left, undef, $right ) = @_; return $left**$right; }
+sub do_multiply { my ( undef, $left, undef, $right ) = @_; return $left*$right; }
+sub do_divide { my ( undef, $left, undef, $right ) = @_; return $left/$right; }
+sub do_addition { my ( undef, $left, undef, $right ) = @_; return $left+$right; }
+sub do_subtract { my ( undef, $left, undef, $right ) = @_; return $left-$right; }
 
-    # goto &add_brackets if $DEBUG;
-    my $closure = $binop_closure{$op};
-    die qq{Do not know how to perform binary operation "$op"}
-        if not defined $closure;
-    return $closure->( $left, $right );
-} ## end sub do_binop
+my %binop_closure = (
+    '*' => \&do_multiply,
+    '/' => \&do_divide,
+    '+' => \&do_addition,
+    '-' => \&do_subtract,
+    '^' => \&do_power,
+);
 
 sub do_reduce {
     my ( undef, $op, undef, $args ) = @_;
@@ -148,7 +142,7 @@ sub do_reduce {
     my @stack = @{$args};
     OP: while (1) {
         return $stack[0] if scalar @stack <= 1;
-        my $result = $closure->( $stack[-2], $stack[-1] );
+        my $result = $closure->( undef, $stack[-2], undef, $stack[-1] );
         splice @stack, -2, 2, $result;
     }
     die;    # Should not get here

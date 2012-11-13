@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.024000';
+$VERSION        = '2.025_000';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -652,12 +652,19 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                 my @args =
                     map { defined $_ ? ${$_} : $_ }
                     @evaluation_stack[ $arg_0 .. $arg_n ];
-                if ( $rule->[Marpa::R2::Internal::Rule::DISCARD_SEPARATION] )
-                {
-                    @args =
-                        @args[ map { 2 * $_ }
-                        ( 0 .. ( scalar @args + 1 ) / 2 - 1 ) ];
-                } ## end if ( $rule->[...])
+                if ( defined $grammar_c->sequence_min($rule_id) ) {
+                    if ($rule->[Marpa::R2::Internal::Rule::DISCARD_SEPARATION]
+                        )
+                    {
+                        @args =
+                            @args[ map { 2 * $_ }
+                            ( 0 .. ( scalar @args + 1 ) / 2 - 1 ) ];
+                    } ## end if ( $rule->[...])
+                } ## end if ( defined $grammar_c->sequence_min($rule_id) )
+                else {
+                    my $mask = $rule->[Marpa::R2::Internal::Rule::MASK];
+                    @args = @args[ grep { $mask->[$_] } 0 .. $#args ];
+                }
 
                 if ( ref $closure eq 'CODE' ) {
                     my @warnings;

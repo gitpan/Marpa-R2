@@ -9,7 +9,7 @@
 /Marpa-R2-[0-9].[0-9][0-9][0-9]_[0-9][0-9][0-9]/
 /_build/
 /blib/
-/libmarpa_build
+/libmarpa_build/
 /hide/
 /pod2htmd.tmp
 /pod2htmi.tmp

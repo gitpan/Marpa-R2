@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.024000';
+$VERSION        = '2.025_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -610,6 +610,11 @@ sub Marpa::R2::Recognizer::alternative {
         'No recognizer object for Marpa::R2::Recognizer::tokens')
         if not defined $recce
             or ref $recce ne 'Marpa::R2::Recognizer';
+
+    Marpa::R2::exception(
+       "recce->alternative(): symbol name is undefined\n",
+       "    The symbol name cannot be undefined\n"
+    ) if not defined $symbol_name;
 
     Marpa::R2::exception('Attempt to read token after parsing is finished')
         if $recce->[Marpa::R2::Internal::Recognizer::FINISHED];
