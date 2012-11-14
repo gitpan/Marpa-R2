@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.025_000';
+$VERSION        = '2.025_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -180,7 +180,7 @@ sub do_empty_rule {
     my ( undef, $lhs, undef, $adverb_list ) = @_;
     my $action = $adverb_list->{action};
     # mask not needed
-    return [ { lhs => $lhs, rhs => [], @{ $action || [] } } ];
+    return [ { lhs => $lhs, rhs => [], defined($action) ? (action => $action) : () } ];
 }
 
 sub do_quantified_rule {
