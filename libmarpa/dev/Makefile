@@ -193,7 +193,7 @@ marpa.pdf: marpa.tex cwebmac.tex
 ../doc/internal.texi: internal.texi
 	cp $? $@
 
-../stage/configure: $(CONFIGURE_FILES)
+../stage/configure: $(STAGE_FILES)
 	test -d ../stage || mkdir ../stage
 	test -d ../stage/m4 || mkdir ../stage/m4
 	cd ../stage && autoreconf -iv
@@ -213,9 +213,15 @@ marpa.pdf: marpa.tex cwebmac.tex
 ../doc/internal.html/index.html: ../doc/Makefile ../doc/internal.texi
 	cd ../doc && make html
 
-install:
+install: ../stage/stamp-h1 ../doc/stamp-h1
+
+../stage/stamp-h1: ../stage/Makefile $(STAGE_FILES)
 	(cd ../stage; make dist)
+	date > $@
+
+../doc/stamp-h1: ../doc/Makefile docs
 	(cd ../doc; make dist)
+	date > $@
 
 ../doc/configure: $(DOC_SOURCE_FILES)
 	test -d ../doc/m4 || mkdir ../doc/m4
