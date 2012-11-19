@@ -42,15 +42,23 @@ typedef struct {
      Marpa_Recce r;
      Marpa_Symbol_ID* terminals_buffer;
      G_Wrapper* base;
+     unsigned int ruby_slippers:1;
+} R_Wrapper;
+
+typedef struct {
+     R_Wrapper* r_wrapper;
+     G_Wrapper* base;
+     SV* r_sv;
      STRLEN character_ix; /* character position, taking into account Unicode */
      STRLEN input_offset; /* byte position, ignoring Unicode */
      SV* input;
      int input_debug; /* debug level for input */
      Marpa_Symbol_ID input_symbol_id;
+     UV codepoint; /* For error returns */
      UV** oplists_by_byte;
      HV* per_codepoint_ops;
-     unsigned int ruby_slippers:1;
-} R_Wrapper;
+     IV ignore_rejection;
+} Unicode_Stream;
 
 typedef struct marpa_b Bocage;
 typedef struct {
@@ -79,6 +87,7 @@ typedef struct {
 static const char grammar_c_class_name[] = "Marpa::R2::Thin::G";
 static const char recce_c_class_name[] = "Marpa::R2::Thin::R";
 static const char bocage_c_class_name[] = "Marpa::R2::Thin::B";
+static const char unicode_stream_class_name[] = "Marpa::R2::Thin::U";
 static const char order_c_class_name[] = "Marpa::R2::Thin::O";
 static const char tree_c_class_name[] = "Marpa::R2::Thin::T";
 static const char value_c_class_name[] = "Marpa::R2::Thin::V";
@@ -204,10 +213,10 @@ static int marpa_r2_warn(const char* format, ...)
 }
 
 enum marpa_recce_op {
+   op_noop,
+   op_ignore_rejection,
+   op_report_rejection,
    op_alternative,
-   op_alternative_ignore,
-   op_alternative_args,
-   op_alternative_args_ignore,
    op_earleme_complete,
    op_unregistered,
 };
@@ -235,34 +244,6 @@ PPCODE:
       const char *error_name = marpa_error_description[error_code].name;
       XPUSHs (sv_2mortal (newSVpv (error_name, 0)));
     }
-}
-
-void
-op( op_name )
-     char *op_name;
-PPCODE:
-{
-  if (strEQ (op_name, "alternative"))
-    {
-      XSRETURN_IV (op_alternative);
-    }
-  if (strEQ (op_name, "alternative;ignore"))
-    {
-      XSRETURN_IV (op_alternative_ignore);
-    }
-  if (strEQ (op_name, "alternative;args"))
-    {
-      XSRETURN_IV (op_alternative_args);
-    }
-  if (strEQ (op_name, "alternative;args;ignore"))
-    {
-      XSRETURN_IV (op_alternative_args_ignore);
-    }
-  if (strEQ (op_name, "earleme_complete"))
-    {
-      XSRETURN_IV (op_earleme_complete);
-    }
-  XSRETURN_UNDEF;
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G
@@ -606,22 +587,6 @@ PPCODE:
   Newx (r_wrapper->terminals_buffer, highest_symbol_id+1, Marpa_Symbol_ID);
   r_wrapper->ruby_slippers = 0;
   r_wrapper->base = g_wrapper;
-  r_wrapper->input = newSVpvn("", 0);
-  r_wrapper->character_ix = 0;
-  r_wrapper->input_offset = 0;
-  r_wrapper->input_debug = 0;
-  r_wrapper->input_symbol_id = -1;
-  r_wrapper->per_codepoint_ops = newHV();
-  {
-    const int number_of_bytes = 0x100;
-    int codepoint;
-    UV **oplists;
-    Newx(oplists, number_of_bytes, UV*);
-    r_wrapper->oplists_by_byte = oplists;
-    for (codepoint = 0; codepoint < number_of_bytes; codepoint++) {
-        oplists[codepoint] = (UV*)NULL;
-    }
-  }
   sv = sv_newmortal ();
   sv_setref_pv (sv, recce_c_class_name, (void *) r_wrapper);
   XPUSHs (sv);
@@ -633,17 +598,6 @@ DESTROY( r_wrapper )
 PPCODE:
 {
     struct marpa_r *r = r_wrapper->r;
-    UV **oplists = r_wrapper->oplists_by_byte;
-    if (oplists) {
-      const int number_of_bytes = 0x100;
-      int codepoint;
-      for (codepoint = 0; codepoint < number_of_bytes; codepoint++) {
-	  Safefree(oplists[codepoint]);
-      }
-      Safefree(r_wrapper->oplists_by_byte);
-    }
-    SvREFCNT_dec(r_wrapper->input);
-    SvREFCNT_dec(r_wrapper->per_codepoint_ops);
     Safefree(r_wrapper->terminals_buffer);
     marpa_r_unref( r );
     Safefree( r_wrapper );
@@ -728,17 +682,116 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (origin)));
 }
 
+MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::U
+
 void
-_per_codepoint_ops( r_wrapper )
-     R_Wrapper *r_wrapper;
+new( class, r_sv )
+    char * class;
+    SV *r_sv;
 PPCODE:
 {
-  XPUSHs (sv_2mortal (newRV ((SV*)r_wrapper->per_codepoint_ops)));
+  if (!sv_isa (r_sv, "Marpa::R2::Thin::R"))
+    {
+      croak ("Problem in u->new(): arg is not of type Marpa::R2::Thin::R");
+    }
+  SvREFCNT_inc (r_sv);
+  {
+    IV tmp = SvIV ((SV *) SvRV (r_sv));
+    R_Wrapper *r_wrapper = INT2PTR (R_Wrapper *, tmp);
+    SV *u_sv = sv_newmortal ();
+    Unicode_Stream *stream;
+    Newx (stream, 1, Unicode_Stream);
+    stream->base = r_wrapper->base;
+    stream->r_wrapper = r_wrapper;
+    stream->r_sv = r_sv;
+  stream->input = newSVpvn("", 0);
+  stream->character_ix = 0;
+  stream->input_offset = 0;
+  stream->input_debug = 0;
+  stream->input_symbol_id = -1;
+  stream->per_codepoint_ops = newHV();
+  {
+    const int number_of_bytes = 0x100;
+    int codepoint;
+    UV **oplists;
+    Newx(oplists, number_of_bytes, UV*);
+    stream->oplists_by_byte = oplists;
+    for (codepoint = 0; codepoint < number_of_bytes; codepoint++) {
+        oplists[codepoint] = (UV*)NULL;
+    }
+  }
+  stream->ignore_rejection = 0;
+    sv_setref_pv (u_sv, unicode_stream_class_name, (void *) stream);
+    XPUSHs (u_sv);
+  }
 }
 
 void
-char_register( r_wrapper, codepoint, ... )
-     R_Wrapper *r_wrapper;
+DESTROY( stream )
+    Unicode_Stream *stream;
+PPCODE:
+{
+    const SV* r_sv = stream->r_sv;
+    UV **oplists = stream->oplists_by_byte;
+    if (oplists) {
+      const int number_of_bytes = 0x100;
+      int codepoint;
+      for (codepoint = 0; codepoint < number_of_bytes; codepoint++) {
+	  Safefree(oplists[codepoint]);
+      }
+      Safefree(stream->oplists_by_byte);
+    }
+    SvREFCNT_dec(stream->input);
+    SvREFCNT_dec(stream->per_codepoint_ops);
+    SvREFCNT_dec(r_sv);
+    Safefree( stream );
+}
+
+void
+op( op_name )
+     char *op_name;
+PPCODE:
+{
+  if (strEQ (op_name, "alternative"))
+    {
+      XSRETURN_IV (op_alternative);
+    }
+  if (strEQ (op_name, "ignore_rejection"))
+    {
+      XSRETURN_IV (op_ignore_rejection);
+    }
+  if (strEQ (op_name, "report_rejection"))
+    {
+      XSRETURN_IV (op_report_rejection);
+    }
+  if (strEQ (op_name, "earleme_complete"))
+    {
+      XSRETURN_IV (op_earleme_complete);
+    }
+  XSRETURN_UNDEF;
+}
+
+void
+ignore_rejection( stream, boolean )
+     Unicode_Stream *stream;
+     IV boolean;
+PPCODE:
+{
+     stream->ignore_rejection = boolean ? 1 : 0;
+     XSRETURN_IV(stream->ignore_rejection);
+}
+
+void
+_per_codepoint_ops( stream )
+     Unicode_Stream *stream;
+PPCODE:
+{
+  XPUSHs (sv_2mortal (newRV ((SV*)stream->per_codepoint_ops)));
+}
+
+void
+char_register( stream, codepoint, ... )
+     Unicode_Stream *stream;
      unsigned long codepoint;
 PPCODE:
 {
@@ -752,10 +805,10 @@ PPCODE:
     }
   {
     STRLEN op_ix;
-    UV **const ops_by_byte = r_wrapper->oplists_by_byte;
+    UV **const ops_by_byte = stream->oplists_by_byte;
     UV *ops = ops_by_byte[codepoint];
     Renew (ops, op_count, UV);
-    r_wrapper->oplists_by_byte[codepoint] = ops;
+    stream->oplists_by_byte[codepoint] = ops;
     ops[0] = codepoint;
     ops[1] = op_count;
     for (op_ix = 2; op_ix < op_count; op_ix++)
@@ -769,44 +822,52 @@ PPCODE:
 }
 
 void
-input_string_set( r_wrapper, string )
-     R_Wrapper *r_wrapper;
+string_set( stream, string )
+     Unicode_Stream *stream;
      SV *string;
 PPCODE:
 {
-  r_wrapper->character_ix = 0;
-  r_wrapper->input_offset = 0;
-  sv_setsv (r_wrapper->input, string);
-  SvPV_nolen (r_wrapper->input);
+  stream->character_ix = 0;
+  stream->input_offset = 0;
+  sv_setsv (stream->input, string);
+  SvPV_nolen (stream->input);
 }
 
 void
-input_string_pos( r_wrapper )
-     R_Wrapper *r_wrapper;
+pos( stream )
+     Unicode_Stream *stream;
 PPCODE:
 {
-  XSRETURN_IV(r_wrapper->character_ix);
+  XSRETURN_IV(stream->character_ix);
 }
 
 void
-input_string_symbol_id( r_wrapper )
-     R_Wrapper *r_wrapper;
+codepoint( stream )
+     Unicode_Stream *stream;
 PPCODE:
 {
-  XSRETURN_IV(r_wrapper->input_symbol_id);
+  XSRETURN_UV(stream->codepoint);
 }
 
 void
-input_string_offset( r_wrapper )
-     R_Wrapper *r_wrapper;
+symbol_id( stream )
+     Unicode_Stream *stream;
 PPCODE:
 {
-  XSRETURN_IV(r_wrapper->input_offset);
+  XSRETURN_IV(stream->input_symbol_id);
 }
 
 void
-input_string_hop( r_wrapper, hop )
-     R_Wrapper *r_wrapper;
+offset( stream )
+     Unicode_Stream *stream;
+PPCODE:
+{
+  XSRETURN_IV(stream->input_offset);
+}
+
+void
+hop( stream, hop )
+     Unicode_Stream *stream;
      int hop;
 PPCODE:
 {
@@ -814,44 +875,52 @@ PPCODE:
    * This requires care in UTF8
    * Returns the hop actually performed
    */
-  int input_is_utf8 = SvUTF8 (r_wrapper->input);
+  int input_is_utf8 = SvUTF8 (stream->input);
   STRLEN len;
   char *input;
   if (hop == 0) XSRETURN_IV(0);
   if (input_is_utf8) {
       croak ("Problem in r->read_string(): UTF8 not yet implemented");
   }
-  input = SvPV (r_wrapper->input, len);
+  input = SvPV (stream->input, len);
   if (hop > 0) {
-     const int maximum_hop = len - r_wrapper->input_offset;
+     const int maximum_hop = len - stream->input_offset;
      const int actual_hop = hop > maximum_hop ? maximum_hop : hop;
-     r_wrapper->input_offset += actual_hop;
-     r_wrapper->character_ix += actual_hop;
+     stream->input_offset += actual_hop;
+     stream->character_ix += actual_hop;
      XSRETURN_IV(actual_hop);
   }
   if (hop < 0) {
-     const int minimum_hop = -r_wrapper->input_offset;
+     const int minimum_hop = -stream->input_offset;
      const int actual_hop = hop < minimum_hop ? minimum_hop : hop;
-     r_wrapper->input_offset += actual_hop;
-     r_wrapper->character_ix += actual_hop;
+     stream->input_offset += actual_hop;
+     stream->character_ix += actual_hop;
      XSRETURN_IV(actual_hop);
   }
   /* Never reached */
   XSRETURN_UNDEF;
 }
 
+ # Return values:
+ # 1 or greater: an event count, as returned by earleme complete.
+ # 0: success: a full reading of the input, with nothing to report.
+ # -1: a character was rejected, when rejection is not being ignored
+ # -2: an unregistered character was found
+ # -3: earleme_complete() reported an exhausted parse.
+ #
 void
-input_string_read( r_wrapper )
-     R_Wrapper *r_wrapper;
+read( stream )
+     Unicode_Stream *stream;
 PPCODE:
 {
-  struct marpa_r *const r = r_wrapper->r;
+  const R_Wrapper* r_wrapper = stream->r_wrapper;
+  const Marpa_Recognizer r = r_wrapper->r;
   char *input;
   int input_is_utf8;
-  int input_debug = r_wrapper->input_debug;
+  int input_debug = stream->input_debug;
   STRLEN len;
-  input_is_utf8 = SvUTF8 (r_wrapper->input);
-  input = SvPV (r_wrapper->input, len);
+  input_is_utf8 = SvUTF8 (stream->input);
+  input = SvPV (stream->input, len);
   for (;;)
     {
       int return_value = 0;
@@ -859,7 +928,8 @@ PPCODE:
       STRLEN op_ix;
       STRLEN op_count;
       UV *ops;
-      if (r_wrapper->input_offset >= len)
+      int ignore_rejection = stream->ignore_rejection;
+      if (stream->input_offset >= len)
 	break;
       if (input_is_utf8)
 	{
@@ -867,7 +937,7 @@ PPCODE:
 	}
       else
 	{
-	  codepoint = (UV) input[r_wrapper->input_offset];
+	  codepoint = (UV) input[stream->input_offset];
 	  if (codepoint > 0xFF)
 	    {
 	      croak
@@ -875,30 +945,35 @@ PPCODE:
 		 codepoint);
 	    }
 	}
-      ops = r_wrapper->oplists_by_byte[codepoint];
+      ops = stream->oplists_by_byte[codepoint];
       if (!ops)
 	{
+	  stream->codepoint = codepoint;
 	  XSRETURN_IV (-2);
 	}
       /* ops[0] is codepoint */
       op_count = ops[1];
       for (op_ix = 2; op_ix < op_count; op_ix++)
 	{
-	  int ignore_is_on = 0;
 	  UV op_code = ops[op_ix];
 	  switch (op_code)
 	    {
+	    case op_report_rejection:
+	      {
+		 ignore_rejection = 0;
+	         break;
+	      }
+	    case op_ignore_rejection:
+	      {
+		 ignore_rejection = 1;
+	         break;
+	      }
 	    case op_alternative:
-	    case op_alternative_args:
-	    case op_alternative_args_ignore:
-	    case op_alternative_ignore:
 	      {
 		int result;
 		int symbol_id;
-		const int ignore_is_on = op_code == op_alternative_ignore
-		  || op_code == op_alternative_args_ignore;
-		int length = 1;
-		int value = 0;
+		int length;
+		int value;
 
 		op_ix++;
 		if (op_ix >= op_count)
@@ -909,9 +984,6 @@ PPCODE:
 		       (unsigned long) op_ix);
 		  }
 		symbol_id = (int) ops[op_ix];
-		if (op_code == op_alternative_args
-		    || op_code == op_alternative_args_ignore)
-		  {
 		    if (op_ix + 2 >= op_count)
 		      {
 			croak
@@ -921,7 +993,6 @@ PPCODE:
 		      }
 		    value = (int) ops[++op_ix];
 		    length = (int) ops[++op_ix];
-		  }
 		result = marpa_r_alternative (r, symbol_id, value, length);
 		switch (result)
 		  {
@@ -930,9 +1001,10 @@ PPCODE:
 		       warn("input_read_string unexpected token: %d,%d,%d",
 			 symbol_id, value, length);
 		    }
-		    if (!ignore_is_on)
+		    if (!ignore_rejection)
 		      {
-			r_wrapper->input_symbol_id = symbol_id;
+			stream->input_symbol_id = symbol_id;
+			stream->codepoint = codepoint;
 			XSRETURN_IV (-1);
 		      }
 		    /* fall through */
@@ -942,8 +1014,8 @@ PPCODE:
 		    croak
 		      ("Problem alternative() failed at char ix %d; symbol id %d; codepoint 0x%lx\n"
 		       "Problem in r->input_string_read(), alternative() failed: %s",
-		       (int)r_wrapper->character_ix, symbol_id, codepoint,
-		       xs_g_error (r_wrapper->base));
+		       (int)stream->character_ix, symbol_id, codepoint,
+		       xs_g_error (stream->base));
 		  }
 	      }
 	      break;
@@ -959,7 +1031,7 @@ PPCODE:
 		if (result == -2)
 		  {
 		    const Marpa_Error_Code error =
-		      marpa_g_error (r_wrapper->base->g, NULL);
+		      marpa_g_error (stream->base->g, NULL);
 		    if (error == MARPA_ERR_PARSE_EXHAUSTED)
 		      {
 			XSRETURN_IV (-3);
@@ -969,7 +1041,7 @@ PPCODE:
 		  {
 		    croak
 		      ("Problem in r->input_string_read(), earleme_complete() failed: %s",
-		       xs_g_error (r_wrapper->base));
+		       xs_g_error (stream->base));
 		  }
 	      }
 	      break;
@@ -989,18 +1061,19 @@ PPCODE:
 	}
       else
 	{
-	  r_wrapper->input_offset++;
+	  stream->input_offset++;
 	}
-      r_wrapper->character_ix++;
+      stream->character_ix++;
       /* This logic does not allow a return value of 0,
-       * but at the moment that is not an issue.
+       * which is reserved for a indicating a full
+       * read of the input string without event
        */
       if (return_value)
 	{
 	  XSRETURN_IV (return_value);
 	}
     }
-  XSRETURN_UNDEF;
+  XSRETURN_IV(0);
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::B
