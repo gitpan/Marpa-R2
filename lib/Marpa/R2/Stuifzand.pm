@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.026000';
+$VERSION        = '2.027_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -32,16 +32,21 @@ use constant NAME => 0;
 use constant HIDE => 1;
 
 sub new { my $class = shift; return bless { name => $_[NAME], is_hidden => ($_[HIDE]//0) }, $class }
-sub name { return $_->{name} }
-sub is_hidden { return $_->{is_hidden} }
-sub hidden_set { $_->{is_hidden} = 1; }
+sub name { return $_[0]->{name} }
+sub names { return $_[0]->{name} }
+sub is_hidden { return $_[0]->{is_hidden} }
+sub hidden_set { $_[0]->{is_hidden} = 1; }
+sub symbols { return $_[0]; }
 
 package Marpa::R2::Internal::Stuifzand::Symbol_List;
 
 sub new { my $class = shift; return bless [@_], $class }
 
 sub names {
-    return map { $_->name() } @{ $_[0] };
+    return map { $_->names() } @{ $_[0] };
+}
+sub is_hidden {
+    return map { $_->is_hidden() } @{ $_[0] };
 }
 
 sub hidden_set {
@@ -49,7 +54,7 @@ sub hidden_set {
 }
 
 sub mask {
-    return map { !$_->is_hidden() } @{ $_[0] };
+    return map { ! $_ } map { $_->is_hidden() } @{ $_[0] };
 }
 
 sub symbols { return @{ $_[0] }; }
@@ -57,6 +62,25 @@ sub symbols { return @{ $_[0] }; }
 package Marpa::R2::Internal::Stuifzand;
 
 use English qw( -no_match_vars );
+
+# Internal names end in ']' and are distinguished by prefix
+# Currently they also all begin with a '['
+#
+# Suffixed with '[prec%d]' --
+# a symbol created to implement precedence.
+# Suffix is removed to restore 'original'.
+#
+# '[[' -- a character class
+# These are their own 'original'.
+#
+# '[:' -- a reserved symbol, one which in the
+# grammars start with a colon.
+# These are their own 'original'.
+#
+# '[SYMBOL#' - a unnamed internal symbol.  Seeing these
+# indicates some sort of internal error.  When seen,
+# They will be treated as their own original.
+# 
 
 # Undo any rewrite of the symbol name
 sub Marpa::R2::Grammar::original_symbol_name {
@@ -188,7 +212,7 @@ sub do_quantified_rule {
     # mask not needed
     my %hash_rule = (
         lhs => $lhs,
-        rhs => [$rhs],
+        rhs => [$rhs->name()],
         min => ( $quantifier eq q{+} ? 1 : 0 )
     );
     my $action = $adverb_list->{action};
@@ -200,7 +224,56 @@ sub do_quantified_rule {
     return [ \%hash_rule ];
 } ## end sub do_quantified_rule
 
-sub do_symbol { shift; return Marpa::R2::Internal::Stuifzand::Symbol->new($_[0]) }
+# Return the character class symbol name,
+# after ensuring everything is set up properly
+sub ensure_char_class {
+    my ( $self, $char_class, $symbol_name ) = @_;
+
+    # default symbol name always start with TWO left square brackets
+    $symbol_name //= '[' . $char_class . ']';
+    $self->{character_classes} //= {};
+    my $cc_hash     = $self->{character_classes};
+    my $hash_entry  = $cc_hash->{$symbol_name};
+    if ( not defined $hash_entry ) {
+        my $regex = qr/$char_class/xms;
+        $cc_hash->{$symbol_name} = $regex;
+    }
+    return $symbol_name;
+}
+
+sub do_any {
+    my $self = shift;
+    my $symbol_name = '[:any]';
+    $symbol_name = ensure_char_class( $self, '[\p{Cn}\P{Cn}]', $symbol_name );
+    return Marpa::R2::Internal::Stuifzand::Symbol->new($symbol_name);
+}
+
+sub do_ws {
+    my $self = shift;
+    $self->{has_kw__ws} = 1;
+    my $symbol = Marpa::R2::Internal::Stuifzand::Symbol->new('[:ws]');
+    $symbol->hidden_set();
+    return $symbol;
+} ## end sub do_ws
+
+sub do_ows {
+    my $self = shift;
+    $self->{has_kw__ows} = 1;
+    my $symbol = Marpa::R2::Internal::Stuifzand::Symbol->new('[:ows]');
+    $symbol->hidden_set();
+    return $symbol;
+} ## end sub do_ows
+
+sub do_symbol {
+    shift;
+    return Marpa::R2::Internal::Stuifzand::Symbol->new( $_[0] );
+}
+sub do_character_class {
+    my ( $self, $char_class ) = @_;
+    my $symbol_name = ensure_char_class($self, $char_class);
+    return Marpa::R2::Internal::Stuifzand::Symbol->new($symbol_name);
+} ## end sub do_character_class
+
 sub do_symbol_list { shift; return Marpa::R2::Internal::Stuifzand::Symbol_List->new(@_) }
 sub do_lhs { shift; return $_[0]; }
 sub do_rhs {
@@ -216,6 +289,23 @@ sub do_parenthesized_symbol_list {
     $list->hidden_set();
     return $list;
 } ## end sub do_parenthesized_symbol_list
+
+my %hashed_closures = (
+ do_rules => \&do_rules, 
+ do_priority_rule => \&do_priority_rule, 
+ do_empty_rule => \&do_empty_rule, 
+ do_quantified_rule => \&do_quantified_rule, 
+ do_parenthesized_symbol_list => \&do_parenthesized_symbol_list, 
+ do_any => \&do_any, 
+ do_ows => \&do_ows, 
+ do_ws => \&do_ws, 
+ do_symbol => \&do_symbol, 
+ do_character_class => \&do_character_class, 
+ do_symbol_list => \&do_symbol_list, 
+ do_lhs => \&do_lhs, 
+ do_rhs => \&do_rhs, 
+ do_adverb_list => \&do_adverb_list, 
+);
 
 # Given a grammar,
 # a recognizer and a symbol
@@ -269,7 +359,7 @@ sub stuifzand_grammar {
     my $tracer = Marpa::R2::Thin::Trace->new($grammar);
 
 ## The code after this line was automatically generated by aoh_to_thin.pl
-## Date: Wed Nov 14 07:35:53 2012
+## Date: Thu Nov 22 22:07:03 2012
 $tracer->rule_new(
     "do_action" => "action",
     "kw_action", "op_arrow", "action_name"
@@ -318,7 +408,7 @@ $tracer->rule_new(
 );
 $tracer->rule_new(
     "do_quantified_rule" => "quantified_rule",
-    "lhs", "op_declare", "symbol_name", "quantifier", "adverb_list"
+    "lhs", "op_declare", "single_symbol", "quantifier", "adverb_list"
 );
 $tracer->rule_new( undef, "quantifier",    "op_plus" );
 $tracer->rule_new( undef, "quantifier",    "op_star" );
@@ -330,10 +420,17 @@ $tracer->rule_new( undef, "reserved_word", "kw_proper" );
 $tracer->rule_new( undef, "reserved_word", "kw_right" );
 $tracer->rule_new( undef, "reserved_word", "kw_separator" );
 $tracer->sequence_new( "do_rhs" => "rhs", "rhs_primary", { min => 1, } );
-$tracer->rule_new( "do_symbol_list" => "rhs_primary", "symbol" );
+$tracer->rule_new( "do_any"         => "rhs_primary", "kw__any" );
+$tracer->rule_new( "do_ows"         => "rhs_primary", "kw__ows" );
+$tracer->rule_new( "do_ws"          => "rhs_primary", "kw__ws" );
+$tracer->rule_new( "do_symbol_list" => "rhs_primary", "single_symbol" );
 $tracer->rule_new(
     "do_parenthesized_symbol_list" => "rhs_primary",
-    "op_lparen", "symbol_list", "op_rparen"
+    "op_lparen", "rhs_primary_list", "op_rparen"
+);
+$tracer->sequence_new(
+    "do_symbol_list" => "rhs_primary_list",
+    "rhs_primary", { min => 1, }
 );
 $tracer->rule_new(
     "do_right_association" => "right_association",
@@ -347,11 +444,9 @@ $tracer->rule_new(
     "do_separator_specification" => "separator_specification",
     "kw_separator", "op_arrow", "symbol_name"
 );
+$tracer->rule_new( "do_character_class" => "single_symbol", "character_class" );
+$tracer->rule_new( undef, "single_symbol", "symbol" );
 $tracer->rule_new( "do_symbol" => "symbol", "symbol_name" );
-$tracer->sequence_new(
-    "do_symbol_list" => "symbol_list",
-    "symbol", { min => 1, }
-);
 $tracer->rule_new( undef, "symbol_name", "bare_name" );
 $tracer->rule_new( "do_bracketed_name" => "symbol_name", "bracketed_name" );
 $tracer->rule_new( undef, "symbol_name", "reserved_word" );
@@ -439,6 +534,10 @@ sub parse_rules {
             ];
     } ## end for my $rule_id ( grep { $thin_grammar->rule_length($_...)})
     push @terminals,
+        [ 'kw__ows', qr/ [:] ows\b/xms,    ':ows reserved symbol' ],
+        [ 'kw__ws', qr/ [:] ws\b/xms,    ':ws reserved symbol' ],
+        [ 'kw__default', qr/ [:] default\b/xms,    ':default reserved symbol' ],
+        [ 'kw__any', qr/ [:] any\b/xms,    ':any reserved symbol' ],
         [ 'op_declare', qr/::=/xms,    'BNF declaration operator' ],
         [ 'op_arrow',   qr/=>/xms,     'adverb operator' ],
         [ 'op_lparen',  qr/[(]/xms,    'left parenthesis' ],
@@ -450,7 +549,9 @@ sub parse_rules {
         [ 'boolean',    qr/[01]/xms ],
         [ 'bare_name',  qr/\w+/xms, ],
         [ 'bracketed_name', qr/ [<] \w+ [>] /xms, ],
-        [ 'reserved_action_name', qr/(::(whatever|undef))/xms ]
+        [ 'reserved_action_name', qr/(::(whatever|undef))/xms ],
+        [ 'character_class', qr/ (?: (?: \[) (?: [^\\\[]* (?: \\. [^\\\]]* )* ) (?: \]) ) /xms,
+            'character class' ],
         ;
 
     my $length = length $string;
@@ -514,6 +615,9 @@ sub parse_rules {
         $actions_by_rule_id[$rule_id] = $tracer->action($rule_id);
     }
 
+    # The parse result object
+    my $self = {};
+
     my @stack = ();
     STEP: while (1) {
         my ( $type, @step_data ) = $valuator->step();
@@ -531,40 +635,10 @@ sub parse_rules {
                 # No-op -- value is arg 0
                 next STEP;
             }
-            if ( $action eq 'do_rules' ) {
+            my $hashed_closure = $hashed_closures{$action};
+            if ( defined $hashed_closure ) {
                 $stack[$arg_0] =
-                    do_rules( undef, @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            }
-            if ( $action eq 'do_priority_rule' ) {
-                $stack[$arg_0] =
-                    do_priority_rule( undef, @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            }
-            if ( $action eq 'do_empty_rule' ) {
-                $stack[$arg_0] =
-                    do_empty_rule( undef, @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            }
-            if ( $action eq 'do_quantified_rule' ) {
-                $stack[$arg_0] =
-                    do_quantified_rule( undef, @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            }
-            if ( $action eq 'do_parenthesized_symbol_list' ) {
-                $stack[$arg_0] =
-                    do_parenthesized_symbol_list( undef,
-                    @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            } ## end if ( $action eq 'do_parenthesized_symbol_list' )
-            if ( $action eq 'do_symbol' ) {
-                $stack[$arg_0] =
-                    do_symbol( undef, @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            }
-            if ( $action eq 'do_symbol_list' ) {
-                $stack[$arg_0] =
-                    do_symbol_list( undef, @stack[ $arg_0 .. $arg_n ] );
+                    $hashed_closure->( $self, @stack[ $arg_0 .. $arg_n ] );
                 next STEP;
             }
             if ( $action eq 'do_alternative' ) {
@@ -576,26 +650,23 @@ sub parse_rules {
                 $stack[$arg_0] =~ s/ \s* [>] \z//xms;
                 next STEP;
             }
-            if ( $action eq 'do_lhs' ) {
-                $stack[$arg_0] = do_lhs( undef, @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            }
-            if ( $action eq 'do_rhs' ) {
-                $stack[$arg_0] = do_rhs( undef, @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            }
             if ( $action eq 'do_array' ) {
                 $stack[$arg_0] = [ @stack[ $arg_0 .. $arg_n ] ];
                 next STEP;
             }
             if ( $action eq 'do_discard_separators' ) {
                 my @items = ();
-                for (my $item_ix = $arg_0; $item_ix <= $arg_n; $item_ix += 2) {
-                   push @items, $stack[$item_ix];
-                }
+                for (
+                    my $item_ix = $arg_0;
+                    $item_ix <= $arg_n;
+                    $item_ix += 2
+                    )
+                {
+                    push @items, $stack[$item_ix];
+                } ## end for ( my $item_ix = $arg_0; $item_ix <= $arg_n; ...)
                 $stack[$arg_0] = \@items;
                 next STEP;
-            }
+            } ## end if ( $action eq 'do_discard_separators' )
             if ( $action eq 'do_arg1' ) {
                 $stack[$arg_0] = $stack[ $arg_0 + 1 ];
                 next STEP;
@@ -604,13 +675,8 @@ sub parse_rules {
                 $stack[$arg_0] = $stack[ $arg_0 + 2 ];
                 next STEP;
             }
-            if ( $action eq 'do_adverb_list' ) {
-                $stack[$arg_0] =
-                    do_adverb_list( undef, @stack[ $arg_0 .. $arg_n ] );
-                next STEP;
-            }
             if ( $action eq 'do_action' ) {
-                $stack[$arg_0] = [ action => $stack[$arg_0 + 2] ];
+                $stack[$arg_0] = [ action => $stack[ $arg_0 + 2 ] ];
                 next STEP;
             }
             if ( $action eq 'do_left_association' ) {
@@ -626,11 +692,11 @@ sub parse_rules {
                 next STEP;
             }
             if ( $action eq 'do_separator_specification' ) {
-                $stack[$arg_0] = [ separator => $stack[$arg_0 + 2] ];
+                $stack[$arg_0] = [ separator => $stack[ $arg_0 + 2 ] ];
                 next STEP;
             }
             if ( $action eq 'do_proper_specification' ) {
-                $stack[$arg_0] = [ proper => $stack[$arg_0 + 2] ];
+                $stack[$arg_0] = [ proper => $stack[ $arg_0 + 2 ] ];
                 next STEP;
             }
             die 'Internal error: Unknown action in Stuifzand grammar: ',
@@ -644,9 +710,22 @@ sub parse_rules {
         die "Unexpected step type: $type";
     } ## end STEP: while (1)
 
-    my $parse = $stack[0];
+    my $rules = $self->{rules} = $stack[0];
 
-    return $parse;
+    my @ws_rules = ();
+    if ( $self->{has_kw__ws} ) {
+        push @{ws_rules}, { lhs => '[:ws]', rhs => ['[:WSpace]'], min => 1 };
+    }
+    if ( $self->{has_kw__ows} ) {
+        push @{ws_rules}, { lhs => '[:ows]', rhs => ['[:WSpace]'], min => 0 };
+    }
+    if (@ws_rules) {
+        ensure_char_class( $self, '[\p{White_Space}]', '[:WSpace]' );
+        push @{$rules}, @ws_rules;
+    }
+
+    $self->{rules} = $rules;
+    return $self;
 } ## end sub parse_rules
 
 1;

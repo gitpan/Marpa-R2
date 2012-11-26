@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (23 November 2012) is for Libmarpa 2.26.0.
+This manual (25 November 2012) is for Libmarpa 2.27.0.
 
    Copyright (C) 2012 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (23 November 2012) is for Libmarpa 2.26.0.
+This manual (25 November 2012) is for Libmarpa 2.27.0.
 
    Copyright (C) 2012 Jeffrey Kegler.
 
@@ -2019,6 +2019,11 @@ File: api.info,  Node: Location accessors,  Next: Other parse status methods,  P
 12.5 Location accessors
 =======================
 
+ -- Function: `unsigned int' marpa_r_current_earleme (Marpa_Recognizer
+          R)
+     Return value: If input has started, the current earleme.  If input
+     has not started, -1.  Always succeeds.
+
  -- Function: Marpa_Earleme marpa_r_earleme ( Marpa_Recognizer R,
           Marpa_Earley_Set_ID SET_ID)
      In the default, token-stream model, Earley set ID and earleme are
@@ -2043,10 +2048,20 @@ File: api.info,  Node: Location accessors,  Next: Other parse status methods,  P
      Return value: On success, the earleme corresponding to Earley set
      SET_ID.  On failure, -2.
 
- -- Function: `unsigned int' marpa_r_current_earleme (Marpa_Recognizer
+ -- Function: int marpa_r_earley_set_value ( Marpa_Recognizer R,
+          Marpa_Earley_Set_ID earley_set)
+     Returns the integer value of EARLEY_SET.  The "value" of an Earley
+     is an arbitrary integer that the application can use for its own
+     purposes.  In character-per-earleme input models, for example, it
+     can be the codepoint of the current character.  The Earley set
+     value can be set using the `marpa_r_latest_earley_set()' method.
+     The Earley set value defaults to -1.
+
+     Return value: On success, the value of EARLEY_SET.  On failure, -2.
+
+ -- Function: `unsigned int' marpa_r_furthest_earleme (Marpa_Recognizer
           R)
-     Return value: If input has started, the current earleme.  If input
-     has not started, -1.  Always succeeds.
+     Return value: On success, the furthest earleme.  Always succeeds.
 
  -- Function: Marpa_Earley_Set_ID marpa_r_latest_earley_set
           (Marpa_Recognizer R)
@@ -2058,9 +2073,15 @@ File: api.info,  Node: Location accessors,  Next: Other parse status methods,  P
      Return value: On success, the ID of the latest Earley set.  Always
      succeeds.
 
- -- Function: `unsigned int' marpa_r_furthest_earleme (Marpa_Recognizer
-          R)
-     Return value: On success, the furthest earleme.  Always succeeds.
+ -- Function: int marpa_r_latest_earley_set_value_set (
+          Marpa_Recognizer R, int value)
+     Sets the integer value of the latest Earley set.  For more about
+     the "value" of an Earley set, see the description of the
+     `marpa_r_earley_set_value()' method.  The Earley set value
+     defaults to -1.
+
+     Return value: On success, the new value of EARLEY_SET.  On
+     failure, -2.
 
 
 File: api.info,  Node: Other parse status methods,  Prev: Location accessors,  Up: Recognizer methods
@@ -4363,51 +4384,51 @@ Node: Recognizer constructor73819
 Node: Recognizer reference counting74373
 Node: Recognizer life cycle mutators75184
 Node: Location accessors83005
-Node: Other parse status methods85276
-Node: Progress reports88269
-Node: Bocage methods91441
-Node: Bocage overview91662
-Node: Bocage constructor92182
-Node: Bocage reference counting92836
-Node: Ordering methods93713
-Node: Ordering overview93965
-Node: Ordering constructor94569
-Node: Ordering reference counting95036
-Node: Non-default ordering96026
-Node: Tree methods97179
-Node: Tree overview97404
-Node: Tree constructor98231
-Node: Tree reference counting98886
-Node: Tree iteration99855
-Node: Value methods101163
-Node: Value overview101601
-Node: How to use the valuator103032
-Node: Advantages of step-driven valuation105003
-Node: Maintaining the stack108673
-Node: Sizing the stack110684
-Node: Initializing locations in the stack112464
-Node: Valuator constructor114660
-Node: Valuator reference counting115511
-Node: Registering semantics116496
-Node: Stepping through the valuator118430
-Node: Valuator steps by type119196
-Node: Basic step accessors121097
-Node: Other step accessors122932
-Node: Events124478
-Node: Events overview124667
-Node: Event methods125537
-Node: Event codes126722
-Node: Error methods macros and codes128597
-Node: Error methods128866
-Node: Error Macros129693
-Node: External error codes130060
-Node: Internal error codes150465
-Node: Design notes154006
-Node: Why so many time objects154441
-Node: Design of numbered objects156191
-Node: LHS Terminals157430
-Node: Work in Progress158123
-Node: Untested methods158308
-Node: GNU Free Documentation License159950
+Node: Other parse status methods86249
+Node: Progress reports89242
+Node: Bocage methods92414
+Node: Bocage overview92635
+Node: Bocage constructor93155
+Node: Bocage reference counting93809
+Node: Ordering methods94686
+Node: Ordering overview94938
+Node: Ordering constructor95542
+Node: Ordering reference counting96009
+Node: Non-default ordering96999
+Node: Tree methods98152
+Node: Tree overview98377
+Node: Tree constructor99204
+Node: Tree reference counting99859
+Node: Tree iteration100828
+Node: Value methods102136
+Node: Value overview102574
+Node: How to use the valuator104005
+Node: Advantages of step-driven valuation105976
+Node: Maintaining the stack109646
+Node: Sizing the stack111657
+Node: Initializing locations in the stack113437
+Node: Valuator constructor115633
+Node: Valuator reference counting116484
+Node: Registering semantics117469
+Node: Stepping through the valuator119403
+Node: Valuator steps by type120169
+Node: Basic step accessors122070
+Node: Other step accessors123905
+Node: Events125451
+Node: Events overview125640
+Node: Event methods126510
+Node: Event codes127695
+Node: Error methods macros and codes129570
+Node: Error methods129839
+Node: Error Macros130666
+Node: External error codes131033
+Node: Internal error codes151438
+Node: Design notes154979
+Node: Why so many time objects155414
+Node: Design of numbered objects157164
+Node: LHS Terminals158403
+Node: Work in Progress159096
+Node: Untested methods159281
+Node: GNU Free Documentation License160923
 
 End Tag Table

@@ -733,6 +733,38 @@ PPCODE:
 }
 
 void
+earley_set_value( r_wrapper, ordinal )
+    R_Wrapper *r_wrapper;
+    Marpa_Earley_Set_ID ordinal;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_earley_set_value(self, ordinal);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->earley_set_value(%d): %s",
+     ordinal, xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+latest_earley_set_value_set( r_wrapper, value )
+    R_Wrapper *r_wrapper;
+    int value;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_latest_earley_set_value_set(self, value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->latest_earley_set_value_set(%d): %s",
+     value, xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
 is_exhausted( r_wrapper )
     R_Wrapper *r_wrapper;
 PPCODE:

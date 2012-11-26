@@ -28,7 +28,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.026000';
+$VERSION        = '2.027_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -79,6 +79,13 @@ BEGIN {
     RULE_NAME_REQUIRED
     RULE_BY_NAME
     INTERFACE { currently 'standard' or 'stuifzand' }
+
+    CHARACTER_CLASSES { an hash of
+    character class regex by symbol name.
+    Used before precomputation. }
+
+    CHARACTER_CLASS_TABLE { An array of symbol ID and
+    regex.  Used after precomputation. }
 
     =LAST_BASIC_DATA_FIELD
 
@@ -291,14 +298,17 @@ sub Marpa::R2::Grammar::set {
                         )
                         if $grammar->[Marpa::R2::Internal::Grammar::INTERFACE]
                             ne 'stuifzand';
-                    for my $rule (
-                        @{  Marpa::R2::Internal::Stuifzand::parse_rules(
-                                $value)
-                        }
-                        )
-                    {
+                    my $parse_result =
+                        Marpa::R2::Internal::Stuifzand::parse_rules($value);
+                    my $character_classes =
+                        $parse_result->{character_classes};
+                    $grammar
+                        ->[Marpa::R2::Internal::Grammar::CHARACTER_CLASSES] =
+                        $character_classes
+                        if defined $character_classes;
+                    for my $rule ( @{$parse_result->{rules}} ) {
                         add_user_rule( $grammar, $rule );
-                    } ## end for my $rule ( @{ ...})
+                    }
                     last DO_RULES;
                 } ## end if ( not ref $value )
                 Marpa::R2::exception(
@@ -639,6 +649,20 @@ sub Marpa::R2::Grammar::precompute {
                 or Marpa::R2::exception("Could not print: $ERRNO");
         } ## end SYMBOL: for my $symbol ( @{ ...})
     } ## end if ( $grammar->[Marpa::R2::Internal::Grammar::WARNINGS...])
+
+    # If we are using scannerless parsing, set that up
+    my $cc_hash = $grammar->[Marpa::R2::Internal::Grammar::CHARACTER_CLASSES];
+    if (defined $cc_hash) {
+        my $class_table = $grammar->[Marpa::R2::Internal::Grammar::CHARACTER_CLASS_TABLE] = [];
+        for my $cc_symbol ( keys %{$cc_hash} ) {
+            my $regex = $cc_hash->{$cc_symbol};
+            push @{$class_table},
+                [ $grammar->thin_symbol($cc_symbol), $regex ];
+        }
+    }
+
+    # Save some memory
+    $grammar->[Marpa::R2::Internal::Grammar::CHARACTER_CLASSES] = undef;
 
     return $grammar;
 
