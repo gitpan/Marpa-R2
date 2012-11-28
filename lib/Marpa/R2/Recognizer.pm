@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.027_001';
+$VERSION        = '2.027_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -799,7 +799,7 @@ $escape_by_ord[0xa] = '\\n';
 $escape_by_ord[$_] //= chr $_ for 32 .. 126;
 $escape_by_ord[$_] //= sprintf( "\\x%02x", $_ ) for 0 .. 255;
 
-sub escape_string {
+sub Marpa::R2::escape_string {
     my ( $string, $length ) = @_;
     my $reversed = $length < 0;
     if ($reversed) {
@@ -826,8 +826,10 @@ sub escape_string {
 sub Marpa::R2::Recognizer::sl_read {
     my ( $recce, $string ) = @_;
     my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
-    my $length  = length $string;
+    my $tracer  = $grammar->[Marpa::R2::Internal::Grammar::TRACER];
     my $stream  = $recce->[Marpa::R2::Internal::Recognizer::STREAM];
+    my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
+    my $length  = length $string;
     my $event_count;
 
     my $class_table =
@@ -860,9 +862,40 @@ sub Marpa::R2::Recognizer::sl_read {
             $stream->char_register( $codepoint, @ops, $op_earleme_complete );
             redo READ;
         } ## end if ( $event_count == -2 )
+        if ( $event_count == -1 ) {
+            for my $terminal ( $recce_c->terminals_expected() ) {
+                state $word_boundary     = $tracer->symbol_by_name('[:|w]');
+                state $re_word_character = qr/
+		[\p{alpha}\p{GC=Mark}\p{Digit}\p{GC=Connector_Punctuation}\p{Join_Control}]
+	      /xms;
+                DO_WORD_BOUNDARY: {
+                    last DO_WORD_BOUNDARY if $terminal != $word_boundary;
+                    my $current_is_word_char = 1
+                        if ( chr $stream->codepoint() ) =~ $re_word_character;
+                    if ($current_is_word_char) {
+                        my $previous_codepoint;
+                        my $previous_location = $recce_c->latest_earley_set();
+                        while ( not defined $previous_codepoint
+                            and $previous_location > 0 )
+                        {
+                            $previous_codepoint = $recce_c->earley_set_value(
+                                --$previous_location );
+                        } ## end while ( not defined $previous_codepoint and ...)
+                        last DO_WORD_BOUNDARY
+                            if defined $previous_codepoint
+                                and ( chr $previous_codepoint )
+                                =~ $re_word_character;
+                    } ## end if ($current_is_word_char)
+                    $recce_c->alternative( $word_boundary, 0, 1 );
+                    $recce_c->earleme_complete();
+                    redo READ;
+                } ## end DO_WORD_BOUNDARY:
+            } ## end for my $terminal ( $recce_c->terminals_expected() )
+        } ## end if ( $event_count == -1 )
     } ## end READ:
-        # If we are here, recovery is a matter for the caller,
-        # if it is possible at all
+
+    ## If we are here, recovery is a matter for the caller,
+    ## if it is possible at all
     my $pos = $stream->pos();
     my $desc;
     DESC: {
@@ -895,9 +928,9 @@ sub Marpa::R2::Recognizer::sl_read {
           "Error in string_read: $desc\n"
         . "* Error was at string position: $pos, and at character $char_in_hex, '$char_desc'\n"
         . "* String before error:\n"
-        . escape_string( $prefix, -72 ) . "\n"
+        . Marpa::R2::escape_string( $prefix, -72 ) . "\n"
         . "* String after error:\n"
-        . escape_string( ( substr $string, $pos, 72 ), 72 ) . "\n";
+        . Marpa::R2::escape_string( ( substr $string, $pos, 72 ), 72 ) . "\n";
     Marpa::R2::exception($read_string_error) if $event_count == -3;
 
     # Fall through to return undef
