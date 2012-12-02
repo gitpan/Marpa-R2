@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.027_003';
+$VERSION        = '2.027_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -58,6 +58,7 @@ BEGIN {
     TRACE_TASKS
     TRACE_TERMINALS
     TRACE_VALUES
+    TRACE_SL
     WARNINGS
 
     { The following fields must be reinitialized when
@@ -791,6 +792,20 @@ sub Marpa::R2::Recognizer::sl_error {
     return $recce->[Marpa::R2::Internal::Recognizer::READ_STRING_ERROR];
 }
 
+sub Marpa::R2::Recognizer::sl_trace {
+    my ( $recce, $level ) = @_;
+    my $stream = $recce->[Marpa::R2::Internal::Recognizer::STREAM];
+    Marpa::R2::exception(
+        "Marpa::R2::Recogizer::sl_read() called, but grammar is not scannerless\n"
+    ) if not defined $stream;
+    $level //= 1;
+    $recce->[Marpa::R2::Internal::Recognizer::TRACE_SL] = $level;
+    if ( $level > 9 ) {
+        $stream->trace($level);
+    }
+    return $level;
+} ## end sub Marpa::R2::Recognizer::sl_trace
+
 my @escape_by_ord = ();
 $escape_by_ord[ ord q{\\} ] = q{\\\\};
 $escape_by_ord[ ord eval qq{"$_"} ] = $_
@@ -827,8 +842,11 @@ sub Marpa::R2::Recognizer::sl_read {
     my ( $recce, $string ) = @_;
     my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $tracer  = $grammar->[Marpa::R2::Internal::Grammar::TRACER];
-    my $stream  = $recce->[Marpa::R2::Internal::Recognizer::STREAM];
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
+    my $stream  = $recce->[Marpa::R2::Internal::Recognizer::STREAM];
+    Marpa::R2::exception("Marpa::R2::Recogizer::sl_read() called, but grammar is not scannerless\n")
+        if not defined $stream;
+
     my $length  = length $string;
     my $event_count;
 
@@ -853,9 +871,21 @@ sub Marpa::R2::Recognizer::sl_read {
             my @ops;
             for my $entry ( @{$class_table} ) {
                 my ( $symbol_id, $re ) = @{$entry};
-                push @ops, $op_alternative, $symbol_id, 0, 1
-                    if chr($codepoint) =~ $re;
-            }
+                if ( chr($codepoint) =~ $re ) {
+                    if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_SL] )
+                    {
+                        my $trace_fh =
+                            $recce->[
+                            Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE
+                            ];
+                        say {$trace_fh} "Registering character ",
+                            ( sprintf 'U+%04x', $codepoint ),
+                            " as symbol $symbol_id: ",
+                            $tracer->symbol_name($symbol_id);
+                    } ## end if ( $recce->[...])
+                    push @ops, $op_alternative, $symbol_id, 0, 1;
+                } ## end if ( chr($codepoint) =~ $re )
+            } ## end for my $entry ( @{$class_table} )
             die sprintf "Cannot read character U+%04x: %c\n", $codepoint,
                 $codepoint
                 if not @ops;
@@ -963,6 +993,7 @@ sub Marpa::R2::Recognizer::use_leo_set {
 sub Marpa::R2::Recognizer::earley_set_size {
     my ( $recce, $set_id ) = @_;
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
+    $set_id //= $recce_c->latest_earley_set();
     return $recce_c->_marpa_r_earley_set_size($set_id);
 }
 
