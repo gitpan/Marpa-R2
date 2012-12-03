@@ -28,7 +28,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.028000';
+$VERSION        = '2.029_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -185,6 +185,7 @@ use constant GRAMMAR_OPTIONS => [
         inaccessible_ok
         rule_name_required
         rules
+        scannerless
         start
         symbols
         terminals
@@ -228,6 +229,13 @@ sub Marpa::R2::Grammar::set {
         # options and are expected to take force for the other
         # options, even if specified afterwards
 
+        if ( defined( my $value = $args->{'scannerless'} ) ) {
+            $grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS] =  $value;
+        }
+        ## If not marked scannerless in the first arg hash of the
+        ## constructor, then the grammar is not scannerless
+        $grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS] //= 0;
+
         if ( defined( my $value = $args->{'trace_file_handle'} ) ) {
             $trace_fh =
                 $grammar->[Marpa::R2::Internal::Grammar::TRACE_FILE_HANDLE] =
@@ -240,6 +248,7 @@ sub Marpa::R2::Grammar::set {
             ) if $grammar_c->is_precomputed();
             $grammar_c->default_rank_set($value);
         } ## end if ( defined( my $value = $args->{'default_rank'} ) )
+
 
         # Second pass options
 
@@ -300,15 +309,16 @@ sub Marpa::R2::Grammar::set {
                         )
                         if $grammar->[Marpa::R2::Internal::Grammar::INTERFACE]
                             ne 'stuifzand';
+                    # If we have not already been set as scannerless, exclude the
+                    # possibility
+                    my $scannerless = $grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS];
                     my $parse_result =
-                        Marpa::R2::Internal::Stuifzand::parse_rules($value);
-                    my $scannerless =
-                        $grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS] =  $parse_result->{scannerless};
+                        Marpa::R2::Internal::Stuifzand::parse_rules($grammar, $value);
                     my $character_classes =
                         $parse_result->{character_classes};
                     Marpa::R2::exception(
                         qq{Attempt to use character class with a grammar that is not scannerless\n},
-                        qq{  A scannerless grammar must have a ':start' rules }
+                        qq{  A scannerless grammar must have a ':start' rule }
                         )
                         if not $scannerless and defined $character_classes ;
                     $grammar
@@ -1264,7 +1274,8 @@ sub set_start_symbol {
             qq{'start' named argument not allowed for scannerless grammar},
             qq{  ':start' rules in the BNF must be the only start symbol specification},
         ) if defined $start_name;
-        $start_name = '[:start]';
+        $start_name = $grammar->[Marpa::R2::Internal::Grammar::START_NAME] =
+            '[:start]';
     } ## end if ( $grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS...])
 
     return if not defined $start_name;
