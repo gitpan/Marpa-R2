@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.029_000';
+$VERSION        = '2.029_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -66,8 +66,6 @@ package Marpa::R2::Internal::Stuifzand;
 use English qw( -no_match_vars );
 
 # Internal names end in ']' and are distinguished by prefix.
-# Currently they also all begin with a '[', but that will
-# not necessarily remain the case.
 #
 # Suffixed with '[prec%d]' --
 # a symbol created to implement precedence.
@@ -85,10 +83,19 @@ use English qw( -no_match_vars );
 # indicates some sort of internal error.  If seen,
 # they will be treated as their own original.
 # 
+# Suffixed with '[Sep]' indicates an internal version
+# of a sequence separator.  These are their own
+# original, because otherwise the "original" name
+# would conflict with the LHS of the sequence.
+# 
+# Suffixed with '[SeqLHS]' indicates an internal version
+# of the sequence LHS.  The "original" name is that
+# of the LHS of the sequence.
 
 # Undo any rewrite of the symbol name
 sub Marpa::R2::Grammar::original_symbol_name {
    $_[0] =~ s/\[ prec \d+ \] \z//xms;
+   $_[0] =~ s/\[ SeqLHS \] \z//xms;
    return shift;
 }
 
