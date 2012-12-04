@@ -55,7 +55,7 @@ DESCRIPTOR: for my $descriptor ( @{$aoh} ) {
     my $method = defined $min ? 'sequence_new' : 'rule_new';
     my $lhs    = $descriptor->{lhs};
     my $rhs    = $descriptor->{rhs};
-    $untidied .= '$rule_id = $tracer->' . $method . '( ';
+    $untidied .= '$tracer->' . $method . '( ';
     my $action = $descriptor->{action};
     $untidied .= defined $action ? quote($action) . q{=>} : 'undef,';
     $untidied .= join q{, }, map { quote($_) } ( $lhs, @{$rhs} );
@@ -71,17 +71,6 @@ DESCRIPTOR: for my $descriptor ( @{$aoh} ) {
         $untidied .= '}';
     } ## end if ( defined $min )
     $untidied .= q{ );} . "\n";
-
-    if ( not defined $min ) {
-        my $mask = $descriptor->{mask};
-        if ( not defined $mask ) {
-            die "Non-sequence rule must have mask" if not defined $min;
-        }
-        $untidied .= '$mask_by_rule_id[$rule_id] = [';
-        $untidied .= join q{,}, @{$mask};
-        $untidied .= qq{];\n};
-    } ## end if ( not defined $min )
-
 } ## end DESCRIPTOR: for my $descriptor ( @{$aoh} )
 
 my $tidied;
