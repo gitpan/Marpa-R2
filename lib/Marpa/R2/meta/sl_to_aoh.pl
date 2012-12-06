@@ -35,13 +35,8 @@ my $result    = Getopt::Long::GetOptions( 'help' => \$help_flag );
 die "usage $PROGRAM_NAME [--help] file ...\n" if $help_flag;
 
 my $bnf = join q{}, <>;
-my $dummy_grammar = [];
-my $parse_result =
-    Marpa::R2::Internal::Stuifzand::parse_rules( $dummy_grammar, $bnf );
-my %keys_to_save = map { $_, 1 } qw(rules character_classes);
-for my $key ( grep { not $keys_to_save{$_} } keys %{$parse_result} ) {
-    delete $parse_result->{$key};
-}
+my $dummy_grammar = Marpa::R2::Grammar->new({scannerless=>1});
+my $parse_result = Marpa::R2::Internal::Stuifzand::parse_rules($dummy_grammar, $bnf);
 my $aoh = $parse_result->{rules};
 
 sub sort_bnf {
@@ -60,4 +55,4 @@ sub sort_bnf {
 my $sorted_aoh = [ sort sort_bnf @{$aoh} ];
 $Data::Dumper::Sortkeys = 1;
 $parse_result->{rules} = $sorted_aoh;
-print Data::Dumper::Dumper(  $parse_result );
+print Data::Dumper::Dumper($parse_result);

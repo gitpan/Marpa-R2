@@ -16,7 +16,7 @@
 
 rules ::= rule+ action => do_rules
 rule ::= start_rule | empty_rule | priority_rule | quantified_rule
-start_rule ::= kw__start op_declare symbol_name
+start_rule ::= (kw__start) op_declare symbol_name
   action => do_start_rule
 priority_rule ::= lhs op_declare priorities
   action => do_priority_rule
@@ -24,6 +24,9 @@ empty_rule ::= lhs op_declare adverb_list
   action => do_empty_rule
 quantified_rule ::= lhs op_declare single_symbol quantifier adverb_list
     action => do_quantified_rule
+op_declare ::= 
+      op_declare_bnf action => do_op_declare_bnf
+    | op_declare_match action => do_op_declare_match
 priorities ::= alternatives+
     separator => op_tighter proper => 1
     action => do_discard_separators
@@ -37,7 +40,7 @@ adverb_item ::=
     | left_association | right_association | group_association
     | separator_specification | proper_specification
 
-action ::= kw_action op_arrow action_name action => do_action
+action ::= (kw_action op_arrow) action_name action => do_action
 left_association ::= kw_assoc op_arrow kw_left
   action => do_left_association 
 right_association ::= kw_assoc op_arrow kw_right
@@ -49,7 +52,9 @@ separator_specification ::= kw_separator op_arrow single_symbol
 proper_specification ::= kw_proper op_arrow boolean
 action => do_proper_specification
 
-quantifier ::= op_star | op_plus
+quantifier ::=
+    op_star action => do_op_star_quantifier
+  | op_plus action => do_op_plus_quantifier
 
 lhs ::= symbol_name action => do_lhs 
 rhs ::= rhs_primary+ action => do_rhs
@@ -58,6 +63,7 @@ rhs_primary ::= kw__ws_star action => do_ws_star
 rhs_primary ::= kw__ws_plus action => do_ws_plus
 rhs_primary ::= kw__ws action => do_ws
 rhs_primary ::= kw__any action => do_any
+rhs_primary ::= kw__end_of_input action => do_end_of_input
 rhs_primary ::= single_quoted_string action => do_single_quoted_string
 rhs_primary ::= op_lparen rhs_primary_list op_rparen
   action => do_parenthesized_symbol_list
