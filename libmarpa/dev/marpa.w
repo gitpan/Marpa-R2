@@ -10729,13 +10729,13 @@ Otherwise, it's the first such draft and-node.
 }
 
 @** And-node (AND) code.
-The or-nodes are part of the parse bocage.
+The and-nodes are part of the parse bocage.
 They are analogous to the and-nodes of a standard parse forest,
 except that they are binary -- restricted to two children.
 This means that the parse bocage stores the parse in a kind
 of Chomsky Normal Form.
-As another difference between it and a parse forest,
-the parse bocage can contain cycles.
+(A second difference between a parse bocage and a parse forest,
+is that the parse bocage can contain cycles.)
 
 @<Public typedefs@> =
 typedef int Marpa_And_Node_ID;
@@ -13882,6 +13882,10 @@ and produces a matrix that represents the transitive closure
 of the relation.
 The matrix is assumed to be square.
 The input matrix will be destroyed.
+
+Its uses Warshall's algorithm,
+which is
+$O(n^3)$ where the matrix is $n$x$n$.
 @<Function definitions@> =
 PRIVATE_NOT_INLINE void transitive_closure(Bit_Matrix matrix)
 {

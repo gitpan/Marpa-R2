@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.032000';
+$VERSION        = '2.033_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -994,7 +994,7 @@ sub Marpa::R2::Recognizer::sl_end_input {
 
 # Given a range of locations, return the
 # input string.
-# Only work in scannerless mode.
+# Only works in scannerless mode.
 sub Marpa::R2::Recognizer::sl_range_to_string {
     my ($recce, $start, $end) = @_;
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];

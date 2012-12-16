@@ -13,7 +13,7 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-package Marpa::R2::Stuifzand;
+package Marpa::R2::Scanless;
 
 use 5.010;
 use strict;
@@ -26,92 +26,100 @@ $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 ## use critic
 
-package Marpa::R2::Internal::Stuifzand::Symbol;
+BEGIN {
+    my $structure = <<'END_OF_STRUCTURE';
+
+    :package=Marpa::R2::Inner::Scanless::G
+
+    THICK_LEX_GRAMMAR
+    THICK_G1_GRAMMAR
+    CHARACTER_CLASSES
+
+    TRACE_FILE_HANDLE
+    DEFAULT_ACTION
+    ACTION_OBJECT
+
+END_OF_STRUCTURE
+    Marpa::R2::offset($structure);
+} ## end BEGIN
+
+BEGIN {
+    my $structure = <<'END_OF_STRUCTURE';
+
+    :package=Marpa::R2::Inner::Scanless::R
+
+    GRAMMAR
+    STREAM
+    LEX_R
+    G1_R
+
+    TRACE_FILE_HANDLE
+
+END_OF_STRUCTURE
+    Marpa::R2::offset($structure);
+} ## end BEGIN
+
+
+package Marpa::R2::Inner::Scanless;
+# names of packages for strings
+our $G_PACKAGE = 'Marpa::R2::Scanless::G';
+our $R_PACKAGE = 'Marpa::R2::Scanless::R';
+our $GRAMMAR_LEVEL;
+our $TRACE_FILE_HANDLE;
+
+package Marpa::R2::Inner::Scanless::Symbol;
 
 use constant NAME => 0;
 use constant HIDE => 1;
 
 sub new { my $class = shift; return bless { name => $_[NAME], is_hidden => ($_[HIDE]//0) }, $class }
+sub is_symbol { 1 };
 sub name { return $_[0]->{name} }
 sub names { return $_[0]->{name} }
 sub is_hidden { return $_[0]->{is_hidden} }
-sub hidden_set { $_[0]->{is_hidden} = 1; }
+sub is_lexical { shift->{is_lexical} // 0 }
+sub hidden_set { shift->{is_hidden} = 1; }
+sub lexical_set { shift->{is_lexical} = 1; }
 sub symbols { return $_[0]; }
+sub symbol_lists { return $_[0]; }
 
-package Marpa::R2::Internal::Stuifzand::Symbol_List;
+package Marpa::R2::Inner::Scanless::Symbol_List;
 
-sub new { my $class = shift; return bless [@_], $class }
+sub new { my $class = shift; return bless { symbol_lists => [@_] }, $class }
+
+sub is_symbol { 0 };
 
 sub names {
-    return map { $_->names() } @{ $_[0] };
+    return map { $_->names() } @{ shift->{symbol_lists} };
 }
+
 sub is_hidden {
-    return map { $_->is_hidden() } @{ $_[0] };
+    return map { $_->is_hidden() } @{ shift->{symbol_lists } };
 }
 
 sub hidden_set {
-     $_->hidden_set() for @ { $_[0] };
+    $_->hidden_set() for @{ shift->{symbol_lists} };
 }
 
+sub is_lexical { shift->{is_lexical} // 0 }
+sub lexical_set { shift->{is_lexical} = 1; }
+
 sub mask {
-    return map { $_ ? 0 : 1 } map { $_->is_hidden() } @{ $_[0] };
+    return
+        map { $_ ? 0 : 1 } map { $_->is_hidden() } @{ shift->{symbol_lists} };
 }
 
 sub symbols {
-    return map { $_->symbols() } @{ $_[0] };
+    return map { $_->symbols() } @{ shift->{symbol_lists} };
 }
 
-package Marpa::R2::Internal::Stuifzand;
+# The "unflattened" list, which may contain other lists
+sub symbol_lists { return @{ shift->{symbol_lists} }; }
+
+
+package Marpa::R2::Inner::Scanless;
 
 use English qw( -no_match_vars );
-
-# Internal names end in ']' and are distinguished by prefix.
-#
-# Suffixed with '[prec%d]' --
-# a symbol created to implement precedence.
-# Suffix is removed to restore 'original'.
-#
-# Prefixed with '[[' -- a character class
-# These are their own 'original'.
-#
-# Prefixed with '[:' -- a reserved symbol, one which in the
-# grammars start with a colon.
-# These are their own 'original'.
-# The names tend to be suggested by the corresponding
-# symbols in Perl 6.  Among them:
-#     [:$] -- end of input
-#     [:|w] -- word boundary
-#
-# Of the form '[Lex-42]' - where for '42' any other
-# decimal number can be subsituted.  Anonymous lexicals.
-# These symbols are their own originals.
-#
-# Prefixed with '[SYMBOL#' - a unnamed internal symbol.
-# Seeing these
-# indicates some sort of internal error.  If seen,
-# they will be treated as their own original.
-# 
-# Suffixed with '[Sep]' indicates an internal version
-# of a sequence separator.  These are their own
-# original, because otherwise the "original" name
-# would conflict with the LHS of the sequence.
-# 
-# Suffixed with '[SeqLHS]' indicates an internal version
-# of the sequence LHS.  The "original" name is that
-# of the LHS of the sequence.
-
-# Undo any rewrite of the symbol name
-sub Marpa::R2::Grammar::original_symbol_name {
-   $_[0] =~ s/\[ prec \d+ \] \z//xms;
-   $_[0] =~ s/\[ SeqLHS \] \z//xms;
-   return shift;
-}
-
-# This rule is used by the semantics of the *GENERATED*
-# grammars, not the Stuifzand grammar itself.
-sub external_do_arg0 {
-   return $_[1];
-}
 
 sub do_rules {
     shift;
@@ -120,104 +128,59 @@ sub do_rules {
 
 sub do_start_rule {
     my ( $self, $rhs ) = @_;
-    # Always a '::=' rule
-    my $thick_grammar = $self->{thick_grammar};
-    die ':start not allowed unless grammar is scannerless'
-        if not $thick_grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS];
     my @ws      = ();
-    my @mask_kv = ();
-    my @rhs     = ();
-    my $ws_star = '[:ws*]';
-    $self->{needs_symbol}->{$ws_star} = 1;
-    my $end_of_input = '[:$]';
-    $self->{needs_symbol}->{$end_of_input} = 1;
-    push @ws, $ws_star;
-    @rhs = ( $ws_star, $rhs, $ws_star, $end_of_input );
-    push @mask_kv, mask => [ 0, 1, 0, 0 ];
-    return [ { lhs => '[:start]', rhs => \@rhs, @mask_kv } ];
+    my @rhs = ();
+    return [ { lhs => '[:start]', rhs => \@rhs } ];
 } ## end sub do_start_rule
 
 sub do_discard_rule {
     my ( $self, $rhs ) = @_;
-    my $thick_grammar = $self->{thick_grammar};
-    die ':discard not allowed unless grammar is scannerless'
-        if not $thick_grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS];
-    $self->{needs_symbol}->{'[:Space]'} = 1;
-    return [ { lhs => '[:Space]', rhs => [$rhs->name()], mask => [0] }, ];
+    local $GRAMMAR_LEVEL = 0;
+    my $normalized_rhs = $self->normalize($rhs);
+    push @{$self->{lex_rules}}, { lhs => '[:discard]', rhs => [$normalized_rhs->name()], mask => [0] };
+    return [];
 } ## end sub do_discard_rule
 
-# From least to most restrictive
-my @ws_by_rank = qw( [:ws*] [:ws] [:ws+] );
-my %rank_by_ws = map { $ws_by_rank[$_] => $_ } 0 .. $#ws_by_rank;
-
-sub add_ws_to_alternative {
-    my ( $self, $alternative ) = @_;
-    my ( $rhs,  $adverb_list ) = @{$alternative};
-    state $default_ws_symbol =
-        create_hidden_internal_symbol( $self, '[:ws]' );
-
-    # Do not add initial whitespace
-    my $slot_for_ws = 0;
-    my @new_symbols = ();
-    SYMBOL: for my $symbol ( $rhs->symbols() ) {
-        my $symbol_name = $symbol->name();
-        if ( defined $rank_by_ws{$symbol_name} ) {
-            push @new_symbols, $symbol;
-            $slot_for_ws = 0;    # already has ws in this slot
-            next SYMBOL;
-        }
-        if ($slot_for_ws) {
-            ## Not a whitespace symbol, but this is a slot
-            ## for whitespace, so add it
-            push @new_symbols, $default_ws_symbol;
-        }
-        push @new_symbols, $symbol;
-        $slot_for_ws = $symbol->{ws_after_ok} // 1;
-    } ## end SYMBOL: for my $symbol ( $rhs->symbols() )
-    $alternative->[0] =
-        Marpa::R2::Internal::Stuifzand::Symbol_List->new(@new_symbols);
-    return $alternative;
-} ## end sub add_ws_to_alternative
+# "Normalize" a symbol list, creating subrules as needed
+# for lexicalization.
+sub normalize {
+    my ( $self, $symbols ) = @_;
+    return $symbols if $GRAMMAR_LEVEL <= 0;
+    return Marpa::R2::Inner::Scanless::Symbol_List->new(
+        map { $_->is_symbol() ? $_ : $self->normalize($_) } $symbols->symbol_lists() )
+        if not $symbols->is_lexical();
+    my $lexical_lhs_index = $self->{lexical_lhs_index}++;
+    my $lexical_lhs       = "[Lex-$lexical_lhs_index]";
+    my %lexical_rule      = (
+        lhs  => $lexical_lhs,
+        rhs  => [ $symbols->names() ],
+        mask => [ $symbols->mask() ]
+    );
+    push @{ $self->{lex_rules} }, \%lexical_rule;
+    return Marpa::R2::Inner::Scanless::Symbol->new($lexical_lhs);
+} ## end sub normalize
 
 sub do_priority_rule {
     my ( $self, $lhs, $op_declare, $priorities ) = @_;
-    my $thick_grammar = $self->{thick_grammar};
-    my $add_ws = $thick_grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS]
-        && $op_declare eq q{::=};
     my $priority_count = scalar @{$priorities};
-    my @rules          = ();
-    my @xs_rules = ();
+    my @working_rules          = ();
 
-    ## First check for consecutive whitespace specials
-    RHS: for my $rhs ( map { $_->[0] } map { @{$_} } @{$priorities} ) {
-        my @rhs_names = $rhs->names();
-        my $penult    = $#rhs_names - 1;
-        next RHS if $penult < 0;
-        for my $rhs_ix ( 0 .. $penult ) {
-            if (   defined $rank_by_ws{ $rhs_names[$rhs_ix] }
-                && defined $rank_by_ws{ $rhs_names[ $rhs_ix + 1 ] } )
-            {
-                die
-                    "Two consecutive whitespace special symbols were found in a RHS:\n",
-                    q{  }, ( join q{ }, $lhs, $op_declare, $rhs->names() ),
-                    "\n",
-                    "  Consecutive whitespace specials are confusing and are not allowed\n";
-            } ## end if ( defined $rank_by_ws{ $rhs_names[$rhs_ix] } && ...)
-        } ## end for my $rhs_ix ( 0 .. $penult )
-    } ## end for my $rhs ( map { $_->[0] } map { @{$_} } @{$priorities...})
+    my @xs_rules = ();
+    my $rules = $op_declare eq q{::=} ? \@xs_rules : $self->{lex_rules};
+    local $GRAMMAR_LEVEL = 0 if not $op_declare eq q{::=};
 
     if ( $priority_count <= 1 ) {
         ## If there is only one priority
         for my $alternative ( @{ $priorities->[0] } ) {
-            add_ws_to_alternative($self, $alternative) if $add_ws;
             my ( $rhs, $adverb_list ) = @{$alternative};
+            $rhs = $self->normalize( $rhs);
             my @rhs_names = $rhs->names();
             my @mask      = $rhs->mask();
             my %hash_rule =
                 ( lhs => $lhs, rhs => \@rhs_names, mask => \@mask );
             my $action = $adverb_list->{action};
             $hash_rule{action} = $action if defined $action;
-            push @xs_rules, \%hash_rule;
+            push @{$rules}, \%hash_rule;
         } ## end for my $alternative ( @{ $priorities->[0] } )
         return [@xs_rules];
     }
@@ -225,8 +188,7 @@ sub do_priority_rule {
     for my $priority_ix ( 0 .. $priority_count - 1 ) {
         my $priority = $priority_count - ( $priority_ix + 1 );
         for my $alternative ( @{ $priorities->[$priority_ix] } ) {
-            add_ws_to_alternative($self, $alternative) if $add_ws;
-            push @rules, [ $priority, @{$alternative} ];
+            push @working_rules, [ $priority, @{$alternative} ];
         }
     } ## end for my $priority_ix ( 0 .. $priority_count - 1 )
 
@@ -246,8 +208,9 @@ sub do_priority_rule {
             } 1 .. $priority_count - 1
         )
     );
-    RULE: for my $rule (@rules) {
-        my ( $priority, $rhs, $adverb_list ) = @{$rule};
+    RULE: for my $working_rule (@working_rules) {
+        my ( $priority, $rhs, $adverb_list ) = @{$working_rule};
+        $rhs = $self->normalize($rhs);
         my $assoc = $adverb_list->{assoc} // 'L';
         my @new_rhs = $rhs->names();
         my @arity   = grep { $new_rhs[$_] eq $lhs } 0 .. $#new_rhs;
@@ -266,7 +229,7 @@ sub do_priority_rule {
 
         if ( not scalar @arity ) {
             $new_xs_rule{rhs} = \@new_rhs;
-            push @xs_rules, \%new_xs_rule;
+            push @{$rules}, \%new_xs_rule;
             next RULE;
         }
 
@@ -299,21 +262,26 @@ sub do_priority_rule {
         } ## end DO_ASSOCIATION:
 
         $new_xs_rule{rhs} = \@new_rhs;
-        push @xs_rules, \%new_xs_rule;
+        push @{$rules}, \%new_xs_rule;
     } ## end RULE: for my $rule (@rules)
     return [@xs_rules];
 } ## end sub do_priority_rule
 
 sub do_empty_rule {
-    my ( undef, $lhs, undef, $adverb_list ) = @_;
+    my ( $self, $lhs, $op_declare, $adverb_list ) = @_;
     my $action = $adverb_list->{action};
     # mask not needed
-    return [ { lhs => $lhs, rhs => [], defined($action) ? (action => $action) : () } ];
+    my %rule = ( lhs => $lhs, rhs => []);
+    $rule{action} = $action if defined $action;
+    if ($op_declare eq q{::=}) {
+         return \%rule;
+    }
+    push @{$self->{lex_rules}}, \%rule;
+    return [];
 }
 
 sub do_quantified_rule {
     my ( $self, $lhs, $op_declare, $rhs, $quantifier, $adverb_list ) = @_;
-    my $thick_grammar = $self->{thick_grammar};
 
     # Some properties of the sequence rule will not be altered
     # no matter how complicated this gets
@@ -326,75 +294,27 @@ sub do_quantified_rule {
     my @rules = ( \%sequence_rule );
 
     my $original_separator = $adverb_list->{separator};
-    if ( $op_declare ne q{::=}
-        or not $thick_grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS] )
-    {
-        # mask not needed
-        $sequence_rule{lhs}       = $lhs;
-        $sequence_rule{separator} = $original_separator
-            if defined $original_separator;
-        my $proper = $adverb_list->{proper};
-        $sequence_rule{proper} = $proper if defined $proper;
-        return \@rules;
-    } ## end if ( $op_declare ne q{::=} or not $thick_grammar->[...])
 
-    # If here, we are adding whitespace
-
-    state $do_arg0_full_name = __PACKAGE__ . q{::} . 'external_do_arg0';
-    state $default_ws_symbol =
-        create_hidden_internal_symbol( $self, '[:ws]' );
-    my $new_separator = $lhs . '[Sep]';
-    my @separator_rhs = ('[:ws]');
-    push @separator_rhs, $original_separator, '[:ws]'
+    # mask not needed
+    $sequence_rule{lhs}       = $lhs;
+    $sequence_rule{separator} = $original_separator
         if defined $original_separator;
-    my %separator_rule = (
-        lhs    => $new_separator,
-        rhs    => \@separator_rhs,
-        mask   => [ (0) x scalar @separator_rhs ],
-        action => '::whatever'
-    );
-    push @rules, \%separator_rule;
+    my $proper = $adverb_list->{proper};
+    $sequence_rule{proper} = $proper if defined $proper;
 
-    # With the new separator,
-    # we know a few more things about the sequence rule
-    $sequence_rule{proper}    = 1;
-    $sequence_rule{separator} = $new_separator;
-
-    if ( not defined $original_separator || $adverb_list->{proper} ) {
-
-        # If originally no separator or proper separation,
-        # we are pretty much done
-        $sequence_rule{lhs} = $lhs;
+    if ($op_declare eq q{::=}) {
         return \@rules;
-    } ## end if ( not defined $original_separator || $adverb_list...)
-
-    ## If here, Perl separation
-    ## We need two more rules and a new LHS for the
-    ## sequence rule
-    my $sequence_lhs = $lhs . '[SeqLHS]';
-    $sequence_rule{lhs} = $sequence_lhs;
-    push @rules,
-        {
-        lhs    => $lhs,
-        rhs    => [$sequence_lhs],
-        action => $do_arg0_full_name,
-        mask => [1]
-        },
-        {
-        lhs    => $lhs,
-        rhs    => [ $sequence_lhs, '[:ws]', $original_separator ],
-        mask   => [ 1, 0, 0 ],
-        action => $do_arg0_full_name,
-        };
-
-    return \@rules;
+    } else {
+       push @{$self->{lex_rules}}, @rules;
+       return [];
+    }
 
 } ## end sub do_quantified_rule
 
 sub create_hidden_internal_symbol {
     my ($self, $symbol_name) = @_;
     $self->{needs_symbol}->{$symbol_name} = 1;
-    my $symbol = Marpa::R2::Internal::Stuifzand::Symbol->new($symbol_name);
+    my $symbol = Marpa::R2::Inner::Scanless::Symbol->new($symbol_name);
     $symbol->hidden_set();
     return $symbol;
 }
@@ -430,7 +350,7 @@ sub do_any {
 sub do_end_of_input {
     my $self = shift;
     return $self->{end_of_input_symbol} //=
-        Marpa::R2::Internal::Stuifzand::Symbol->new('[:$]');
+        Marpa::R2::Inner::Scanless::Symbol->new('[:$]');
 }
 
 sub do_ws { return create_hidden_internal_symbol($_[0], '[:ws]') }
@@ -439,20 +359,21 @@ sub do_ws_plus { return create_hidden_internal_symbol($_[0], '[:ws+]') }
 
 sub do_symbol {
     shift;
-    return Marpa::R2::Internal::Stuifzand::Symbol->new( $_[0] );
+    return Marpa::R2::Inner::Scanless::Symbol->new( $_[0] );
 }
 
 sub do_character_class {
     my ( $self, $char_class ) = @_;
-    return assign_symbol_by_char_class($self, $char_class);
+    my $symbol = assign_symbol_by_char_class($self, $char_class);
+    $symbol->lexical_set();
+    return $symbol;
 } ## end sub do_character_class
 
-sub do_symbol_list { shift; return Marpa::R2::Internal::Stuifzand::Symbol_List->new(@_) }
+sub do_symbol_list { shift; return Marpa::R2::Inner::Scanless::Symbol_List->new(@_) }
 sub do_lhs { shift; return $_[0]; }
 sub do_rhs {
     shift;
-    return Marpa::R2::Internal::Stuifzand::Symbol_List->new(
-        map { $_->symbols() } @_ );
+    return Marpa::R2::Inner::Scanless::Symbol_List->new( @_ );
 }
 sub do_adverb_list { shift; return { map {; @{$_}} @_ } }
 
@@ -477,8 +398,8 @@ sub do_single_quoted_string {
         push @symbols, $symbol;
     }
     $symbol->{ws_after_ok} = 1; # OK to add WS after last symbol
-    my $list = Marpa::R2::Internal::Stuifzand::Symbol_List->new(@symbols);
-    $list->hidden_set();
+    my $list = Marpa::R2::Inner::Scanless::Symbol_List->new(@symbols);
+    $list->lexical_set();
     return $list;
 }
 
@@ -561,7 +482,7 @@ sub input_slice {
     return substr $input, $start_position, $length;
 } ## end sub input_slice
 
-sub stuifzand_grammar {
+sub scanless_grammar {
     my $grammar = Marpa::R2::Thin::G->new( { if => 1 } );
     my $tracer = Marpa::R2::Thin::Trace->new($grammar);
 
@@ -569,7 +490,7 @@ my @mask_by_rule_id;
 my $rule_id;
 
 ## The code after this line was automatically generated by aoh_to_thin.pl
-## Date: Sat Dec 15 08:44:20 2012
+## Date: Sat Dec 15 08:46:40 2012
 $rule_id = $tracer->rule_new(
     "do_action" => "action",
     "kw_action", "op_arrow", "action_name"
@@ -749,7 +670,7 @@ $mask_by_rule_id[$rule_id] = [1];
     $grammar->start_symbol_set( $tracer->symbol_by_name('rules') );
     $grammar->precompute();
     return {tracer => $tracer, mask_by_rule_id => \@mask_by_rule_id };
-} ## end sub stuifzand_grammar
+} ## end sub scanless_grammar
 
 # 1-based numbering matches vi convention
 sub line_column {
@@ -789,17 +710,116 @@ sub last_rule {
             // 'No rule was completed';
 }
 
-sub parse_rules {
-    my ($thick_grammar, $string) = @_;
+
+my %grammar_options = map { $_, 1 } qw{
+    action_object
+    default_action
+    source
+    trace_file_handle
+};
+
+    # Other possible grammar options:
+    # actions
+    # default_empty_action
+    # default_rank
+    # inaccessible_ok
+    # symbols
+    # terminals
+    # unproductive_ok
+    # warnings
+
+sub Marpa::R2::Scanless::G::new {
+    my ( $class, $args ) = @_;
+
+    my $self = [];
+    bless $self, $class;
+
+    $self->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE] = *STDERR;
+
+    my $ref_type = ref $args;
+    if ( not $ref_type ) {
+        Carp::croak(
+            '$G_PACKAGE expects args as ref to HASH; arg was non-reference');
+    }
+    if ( $ref_type ne 'HASH' ) {
+        Carp::croak(
+            "$G_PACKAGE expects args as ref to HASH, got ref to $ref_type instead"
+        );
+    }
+    if (my @bad_options =
+        grep { not defined $grammar_options{$_} } keys %{$args}
+        )
+    {
+        Carp::croak(
+            "$G_PACKAGE does not know some of option(s) given to it:\n",
+            "   The option(s) not recognized were ",
+            ( join q{ }, map { q{"} . $_ . q{"} } @bad_options ),
+            "\n"
+        );
+    } ## end if ( my @bad_options = grep { not defined $grammar_options...})
+
+    if ( defined( my $value = $args->{'trace_file_handle'} ) ) {
+        $self->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE] = $value;
+    }
+
+    if ( defined( my $value = $args->{'action_object'} ) ) {
+        $self->[Marpa::R2::Inner::Scanless::G::ACTION_OBJECT] = $value;
+    }
+
+    if ( defined( my $value = $args->{'default_action'} ) ) {
+        $self->[Marpa::R2::Inner::Scanless::G::DEFAULT_ACTION] = $value;
+    }
+
+    my $rules_source = $args->{'source'};
+    if ( not defined $rules_source ) {
+        Marpa::R2::exception(
+            'Marpa::R2::Scanless::G::new() called without a "source" argument'
+        );
+    }
+
+    $ref_type = ref $rules_source;
+    if ( $ref_type ne 'SCALAR' ) {
+        Marpa::R2::exception(
+            qq{Marpa::R2::Scanless::G::new() type of "source" argument is "$ref_type"},
+            "  It must be a ref to a string\n"
+        );
+    } ## end if ( $ref_type ne 'SCALAR' )
+    my $compiled_source = rules_add( $self, $rules_source );
+    # die Data::Dumper::Dumper($compiled_rules);
+
+    my %lex_args = ();
+    $lex_args{$_} = $args->{$_}
+        for qw( action_object default_action trace_file_handle );
+    $lex_args{rules} = $compiled_source->{lex_rules};
+    $lex_args{start} = '[:start_lex]';
+    $lex_args{'_internal_'} = 1;
+    my $lex_grammar = Marpa::R2::Grammar->new( \%lex_args );
+    $self->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR] = $lex_grammar;
+    $self->[Marpa::R2::Inner::Scanless::G::CHARACTER_CLASSES] = $compiled_source->{character_classes};
+    $lex_grammar->precompute();
+    return $self;
+
+} ## end sub Marpa::R2::Scanless::G::new
+
+sub rules_add {
+    my ( $self, $p_rules_source ) = @_;
+
+    local $GRAMMAR_LEVEL = 1;
+    my $inner_self = bless {
+        self              => $self,
+        lex_rules         => [],
+        lexical_lhs_index => 0,
+        },
+        __PACKAGE__;
 
     # Track earley set positions in input,
     # for debuggging
     my @positions = (0);
 
-    state $stuifzand_grammar = stuifzand_grammar();
-    state $tracer            = $stuifzand_grammar->{tracer};
-    state $mask_by_rule_id            = $stuifzand_grammar->{mask_by_rule_id};
-    state $thin_grammar      = $tracer->grammar();
+    state $scanless_grammar = scanless_grammar();
+    state $tracer           = $scanless_grammar->{tracer};
+    state $mask_by_rule_id  = $scanless_grammar->{mask_by_rule_id};
+    state $thin_grammar     = $tracer->grammar();
     my $recce = Marpa::R2::Thin::R->new($thin_grammar);
     $recce->start_input();
     $recce->ruby_slippers_set(1);
@@ -815,9 +835,12 @@ sub parse_rules {
         0 .. $thin_grammar->highest_rule_id() )
     {
         my ( $lhs, @rhs ) = $tracer->rule($rule_id);
-        next RULE if Marpa::R2::Grammar::original_symbol_name($lhs) ne 'reserved_word';
+        next RULE
+            if Marpa::R2::Grammar::original_symbol_name($lhs) ne
+                'reserved_word';
         next RULE if scalar @rhs != 1;
-        my $reserved_word = Marpa::R2::Grammar::original_symbol_name( $rhs[0] );
+        my $reserved_word =
+            Marpa::R2::Grammar::original_symbol_name( $rhs[0] );
         next RULE if 'kw_' ne substr $reserved_word, 0, 3;
         $reserved_word = substr $reserved_word, 3;
         push @terminals,
@@ -828,16 +851,24 @@ sub parse_rules {
             ];
     } ## end for my $rule_id ( grep { $thin_grammar->rule_length($_...)})
     push @terminals,
-        [ 'kw__start', qr/ [:] start \b /xms,    ':start reserved symbol' ],
-        [ 'kw__discard', qr/ [:] discard \b /xms,    ':discard reserved symbol' ],
+        [ 'kw__start', qr/ [:] start \b /xms, ':start reserved symbol' ],
+        [ 'kw__discard', qr/ [:] discard \b /xms,
+        ':discard reserved symbol' ],
         [ 'kw__ws_plus', qr/ [:] ws [+] /xms,    ':ws+ reserved symbol' ],
         [ 'kw__ws_star', qr/ [:] ws [*] /xms,    ':ws* reserved symbol' ],
-        [ 'kw__ws', qr/ [:] ws \b/xms,    ':ws reserved symbol' ],
-        [ 'kw__default', qr/ [:] default \b/xms,    ':default reserved symbol' ],
-        [ 'kw__any', qr/ [:] any \b/xms,    ':any reserved symbol' ],
-        [ 'kw__end_of_input', qr/ [:] [\$] /xms,    q{':$': end_of_input reserved symbol} ],
-        [ 'op_declare_bnf', qr/::=/xms,    'BNF declaration operator (ws)' ],
-        [ 'op_declare_match', qr/[~]/xms,    'match declaration operator (no ws)' ],
+        [ 'kw__ws',      qr/ [:] ws \b/xms,      ':ws reserved symbol' ],
+        [ 'kw__default', qr/ [:] default \b/xms, ':default reserved symbol' ],
+        [ 'kw__any',     qr/ [:] any \b/xms,     ':any reserved symbol' ],
+        [
+        'kw__end_of_input',
+        qr/ [:] [\$] /xms,
+        q{':$': end_of_input reserved symbol}
+        ],
+        [ 'op_declare_bnf', qr/::=/xms, 'BNF declaration operator (ws)' ],
+        [
+        'op_declare_match', qr/[~]/xms,
+        'match declaration operator (no ws)'
+        ],
         [ 'op_arrow',   qr/=>/xms,     'adverb operator' ],
         [ 'op_lparen',  qr/[(]/xms,    'left parenthesis' ],
         [ 'op_rparen',  qr/[)]/xms,    'right parenthesis' ],
@@ -847,64 +878,73 @@ sub parse_rules {
         [ 'op_star',    qr/[*]/xms,    'star quantification operator' ],
         [ 'boolean',    qr/[01]/xms ],
         [ 'bare_name',  qr/\w+/xms, ],
-        [ 'bracketed_name', qr/ [<] [\s\w]+ [>] /xms, ],
+        [ 'bracketed_name',       qr/ [<] [\s\w]+ [>] /xms, ],
         [ 'reserved_action_name', qr/(::(whatever|undef))/xms ],
         ## no escaping or internal newlines, and disallow empty string
-        [ 'single_quoted_string', qr/ ['] [^'\x{0A}\x{0B}\x{0C}\x{0D}\x{0085}\x{2028}\x{2029}]+ ['] /xms ],
-        [ 'character_class', qr/ (?: (?: \[) (?: [^\\\[]* (?: \\. [^\\\]]* )* ) (?: \]) ) /xms,
-            'character class' ],
+        [
+        'single_quoted_string',
+        qr/ ['] [^'\x{0A}\x{0B}\x{0C}\x{0D}\x{0085}\x{2028}\x{2029}]+ ['] /xms
+        ],
+        [
+        'character_class',
+        qr/ (?: (?: \[) (?: [^\\\[]* (?: \\. [^\\\]]* )* ) (?: \]) ) /xms,
+        'character class'
+        ],
         ;
 
-    my $length = length $string;
-    pos $string = 0;
+    my $rules_source = ${$p_rules_source};
+    my $length       = length $rules_source;
+    pos $rules_source = 0;
     my $latest_earley_set_ID = 0;
-    TOKEN: while ( pos $string < $length ) {
+    TOKEN: while ( pos $rules_source < $length ) {
 
         # skip comment
-        next TOKEN if $string =~ m/\G \s* [#] [^\n]* \n/gcxms;
+        next TOKEN if $rules_source =~ m/\G \s* [#] [^\n]* \n/gcxms;
 
         # skip whitespace
-        next TOKEN if $string =~ m/\G\s+/gcxms;
+        next TOKEN if $rules_source =~ m/\G\s+/gcxms;
 
         # read other tokens
         TOKEN_TYPE: for my $t (@terminals) {
-            next TOKEN_TYPE if not $string =~ m/\G($t->[1])/gcxms;
+            next TOKEN_TYPE if not $rules_source =~ m/\G($t->[1])/gcxms;
             my $value_number = -1 + push @token_values, $1;
-            my $string_position = pos $string;
+            my $rules_source_position = pos $rules_source;
             if ($recce->alternative( $tracer->symbol_by_name( $t->[0] ),
                     $value_number, 1 ) != $Marpa::R2::Error::NONE
                 )
             {
                 my $problem_position = $positions[-1];
                 my ( $line, $column ) =
-                    line_column( $string, $problem_position );
+                    line_column( $rules_source, $problem_position );
                 die qq{MARPA PARSE ABEND at line $line, column $column:\n},
                     qq{=== Last rule that Marpa successfully parsed was: },
-                    last_rule( $tracer, $recce, $string, \@positions ), "\n",
-                    problem_happened_here($string, $problem_position),
-                    qq{=== Marpa rejected token, "$1", }, ( $t->[2] // $t->[0] ), "\n";
+                    last_rule( $tracer, $recce, $rules_source, \@positions ),
+                    "\n",
+                    problem_happened_here( $rules_source, $problem_position ),
+                    qq{=== Marpa rejected token, "$1", },
+                    ( $t->[2] // $t->[0] ), "\n";
             } ## end if ( $recce->alternative( $tracer->symbol_by_name( $t...)))
             $recce->earleme_complete();
             $latest_earley_set_ID = $recce->latest_earley_set();
-            $positions[$latest_earley_set_ID] = $string_position;
+            $positions[$latest_earley_set_ID] = $rules_source_position;
             next TOKEN;
         } ## end TOKEN_TYPE: for my $t (@terminals)
 
-        die q{No token at "}, ( substr $string, pos $string, 40 ),
-            q{", position }, pos $string, "\n";
-    } ## end TOKEN: while ( pos $string < $length )
+        die q{No token at "}, ( substr $rules_source, pos $rules_source, 40 ),
+            q{", position }, pos $rules_source, "\n";
+    } ## end TOKEN: while ( pos $rules_source < $length )
 
     $thin_grammar->throw_set(0);
-    my $bocage        = Marpa::R2::Thin::B->new( $recce, $latest_earley_set_ID );
+    my $bocage = Marpa::R2::Thin::B->new( $recce, $latest_earley_set_ID );
     $thin_grammar->throw_set(1);
     if ( !defined $bocage ) {
         die qq{Last rule successfully parsed was: },
-            last_rule( $tracer, $recce, $string, \@positions ),
+            last_rule( $tracer, $recce, $rules_source, \@positions ),
             'Parse failed';
-    } ## end if ( !defined $bocage )
+    }
 
-    my $order         = Marpa::R2::Thin::O->new($bocage);
-    my $tree          = Marpa::R2::Thin::T->new($order);
+    my $order = Marpa::R2::Thin::O->new($bocage);
+    my $tree  = Marpa::R2::Thin::T->new($order);
     $tree->next();
     my $valuator = Marpa::R2::Thin::V->new($tree);
     my @actions_by_rule_id;
@@ -913,10 +953,7 @@ sub parse_rules {
     {
         $valuator->rule_is_valued_set( $rule_id, 1 );
         $actions_by_rule_id[$rule_id] = $tracer->action($rule_id);
-    }
-
-    # The parse result object
-    my $self = { thick_grammar => $thick_grammar };
+    } ## end for my $rule_id ( grep { $thin_grammar->rule_length($_...)})
 
     my @stack = ();
     STEP: while (1) {
@@ -930,11 +967,11 @@ sub parse_rules {
         if ( $type eq 'MARPA_STEP_RULE' ) {
             my ( $rule_id, $arg_0, $arg_n ) = @step_data;
 
-                my @args = @stack[ $arg_0 .. $arg_n ];
-                if ( not defined $thin_grammar->sequence_min($rule_id) ) {
-                    my $mask = $mask_by_rule_id->[$rule_id];
-                    @args = @args[ grep { $mask->[$_] } 0 .. $#args ];
-                }
+            my @args = @stack[ $arg_0 .. $arg_n ];
+            if ( not defined $thin_grammar->sequence_min($rule_id) ) {
+                my $mask = $mask_by_rule_id->[$rule_id];
+                @args = @args[ grep { $mask->[$_] } 0 .. $#args ];
+            }
 
             my $action = $actions_by_rule_id[$rule_id];
             if ( not defined $action ) {
@@ -944,12 +981,11 @@ sub parse_rules {
             }
             my $hashed_closure = $hashed_closures{$action};
             if ( defined $hashed_closure ) {
-                $stack[$arg_0] =
-                    $hashed_closure->( $self, @args );
+                $stack[$arg_0] = $hashed_closure->( $inner_self, @args );
                 next STEP;
             }
             if ( $action eq 'do_alternative' ) {
-                $stack[$arg_0] = [ @args ];
+                $stack[$arg_0] = [@args];
                 next STEP;
             }
             if ( $action eq 'do_bracketed_name' ) {
@@ -960,7 +996,7 @@ sub parse_rules {
                 next STEP;
             }
             if ( $action eq 'do_array' ) {
-                $stack[$arg_0] = [ @args ];
+                $stack[$arg_0] = [@args];
                 next STEP;
             }
             if ( $action eq 'do_discard_separators' ) {
@@ -996,7 +1032,7 @@ sub parse_rules {
                 $stack[$arg_0] = [ proper => $args[0] ];
                 next STEP;
             }
-            die 'Internal error: Unknown action in Stuifzand grammar: ',
+            die 'Internal error: Unknown action in Scanless grammar: ',
                 $action;
         } ## end if ( $type eq 'MARPA_STEP_RULE' )
         if ( $type eq 'MARPA_STEP_NULLING_SYMBOL' ) {
@@ -1007,13 +1043,14 @@ sub parse_rules {
         die "Unexpected step type: $type";
     } ## end STEP: while (1)
 
-    my $rules = $self->{rules} = $stack[0];
+    my $g1_rules = $inner_self->{g1_rules} = $stack[0];
+    my $lex_rules = $inner_self->{lex_rules};
 
     my @ws_rules = ();
-    if ( defined $self->{needs_symbol} ) {
-        my %needed = %{ $self->{needs_symbol} };
+    if ( defined $inner_self->{needs_symbol} ) {
+        my %needed = %{ $inner_self->{needs_symbol} };
         my %seen   = ();
-        undef $self->{needs_symbol};
+        undef $inner_self->{needs_symbol};
         NEEDED_SYMBOL_LOOP: while (1) {
             my @needed_symbols =
                 sort grep { !$seen{$_} } keys %needed;
@@ -1041,39 +1078,199 @@ sub parse_rules {
                     next SYMBOL;
                 } ## end if ( $needed_symbol eq '[:ws*]' )
                 if ( $needed_symbol eq '[:ws]' ) {
-                    push @{ws_rules}, { lhs => '[:ws]', rhs => ['[:ws+]'], mask => [0] };
-                    push @{ws_rules}, { lhs => '[:ws]', rhs => ['[:|w]'], mask => [0] };
+                    push @{ws_rules},
+                        { lhs => '[:ws]', rhs => ['[:ws+]'],  };
                     $needed{'[:ws+]'} = 1;
                     next SYMBOL;
                 } ## end if ( $needed_symbol eq '[:ws]' )
                 if ( $needed_symbol eq '[:Space]' ) {
-                    my $true_ws = assign_symbol_by_char_class( $self,
+                    my $true_ws = assign_symbol_by_char_class( $inner_self,
                         '[\p{White_Space}]' );
                     push @{ws_rules},
                         {
                         lhs  => '[:Space]',
                         rhs  => [ $true_ws->name() ],
-                        mask => [0]
                         };
                 } ## end if ( $needed_symbol eq '[:Space]' )
             } ## end SYMBOL: for my $needed_symbol (@needed_symbols)
         } ## end NEEDED_SYMBOL_LOOP: while (1)
-    } ## end if ( defined $self->{needs_symbol} )
+    } ## end if ( defined $inner_self->{needs_symbol} )
 
-    push @{$rules}, @ws_rules;
+    push @{$g1_rules}, @ws_rules;
 
-    $self->{rules} = $rules;
-    my $raw_cc      = $self->{character_classes};
+    $inner_self->{g1_rules}  = $g1_rules;
+    $inner_self->{lex_rules} = $lex_rules;
+    my %lex_lhs = ();
+    my %lex_rhs = ();
+    for my $lex_rule (@{$lex_rules}) {
+        $lex_lhs{$lex_rule->{lhs}} = 1;
+        $lex_rhs{$_} = 1 for @{$lex_rule->{rhs}};
+    }
+
+    my %lexemes = map { $_ => 1 } grep { not $lex_rhs{$_}} keys %lex_lhs;
+    my @unproductive = grep { not $lex_lhs{$_} and not $_ =~ /\A \[\[ /xms } keys %lex_rhs;
+    if (@unproductive) {
+        Marpa::R2::exception("Unproductive lexical symbols: ", join q{ }, @unproductive);
+    }
+    push @{ $inner_self->{lex_rules} },
+        map { ; { lhs => '[:start_lex]', rhs => [$_] } } keys %lexemes;
+
+    my $raw_cc = $inner_self->{character_classes};
     if ( defined $raw_cc ) {
         my $stripped_cc = {};
         for my $symbol_name ( keys %{$raw_cc} ) {
             my ($re) = @{ $raw_cc->{$symbol_name} };
             $stripped_cc->{$symbol_name} = $re;
         }
-        $self->{character_classes} = $stripped_cc;
+        $inner_self->{character_classes} = $stripped_cc;
     } ## end if ( defined $raw_cc )
+    return $inner_self;
+} ## end sub rules_add
+
+sub Marpa::R2::Scanless::R::new {
+    my ( $class, $args ) = @_;
+
+    my $self = [];
+    bless $self, $class;
+
+    my $grammar = $args->{grammar};
+    if ( not defined $grammar ) {
+        Marpa::R2::exception(
+            'Marpa::R2::Scanless::R::new() called without a "grammar" argument'
+        );
+    }
+    $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR] = $grammar;
+    my $thick_lex_grammar = $grammar->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR];
+    my $lex_tracer = $thick_lex_grammar->tracer();
+    my $thin_lex_grammar       = $lex_tracer->grammar();
+    my $lex_r       = $self->[Marpa::R2::Inner::Scanless::R::LEX_R] =
+        Marpa::R2::Thin::R->new($thin_lex_grammar);
+    my $stream = $self->[Marpa::R2::Inner::Scanless::R::STREAM] =
+        Marpa::R2::Thin::U->new($lex_r);
     return $self;
-} ## end sub parse_rules
+} ## end sub Marpa::R2::Scanless::R::new
+
+sub Marpa::R2::Scanless::R::read {
+     my ($self, $string) = @_;
+
+    my $stream  = $self->[Marpa::R2::Inner::Scanless::R::STREAM];
+    my $grammar  = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+    my $thick_lex_grammar  = $grammar->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR];
+    my $lex_tracer       = $thick_lex_grammar->tracer();
+    my $thin_lex_grammar  = $lex_tracer->grammar();
+
+    my $event_count;
+
+    my $class_table =
+        $grammar->[Marpa::R2::Inner::Scanless::G::CHARACTER_CLASSES];
+
+    $stream->string_set(\$string);
+    READ: {
+        state $op_alternative = Marpa::R2::Thin::U::op('alternative');
+        state $op_earleme_complete =
+            Marpa::R2::Thin::U::op('earleme_complete');
+        if ( not defined eval { $event_count = $stream->read(); 1 } ) {
+            my $problem_symbol = $stream->symbol_id();
+            my $symbol_desc =
+                $problem_symbol < 0
+                ? q{}
+                : "Problem was with symbol "
+                . $lex_tracer->symbol_name($problem_symbol);
+            die "Exception in stream read(): $EVAL_ERROR\n", $symbol_desc;
+        } ## end if ( not defined eval { $event_count = $stream->read...})
+        last READ if $event_count == 0;
+        if ( $event_count > 0 ) {
+            say STDERR
+                "Events occurred while parsing BNF grammar; these will be fatal errors\n",
+                "  Event count: $event_count";
+            for ( my $event_ix = 0; $event_ix < $event_count; $event_ix++ ) {
+                my ( $event_type, $value ) = $thin_lex_grammar->event($event_ix);
+                if ( $event_type eq 'MARPA_EVENT_EARLEY_ITEM_THRESHOLD' ) {
+                    say STDERR
+                        "Unexpected event: Earley item count ($value) exceeds warning threshold";
+                    next EVENT;
+                }
+                if ( $event_type eq 'MARPA_EVENT_SYMBOL_EXPECTED' ) {
+                    say STDERR "Unexpected event: $event_type ",
+                        $lex_tracer->symbol_name($value);
+                    next EVENT;
+                }
+                if ( $event_type eq 'MARPA_EVENT_EXHAUSTED' ) {
+                    say STDERR "Unexpected event: $event_type ";
+                    next EVENT;
+                }
+            } ## end for ( my $event_ix = 0; $event_ix < $event_count; ...)
+            die "Unexpected events when parsing BNF grammar, cannot proceed";
+        } ## end if ( $event_count > 0 )
+        if ( $event_count == -2 ) {
+
+            # Recover by registering character, if we can
+            my $codepoint = $stream->codepoint();
+            my @ops;
+            for my $entry ( @{$class_table} ) {
+                my ( $symbol_id, $re ) = @{$entry};
+                if ( chr($codepoint) =~ $re ) {
+                    # if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_SL] )
+                    if (0)
+                    {
+                        say {$Marpa::R2::Inner::Scanless::TRACE_FILE_HANDLE} "Registering character ",
+                            ( sprintf 'U+%04x', $codepoint ),
+                            " as symbol $symbol_id: ",
+                            $lex_tracer->symbol_name($symbol_id);
+                    } ## end if ( $recce->[...])
+                    push @ops, $op_alternative, $symbol_id, 0, 1;
+                } ## end if ( chr($codepoint) =~ $re )
+            } ## end for my $entry ( @{$class_table} )
+            die sprintf "Cannot read character U+%04x: %c\n", $codepoint,
+                $codepoint
+                if not @ops;
+            $stream->char_register( $codepoint, @ops, $op_earleme_complete );
+            redo READ;
+        } ## end if ( $event_count == -2 )
+    } ## end READ:
+
+    ## If we are here, recovery is a matter for the caller,
+    ## if it is possible at all
+    my $pos = $stream->pos();
+    my $desc;
+    DESC: {
+        if ( $event_count == -1 ) {
+            $desc = 'Character rejected';
+            last DESC;
+        }
+        if ( $event_count == -2 ) {
+            $desc = 'Unregistered character';
+            last DESC;
+        }
+        if ( $event_count == -3 ) {
+            $desc = 'Parse exhausted';
+            last DESC;
+        }
+    } ## end DESC:
+    my $char = substr $string, $pos, 1;
+    my $char_in_hex = sprintf '0x%04x', ord $char;
+    my $char_desc =
+          $char =~ m/[\p{PosixGraph}]/xms
+        ? $char
+        : '[non-graphic character]';
+    my $prefix =
+        $pos >= 72
+        ? ( substr $string, $pos - 72, 72 )
+        : ( substr $string, 0, $pos );
+
+    my $read_string_error =
+          "Error in string_read: $desc\n"
+        . "* Error was at string position: $pos, and at character $char_in_hex, '$char_desc'\n"
+        . "* String before error:\n"
+        . Marpa::R2::escape_string( $prefix, -72 ) . "\n"
+        . "* String after error:\n"
+        . Marpa::R2::escape_string( ( substr $string, $pos, 72 ), 72 ) . "\n";
+    Marpa::R2::exception($read_string_error) if $event_count == -3;
+
+    # Fall through to return undef
+    return;
+
+}
 
 1;
 
