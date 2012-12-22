@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.033_000';
+$VERSION        = '2.033_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -96,14 +96,10 @@ use English qw( -no_match_vars );
 # original, because otherwise the "original" name
 # would conflict with the LHS of the sequence.
 # 
-# Suffixed with '[SeqLHS]' indicates an internal version
-# of the sequence LHS.  The "original" name is that
-# of the LHS of the sequence.
 
 # Undo any rewrite of the symbol name
 sub Marpa::R2::Grammar::original_symbol_name {
    $_[0] =~ s/\[ prec \d+ \] \z//xms;
-   $_[0] =~ s/\[ SeqLHS \] \z//xms;
    return shift;
 }
 
@@ -120,96 +116,32 @@ sub do_rules {
 
 sub do_start_rule {
     my ( $self, $rhs ) = @_;
-    # Always a '::=' rule
-    my $thick_grammar = $self->{thick_grammar};
-    die ':start not allowed unless grammar is scannerless'
-        if not $thick_grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS];
-    my @ws      = ();
-    my @mask_kv = ();
-    my @rhs     = ();
-    my $ws_star = '[:ws*]';
-    $self->{needs_symbol}->{$ws_star} = 1;
-    my $end_of_input = '[:$]';
-    $self->{needs_symbol}->{$end_of_input} = 1;
-    push @ws, $ws_star;
-    @rhs = ( $ws_star, $rhs, $ws_star, $end_of_input );
-    push @mask_kv, mask => [ 0, 1, 0, 0 ];
-    return [ { lhs => '[:start]', rhs => \@rhs, @mask_kv } ];
+    my $do_arg0 = __PACKAGE__ . q{::} . 'external_do_arg0';
+    return [
+        {   lhs    => '[:start]',
+            rhs    => [ $rhs->names() ],
+            action => $do_arg0,
+            mask   => [1]
+        }
+    ];
 } ## end sub do_start_rule
 
 sub do_discard_rule {
     my ( $self, $rhs ) = @_;
     my $thick_grammar = $self->{thick_grammar};
-    die ':discard not allowed unless grammar is scannerless'
-        if not $thick_grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS];
-    $self->{needs_symbol}->{'[:Space]'} = 1;
-    return [ { lhs => '[:Space]', rhs => [$rhs->name()], mask => [0] }, ];
+    Marpa::R2::exception( ':discard not allowed unless grammar is scannerless');
 } ## end sub do_discard_rule
-
-# From least to most restrictive
-my @ws_by_rank = qw( [:ws*] [:ws] [:ws+] );
-my %rank_by_ws = map { $ws_by_rank[$_] => $_ } 0 .. $#ws_by_rank;
-
-sub add_ws_to_alternative {
-    my ( $self, $alternative ) = @_;
-    my ( $rhs,  $adverb_list ) = @{$alternative};
-    state $default_ws_symbol =
-        create_hidden_internal_symbol( $self, '[:ws]' );
-
-    # Do not add initial whitespace
-    my $slot_for_ws = 0;
-    my @new_symbols = ();
-    SYMBOL: for my $symbol ( $rhs->symbols() ) {
-        my $symbol_name = $symbol->name();
-        if ( defined $rank_by_ws{$symbol_name} ) {
-            push @new_symbols, $symbol;
-            $slot_for_ws = 0;    # already has ws in this slot
-            next SYMBOL;
-        }
-        if ($slot_for_ws) {
-            ## Not a whitespace symbol, but this is a slot
-            ## for whitespace, so add it
-            push @new_symbols, $default_ws_symbol;
-        }
-        push @new_symbols, $symbol;
-        $slot_for_ws = $symbol->{ws_after_ok} // 1;
-    } ## end SYMBOL: for my $symbol ( $rhs->symbols() )
-    $alternative->[0] =
-        Marpa::R2::Internal::Stuifzand::Symbol_List->new(@new_symbols);
-    return $alternative;
-} ## end sub add_ws_to_alternative
 
 sub do_priority_rule {
     my ( $self, $lhs, $op_declare, $priorities ) = @_;
     my $thick_grammar = $self->{thick_grammar};
-    my $add_ws = $thick_grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS]
-        && $op_declare eq q{::=};
     my $priority_count = scalar @{$priorities};
     my @rules          = ();
     my @xs_rules = ();
 
-    ## First check for consecutive whitespace specials
-    RHS: for my $rhs ( map { $_->[0] } map { @{$_} } @{$priorities} ) {
-        my @rhs_names = $rhs->names();
-        my $penult    = $#rhs_names - 1;
-        next RHS if $penult < 0;
-        for my $rhs_ix ( 0 .. $penult ) {
-            if (   defined $rank_by_ws{ $rhs_names[$rhs_ix] }
-                && defined $rank_by_ws{ $rhs_names[ $rhs_ix + 1 ] } )
-            {
-                die
-                    "Two consecutive whitespace special symbols were found in a RHS:\n",
-                    q{  }, ( join q{ }, $lhs, $op_declare, $rhs->names() ),
-                    "\n",
-                    "  Consecutive whitespace specials are confusing and are not allowed\n";
-            } ## end if ( defined $rank_by_ws{ $rhs_names[$rhs_ix] } && ...)
-        } ## end for my $rhs_ix ( 0 .. $penult )
-    } ## end for my $rhs ( map { $_->[0] } map { @{$_} } @{$priorities...})
-
     if ( $priority_count <= 1 ) {
         ## If there is only one priority
         for my $alternative ( @{ $priorities->[0] } ) {
-            add_ws_to_alternative($self, $alternative) if $add_ws;
             my ( $rhs, $adverb_list ) = @{$alternative};
             my @rhs_names = $rhs->names();
             my @mask      = $rhs->mask();
@@ -225,7 +157,6 @@ sub do_priority_rule {
     for my $priority_ix ( 0 .. $priority_count - 1 ) {
         my $priority = $priority_count - ( $priority_ix + 1 );
         for my $alternative ( @{ $priorities->[$priority_ix] } ) {
-            add_ws_to_alternative($self, $alternative) if $add_ws;
             push @rules, [ $priority, @{$alternative} ];
         }
     } ## end for my $priority_ix ( 0 .. $priority_count - 1 )
@@ -326,67 +257,13 @@ sub do_quantified_rule {
     my @rules = ( \%sequence_rule );
 
     my $original_separator = $adverb_list->{separator};
-    if ( $op_declare ne q{::=}
-        or not $thick_grammar->[Marpa::R2::Internal::Grammar::SCANNERLESS] )
-    {
-        # mask not needed
-        $sequence_rule{lhs}       = $lhs;
-        $sequence_rule{separator} = $original_separator
-            if defined $original_separator;
-        my $proper = $adverb_list->{proper};
-        $sequence_rule{proper} = $proper if defined $proper;
-        return \@rules;
-    } ## end if ( $op_declare ne q{::=} or not $thick_grammar->[...])
 
-    # If here, we are adding whitespace
-
-    state $do_arg0_full_name = __PACKAGE__ . q{::} . 'external_do_arg0';
-    state $default_ws_symbol =
-        create_hidden_internal_symbol( $self, '[:ws]' );
-    my $new_separator = $lhs . '[Sep]';
-    my @separator_rhs = ('[:ws]');
-    push @separator_rhs, $original_separator, '[:ws]'
+    # mask not needed
+    $sequence_rule{lhs}       = $lhs;
+    $sequence_rule{separator} = $original_separator
         if defined $original_separator;
-    my %separator_rule = (
-        lhs    => $new_separator,
-        rhs    => \@separator_rhs,
-        mask   => [ (0) x scalar @separator_rhs ],
-        action => '::whatever'
-    );
-    push @rules, \%separator_rule;
-
-    # With the new separator,
-    # we know a few more things about the sequence rule
-    $sequence_rule{proper}    = 1;
-    $sequence_rule{separator} = $new_separator;
-
-    if ( not defined $original_separator || $adverb_list->{proper} ) {
-
-        # If originally no separator or proper separation,
-        # we are pretty much done
-        $sequence_rule{lhs} = $lhs;
-        return \@rules;
-    } ## end if ( not defined $original_separator || $adverb_list...)
-
-    ## If here, Perl separation
-    ## We need two more rules and a new LHS for the
-    ## sequence rule
-    my $sequence_lhs = $lhs . '[SeqLHS]';
-    $sequence_rule{lhs} = $sequence_lhs;
-    push @rules,
-        {
-        lhs    => $lhs,
-        rhs    => [$sequence_lhs],
-        action => $do_arg0_full_name,
-        mask => [1]
-        },
-        {
-        lhs    => $lhs,
-        rhs    => [ $sequence_lhs, '[:ws]', $original_separator ],
-        mask   => [ 1, 0, 0 ],
-        action => $do_arg0_full_name,
-        };
-
+    my $proper = $adverb_list->{proper};
+    $sequence_rule{proper} = $proper if defined $proper;
     return \@rules;
 
 } ## end sub do_quantified_rule
@@ -399,43 +276,19 @@ sub create_hidden_internal_symbol {
     return $symbol;
 }
 
-# Return the character class symbol name,
-# after ensuring everything is set up properly
-sub assign_symbol_by_char_class {
-    my ( $self, $char_class, $symbol_name ) = @_;
-
-    # default symbol name always start with TWO left square brackets
-    $symbol_name //= '[' . $char_class . ']';
-    $self->{character_classes} //= {};
-    my $cc_hash    = $self->{character_classes};
-    my (undef, $symbol) = $cc_hash->{$symbol_name};
-    if ( not defined $symbol ) {
-        my $regex;
-        if ( not defined eval { $regex = qr/$char_class/xms; 1; } ) {
-            Carp::croak( 'Bad Character class: ',
-                $char_class, "\n", "Perl said ", $EVAL_ERROR );
-        }
-        $symbol = create_hidden_internal_symbol($self, $symbol_name);
-        $cc_hash->{$symbol_name} = [ $regex, $symbol ];
-    } ## end if ( not defined $hash_entry )
-    return $symbol;
-} ## end sub assign_symbol_by_char_class
-
 sub do_any {
-    my $self = shift;
-    my $symbol_name = '[:any]';
-    return assign_symbol_by_char_class( $self, '[\p{Cn}\P{Cn}]', $symbol_name );
+    Marpa::R2::exception( ':any not allowed unless grammar is scannerless');
 }
 
-sub do_end_of_input {
-    my $self = shift;
-    return $self->{end_of_input_symbol} //=
-        Marpa::R2::Internal::Stuifzand::Symbol->new('[:$]');
+sub do_ws {
+    Marpa::R2::exception( ':ws not allowed unless grammar is scannerless');
 }
-
-sub do_ws { return create_hidden_internal_symbol($_[0], '[:ws]') }
-sub do_ws_star { return create_hidden_internal_symbol($_[0], '[:ws*]') }
-sub do_ws_plus { return create_hidden_internal_symbol($_[0], '[:ws+]') }
+sub do_ws_star {
+    Marpa::R2::exception( ':ws* not allowed unless grammar is scannerless');
+}
+sub do_ws_plus {
+    Marpa::R2::exception( ':ws+ not allowed unless grammar is scannerless');
+}
 
 sub do_symbol {
     shift;
@@ -443,11 +296,10 @@ sub do_symbol {
 }
 
 sub do_character_class {
-    my ( $self, $char_class ) = @_;
-    return assign_symbol_by_char_class($self, $char_class);
+    Marpa::R2::exception( 'character classes not allowed unless grammar is scannerless');
 } ## end sub do_character_class
 
-sub do_symbol_list { shift; return Marpa::R2::Internal::Stuifzand::Symbol_List->new(@_) }
+sub do_rhs_primary_list { shift; return Marpa::R2::Internal::Stuifzand::Symbol_List->new(@_) }
 sub do_lhs { shift; return $_[0]; }
 sub do_rhs {
     shift;
@@ -456,7 +308,7 @@ sub do_rhs {
 }
 sub do_adverb_list { shift; return { map {; @{$_}} @_ } }
 
-sub do_parenthesized_symbol_list {
+sub do_parenthesized_rhs_primary_list {
     my (undef, $list) = @_;
     $list->hidden_set();
     return $list;
@@ -468,18 +320,7 @@ sub do_separator_specification {
 }
 
 sub do_single_quoted_string {
-    my ($self, $string ) = @_;
-    my @symbols = ();
-    my $symbol;
-    for my $char_class ( map { "[" . (quotemeta $_) . "]" } split //xms, substr $string, 1, -1) {
-        $symbol = assign_symbol_by_char_class($self, $char_class);
-        $symbol->{ws_after_ok} = 0;
-        push @symbols, $symbol;
-    }
-    $symbol->{ws_after_ok} = 1; # OK to add WS after last symbol
-    my $list = Marpa::R2::Internal::Stuifzand::Symbol_List->new(@symbols);
-    $list->hidden_set();
-    return $list;
+    Marpa::R2::exception( 'quoted strings not allowed unless grammar is scannerless');
 }
 
 sub do_op_declare_bnf     { return q{::=} }
@@ -493,13 +334,12 @@ my %hashed_closures = (
     do_character_class           => \&do_character_class,
     do_discard_rule              => \&do_discard_rule,
     do_empty_rule                => \&do_empty_rule,
-    do_end_of_input              => \&do_end_of_input,
     do_lhs                       => \&do_lhs,
     do_op_declare_bnf            => \&do_op_declare_bnf,
     do_op_declare_match          => \&do_op_declare_match,
     do_op_plus_quantifier        => \&do_op_plus_quantifier,
     do_op_star_quantifier        => \&do_op_star_quantifier,
-    do_parenthesized_symbol_list => \&do_parenthesized_symbol_list,
+    do_parenthesized_rhs_primary_list => \&do_parenthesized_rhs_primary_list,
     do_priority_rule             => \&do_priority_rule,
     do_quantified_rule           => \&do_quantified_rule,
     do_rhs                       => \&do_rhs,
@@ -508,7 +348,7 @@ my %hashed_closures = (
     do_single_quoted_string      => \&do_single_quoted_string,
     do_start_rule                => \&do_start_rule,
     do_symbol                    => \&do_symbol,
-    do_symbol_list               => \&do_symbol_list,
+    do_rhs_primary_list               => \&do_rhs_primary_list,
     do_ws                        => \&do_ws,
     do_ws_plus                   => \&do_ws_plus,
     do_ws_star                   => \&do_ws_star,
@@ -569,184 +409,158 @@ my @mask_by_rule_id;
 my $rule_id;
 
 ## The code after this line was automatically generated by aoh_to_thin.pl
-## Date: Sat Dec 15 08:44:20 2012
+## Date: Fri Dec 21 18:15:00 2012
 $rule_id = $tracer->rule_new(
-    "do_action" => "action",
-    "kw_action", "op_arrow", "action_name"
+    "Marpa\:\:R2\:\:Internal\:\:Stuifzand\:\:external_do_arg0" => "\[\:start\]",
+    "rules"
 );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "action", "kw\ action", "op\ arrow",
+    "action\ name" );
 $mask_by_rule_id[$rule_id] = [ 0, 0, 1 ];
-$rule_id = $tracer->rule_new( undef, "action_name", "bare_name" );
+$rule_id = $tracer->rule_new( undef, "action\ name", "bare\ name" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "action_name", "reserved_action_name" );
+$rule_id = $tracer->rule_new( undef, "action\ name", "reserved\ action\ name" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "adverb_item", "action" );
+$rule_id = $tracer->rule_new( undef, "adverb\ item", "action" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "adverb_item", "group_association" );
+$rule_id = $tracer->rule_new( undef, "adverb\ item", "group\ association" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "adverb_item", "left_association" );
+$rule_id = $tracer->rule_new( undef, "adverb\ item", "left\ association" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "adverb_item", "proper_specification" );
+$rule_id = $tracer->rule_new( undef, "adverb\ item", "proper\ specification" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "adverb_item", "right_association" );
+$rule_id = $tracer->rule_new( undef, "adverb\ item", "right\ association" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "adverb_item", "separator_specification" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->sequence_new(
-    "do_adverb_list" => "adverb_list",
-    "adverb_item", { min => 0, }
-);
 $rule_id =
-  $tracer->rule_new( "do_alternative" => "alternative", "rhs", "adverb_list" );
+  $tracer->rule_new( undef, "adverb\ item", "separator\ specification" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id =
+  $tracer->sequence_new( undef, "adverb\ list", "adverb\ item", { min => 0, } );
+$rule_id = $tracer->rule_new( undef, "alternative", "rhs", "adverb\ list" );
 $mask_by_rule_id[$rule_id] = [ 1, 1 ];
-$rule_id = $tracer->sequence_new(
-    "do_discard_separators" => "alternatives",
-    "alternative", { separator => "op_eq_pri", min => 1, proper => 1, }
-);
+$rule_id =
+  $tracer->sequence_new( undef, "alternatives", "alternative",
+    { separator => "op\ eq\ pri", min => 1, proper => 1, } );
 $rule_id = $tracer->rule_new(
-    "do_discard_rule" => "discard_rule",
-    "kw__discard", "op_declare_match", "single_symbol"
+    undef, "discard\ rule",
+    "kwc\ discard",
+    "op\ declare\ match",
+    "single\ symbol"
 );
 $mask_by_rule_id[$rule_id] = [ 0, 0, 1 ];
-$rule_id = $tracer->rule_new(
-    "do_empty_rule" => "empty_rule",
-    "lhs", "op_declare", "adverb_list"
-);
+$rule_id = $tracer->rule_new( undef, "empty\ rule", "lhs", "op\ declare",
+    "adverb\ list" );
 $mask_by_rule_id[$rule_id] = [ 1, 1, 1 ];
-$rule_id = $tracer->rule_new(
-    "do_group_association" => "group_association",
-    "kw_assoc", "op_arrow", "kw_group"
-);
+$rule_id = $tracer->rule_new( undef, "group\ association",
+    "kw\ assoc", "op\ arrow", "kw\ group" );
 $mask_by_rule_id[$rule_id] = [ 0, 0, 0 ];
-$rule_id = $tracer->rule_new(
-    "do_left_association" => "left_association",
-    "kw_assoc", "op_arrow", "kw_left"
-);
+$rule_id = $tracer->rule_new( undef, "left\ association",
+    "kw\ assoc", "op\ arrow", "kw\ left" );
 $mask_by_rule_id[$rule_id] = [ 0, 0, 0 ];
-$rule_id = $tracer->rule_new( "do_lhs" => "lhs", "symbol_name" );
+$rule_id = $tracer->rule_new( undef, "lhs", "symbol\ name" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id =
-  $tracer->rule_new( "do_op_declare_bnf" => "op_declare", "op_declare_bnf" );
+$rule_id = $tracer->rule_new( undef, "op\ declare", "op\ declare\ bnf" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new(
-    "do_op_declare_match" => "op_declare",
-    "op_declare_match"
-);
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->sequence_new(
-    "do_discard_separators" => "priorities",
-    "alternatives", { separator => "op_tighter", min => 1, proper => 1, }
-);
-$rule_id = $tracer->rule_new(
-    "do_priority_rule" => "priority_rule",
-    "lhs", "op_declare", "priorities"
-);
-$mask_by_rule_id[$rule_id] = [ 1, 1, 1 ];
-$rule_id = $tracer->rule_new(
-    "do_proper_specification" => "proper_specification",
-    "kw_proper", "op_arrow", "boolean"
-);
-$mask_by_rule_id[$rule_id] = [ 0, 0, 1 ];
-$rule_id = $tracer->rule_new(
-    "do_quantified_rule" => "quantified_rule",
-    "lhs", "op_declare", "single_symbol", "quantifier", "adverb_list"
-);
-$mask_by_rule_id[$rule_id] = [ 1, 1, 1, 1, 1 ];
-$rule_id =
-  $tracer->rule_new( "do_op_plus_quantifier" => "quantifier", "op_plus" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id =
-  $tracer->rule_new( "do_op_star_quantifier" => "quantifier", "op_star" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "reserved_word", "kw_action" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "reserved_word", "kw_assoc" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "reserved_word", "kw_group" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "reserved_word", "kw_left" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "reserved_word", "kw_proper" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "reserved_word", "kw_right" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "reserved_word", "kw_separator" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id =
-  $tracer->sequence_new( "do_rhs" => "rhs", "rhs_primary", { min => 1, } );
-$rule_id = $tracer->rule_new( "do_any" => "rhs_primary", "kw__any" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id =
-  $tracer->rule_new( "do_end_of_input" => "rhs_primary", "kw__end_of_input" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( "do_ws" => "rhs_primary", "kw__ws" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( "do_ws_plus" => "rhs_primary", "kw__ws_plus" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( "do_ws_star" => "rhs_primary", "kw__ws_star" );
+$rule_id = $tracer->rule_new( undef, "op\ declare", "op\ declare\ match" );
 $mask_by_rule_id[$rule_id] = [1];
 $rule_id = $tracer->rule_new(
-    "do_single_quoted_string" => "rhs_primary",
-    "single_quoted_string"
-);
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id =
-  $tracer->rule_new( "do_symbol_list" => "rhs_primary", "single_symbol" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new(
-    "do_parenthesized_symbol_list" => "rhs_primary",
-    "op_lparen", "rhs_primary_list", "op_rparen"
+    undef, "parenthesized\ rhs\ primary\ list",
+    "op\ lparen", "rhs\ primary\ list",
+    "op\ rparen"
 );
 $mask_by_rule_id[$rule_id] = [ 0, 1, 0 ];
-$rule_id = $tracer->sequence_new(
-    "do_symbol_list" => "rhs_primary_list",
-    "rhs_primary", { min => 1, }
-);
+$rule_id =
+  $tracer->sequence_new( undef, "priorities", "alternatives",
+    { separator => "op\ tighter", min => 1, proper => 1, } );
+$rule_id = $tracer->rule_new( undef, "priority\ rule",
+    "lhs", "op\ declare", "priorities" );
+$mask_by_rule_id[$rule_id] = [ 1, 1, 1 ];
+$rule_id = $tracer->rule_new( undef, "proper\ specification",
+    "kw\ proper", "op\ arrow", "boolean" );
+$mask_by_rule_id[$rule_id] = [ 0, 0, 1 ];
 $rule_id = $tracer->rule_new(
-    "do_right_association" => "right_association",
-    "kw_assoc", "op_arrow", "kw_right"
+    undef, "quantified\ rule",
+    "lhs", "op\ declare", "single\ symbol",
+    "quantifier", "adverb\ list"
 );
+$mask_by_rule_id[$rule_id] = [ 1, 1, 1, 1, 1 ];
+$rule_id = $tracer->rule_new( undef, "quantifier", "op\ plus" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "quantifier", "op\ star" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "reserved\ word", "kw\ action" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "reserved\ word", "kw\ assoc" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "reserved\ word", "kw\ group" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "reserved\ word", "kw\ left" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "reserved\ word", "kw\ proper" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "reserved\ word", "kw\ right" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "reserved\ word", "kw\ separator" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->sequence_new( undef, "rhs", "rhs\ primary", { min => 1, } );
+$rule_id = $tracer->rule_new( undef, "rhs\ primary", "kwc\ any" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "rhs\ primary", "kwc\ ws" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "rhs\ primary", "kwc\ ws\ plus" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "rhs\ primary", "kwc\ ws\ star" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "rhs\ primary",
+    "parenthesized\ rhs\ primary\ list" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "rhs\ primary", "single\ quoted\ string" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "rhs\ primary", "single\ symbol" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->sequence_new( undef, "rhs\ primary\ list",
+    "rhs\ primary", { min => 1, } );
+$rule_id = $tracer->rule_new( undef, "right\ association",
+    "kw\ assoc", "op\ arrow", "kw\ right" );
 $mask_by_rule_id[$rule_id] = [ 0, 0, 0 ];
-$rule_id = $tracer->rule_new( undef, "rule", "discard_rule" );
+$rule_id = $tracer->rule_new( undef, "rule", "discard\ rule" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "rule", "empty_rule" );
+$rule_id = $tracer->rule_new( undef, "rule", "empty\ rule" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "rule", "priority_rule" );
+$rule_id = $tracer->rule_new( undef, "rule", "priority\ rule" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "rule", "quantified_rule" );
+$rule_id = $tracer->rule_new( undef, "rule", "quantified\ rule" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "rule", "start_rule" );
+$rule_id = $tracer->rule_new( undef, "rule", "start\ rule" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id =
-  $tracer->sequence_new( "do_rules" => "rules", "rule", { min => 1, } );
+$rule_id = $tracer->sequence_new( undef, "rules", "rule", { min => 1, } );
 $rule_id = $tracer->rule_new(
-    "do_separator_specification" => "separator_specification",
-    "kw_separator", "op_arrow", "single_symbol"
+    undef,
+    "separator\ specification",
+    "kw\ separator",
+    "op\ arrow", "single\ symbol"
 );
 $mask_by_rule_id[$rule_id] = [ 0, 0, 1 ];
-$rule_id = $tracer->rule_new(
-    "do_character_class" => "single_symbol",
-    "character_class"
-);
+$rule_id = $tracer->rule_new( undef, "single\ symbol", "character\ class" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "single_symbol", "symbol" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new(
-    "do_start_rule" => "start_rule",
-    "kw__start", "op_declare", "symbol_name"
-);
-$mask_by_rule_id[$rule_id] = [ 0, 0, 1 ];
-$rule_id = $tracer->rule_new( "do_symbol" => "symbol", "symbol_name" );
-$mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "symbol_name", "bare_name" );
+$rule_id = $tracer->rule_new( undef, "single\ symbol", "symbol" );
 $mask_by_rule_id[$rule_id] = [1];
 $rule_id =
-  $tracer->rule_new( "do_bracketed_name" => "symbol_name", "bracketed_name" );
+  $tracer->rule_new( undef, "start\ rule", "kwc\ start", "op\ declare\ bnf",
+    "symbol" );
+$mask_by_rule_id[$rule_id] = [ 0, 0, 1 ];
+$rule_id = $tracer->rule_new( undef, "symbol", "symbol\ name" );
 $mask_by_rule_id[$rule_id] = [1];
-$rule_id = $tracer->rule_new( undef, "symbol_name", "reserved_word" );
+$rule_id = $tracer->rule_new( undef, "symbol\ name", "bare\ name" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "symbol\ name", "bracketed\ name" );
+$mask_by_rule_id[$rule_id] = [1];
+$rule_id = $tracer->rule_new( undef, "symbol\ name", "reserved\ word" );
 $mask_by_rule_id[$rule_id] = [1];
 ## The code before this line was automatically generated by aoh_to_thin.pl
 
-    $grammar->start_symbol_set( $tracer->symbol_by_name('rules') );
+    $grammar->start_symbol_set( $tracer->symbol_by_name('[:start]') );
     $grammar->precompute();
     return {tracer => $tracer, mask_by_rule_id => \@mask_by_rule_id };
 } ## end sub stuifzand_grammar
@@ -789,6 +603,49 @@ sub last_rule {
             // 'No rule was completed';
 }
 
+
+# Applied first.  If a rule has only one RHS symbol,
+# and the key is it, the value is the action.
+my %actions_by_rhs_symbol = (
+    'kwc ws star'          => 'do_ws_star',
+    'kwc ws plus'          => 'do_ws_plus',
+    'kwc ws'               => 'do_ws',
+    'kwc any'              => 'do_any',
+    'single quoted string' => 'do_single_quoted_string',
+    'character class'      => 'do_character_class',
+    'bracketed name'       => 'do_bracketed_name',
+    'op star'              => 'do_op_star_quantifier',
+    'op plus'              => 'do_op_plus_quantifier',
+    'op declare bnf'       => 'do_op_declare_bnf',
+    'op declare match'     => 'do_op_declare_match',
+);
+
+# Applied second.  Use the LHS symbol to
+# determine the action
+my %actions_by_lhs_symbol = (
+    symbol                           => 'do_symbol',
+    rhs                              => 'do_rhs',
+    lhs                              => 'do_lhs',
+    'rhs primary list'               => 'do_rhs_primary_list',
+    'parenthesized rhs primary list' => 'do_parenthesized_rhs_primary_list',
+    rules                            => 'do_rules',
+    'start rule'                     => 'do_start_rule',
+    'priority rule'                  => 'do_priority_rule',
+    'empty rule'                     => 'do_empty_rule',
+    'quantified rule'                => 'do_quantified_rule',
+    'discard rule'                   => 'do_discard_rule',
+    priorities                       => 'do_discard_separators',
+    alternatives                     => 'do_discard_separators',
+    alternative                      => 'do_alternative',
+    'adverb list'                    => 'do_adverb_list',
+    action                           => 'do_action',
+    'left association'               => 'do_left_association',
+    'right association'              => 'do_right_association',
+    'group association'              => 'do_group_association',
+    'separator specification'        => 'do_separator_specification',
+    'proper specification'           => 'do_proper_specification',
+);
+
 sub parse_rules {
     my ($thick_grammar, $string) = @_;
 
@@ -815,43 +672,46 @@ sub parse_rules {
         0 .. $thin_grammar->highest_rule_id() )
     {
         my ( $lhs, @rhs ) = $tracer->rule($rule_id);
-        next RULE if Marpa::R2::Grammar::original_symbol_name($lhs) ne 'reserved_word';
+        next RULE
+            if Marpa::R2::Grammar::original_symbol_name($lhs) ne
+                'reserved word';
         next RULE if scalar @rhs != 1;
-        my $reserved_word = Marpa::R2::Grammar::original_symbol_name( $rhs[0] );
-        next RULE if 'kw_' ne substr $reserved_word, 0, 3;
+        my $reserved_word =
+            Marpa::R2::Grammar::original_symbol_name( $rhs[0] );
+        next RULE if 'kw ' ne substr $reserved_word, 0, 3;
         $reserved_word = substr $reserved_word, 3;
         push @terminals,
             [
-            'kw_' . $reserved_word,
+            'kw ' . $reserved_word,
             qr/$reserved_word\b/xms,
             qq{"$reserved_word" keyword}
             ];
     } ## end for my $rule_id ( grep { $thin_grammar->rule_length($_...)})
     push @terminals,
-        [ 'kw__start', qr/ [:] start \b /xms,    ':start reserved symbol' ],
-        [ 'kw__discard', qr/ [:] discard \b /xms,    ':discard reserved symbol' ],
-        [ 'kw__ws_plus', qr/ [:] ws [+] /xms,    ':ws+ reserved symbol' ],
-        [ 'kw__ws_star', qr/ [:] ws [*] /xms,    ':ws* reserved symbol' ],
-        [ 'kw__ws', qr/ [:] ws \b/xms,    ':ws reserved symbol' ],
-        [ 'kw__default', qr/ [:] default \b/xms,    ':default reserved symbol' ],
-        [ 'kw__any', qr/ [:] any \b/xms,    ':any reserved symbol' ],
-        [ 'kw__end_of_input', qr/ [:] [\$] /xms,    q{':$': end_of_input reserved symbol} ],
-        [ 'op_declare_bnf', qr/::=/xms,    'BNF declaration operator (ws)' ],
-        [ 'op_declare_match', qr/[~]/xms,    'match declaration operator (no ws)' ],
-        [ 'op_arrow',   qr/=>/xms,     'adverb operator' ],
-        [ 'op_lparen',  qr/[(]/xms,    'left parenthesis' ],
-        [ 'op_rparen',  qr/[)]/xms,    'right parenthesis' ],
-        [ 'op_tighter', qr/[|][|]/xms, 'tighten-precedence operator' ],
-        [ 'op_eq_pri',  qr/[|]/xms,    'alternative operator' ],
-        [ 'op_plus',    qr/[+]/xms,    'plus quantification operator' ],
-        [ 'op_star',    qr/[*]/xms,    'star quantification operator' ],
+        [ 'kwc start', qr/ [:] start \b /xms, ':start reserved symbol' ],
+        [ 'kwc discard', qr/ [:] discard \b /xms,
+        ':discard reserved symbol' ],
+        [ 'kwc ws plus', qr/ [:] ws [+] /xms,    ':ws+ reserved symbol' ],
+        [ 'kwc ws star', qr/ [:] ws [*] /xms,    ':ws* reserved symbol' ],
+        [ 'kwc ws',      qr/ [:] ws \b/xms,      ':ws reserved symbol' ],
+        [ 'kwc default', qr/ [:] default \b/xms, ':default reserved symbol' ],
+        [ 'kwc any',     qr/ [:] any \b/xms,     ':any reserved symbol' ],
+        [ 'op declare bnf', qr/::=/xms,    'BNF declaration operator (ws)' ],
+        [ 'op declare match', qr/[~]/xms,    'match declaration operator (no ws)' ],
+        [ 'op arrow',   qr/=>/xms,     'adverb operator' ],
+        [ 'op lparen',  qr/[(]/xms,    'left parenthesis' ],
+        [ 'op rparen',  qr/[)]/xms,    'right parenthesis' ],
+        [ 'op tighter', qr/[|][|]/xms, 'tighten-precedence operator' ],
+        [ 'op eq pri',  qr/[|]/xms,    'alternative operator' ],
+        [ 'op plus',    qr/[+]/xms,    'plus quantification operator' ],
+        [ 'op star',    qr/[*]/xms,    'star quantification operator' ],
         [ 'boolean',    qr/[01]/xms ],
-        [ 'bare_name',  qr/\w+/xms, ],
-        [ 'bracketed_name', qr/ [<] [\s\w]+ [>] /xms, ],
-        [ 'reserved_action_name', qr/(::(whatever|undef))/xms ],
+        [ 'bare name',  qr/\w+/xms, ],
+        [ 'bracketed name', qr/ [<] [\s\w]+ [>] /xms, ],
+        [ 'reserved action name', qr/(::(whatever|undef))/xms ],
         ## no escaping or internal newlines, and disallow empty string
-        [ 'single_quoted_string', qr/ ['] [^'\x{0A}\x{0B}\x{0C}\x{0D}\x{0085}\x{2028}\x{2029}]+ ['] /xms ],
-        [ 'character_class', qr/ (?: (?: \[) (?: [^\\\[]* (?: \\. [^\\\]]* )* ) (?: \]) ) /xms,
+        [ 'single quoted string', qr/ ['] [^'\x{0A}\x{0B}\x{0C}\x{0D}\x{0085}\x{2028}\x{2029}]+ ['] /xms ],
+        [ 'character class', qr/ (?: (?: \[) (?: [^\\\[]* (?: \\. [^\\\]]* )* ) (?: \]) ) /xms,
             'character class' ],
         ;
 
@@ -908,12 +768,31 @@ sub parse_rules {
     $tree->next();
     my $valuator = Marpa::R2::Thin::V->new($tree);
     my @actions_by_rule_id;
+    RULE:
     for my $rule_id ( grep { $thin_grammar->rule_length($_); }
         0 .. $thin_grammar->highest_rule_id() )
     {
         $valuator->rule_is_valued_set( $rule_id, 1 );
-        $actions_by_rule_id[$rule_id] = $tracer->action($rule_id);
-    }
+        my ( $lhs, @rhs ) = $tracer->rule($rule_id);
+        if (scalar @rhs == 1) {
+            # These actions are by rhs symbol, for rules
+            # with only one RHS symbol
+            my $action = $actions_by_rhs_symbol{$rhs[0]};
+            if (defined $action) {
+                $actions_by_rule_id[$rule_id] = $action;
+                next RULE;
+            }
+        }
+        my $action = $actions_by_lhs_symbol{$lhs};
+        if (defined $action) {
+            $actions_by_rule_id[$rule_id] = $action;
+            next RULE;
+        }
+        $action = $tracer->action($rule_id);
+        next RULE if not defined $action;
+        next RULE if $action =~ / Marpa [:][:] R2 .* [:][:] external_do_arg0 \z /xms;
+        $actions_by_rule_id[$rule_id] = $action;
+    } ## end for my $rule_id ( grep { $thin_grammar->rule_length($_...)})
 
     # The parse result object
     my $self = { thick_grammar => $thick_grammar };
@@ -1063,15 +942,6 @@ sub parse_rules {
     push @{$rules}, @ws_rules;
 
     $self->{rules} = $rules;
-    my $raw_cc      = $self->{character_classes};
-    if ( defined $raw_cc ) {
-        my $stripped_cc = {};
-        for my $symbol_name ( keys %{$raw_cc} ) {
-            my ($re) = @{ $raw_cc->{$symbol_name} };
-            $stripped_cc->{$symbol_name} = $re;
-        }
-        $self->{character_classes} = $stripped_cc;
-    } ## end if ( defined $raw_cc )
     return $self;
 } ## end sub parse_rules
 

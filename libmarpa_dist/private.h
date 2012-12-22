@@ -250,3 +250,5 @@ static inline void psar_dealloc(const PSAR psar);
 static inline void psl_claim(
     PSL* const psl_owner, const PSAR psar);
 static inline PSL psl_alloc(const PSAR psar);
+static inline Marpa_Error_Code
+clear_error (GRAMMAR g);

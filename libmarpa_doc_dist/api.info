@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (16 December 2012) is for Libmarpa 2.33.0.
+This manual (22 December 2012) is for Libmarpa 2.33.2.
 
    Copyright (C) 2012 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (16 December 2012) is for Libmarpa 2.33.0.
+This manual (22 December 2012) is for Libmarpa 2.33.2.
 
    Copyright (C) 2012 Jeffrey Kegler.
 
@@ -1426,9 +1426,10 @@ File: api.info,  Node: Symbols,  Next: Rules,  Prev: Grammar reference counting,
      detected before precomputation.
 
      Return value: On success, 1 if symbol SYM_ID is a terminal symbol
-     after the call, 0 otherwise.  If VALUE is not 0 or 1; if the
-     terminal status is locked and VALUE is different from its current
-     value; if the grammar G is precomputed; or on other failure, -2.
+     after the call, 0 otherwise.  If SYM_ID is well-formed, but there
+     is no such symbol, -1.  If VALUE is not 0 or 1; if the terminal
+     status is locked and VALUE is different from its current value; if
+     the grammar G is precomputed; or on other failure, -2.
 
  -- Function: int marpa_g_symbol_is_valued ( Marpa_Grammar G,
           Marpa_Symbol_ID SYMBOL_ID)
@@ -1669,8 +1670,12 @@ File: api.info,  Node: Ranks,  Next: Grammar precomputation,  Prev: Sequences,  
      Initially, the default rank of the grammar is 0.  Methods to reset
      the grammar's default rank are currently in the experimental stage.
 
-     Return value: On success, the rank *after* the call.  If the
-     grammar has been precomputed, or on other failure, -2.
+     Return value: On success, returns the rank *after* the call, and
+     sets the error code to `MARPA_ERR_NONE'.  On failure, returns -2,
+     and sets the error code to an appropriate value, which will never
+     be `MARPA_ERR_NONE'.  Note that when the rank is -2, the error
+     code is the only way to distinguish success from failure.  The
+     error code can be determined by using the `marpa_g_error()' call.
 
 
  -- Function: int marpa_g_rule_null_high ( Marpa_Grammar G,
@@ -3828,8 +3833,12 @@ should regard these methods as experimental and unsupported.
      effect, assign ranks to groups of rules and symbols.  Applications
      may find this behavior useful.
 
-     Return value: On success, the rank *after* the call.  On failure,
-     -2.
+     Return value: On success, returns the rank *after* the call, and
+     sets the error code to `MARPA_ERR_NONE'.  On failure, returns -2,
+     and sets the error code to an appropriate value, which will never
+     be `MARPA_ERR_NONE'.  Note that when the rank is -2, the error
+     code is the only way to distinguish success from failure.  The
+     error code can be determined by using the `marpa_g_error()' call.
 
 
  -- Function: Marpa_Rank marpa_g_symbol_rank ( Marpa_Grammar G,
@@ -3840,8 +3849,12 @@ should regard these methods as experimental and unsupported.
      SYM_ID.  When SYM_ID is created, its rank initialized to the
      default rank of the grammar.
 
-     Return value: On success, the rank *after* the call.  If the
-     grammar has been precomputed, or on other failure, -2.
+     Return value: On success, returns the rank *after* the call, and
+     sets the error code to `MARPA_ERR_NONE'.  On failure, returns -2,
+     and sets the error code to an appropriate value, which will never
+     be `MARPA_ERR_NONE'.  Note that when the rank is -2, the error
+     code is the only way to distinguish success from failure.  The
+     error code can be determined by using the `marpa_g_error()' call.
 
 
 
@@ -4373,62 +4386,62 @@ Node: Grammar overview48990
 Node: Grammar constructor50034
 Node: Grammar reference counting50887
 Node: Symbols51491
-Node: Rules56978
-Node: Sequences62002
-Node: Ranks66267
-Node: Grammar precomputation68217
-Ref: marpa_g_precompute68418
-Node: Recognizer methods72756
-Node: Recognizer overview73089
-Node: Recognizer constructor73819
-Node: Recognizer reference counting74373
-Node: Recognizer life cycle mutators75184
-Node: Location accessors83005
-Node: Other parse status methods86249
-Node: Progress reports89242
-Node: Bocage methods92414
-Node: Bocage overview92635
-Node: Bocage constructor93155
-Node: Bocage reference counting93809
-Node: Ordering methods94686
-Node: Ordering overview94938
-Node: Ordering constructor95542
-Node: Ordering reference counting96009
-Node: Non-default ordering96999
-Node: Tree methods98152
-Node: Tree overview98377
-Node: Tree constructor99204
-Node: Tree reference counting99859
-Node: Tree iteration100828
-Node: Value methods102136
-Node: Value overview102574
-Node: How to use the valuator104005
-Node: Advantages of step-driven valuation105976
-Node: Maintaining the stack109646
-Node: Sizing the stack111657
-Node: Initializing locations in the stack113437
-Node: Valuator constructor115633
-Node: Valuator reference counting116484
-Node: Registering semantics117469
-Node: Stepping through the valuator119403
-Node: Valuator steps by type120169
-Node: Basic step accessors122070
-Node: Other step accessors123905
-Node: Events125451
-Node: Events overview125640
-Node: Event methods126510
-Node: Event codes127695
-Node: Error methods macros and codes129570
-Node: Error methods129839
-Node: Error Macros130666
-Node: External error codes131033
-Node: Internal error codes151438
-Node: Design notes154979
-Node: Why so many time objects155414
-Node: Design of numbered objects157164
-Node: LHS Terminals158403
-Node: Work in Progress159096
-Node: Untested methods159281
-Node: GNU Free Documentation License160923
+Node: Rules57043
+Node: Sequences62067
+Node: Ranks66332
+Node: Grammar precomputation68575
+Ref: marpa_g_precompute68776
+Node: Recognizer methods73114
+Node: Recognizer overview73447
+Node: Recognizer constructor74177
+Node: Recognizer reference counting74731
+Node: Recognizer life cycle mutators75542
+Node: Location accessors83363
+Node: Other parse status methods86607
+Node: Progress reports89600
+Node: Bocage methods92772
+Node: Bocage overview92993
+Node: Bocage constructor93513
+Node: Bocage reference counting94167
+Node: Ordering methods95044
+Node: Ordering overview95296
+Node: Ordering constructor95900
+Node: Ordering reference counting96367
+Node: Non-default ordering97357
+Node: Tree methods98510
+Node: Tree overview98735
+Node: Tree constructor99562
+Node: Tree reference counting100217
+Node: Tree iteration101186
+Node: Value methods102494
+Node: Value overview102932
+Node: How to use the valuator104363
+Node: Advantages of step-driven valuation106334
+Node: Maintaining the stack110004
+Node: Sizing the stack112015
+Node: Initializing locations in the stack113795
+Node: Valuator constructor115991
+Node: Valuator reference counting116842
+Node: Registering semantics117827
+Node: Stepping through the valuator119761
+Node: Valuator steps by type120527
+Node: Basic step accessors122428
+Node: Other step accessors124263
+Node: Events125809
+Node: Events overview125998
+Node: Event methods126868
+Node: Event codes128053
+Node: Error methods macros and codes129928
+Node: Error methods130197
+Node: Error Macros131024
+Node: External error codes131391
+Node: Internal error codes151796
+Node: Design notes155337
+Node: Why so many time objects155772
+Node: Design of numbered objects157522
+Node: LHS Terminals158761
+Node: Work in Progress159454
+Node: Untested methods159639
+Node: GNU Free Documentation License161913
 
 End Tag Table
