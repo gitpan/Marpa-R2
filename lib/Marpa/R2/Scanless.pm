@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.035_001';
+$VERSION        = '2.035_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -2864,7 +2864,7 @@ sub character_describe {
     my $text = sprintf '0x%04x', ord $char;
     $text .= q{ } .
         (
-        $char =~ m/[\p{PosixGraph}]/xms
+        $char =~ m/[[:graph:]]/xms
         ? qq{'$char'}
         : '(non-graphic character)'
         );
