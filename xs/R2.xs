@@ -51,13 +51,14 @@ typedef struct {
      R_Wrapper* r_wrapper;
      G_Wrapper* base;
      SV* r_sv;
-     STRLEN character_ix; /* character position, taking into account Unicode */
+     STRLEN perl_pos; /* character position, taking into account Unicode
+         Equivalent to Perl pos()
+     */
      STRLEN input_offset; /* byte position, ignoring Unicode */
      SV* input;
      int input_debug; /* debug level for input */
      Marpa_Symbol_ID input_symbol_id;
      UV codepoint; /* For error returns */
-     UV** oplists_by_byte;
      HV* per_codepoint_ops;
      IV ignore_rejection;
 
@@ -827,21 +828,11 @@ PPCODE:
     stream->r_wrapper = r_wrapper;
     stream->r_sv = r_sv;
   stream->input = newSVpvn("", 0);
-  stream->character_ix = 0;
+  stream->perl_pos = 0;
   stream->input_offset = 0;
   stream->input_debug = 0;
   stream->input_symbol_id = -1;
   stream->per_codepoint_ops = newHV();
-  {
-    const int number_of_bytes = 0x100;
-    int codepoint;
-    UV **oplists;
-    Newx(oplists, number_of_bytes, UV*);
-    stream->oplists_by_byte = oplists;
-    for (codepoint = 0; codepoint < number_of_bytes; codepoint++) {
-        oplists[codepoint] = (UV*)NULL;
-    }
-  }
   stream->ignore_rejection = 1;
   stream->minimum_accepted = 1;
     sv_setref_pv (u_sv, unicode_stream_class_name, (void *) stream);
@@ -877,15 +868,6 @@ DESTROY( stream )
 PPCODE:
 {
     const SV* r_sv = stream->r_sv;
-    UV **oplists = stream->oplists_by_byte;
-    if (oplists) {
-      const int number_of_bytes = 0x100;
-      int codepoint;
-      for (codepoint = 0; codepoint < number_of_bytes; codepoint++) {
-	  Safefree(oplists[codepoint]);
-      }
-      Safefree(stream->oplists_by_byte);
-    }
     SvREFCNT_dec(stream->input);
     SvREFCNT_dec(stream->per_codepoint_ops);
     SvREFCNT_dec(r_sv);
@@ -959,28 +941,23 @@ PPCODE:
 {
   /* OP Count is args less two, then plus two for codepoint and length fields */
   const STRLEN op_count = items;
-  if (codepoint > 0xFF)
+  STRLEN op_ix;
+  STRLEN dummy;
+  UV *ops;
+  SV *ops_sv = newSV (op_count * sizeof (UV));
+  SvPOK_on (ops_sv);
+  ops = (UV *) SvPV (ops_sv, dummy);
+  ops[0] = codepoint;
+  ops[1] = op_count;
+  for (op_ix = 2; op_ix < op_count; op_ix++)
     {
-      croak
-	("Problem in r->char_register(0x%lx): More than 8bit codepoint not yet implemented",
-	 codepoint);
+      /* By coincidence, offset of individual ops is 2 both in the
+       * method arguments and in the op_list, so that arg IX == op_ix
+       */
+      ops[op_ix] = SvUV (ST (op_ix));
     }
-  {
-    STRLEN op_ix;
-    UV **const ops_by_byte = stream->oplists_by_byte;
-    UV *ops = ops_by_byte[codepoint];
-    Renew (ops, op_count, UV);
-    stream->oplists_by_byte[codepoint] = ops;
-    ops[0] = codepoint;
-    ops[1] = op_count;
-    for (op_ix = 2; op_ix < op_count; op_ix++)
-      {
-	/* By coincidence, offset of individual ops is 2 both in the
-	 * method arguments and in the op_list, so that arg IX == op_ix
-	 */
-	ops[op_ix] = SvUV (ST (op_ix));
-      }
-  }
+  hv_store (stream->per_codepoint_ops, (char *) &codepoint,
+	    sizeof (codepoint), ops_sv, 0);
 }
 
 void
@@ -989,7 +966,7 @@ string_set( stream, string )
      SVREF string;
 PPCODE:
 {
-  stream->character_ix = 0;
+  stream->perl_pos = 0;
   stream->input_offset = 0;
   sv_setsv (stream->input, string);
   SvPV_nolen (stream->input);
@@ -1000,7 +977,7 @@ pos( stream )
      Unicode_Stream *stream;
 PPCODE:
 {
-  XSRETURN_IV(stream->character_ix);
+  XSRETURN_IV(stream->perl_pos);
 }
 
 void
@@ -1039,21 +1016,54 @@ PPCODE:
    */
   int input_is_utf8 = SvUTF8 (stream->input);
   STRLEN len;
-  const STRLEN old_pos = stream->character_ix;
-  char *input;
+  const STRLEN old_pos = stream->perl_pos;
+  U8 *input = (U8*)SvPV (stream->input, len);
   if (input_is_utf8)
     {
-      croak ("Problem in stream->pos_set(): UTF8 not yet implemented");
+      /* I am required to *know* that the "hop" is inside the string,
+       * which apparently can have Perl extensions -- it is *Perl* utf8, not
+       * standard UTF8.  The only safe thing
+       * to use the Perl API to hop one codepoint at a time,
+       * which is basically how utf8_hop() does it anyway.
+       */
+      int hop = new_pos - old_pos;
+      U8 *p_current = input + stream->input_offset;
+      U8 *end_of_input = input + len;
+      while (hop > 0)
+	{
+	  if (p_current >= end_of_input)
+	    {
+	      croak
+		("Problem in stream->pos_set(): Attempt to set position after end of utf8 string");
+	    }
+	  p_current = utf8_hop (p_current, 1);
+	  hop--;
+	}
+      while (hop < 0)
+	{
+	  if (p_current <= input)
+	    {
+	      croak
+		("Problem in stream->pos_set(): Attempt to set position before start of utf8 string");
+	    }
+	  p_current = utf8_hop (p_current, -1);
+	  hop++;
+	}
+      stream->input_offset = p_current - input;
+      stream->perl_pos = new_pos;
     }
-  input = SvPV (stream->input, len);
-  /* STRLEN is assumed to be unsigned so no check for less than zero */
-  if (new_pos >= len)
+  else
     {
-      croak ("Problem in stream->pos_set(): new pos = %ld, but length = %ld",
+      /* STRLEN is assumed to be unsigned so no check for less than zero */
+      if (new_pos >= len)
+	{
+	  croak
+	    ("Problem in stream->pos_set(): new pos = %ld, but length = %ld",
 	     (long) new_pos, (long) len);
+	}
+      stream->input_offset = new_pos;
+      stream->perl_pos = new_pos;
     }
-  stream->input_offset = new_pos;
-  stream->character_ix = new_pos;
   XSRETURN_IV (old_pos);
 }
 
@@ -1072,16 +1082,17 @@ PPCODE:
   const int trace_level = stream->trace;
   const R_Wrapper* r_wrapper = stream->r_wrapper;
   const Marpa_Recognizer r = r_wrapper->r;
-  char *input;
+  U8* input;
   int input_is_utf8;
   int input_debug = stream->input_debug;
   STRLEN len;
   input_is_utf8 = SvUTF8 (stream->input);
-  input = SvPV (stream->input, len);
+  input = (U8*)SvPV (stream->input, len);
   for (;;)
     {
       int return_value = 0;
       UV codepoint;
+      STRLEN codepoint_length = 1;
       STRLEN op_ix;
       STRLEN op_count;
       UV *ops;
@@ -1092,28 +1103,38 @@ PPCODE:
 	break;
       if (input_is_utf8)
 	{
-	  croak ("Problem in r->read_string(): UTF8 not yet implemented");
+	  codepoint = utf8_to_uvchr(input+stream->input_offset, &codepoint_length);
+	  /* Perl API documents that return value is 0 and length is -1 on error,
+	   * "if possible".  length can be, and is, in fact unsigned.
+	   * I deal with this by noting that 0 is a valid UTF8 char but should
+	   * have a length of 1, when valid.
+	   */
+	  if (codepoint == 0 && codepoint_length != 1) {
+	    croak ("Problem in r->read_string(): invalid UTF8 character");
+	  }
 	}
       else
 	{
 	  codepoint = (UV) input[stream->input_offset];
-	  if (codepoint > 0xFF)
-	    {
-	      croak
-		("Problem in r->string_read(0x%lx): More than 8bit codepoints not yet implemented",
-		 codepoint);
-	    }
+	  codepoint_length = 1;
 	}
       if (trace_level >= 10) {
           warn("Thin::U::read() Reading codepoint 0x%04x at pos %d",
-	    (int)codepoint, (int)stream->character_ix);
+	    (int)codepoint, (int)stream->perl_pos);
       }
-      ops = stream->oplists_by_byte[codepoint];
-      if (!ops)
-	{
-	  stream->codepoint = codepoint;
-	  XSRETURN_IV (-2);
-	}
+      {
+	STRLEN dummy;
+	SV **p_ops_sv =
+	  hv_fetch (stream->per_codepoint_ops, (char *) &codepoint,
+		    (I32)sizeof (codepoint), 0);
+	if (!p_ops_sv)
+	  {
+	    stream->codepoint = codepoint;
+	    XSRETURN_IV (-2);
+	  }
+	ops = (UV *)SvPV (*p_ops_sv, dummy);
+      }
+	
       /* ops[0] is codepoint */
       op_count = ops[1];
       for (op_ix = 2; op_ix < op_count; op_ix++)
@@ -1156,6 +1177,11 @@ PPCODE:
 		      }
 		    value = (int) ops[++op_ix];
 		    length = (int) ops[++op_ix];
+		if (trace_level >= 10)
+		  {
+		    warn ("Thin::U::read() alternative(%p, %d, %d, %d)", r, symbol_id, value,
+			  length);
+		  }
 		result = marpa_r_alternative (r, symbol_id, value, length);
 		switch (result)
 		  {
@@ -1170,7 +1196,7 @@ PPCODE:
 		    stream->input_symbol_id = symbol_id;
 		    if (trace_level >= 10) {
 			warn("Thin::U::read() Rejected codepoint 0x%04x at pos %d as symbol %d",
-			  (int)codepoint, (int)stream->character_ix, symbol_id);
+			  (int)codepoint, (int)stream->perl_pos, symbol_id);
 		    }
 		    if (!ignore_rejection)
 		      {
@@ -1181,7 +1207,7 @@ PPCODE:
 		  case MARPA_ERR_NONE:
 		    if (trace_level >= 10) {
 			warn("Thin::U::read() Accepted codepoint 0x%04x at pos %d as symbol %d",
-			  (int)codepoint, (int)stream->character_ix, symbol_id);
+			  (int)codepoint, (int)stream->perl_pos, symbol_id);
 		    }
 		    tokens_accepted++;
 		    break;
@@ -1191,7 +1217,7 @@ PPCODE:
 		    croak
 		      ("Problem alternative() failed at char ix %d; symbol id %d; codepoint 0x%lx\n"
 		       "Problem in r->input_string_read(), alternative() failed: %s",
-		       (int)stream->character_ix, symbol_id, codepoint,
+		       (int)stream->perl_pos, symbol_id, codepoint,
 		       xs_g_error (stream->base));
 		  }
 	      }
@@ -1238,15 +1264,8 @@ PPCODE:
 	    }
 	}
     ADVANCE_ONE_CHAR:;
-      if (input_is_utf8)
-	{
-	  croak ("Problem in r->read_string(): UTF8 not yet implemented");
-	}
-      else
-	{
-	  stream->input_offset++;
-	}
-      stream->character_ix++;
+	stream->input_offset += codepoint_length;
+      stream->perl_pos++;
       /* This logic does not allow a return value of 0,
        * which is reserved for a indicating a full
        * read of the input string without event
