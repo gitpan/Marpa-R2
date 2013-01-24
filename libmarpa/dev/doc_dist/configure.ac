@@ -1,4 +1,4 @@
-# Copyright 2012 Jeffrey Kegler
+# Copyright 2013 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -32,7 +32,7 @@ m4_define(marpa_configure_in)
 # set marpa_binary_age _and_ marpa_interface_age to 0.
 #
 m4_define([marpa_major_version], [2])
-m4_define([marpa_minor_version], [42])
+m4_define([marpa_minor_version], [43])
 m4_define([marpa_micro_version], [0])
 m4_define([marpa_interface_age], [100])
 m4_define([marpa_binary_age],
