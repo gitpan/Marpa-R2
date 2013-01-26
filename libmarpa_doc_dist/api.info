@@ -1,8 +1,8 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (24 January 2013) is for Libmarpa 2.43.0.
+This manual (25 January 2013) is for Libmarpa 2.43.1.
 
-   Copyright (C) 2013 Jeffrey Kegler.
+   Copyright (C) 2012 Jeffrey Kegler.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,9 +16,9 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (24 January 2013) is for Libmarpa 2.43.0.
+This manual (25 January 2013) is for Libmarpa 2.43.1.
 
-   Copyright (C) 2013 Jeffrey Kegler.
+   Copyright (C) 2012 Jeffrey Kegler.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -37,7 +37,7 @@ This manual (24 January 2013) is for Libmarpa 2.43.0.
 * Threads::
 * Fatal Errors::
 * Introduction to the external interface::
-* Static methods::
+* Static method::
 * Configuration methods::
 * Grammar methods::
 * Recognizer methods::
@@ -391,8 +391,8 @@ following:
      to understand function prototypes and return values.
 
    * The reader has read the documents for one of Libmarpa's upper
-     layers.  As of this writing, the only such layer is `Marpa::R2' or
-     `Marpa::R3', in Perl.
+     layers.  As of this writing, the only such layer is `Marpa::R2',
+     in Perl.
 
    * The reader knows some parsing theory.  *Note Parsing theory::.
 
@@ -650,8 +650,8 @@ allows a wide variety of alternative input models.
 
    This document assumes that the reader knows the concepts behind
 Libmarpa's alternative input models, either from the documentation of a
-higher level interface, such as `Marpa::XS', `Marpa::R2', or
-`Marpa::R3', or from Marpa's theory document
+higher level interface, such as `Marpa::XS' or `Marpa::R2', or from
+Marpa's theory document
 (https://github.com/downloads/jeffreykegler/Marpa-theory/recce.pdf).
 
    As a reminder, in Libmarpa a location is called a "earleme".  The
@@ -1080,7 +1080,7 @@ specificied, and to allow the user to specifier a handler to be called
 when an out-of-memory condition occurs.
 
 
-File: api.info,  Node: Introduction to the external interface,  Next: Static methods,  Prev: Fatal Errors,  Up: Top
+File: api.info,  Node: Introduction to the external interface,  Next: Static method,  Prev: Fatal Errors,  Up: Top
 
 8 Introduction to the external interface
 ****************************************
@@ -1177,10 +1177,10 @@ outside the package will begin with a capitalization variant of one of
 these two prefixes.
 
 
-File: api.info,  Node: Static methods,  Next: Configuration methods,  Prev: Introduction to the external interface,  Up: Top
+File: api.info,  Node: Static method,  Next: Configuration methods,  Prev: Introduction to the external interface,  Up: Top
 
-9 Static methods
-****************
+9 Static method
+***************
 
  -- Function: Marpa_Error_Code marpa_check_version (unsigned int
           REQUIRED_MAJOR, unsigned int REQUIRED_MINOR, unsigned int
@@ -1208,14 +1208,8 @@ File: api.info,  Node: Static methods,  Next: Configuration methods,  Prev: Intr
         * `MARPA_ERR_MICRO_VERSION_MISMATCH'
 
 
- -- Function: Marpa_Error_Code marpa_version (unsigned int* version)
-     Returns the version number in VERSION, which must have room for
-     three `unsigned int''s.
-
-     Return value: A non-negative number on success, -2 on failure.
-
 
-File: api.info,  Node: Configuration methods,  Next: Grammar methods,  Prev: Static methods,  Up: Top
+File: api.info,  Node: Configuration methods,  Next: Grammar methods,  Prev: Static method,  Up: Top
 
 10 Configuration methods
 ************************
@@ -4353,101 +4347,101 @@ permit their use in free software.
 
 Tag Table:
 Node: Top482
-Node: Copying3653
-Node: About this document12084
-Node: How to read this document12301
-Node: Prerequisites12768
-Node: Parsing theory13367
-Node: About Libmarpa14055
-Node: Architecture15887
-Node: Major objects16093
-Node: Time objects17432
-Node: Reference counting18886
-Node: Numbered objects20939
-Node: Input21373
-Node: Earlemes21508
-Node: The traditional model21905
-Node: The earleme variables23182
-Node: The significances of the earleme variables25062
-Node: The initial earleme settings26688
-Node: The standard model of input27366
-Node: Ambiguous input29089
-Node: Variable length tokens30054
-Node: The generalized model31770
-Node: General rules for the earleme variables34112
-Node: Terminals35105
-Node: Semantics35955
-Node: How Libmarpa semantics work36130
-Node: Valued and unvalued symbols37277
-Node: Threads39691
-Node: Fatal Errors40949
-Node: Introduction to the external interface41544
-Node: About the overviews41895
-Node: Return values42731
-Node: Naming conventions44520
-Node: Static methods45634
-Node: Configuration methods47266
-Node: Grammar methods48953
-Node: Grammar overview49260
-Node: Grammar constructor50304
-Node: Grammar reference counting51157
-Node: Symbols51761
-Node: Rules57313
-Node: Sequences62337
-Node: Ranks66602
-Node: Grammar precomputation68845
-Ref: marpa_g_precompute69046
-Node: Recognizer methods73384
-Node: Recognizer overview73717
-Node: Recognizer constructor74447
-Node: Recognizer reference counting75001
-Node: Recognizer life cycle mutators75812
-Node: Location accessors83633
-Node: Other parse status methods86877
-Node: Progress reports89870
-Node: Bocage methods93042
-Node: Bocage overview93263
-Node: Bocage constructor93783
-Node: Bocage reference counting94437
-Node: Ordering methods95314
-Node: Ordering overview95566
-Node: Ordering constructor96170
-Node: Ordering reference counting96637
-Node: Non-default ordering97627
-Node: Tree methods98780
-Node: Tree overview99005
-Node: Tree constructor99832
-Node: Tree reference counting100487
-Node: Tree iteration101456
-Node: Value methods102764
-Node: Value overview103202
-Node: How to use the valuator104633
-Node: Advantages of step-driven valuation106604
-Node: Maintaining the stack110274
-Node: Sizing the stack112285
-Node: Initializing locations in the stack114065
-Node: Valuator constructor116261
-Node: Valuator reference counting117112
-Node: Registering semantics118097
-Node: Stepping through the valuator120031
-Node: Valuator steps by type120797
-Node: Basic step accessors122698
-Node: Other step accessors124533
-Node: Events126079
-Node: Events overview126268
-Node: Event methods127138
-Node: Event codes128323
-Node: Error methods macros and codes130198
-Node: Error methods130467
-Node: Error Macros131294
-Node: External error codes131661
-Node: Internal error codes152066
-Node: Design notes155607
-Node: Why so many time objects156042
-Node: Design of numbered objects157792
-Node: LHS Terminals159031
-Node: Work in Progress159724
-Node: Untested methods159909
-Node: GNU Free Documentation License162183
+Node: Copying3652
+Node: About this document12083
+Node: How to read this document12300
+Node: Prerequisites12767
+Node: Parsing theory13351
+Node: About Libmarpa14039
+Node: Architecture15871
+Node: Major objects16077
+Node: Time objects17416
+Node: Reference counting18870
+Node: Numbered objects20923
+Node: Input21357
+Node: Earlemes21492
+Node: The traditional model21889
+Node: The earleme variables23152
+Node: The significances of the earleme variables25032
+Node: The initial earleme settings26658
+Node: The standard model of input27336
+Node: Ambiguous input29059
+Node: Variable length tokens30024
+Node: The generalized model31740
+Node: General rules for the earleme variables34082
+Node: Terminals35075
+Node: Semantics35925
+Node: How Libmarpa semantics work36100
+Node: Valued and unvalued symbols37247
+Node: Threads39661
+Node: Fatal Errors40919
+Node: Introduction to the external interface41514
+Node: About the overviews41864
+Node: Return values42700
+Node: Naming conventions44489
+Node: Static method45603
+Node: Configuration methods46995
+Node: Grammar methods48681
+Node: Grammar overview48988
+Node: Grammar constructor50032
+Node: Grammar reference counting50885
+Node: Symbols51489
+Node: Rules57041
+Node: Sequences62065
+Node: Ranks66330
+Node: Grammar precomputation68573
+Ref: marpa_g_precompute68774
+Node: Recognizer methods73112
+Node: Recognizer overview73445
+Node: Recognizer constructor74175
+Node: Recognizer reference counting74729
+Node: Recognizer life cycle mutators75540
+Node: Location accessors83361
+Node: Other parse status methods86605
+Node: Progress reports89598
+Node: Bocage methods92770
+Node: Bocage overview92991
+Node: Bocage constructor93511
+Node: Bocage reference counting94165
+Node: Ordering methods95042
+Node: Ordering overview95294
+Node: Ordering constructor95898
+Node: Ordering reference counting96365
+Node: Non-default ordering97355
+Node: Tree methods98508
+Node: Tree overview98733
+Node: Tree constructor99560
+Node: Tree reference counting100215
+Node: Tree iteration101184
+Node: Value methods102492
+Node: Value overview102930
+Node: How to use the valuator104361
+Node: Advantages of step-driven valuation106332
+Node: Maintaining the stack110002
+Node: Sizing the stack112013
+Node: Initializing locations in the stack113793
+Node: Valuator constructor115989
+Node: Valuator reference counting116840
+Node: Registering semantics117825
+Node: Stepping through the valuator119759
+Node: Valuator steps by type120525
+Node: Basic step accessors122426
+Node: Other step accessors124261
+Node: Events125807
+Node: Events overview125996
+Node: Event methods126866
+Node: Event codes128051
+Node: Error methods macros and codes129926
+Node: Error methods130195
+Node: Error Macros131022
+Node: External error codes131389
+Node: Internal error codes151794
+Node: Design notes155335
+Node: Why so many time objects155770
+Node: Design of numbered objects157520
+Node: LHS Terminals158759
+Node: Work in Progress159452
+Node: Untested methods159637
+Node: GNU Free Documentation License161911
 
 End Tag Table
