@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeffrey Kegler
+ * Copyright 2013 Jeffrey Kegler
  * This file is part of Marpa::R2.  Marpa::R2 is free software: you can
  * redistribute it and/or modify it under the terms of the GNU Lesser
  * General Public License as published by the Free Software Foundation,
@@ -22,6 +22,7 @@
 
 
 Marpa_Error_Code marpa_check_version (unsigned int required_major, unsigned int required_minor, unsigned int required_micro );
+Marpa_Error_Code marpa_version (unsigned int* version);
 int marpa_c_init ( Marpa_Config* config);
 Marpa_Error_Code marpa_c_error ( Marpa_Config* config, const char** p_error_string );
 Marpa_Grammar marpa_g_new ( Marpa_Config* configuration );

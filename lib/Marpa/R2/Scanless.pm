@@ -1,4 +1,4 @@
-# Copyright 2012 Jeffrey Kegler
+# Copyright 2013 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.043_001';
+$VERSION        = '2.043_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -58,9 +58,10 @@ BEGIN {
 
     :package=Marpa::R2::Inner::Scanless::R
 
+    C { The thin version of this object }
+
     GRAMMAR
     STREAM
-    THIN_LEX_RECCE
     THICK_G1_RECCE
     LOCATIONS
     P_INPUT_STRING
@@ -2508,9 +2509,6 @@ sub Marpa::R2::Scanless::R::new {
         $grammar->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR];
     my $lex_tracer       = $thick_lex_grammar->tracer();
     my $thin_lex_grammar = $lex_tracer->grammar();
-    my $lex_r            = $self->[Marpa::R2::Inner::Scanless::R::THIN_LEX_RECCE] =
-        Marpa::R2::Thin::R->new($thin_lex_grammar);
-    $lex_r->start_input();
 
     my $thick_g1_grammar =
         $grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
@@ -2522,7 +2520,12 @@ sub Marpa::R2::Scanless::R::new {
         Marpa::R2::Recognizer->new( \%g1_recce_args );
 
     my $stream = $self->[Marpa::R2::Inner::Scanless::R::STREAM] =
-        Marpa::R2::Thin::U->new($lex_r);
+        Marpa::R2::Thin::U->new($thin_lex_grammar);
+
+    $self->[Marpa::R2::Inner::Scanless::R::C] =
+        Marpa::R2::Thin::SL->new( $thin_lex_grammar,
+        $thick_g1_grammar->thin() );
+
     return $self;
 } ## end sub Marpa::R2::Scanless::R::new
 
@@ -2558,12 +2561,12 @@ sub Marpa::R2::Scanless::R::read {
     my $trace_terminals =
         $self->[Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS];
 
+    my $thin_self  = $self->[Marpa::R2::Inner::Scanless::R::C];
     my $stream  = $self->[Marpa::R2::Inner::Scanless::R::STREAM];
     my $grammar = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
     my $thick_lex_grammar =
         $grammar->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR];
     my $lex_tracer       = $thick_lex_grammar->tracer();
-    my $thin_lex_grammar = $lex_tracer->grammar();
 
     # Defaults to non-existent symbol
     my $g0_discard_symbol_id =
@@ -2576,7 +2579,6 @@ sub Marpa::R2::Scanless::R::read {
     my $thin_g1_recce    = $thick_g1_recce->thin();
     my $thick_g1_grammar = $thick_g1_recce->grammar();
     my $g1_tracer       = $thick_g1_grammar->tracer();
-    my $thin_g1_grammar  = $g1_tracer->grammar();
 
     # Here we access an internal value of the Recognizer class
     # Scanless is, in C++ terms, a friend class of the Recognizer
@@ -2599,9 +2601,8 @@ sub Marpa::R2::Scanless::R::read {
 
     my $length_of_string     = length ${$p_string};
     my $start_of_next_lexeme = 0;
-    my $thin_lex_recce =
-        $self->[Marpa::R2::Inner::Scanless::R::THIN_LEX_RECCE];
     $stream->string_set( $p_string );
+    my $lex_recce_is_active = 0;
 
     READ: while ( $start_of_next_lexeme < $length_of_string ) {
 
@@ -2609,10 +2610,9 @@ sub Marpa::R2::Scanless::R::read {
         state $op_earleme_complete =
             Marpa::R2::Thin::U::op('earleme_complete');
 
-        if ( not defined $thin_lex_recce ) {
-            $thin_lex_recce = Marpa::R2::Thin::R->new($thin_lex_grammar);
-            $thin_lex_recce->start_input();
-            $stream->recce_set($thin_lex_recce);
+        if ( not $lex_recce_is_active ) {
+            $stream->recce_reset();
+            $lex_recce_is_active = 1;
             $stream->pos_set($start_of_next_lexeme);
         } ## end if ( not defined $thin_lex_recce )
 
@@ -2625,11 +2625,12 @@ sub Marpa::R2::Scanless::R::read {
                 . $lex_tracer->symbol_name($problem_symbol);
             die "Exception in stream read(): $EVAL_ERROR\n", $symbol_desc;
         } ## end if ( not defined eval { $lex_event_count = $stream->read...})
-        if (   $thin_lex_recce->is_exhausted()
+
+        if (   $stream->recce->is_exhausted()
             or $lex_event_count == -1
             or $lex_event_count == 0 )
         {
-            my $latest_earley_set = $thin_lex_recce->latest_earley_set();
+            my $latest_earley_set = $stream->recce->latest_earley_set();
             my $earley_set        = $latest_earley_set;
             my $is_lexeme =
                 $grammar->[Marpa::R2::Inner::Scanless::G::IS_LEXEME];
@@ -2637,21 +2638,24 @@ sub Marpa::R2::Scanless::R::read {
 
             # Do not search Earley set 0 -- we do not care about
             # zero-length lexemes
-            EARLEY_SET: while ( $earley_set > 0 ) {
-                $thin_lex_recce->progress_report_start($earley_set);
-                ITEM: while (1) {
-                    my ( $rule_id, $dot_position, $origin ) =
-                        $thin_lex_recce->progress_item();
-                    last ITEM if not defined $rule_id;
-                    next ITEM if $origin != 0;
-                    next ITEM if $dot_position != -1;
-                    my $lhs_id = $thin_lex_grammar->rule_lhs($rule_id);
-                    next ITEM if not $is_lexeme->[$lhs_id];
-                    $found{$lhs_id} = 1;
-                } ## end ITEM: while (1)
-                last EARLEY_SET if scalar %found;
-                $earley_set--;
-            } ## end EARLEY_SET: while ( $earley_set > 0 )
+            {
+                my $thin_lex_recce = $stream->recce();
+                EARLEY_SET: while ( $earley_set > 0 ) {
+                    $thin_lex_recce->progress_report_start($earley_set);
+                    ITEM: while (1) {
+                        my ( $rule_id, $dot_position, $origin ) =
+                            $thin_lex_recce->progress_item();
+                        last ITEM if not defined $rule_id;
+                        next ITEM if $origin != 0;
+                        next ITEM if $dot_position != -1;
+                        my $lhs_id = $thin_self->g0()->rule_lhs($rule_id);
+                        next ITEM if not $is_lexeme->[$lhs_id];
+                        $found{$lhs_id} = 1;
+                    } ## end ITEM: while (1)
+                    last EARLEY_SET if scalar %found;
+                    $earley_set--;
+                } ## end EARLEY_SET: while ( $earley_set > 0 )
+            }
             if ( not scalar %found ) {
                 $g1_status = $lex_event_count = 0;    # lexer was NOT the problem
                 $problem = "No lexeme found at position $start_of_next_lexeme";
@@ -2691,19 +2695,18 @@ sub Marpa::R2::Scanless::R::read {
 
                 for my $lexed_symbol_id (@found_lexemes) {
                     my $g1_lexeme = $lexeme_to_g1_symbol->[$lexed_symbol_id];
-                    $thin_g1_recce->alternative( $g1_lexeme, $token_ix,
-                        1 );
-                } ## end for my $lexed_symbol_id (@found_lexemes)
+                    $thin_g1_recce->alternative( $g1_lexeme, $token_ix, 1 );
+                }
                 push @locations, [ $lexeme_start_pos, $lexeme_end_pos ];
-                $thin_g1_grammar->throw_set(0);
+                $thin_self->g1()->throw_set(0);
                 $g1_status = $thin_g1_recce->earleme_complete();
-                $thin_g1_grammar->throw_set(1);
+                $thin_self->g1()->throw_set(1);
                 LOOK_FOR_G1_PROBLEMS: {
                     if ( defined $g1_status ) {
                         last LOOK_FOR_G1_PROBLEMS if $g1_status == 0;
                         if ( $g1_status > 0 ) {
                             my $significant_problems = 0;
-                            my $event_count = $thin_g1_grammar->event_count();
+                            my $event_count = $thin_self->g1()->event_count();
                             for (
                                 my $event_ix = 0;
                                 $event_ix < $event_count;
@@ -2711,7 +2714,7 @@ sub Marpa::R2::Scanless::R::read {
                                 )
                             {
                                 my ($event_type) =
-                                    $thin_g1_grammar->event($event_ix);
+                                    $thin_self->g1()->event($event_ix);
                                 if ( $event_type ne 'MARPA_EVENT_EXHAUSTED' )
                                 {
                                     $significant_problems++;
@@ -2730,7 +2733,7 @@ sub Marpa::R2::Scanless::R::read {
                 } ## end LOOK_FOR_G1_PROBLEMS:
             } ## end if ( scalar @found_lexemes )
 
-            $thin_lex_recce  = undef;
+            $lex_recce_is_active = 0;
             $lex_event_count = 0;
 
             next READ;
@@ -2786,7 +2789,7 @@ sub Marpa::R2::Scanless::R::read {
                 )
             {
                 my ( $event_type, $value ) =
-                    $thin_lex_grammar->event($event_ix);
+                    $thin_self->g0()->event($event_ix);
                 if ( $event_type eq 'MARPA_EVENT_EARLEY_ITEM_THRESHOLD' ) {
                     $desc
                         .= "Lexer: Earley item count ($value) exceeds warning threshold\n";
@@ -2817,7 +2820,7 @@ sub Marpa::R2::Scanless::R::read {
             last DESC;
         }
         if ($g1_status) {
-            my $true_event_count = $thin_g1_grammar->event_count();
+            my $true_event_count = $thin_self->g1()->event_count();
             EVENT:
             for (
                 my $event_ix = 0;
@@ -2826,7 +2829,7 @@ sub Marpa::R2::Scanless::R::read {
                 )
             {
                 my ( $event_type, $value ) =
-                    $thin_g1_grammar->event($event_ix);
+                    $thin_self->g1()->event($event_ix);
                 if ( $event_type eq 'MARPA_EVENT_EARLEY_ITEM_THRESHOLD' ) {
                     $desc
                         .= "G1 grammar: Earley item count ($value) exceeds warning threshold\n";
@@ -2845,7 +2848,7 @@ sub Marpa::R2::Scanless::R::read {
             last DESC;
         } ## end if ($g1_status)
         if ( $g1_status < 0 ) {
-            $desc = 'G1 error: ' . $thin_g1_grammar->error();
+            $desc = 'G1 error: ' . $thin_self->g1()->error();
             last DESC;
         }
     } ## end DESC:
