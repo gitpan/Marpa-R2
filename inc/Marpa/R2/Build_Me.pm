@@ -1,4 +1,4 @@
-# Copyright 2013 Jeffrey Kegler
+# Copyright 2012 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -259,8 +259,8 @@ sub process_xs {
 	push @new_ccflags, '-Wdeclaration-after-statement' if gcc_is_at_least('3.4.6');
     } ## end if ( $self->config('cc') eq 'gcc' )
     if ( defined $self->args('XS-debug') ) {
-	say 'XS-debug flag is on';
-        push @new_ccflags, qw( -ansi -pedantic -Wundef -Wendif-labels -Wall );
+     	say 'XS-debug flag is on';
+	push @new_ccflags, qw( -ansi -pedantic -Wundef -Wendif-labels -Wall );
     }
     my $ccflags = $self->config('ccflags');
     $self->config( ccflags => ( $ccflags . q{ } . join q{ }, @new_ccflags ) );
