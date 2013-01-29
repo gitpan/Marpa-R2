@@ -1,4 +1,4 @@
-# Copyright 2012 Jeffrey Kegler
+# Copyright 2013 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -20,6 +20,8 @@ B_Wrapper * T_MARPA_B_W
 O_Wrapper * T_MARPA_O_W
 T_Wrapper * T_MARPA_T_W
 V_Wrapper * T_MARPA_V_W
+Scanless_G * T_SCANLESS_G
+Scanless_R * T_SCANLESS_R
 
 Marpa_Rank T_IV
 Marpa_Symbol_ID T_IV
@@ -97,6 +99,25 @@ T_MARPA_V_W
 	    $var = INT2PTR(V_Wrapper *, tmp);
 	} else
 	    Perl_croak(aTHX_ \"%s: %s is not of type Marpa::R2::Thin::V\",
+			${$ALIAS?\q[GvNAME(CvGV(cv))]:\qq[\"$pname\"]},
+			\"$var\")
+
+T_SCANLESS_G
+	if (sv_isa($arg, \"Marpa::R2::Thin::SLG\")) {
+	    IV tmp = SvIV((SV*)SvRV($arg));
+	    $var = INT2PTR(Scanless_G *, tmp);
+	} else
+	    Perl_croak(aTHX_ \"%s: %s is not of type Marpa::R2::Thin::SLG\",
+			${$ALIAS?\q[GvNAME(CvGV(cv))]:\qq[\"$pname\"]},
+			\"$var\")
+
+
+T_SCANLESS_R
+	if (sv_isa($arg, \"Marpa::R2::Thin::SLR\")) {
+	    IV tmp = SvIV((SV*)SvRV($arg));
+	    $var = INT2PTR(Scanless_R *, tmp);
+	} else
+	    Perl_croak(aTHX_ \"%s: %s is not of type Marpa::R2::Thin::SLR\",
 			${$ALIAS?\q[GvNAME(CvGV(cv))]:\qq[\"$pname\"]},
 			\"$var\")
 

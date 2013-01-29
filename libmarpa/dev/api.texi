@@ -10,7 +10,7 @@
 This manual (@value{UPDATED})
 is for Libmarpa @value{VERSION}.
 
-Copyright @copyright{} 2012 Jeffrey Kegler.
+Copyright @copyright{} 2013 Jeffrey Kegler.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -55,7 +55,7 @@ Published @value{UPDATED} by Jeffrey Kegler
 * Threads::                     
 * Fatal Errors::                
 * Introduction to the external interface::  
-* Static method::               
+* Static methods::              
 * Configuration methods::       
 * Grammar methods::             
 * Recognizer methods::          
@@ -237,7 +237,8 @@ enough to understand function prototypes and return values.
 @item
 The reader
 has read the documents for one of Libmarpa's upper layers.
-As of this writing, the only such layer is @code{Marpa::R2},
+As of this writing, the only such layer is @code{Marpa::R2}
+or @code{Marpa::R3},
 in Perl.
 @item
 The reader knows some parsing theory.
@@ -563,8 +564,9 @@ This document assumes that the reader knows the concepts
 behind Libmarpa's
 alternative input models, either from the documentation
 of a higher level interface, such as
-@code{Marpa::XS} or
+@code{Marpa::XS},
 @code{Marpa::R2},
+or @code{Marpa::R3},
 or from Marpa's
 @uref{https://github.com/downloads/jeffreykegler/Marpa-theory/recce.pdf, theory document}.
 
@@ -1108,7 +1110,7 @@ an alternative memory allocator to be specificied,
 and to allow the user to specifier a handler to
 be called when an out-of-memory condition occurs.
 
-@node Introduction to the external interface, Static method, Fatal Errors, Top
+@node Introduction to the external interface, Static methods, Fatal Errors, Top
 @chapter Introduction to the external interface
 
 The following chapters describe Libmarpa's external
@@ -1235,8 +1237,8 @@ All Libmarpa names visible outside the package
 will begin with a capitalization variant
 of one of these two prefixes.
 
-@node Static method, Configuration methods, Introduction to the external interface, Top
-@chapter Static method
+@node Static methods, Configuration methods, Introduction to the external interface, Top
+@chapter Static methods
 
 @deftypefun Marpa_Error_Code marpa_check_version @
     (unsigned int @var{required_major}, @
@@ -1274,7 +1276,16 @@ one of the following is returned, indicating the nature of the mismatch:
 
 @end deftypefun
 
-@node Configuration methods, Grammar methods, Static method, Top
+@deftypefun Marpa_Error_Code marpa_version (unsigned int* version)
+
+Returns the version number in @var{version},
+which must have room for three @code{unsigned int}'s.
+
+Return value: A non-negative number on success,
+@minus{}2 on failure.
+@end deftypefun
+
+@node Configuration methods, Grammar methods, Static methods, Top
 @chapter Configuration methods
 
 The configuration object is intended for future extensions.
@@ -2423,17 +2434,46 @@ On failure, @minus{}2.
   Marpa_Recognizer @var{r}, @
   Marpa_Earley_Set_ID earley_set)
 Returns the integer value of @var{earley_set}.
-The ``value'' of an Earley is an arbitrary integer that the application
-can use for its own purposes.
-In character-per-earleme input models, for example,
-it can be the codepoint of the current character.
-The Earley set value can be set using
-the 
-@code{marpa_r_latest_earley_set()} method.
-The Earley set value defaults to @minus{}1.
+For more details, see
+the description of @code{marpa_r_earley_set_values()}.
 
 Return value: On success, the value of @var{earley_set}.
 On failure, @minus{}2.
+@end deftypefun
+
+@deftypefun int marpa_r_earley_set_values (@
+  Marpa_Recognizer @var{r}, @
+  Marpa_Earley_Set_ID earley_set, @
+  int* p_value, @
+  void** p_pvalue @
+  )
+If @var{p_value} is non-zero,
+sets the location pointed to by
+@var{p_value} to the integer value of the Earley set.
+Similarly, if @var{p_pvalue} is non-zero,
+sets the location pointed to by
+@var{p_pvalue} to the pointer value of the Earley set.
+
+The ``value'' and ``pointer'' of an Earley set are
+an arbitrary integer
+and an arbitrary pointer
+that the application
+can use for its own purposes.
+In character-per-earleme input models, for example,
+the integer can be the codepoint of the current character.
+In a traditional token-per-earley input model,
+they could be used to indicate the string value of the token --
+the pointer could point to the start of the string,
+and the integer could indicate its length.
+
+The Earley set value and pointer can be set using
+the 
+@code{marpa_r_latest_earley_set_values_set()} method.
+The Earley set integer value defaults to @minus{}1,
+and the pointer value defaults to @code{NULL}.
+
+Return value: On success, returns a non-negative integer.
+On failure, returns @minus{}2.
 @end deftypefun
 
 @deftypefun @code{unsigned int} marpa_r_furthest_earleme (Marpa_Recognizer @var{r})
@@ -2456,13 +2496,26 @@ Always succeeds.
   Marpa_Recognizer @var{r}, @
   int value)
 Sets the integer value of the latest Earley set.
-For more about the ``value'' of an Earley set,
-see the description of the
-@code{marpa_r_earley_set_value()} method.
-The Earley set value defaults to @minus{}1.
+For more details, see
+the description of 
+@code{marpa_r_latest_earley_set_values_set()}.
 
 Return value: On success, the new value of @var{earley_set}.
 On failure, @minus{}2.
+@end deftypefun
+
+@deftypefun int marpa_r_latest_earley_set_values_set (@
+  Marpa_Recognizer @var{r}, @
+  int value, @
+  void* pvalue)
+Sets the integer and pointer value of the latest Earley set.
+For more about the ``integer value'' and ``pointer value''
+of an Earley set,
+see the description of the
+@code{marpa_r_earley_set_values()} method.
+
+Return value: On success, returns a non-negative integer.
+On failure, returns @minus{}2.
 @end deftypefun
 
 @node Other parse status methods,  , Location accessors, Recognizer methods

@@ -1,4 +1,4 @@
-# Copyright 2012 Jeffrey Kegler
+# Copyright 2013 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -15,11 +15,28 @@
 
 Revision history for Marpa::R2
 
+2.045_000
+
+      * New series of developer's releases.
+
 2.044000 Mon Jan 28 19:42:06 PST 2013
 
-      * Test "hot fix" for 64-bit Windows failures.
+      * Fix 64-bit Windows failures.
 
       * Based on 2.043_001.
+
+2.043_002
+
+      * Developer release.
+
+2.043_001
+
+      * Test "hot fix" for 64-bit Windows failures.
+        Leapfrogs the trunk -- based on 2.042000.
+
+2.043_000
+
+      * New series of developer's releases.
 
 2.042000 Tue Jan 22 17:15:50 PST 2013
 

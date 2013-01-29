@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeffrey Kegler
+ * Copyright 2013 Jeffrey Kegler
  * This file is part of Marpa::R2.  Marpa::R2 is free software: you can
  * redistribute it and/or modify it under the terms of the GNU Lesser
  * General Public License as published by the Free Software Foundation,
@@ -22,6 +22,7 @@
 
 
 Marpa_Error_Code marpa_check_version (unsigned int required_major, unsigned int required_minor, unsigned int required_micro );
+Marpa_Error_Code marpa_version (unsigned int* version);
 int marpa_c_init ( Marpa_Config* config);
 Marpa_Error_Code marpa_c_error ( Marpa_Config* config, const char** p_error_string );
 Marpa_Grammar marpa_g_new ( Marpa_Config* configuration );
@@ -71,9 +72,11 @@ Marpa_Earleme marpa_r_earleme_complete (Marpa_Recognizer r);
 unsigned int marpa_r_current_earleme (Marpa_Recognizer r);
 Marpa_Earleme marpa_r_earleme ( Marpa_Recognizer r, Marpa_Earley_Set_ID set_id);
 int marpa_r_earley_set_value ( Marpa_Recognizer r, Marpa_Earley_Set_ID earley_set);
+int marpa_r_earley_set_values ( Marpa_Recognizer r, Marpa_Earley_Set_ID earley_set, int* p_value, void** p_pvalue );
 unsigned int marpa_r_furthest_earleme (Marpa_Recognizer r);
 Marpa_Earley_Set_ID marpa_r_latest_earley_set (Marpa_Recognizer r);
 int marpa_r_latest_earley_set_value_set ( Marpa_Recognizer r, int value);
+int marpa_r_latest_earley_set_values_set ( Marpa_Recognizer r, int value, void* pvalue);
 int marpa_r_earley_item_warning_threshold (Marpa_Recognizer r);
 int marpa_r_earley_item_warning_threshold_set (Marpa_Recognizer r, int threshold);
 int marpa_r_expected_symbol_event_set ( Marpa_Recognizer r, Marpa_Symbol_ID symbol_id, int value);

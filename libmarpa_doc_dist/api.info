@@ -1,8 +1,8 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (28 January 2013) is for Libmarpa 2.44.0.
+This manual (29 January 2013) is for Libmarpa 2.45.0.
 
-   Copyright (C) 2012 Jeffrey Kegler.
+   Copyright (C) 2013 Jeffrey Kegler.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,9 +16,9 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (28 January 2013) is for Libmarpa 2.44.0.
+This manual (29 January 2013) is for Libmarpa 2.45.0.
 
-   Copyright (C) 2012 Jeffrey Kegler.
+   Copyright (C) 2013 Jeffrey Kegler.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -37,7 +37,7 @@ This manual (28 January 2013) is for Libmarpa 2.44.0.
 * Threads::
 * Fatal Errors::
 * Introduction to the external interface::
-* Static method::
+* Static methods::
 * Configuration methods::
 * Grammar methods::
 * Recognizer methods::
@@ -391,8 +391,8 @@ following:
      to understand function prototypes and return values.
 
    * The reader has read the documents for one of Libmarpa's upper
-     layers.  As of this writing, the only such layer is `Marpa::R2',
-     in Perl.
+     layers.  As of this writing, the only such layer is `Marpa::R2' or
+     `Marpa::R3', in Perl.
 
    * The reader knows some parsing theory.  *Note Parsing theory::.
 
@@ -650,8 +650,8 @@ allows a wide variety of alternative input models.
 
    This document assumes that the reader knows the concepts behind
 Libmarpa's alternative input models, either from the documentation of a
-higher level interface, such as `Marpa::XS' or `Marpa::R2', or from
-Marpa's theory document
+higher level interface, such as `Marpa::XS', `Marpa::R2', or
+`Marpa::R3', or from Marpa's theory document
 (https://github.com/downloads/jeffreykegler/Marpa-theory/recce.pdf).
 
    As a reminder, in Libmarpa a location is called a "earleme".  The
@@ -1080,7 +1080,7 @@ specificied, and to allow the user to specifier a handler to be called
 when an out-of-memory condition occurs.
 
 
-File: api.info,  Node: Introduction to the external interface,  Next: Static method,  Prev: Fatal Errors,  Up: Top
+File: api.info,  Node: Introduction to the external interface,  Next: Static methods,  Prev: Fatal Errors,  Up: Top
 
 8 Introduction to the external interface
 ****************************************
@@ -1177,10 +1177,10 @@ outside the package will begin with a capitalization variant of one of
 these two prefixes.
 
 
-File: api.info,  Node: Static method,  Next: Configuration methods,  Prev: Introduction to the external interface,  Up: Top
+File: api.info,  Node: Static methods,  Next: Configuration methods,  Prev: Introduction to the external interface,  Up: Top
 
-9 Static method
-***************
+9 Static methods
+****************
 
  -- Function: Marpa_Error_Code marpa_check_version (unsigned int
           REQUIRED_MAJOR, unsigned int REQUIRED_MINOR, unsigned int
@@ -1208,8 +1208,14 @@ File: api.info,  Node: Static method,  Next: Configuration methods,  Prev: Intro
         * `MARPA_ERR_MICRO_VERSION_MISMATCH'
 
 
+ -- Function: Marpa_Error_Code marpa_version (unsigned int* version)
+     Returns the version number in VERSION, which must have room for
+     three `unsigned int''s.
+
+     Return value: A non-negative number on success, -2 on failure.
+
 
-File: api.info,  Node: Configuration methods,  Next: Grammar methods,  Prev: Static method,  Up: Top
+File: api.info,  Node: Configuration methods,  Next: Grammar methods,  Prev: Static methods,  Up: Top
 
 10 Configuration methods
 ************************
@@ -2055,14 +2061,35 @@ File: api.info,  Node: Location accessors,  Next: Other parse status methods,  P
 
  -- Function: int marpa_r_earley_set_value ( Marpa_Recognizer R,
           Marpa_Earley_Set_ID earley_set)
-     Returns the integer value of EARLEY_SET.  The "value" of an Earley
-     is an arbitrary integer that the application can use for its own
-     purposes.  In character-per-earleme input models, for example, it
-     can be the codepoint of the current character.  The Earley set
-     value can be set using the `marpa_r_latest_earley_set()' method.
-     The Earley set value defaults to -1.
+     Returns the integer value of EARLEY_SET.  For more details, see
+     the description of `marpa_r_earley_set_values()'.
 
      Return value: On success, the value of EARLEY_SET.  On failure, -2.
+
+ -- Function: int marpa_r_earley_set_values ( Marpa_Recognizer R,
+          Marpa_Earley_Set_ID earley_set, int* p_value, void** p_pvalue
+          )
+     If P_VALUE is non-zero, sets the location pointed to by P_VALUE to
+     the integer value of the Earley set.  Similarly, if P_PVALUE is
+     non-zero, sets the location pointed to by P_PVALUE to the pointer
+     value of the Earley set.
+
+     The "value" and "pointer" of an Earley set are an arbitrary integer
+     and an arbitrary pointer that the application can use for its own
+     purposes.  In character-per-earleme input models, for example, the
+     integer can be the codepoint of the current character.  In a
+     traditional token-per-earley input model, they could be used to
+     indicate the string value of the token - the pointer could point
+     to the start of the string, and the integer could indicate its
+     length.
+
+     The Earley set value and pointer can be set using the
+     `marpa_r_latest_earley_set_values_set()' method.  The Earley set
+     integer value defaults to -1, and the pointer value defaults to
+     `NULL'.
+
+     Return value: On success, returns a non-negative integer.  On
+     failure, returns -2.
 
  -- Function: `unsigned int' marpa_r_furthest_earleme (Marpa_Recognizer
           R)
@@ -2080,13 +2107,22 @@ File: api.info,  Node: Location accessors,  Next: Other parse status methods,  P
 
  -- Function: int marpa_r_latest_earley_set_value_set (
           Marpa_Recognizer R, int value)
-     Sets the integer value of the latest Earley set.  For more about
-     the "value" of an Earley set, see the description of the
-     `marpa_r_earley_set_value()' method.  The Earley set value
-     defaults to -1.
+     Sets the integer value of the latest Earley set.  For more
+     details, see the description of
+     `marpa_r_latest_earley_set_values_set()'.
 
      Return value: On success, the new value of EARLEY_SET.  On
      failure, -2.
+
+ -- Function: int marpa_r_latest_earley_set_values_set (
+          Marpa_Recognizer R, int value, void* pvalue)
+     Sets the integer and pointer value of the latest Earley set.  For
+     more about the "integer value" and "pointer value" of an Earley
+     set, see the description of the `marpa_r_earley_set_values()'
+     method.
+
+     Return value: On success, returns a non-negative integer.  On
+     failure, returns -2.
 
 
 File: api.info,  Node: Other parse status methods,  Prev: Location accessors,  Up: Recognizer methods
@@ -4347,101 +4383,101 @@ permit their use in free software.
 
 Tag Table:
 Node: Top482
-Node: Copying3652
-Node: About this document12083
-Node: How to read this document12300
-Node: Prerequisites12767
-Node: Parsing theory13351
-Node: About Libmarpa14039
-Node: Architecture15871
-Node: Major objects16077
-Node: Time objects17416
-Node: Reference counting18870
-Node: Numbered objects20923
-Node: Input21357
-Node: Earlemes21492
-Node: The traditional model21889
-Node: The earleme variables23152
-Node: The significances of the earleme variables25032
-Node: The initial earleme settings26658
-Node: The standard model of input27336
-Node: Ambiguous input29059
-Node: Variable length tokens30024
-Node: The generalized model31740
-Node: General rules for the earleme variables34082
-Node: Terminals35075
-Node: Semantics35925
-Node: How Libmarpa semantics work36100
-Node: Valued and unvalued symbols37247
-Node: Threads39661
-Node: Fatal Errors40919
-Node: Introduction to the external interface41514
-Node: About the overviews41864
-Node: Return values42700
-Node: Naming conventions44489
-Node: Static method45603
-Node: Configuration methods46995
-Node: Grammar methods48681
-Node: Grammar overview48988
-Node: Grammar constructor50032
-Node: Grammar reference counting50885
-Node: Symbols51489
-Node: Rules57041
-Node: Sequences62065
-Node: Ranks66330
-Node: Grammar precomputation68573
-Ref: marpa_g_precompute68774
-Node: Recognizer methods73112
-Node: Recognizer overview73445
-Node: Recognizer constructor74175
-Node: Recognizer reference counting74729
-Node: Recognizer life cycle mutators75540
-Node: Location accessors83361
-Node: Other parse status methods86605
-Node: Progress reports89598
-Node: Bocage methods92770
-Node: Bocage overview92991
-Node: Bocage constructor93511
-Node: Bocage reference counting94165
-Node: Ordering methods95042
-Node: Ordering overview95294
-Node: Ordering constructor95898
-Node: Ordering reference counting96365
-Node: Non-default ordering97355
-Node: Tree methods98508
-Node: Tree overview98733
-Node: Tree constructor99560
-Node: Tree reference counting100215
-Node: Tree iteration101184
-Node: Value methods102492
-Node: Value overview102930
-Node: How to use the valuator104361
-Node: Advantages of step-driven valuation106332
-Node: Maintaining the stack110002
-Node: Sizing the stack112013
-Node: Initializing locations in the stack113793
-Node: Valuator constructor115989
-Node: Valuator reference counting116840
-Node: Registering semantics117825
-Node: Stepping through the valuator119759
-Node: Valuator steps by type120525
-Node: Basic step accessors122426
-Node: Other step accessors124261
-Node: Events125807
-Node: Events overview125996
-Node: Event methods126866
-Node: Event codes128051
-Node: Error methods macros and codes129926
-Node: Error methods130195
-Node: Error Macros131022
-Node: External error codes131389
-Node: Internal error codes151794
-Node: Design notes155335
-Node: Why so many time objects155770
-Node: Design of numbered objects157520
-Node: LHS Terminals158759
-Node: Work in Progress159452
-Node: Untested methods159637
-Node: GNU Free Documentation License161911
+Node: Copying3653
+Node: About this document12084
+Node: How to read this document12301
+Node: Prerequisites12768
+Node: Parsing theory13367
+Node: About Libmarpa14055
+Node: Architecture15887
+Node: Major objects16093
+Node: Time objects17432
+Node: Reference counting18886
+Node: Numbered objects20939
+Node: Input21373
+Node: Earlemes21508
+Node: The traditional model21905
+Node: The earleme variables23182
+Node: The significances of the earleme variables25062
+Node: The initial earleme settings26688
+Node: The standard model of input27366
+Node: Ambiguous input29089
+Node: Variable length tokens30054
+Node: The generalized model31770
+Node: General rules for the earleme variables34112
+Node: Terminals35105
+Node: Semantics35955
+Node: How Libmarpa semantics work36130
+Node: Valued and unvalued symbols37277
+Node: Threads39691
+Node: Fatal Errors40949
+Node: Introduction to the external interface41544
+Node: About the overviews41895
+Node: Return values42731
+Node: Naming conventions44520
+Node: Static methods45634
+Node: Configuration methods47266
+Node: Grammar methods48953
+Node: Grammar overview49260
+Node: Grammar constructor50304
+Node: Grammar reference counting51157
+Node: Symbols51761
+Node: Rules57313
+Node: Sequences62337
+Node: Ranks66602
+Node: Grammar precomputation68845
+Ref: marpa_g_precompute69046
+Node: Recognizer methods73384
+Node: Recognizer overview73717
+Node: Recognizer constructor74447
+Node: Recognizer reference counting75001
+Node: Recognizer life cycle mutators75812
+Node: Location accessors83633
+Node: Other parse status methods88168
+Node: Progress reports91161
+Node: Bocage methods94333
+Node: Bocage overview94554
+Node: Bocage constructor95074
+Node: Bocage reference counting95728
+Node: Ordering methods96605
+Node: Ordering overview96857
+Node: Ordering constructor97461
+Node: Ordering reference counting97928
+Node: Non-default ordering98918
+Node: Tree methods100071
+Node: Tree overview100296
+Node: Tree constructor101123
+Node: Tree reference counting101778
+Node: Tree iteration102747
+Node: Value methods104055
+Node: Value overview104493
+Node: How to use the valuator105924
+Node: Advantages of step-driven valuation107895
+Node: Maintaining the stack111565
+Node: Sizing the stack113576
+Node: Initializing locations in the stack115356
+Node: Valuator constructor117552
+Node: Valuator reference counting118403
+Node: Registering semantics119388
+Node: Stepping through the valuator121322
+Node: Valuator steps by type122088
+Node: Basic step accessors123989
+Node: Other step accessors125824
+Node: Events127370
+Node: Events overview127559
+Node: Event methods128429
+Node: Event codes129614
+Node: Error methods macros and codes131489
+Node: Error methods131758
+Node: Error Macros132585
+Node: External error codes132952
+Node: Internal error codes153357
+Node: Design notes156898
+Node: Why so many time objects157333
+Node: Design of numbered objects159083
+Node: LHS Terminals160322
+Node: Work in Progress161015
+Node: Untested methods161200
+Node: GNU Free Documentation License163474
 
 End Tag Table

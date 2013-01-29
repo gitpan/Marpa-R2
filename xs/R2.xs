@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeffrey Kegler
+ * Copyright 2013 Jeffrey Kegler
  * This file is part of Marpa::R2.  Marpa::R2 is free software: you can
  * redistribute it and/or modify it under the terms of the GNU Lesser
  * General Public License as published by the Free Software Foundation,
@@ -43,14 +43,19 @@ typedef struct marpa_r Recce;
 typedef struct {
      Marpa_Recce r;
      Marpa_Symbol_ID* terminals_buffer;
+     SV* base_sv;
      G_Wrapper* base;
      unsigned int ruby_slippers:1;
 } R_Wrapper;
 
 typedef struct {
-     R_Wrapper* r_wrapper;
-     G_Wrapper* base;
-     SV* r_sv;
+     G_Wrapper* g0_wrapper;
+     /* Need to keep a copy of the G0 SV in order to properly "wrap"
+      * a recognizer.
+      */
+     SV* g0_sv;
+     Marpa_Recce r0;
+     SV* r0_sv;
      STRLEN perl_pos; /* character position, taking into account Unicode
          Equivalent to Perl pos()
      */
@@ -68,27 +73,50 @@ typedef struct {
      IV trace; /* trace level */
 } Unicode_Stream;
 
+typedef struct {
+     SV* g0_sv;
+     SV* g1_sv;
+     G_Wrapper* g0_wrapper;
+     G_Wrapper* g1_wrapper;
+} Scanless_G;
+
+typedef struct {
+     SV* slg_sv;
+     SV* r1_sv;
+     SV* stream_sv;
+     Scanless_G* slg;
+     Unicode_Stream* stream;
+     R_Wrapper* r1_wrapper;
+     Marpa_Recce r1;
+     G_Wrapper* g1_wrapper;
+     int trace_level;
+} Scanless_R;
+
 typedef struct marpa_b Bocage;
 typedef struct {
      Marpa_Bocage b;
+     SV* base_sv;
      G_Wrapper* base;
 } B_Wrapper;
 
 typedef struct marpa_o Order;
 typedef struct {
      Marpa_Order o;
+     SV* base_sv;
      G_Wrapper* base;
 } O_Wrapper;
 
 typedef struct marpa_t Tree;
 typedef struct {
      Marpa_Tree t;
+     SV* base_sv;
      G_Wrapper* base;
 } T_Wrapper;
 
 typedef struct marpa_v Value;
 typedef struct {
      Marpa_Value v;
+     SV* base_sv;
      G_Wrapper* base;
 } V_Wrapper;
 
@@ -99,6 +127,8 @@ static const char unicode_stream_class_name[] = "Marpa::R2::Thin::U";
 static const char order_c_class_name[] = "Marpa::R2::Thin::O";
 static const char tree_c_class_name[] = "Marpa::R2::Thin::T";
 static const char value_c_class_name[] = "Marpa::R2::Thin::V";
+static const char scanless_g_class_name[] = "Marpa::R2::Thin::SLG";
+static const char scanless_r_class_name[] = "Marpa::R2::Thin::SLR";
 
 #include "codes.h"
 #include "codes.c"
@@ -229,6 +259,526 @@ enum marpa_recce_op {
    op_unregistered,
 };
 
+/* Grammar statics */
+
+#define SET_G_WRAPPER_FROM_G_SV(g_wrapper, g_sv) { \
+    IV tmp = SvIV ((SV *) SvRV (g_sv)); \
+    (g_wrapper) = INT2PTR (G_Wrapper *, tmp); \
+}
+
+/* Recognizer statics */
+
+#define SET_R_WRAPPER_FROM_R_SV(r_wrapper, r_sv) { \
+    IV tmp = SvIV ((SV *) SvRV (r_sv)); \
+    (r_wrapper) = INT2PTR (R_Wrapper *, tmp); \
+}
+
+/* Maybe inline some of these */
+
+/* Assumes caller has checked that g_sv is blessed into right type.
+   Assumes caller holds a ref to the recce.
+*/
+static R_Wrapper*
+r_wrap( Marpa_Recce r, SV* g_sv)
+{
+  dTHX;
+  int highest_symbol_id;
+  R_Wrapper *r_wrapper;
+  G_Wrapper *g_wrapper;
+  Marpa_Grammar g;
+
+  SET_G_WRAPPER_FROM_G_SV(g_wrapper, g_sv);
+  g = g_wrapper->g;
+
+  highest_symbol_id = marpa_g_highest_symbol_id (g);
+  if (highest_symbol_id < 0)
+    {
+      if (!g_wrapper->throw)
+	{
+	  return 0;
+	}
+      croak ("failure in marpa_g_highest_symbol_id: %s",
+	     xs_g_error (g_wrapper));
+    };
+  Newx (r_wrapper, 1, R_Wrapper);
+  r_wrapper->r = r;
+  Newx (r_wrapper->terminals_buffer, highest_symbol_id + 1, Marpa_Symbol_ID);
+  r_wrapper->ruby_slippers = 0;
+  SvREFCNT_inc (g_sv);
+  r_wrapper->base_sv = g_sv;
+  r_wrapper->base = g_wrapper;
+  return r_wrapper;
+}
+
+/* It is up to the caller to deal with the Libmarpa recce's
+ * reference count
+ */
+static Marpa_Recce
+r_unwrap (R_Wrapper * r_wrapper)
+{
+  dTHX;
+  Marpa_Recce r = r_wrapper->r;
+  /* The wrapper should always have had a ref to its base grammar's SV */
+  SvREFCNT_dec (r_wrapper->base_sv);
+  Safefree (r_wrapper->terminals_buffer);
+  Safefree (r_wrapper);
+  /* The wrapper should always have had a ref to the Libmarpa recce */
+  return r;
+}
+
+/* Static Stream methods */
+
+/* The caller must ensure that g_sv is an SV of the correct type */
+static Unicode_Stream* u_new(SV* g_sv)
+{
+  dTHX;
+  Unicode_Stream *stream;
+  IV tmp = SvIV ((SV *) SvRV (g_sv));
+  G_Wrapper *g_wrapper = INT2PTR (G_Wrapper *, tmp);
+  Newx (stream, 1, Unicode_Stream);
+  stream->trace = 0;
+  stream->g0_wrapper = g_wrapper;
+  stream->r0 = NULL;
+  /* Hold a ref to the grammar SV we were called with --
+   * it will have to exist for our lifetime
+   */
+  SvREFCNT_inc (g_sv);
+  stream->g0_sv = g_sv;
+  stream->r0_sv = NULL;
+  stream->input = newSVpvn ("", 0);
+  stream->perl_pos = 0;
+  stream->input_offset = 0;
+  stream->input_debug = 0;
+  stream->input_symbol_id = -1;
+  stream->per_codepoint_ops = newHV ();
+  stream->ignore_rejection = 1;
+  stream->minimum_accepted = 1;
+  return stream;
+}
+
+static void u_destroy(Unicode_Stream *stream)
+{
+  dTHX;
+  const Marpa_Recce r0 = stream->r0;
+  if (r0)
+    {
+      marpa_r_unref (r0);
+    }
+  SvREFCNT_dec (stream->input);
+  SvREFCNT_dec (stream->per_codepoint_ops);
+  SvREFCNT_dec (stream->g0_sv);
+  if (stream->r0_sv)
+    {
+      SvREFCNT_dec (stream->r0_sv);
+    }
+  Safefree (stream);
+}
+
+static void
+u_r0_clear (Unicode_Stream * stream)
+{
+  dTHX;
+  SV *r0_sv;
+  Marpa_Recce r0 = stream->r0;
+  if (!r0)
+    return;
+  r0_sv = stream->r0_sv;
+  if (r0_sv)
+    {
+      SvREFCNT_dec (r0_sv);
+      stream->r0_sv = NULL;
+    }
+  marpa_r_unref (r0);
+  stream->r0 = NULL;
+}
+
+static Marpa_Recce
+u_r0_new (Unicode_Stream * stream)
+{
+  dTHX;
+  G_Wrapper *g0_wrapper = stream->g0_wrapper;
+  Marpa_Recce r0 = marpa_r_new (g0_wrapper->g);
+  if (!r0)
+    {
+      if (!g0_wrapper->throw)
+	return 0;
+      croak ("failure in marpa_r_new(): %s", xs_g_error (g0_wrapper));
+    };
+  {
+    int gp_result = marpa_r_start_input (r0);
+    if (gp_result == -1)
+      return 0;
+    if (gp_result < 0 && g0_wrapper->throw)
+      {
+	croak ("Problem in r->start_input(): %s", xs_g_error (g0_wrapper));
+      }
+  }
+  stream->r0 = r0;
+  return r0;
+}
+
+/* Return values:
+ * 1 or greater: an event count, as returned by earleme complete.
+ * 0: success: a full reading of the input, with nothing to report.
+ * -1: a character was rejected, when rejection is not being ignored
+ * -2: an unregistered character was found
+ * -3: earleme_complete() reported an exhausted parse.
+ */
+static int
+u_read(Unicode_Stream *stream)
+{
+  dTHX;
+  U8* input;
+  STRLEN len;
+  int input_is_utf8;
+
+  const IV trace_level = stream->trace;
+  int input_debug = stream->input_debug;
+  Marpa_Recognizer r = stream->r0;
+
+  if (!r) {
+      r = u_r0_new(stream);
+      if (!r)
+	croak ("Problem in u_read(): %s", xs_g_error (stream->g0_wrapper));
+  }
+  input_is_utf8 = SvUTF8 (stream->input);
+  input = (U8*)SvPV (stream->input, len);
+  for (;;)
+    {
+      int return_value = 0;
+      UV codepoint;
+      STRLEN codepoint_length = 1;
+      STRLEN op_ix;
+      STRLEN op_count;
+      UV *ops;
+      IV ignore_rejection = stream->ignore_rejection;
+      IV minimum_accepted = stream->minimum_accepted;
+      int tokens_accepted = 0;
+      if (stream->input_offset >= len)
+	break;
+      if (input_is_utf8)
+	{
+
+  /* utf8_to_uvchr is deprecated in 5.16, but
+   * utf8_to_uvchr_buf is not available before 5.16
+   * If I need to get fancier, I should look at Dumper.xs
+   * in Data::Dumper
+   */
+#if PERL_VERSION <= 15 && ! defined(utf8_to_uvchr_buf)
+	  codepoint = utf8_to_uvchr(input+stream->input_offset, &codepoint_length);
+#else
+	  codepoint =
+	  utf8_to_uvchr_buf (input + stream->input_offset, input + len,
+			     &codepoint_length);
+#endif
+
+	  /* Perl API documents that return value is 0 and length is -1 on error,
+	   * "if possible".  length can be, and is, in fact unsigned.
+	   * I deal with this by noting that 0 is a valid UTF8 char but should
+	   * have a length of 1, when valid.
+	   */
+	  if (codepoint == 0 && codepoint_length != 1) {
+	    croak ("Problem in r->read_string(): invalid UTF8 character");
+	  }
+	}
+      else
+	{
+	  codepoint = (UV) input[stream->input_offset];
+	  codepoint_length = 1;
+	}
+      if (trace_level >= 10) {
+          warn("Thin::U::read() Reading codepoint 0x%04x at pos %d",
+	    (int)codepoint, (int)stream->perl_pos);
+      }
+      {
+	STRLEN dummy;
+	SV **p_ops_sv =
+	  hv_fetch (stream->per_codepoint_ops, (char *) &codepoint,
+		    (I32)sizeof (codepoint), 0);
+	if (!p_ops_sv)
+	  {
+	    stream->codepoint = codepoint;
+	    return -2;
+	  }
+	ops = (UV *)SvPV (*p_ops_sv, dummy);
+      }
+	
+      /* ops[0] is codepoint */
+      op_count = ops[1];
+      for (op_ix = 2; op_ix < op_count; op_ix++)
+	{
+	  UV op_code = ops[op_ix];
+	  switch (op_code)
+	    {
+	    case op_report_rejection:
+	      {
+		 ignore_rejection = 0;
+	         break;
+	      }
+	    case op_ignore_rejection:
+	      {
+		 ignore_rejection = 1;
+	         break;
+	      }
+	    case op_alternative:
+	      {
+		int result;
+		int symbol_id;
+		int length;
+		int value;
+
+		op_ix++;
+		if (op_ix >= op_count)
+		  {
+		    croak
+		      ("Missing operand for op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
+		       (unsigned long) op_code, (unsigned long) codepoint,
+		       (unsigned long) op_ix);
+		  }
+		symbol_id = (int) ops[op_ix];
+		    if (op_ix + 2 >= op_count)
+		      {
+			croak
+			  ("Missing operand for op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
+			   (unsigned long) op_code, (unsigned long) codepoint,
+			   (unsigned long) op_ix);
+		      }
+		    value = (int) ops[++op_ix];
+		    length = (int) ops[++op_ix];
+		if (trace_level >= 10)
+		  {
+		    warn ("Thin::U::read() alternative(%p, %d, %d, %d)", r, symbol_id, value,
+			  length);
+		  }
+		result = marpa_r_alternative (r, symbol_id, value, length);
+		switch (result)
+		  {
+		  case MARPA_ERR_UNEXPECTED_TOKEN_ID:
+		    if (input_debug > 0) {
+		       warn("input_read_string unexpected token: %d,%d,%d",
+			 symbol_id, value, length);
+		    }
+		    /* This guarantees that later, if we fall below
+		     * the minimum number of tokens accepted,
+		     * we have one of them as an example
+		     */
+		    stream->input_symbol_id = symbol_id;
+		    if (trace_level >= 10) {
+			warn("Thin::U::read() Rejected codepoint 0x%04lx at pos %d as symbol %d",
+			  (unsigned long)codepoint, (int)stream->perl_pos, symbol_id);
+		    }
+		    if (!ignore_rejection)
+		      {
+			stream->codepoint = codepoint;
+			return -1;
+		      }
+		    break;
+		  case MARPA_ERR_NONE:
+		    if (trace_level >= 10) {
+			warn("Thin::U::read() Accepted codepoint 0x%04lx at pos %d as symbol %d",
+			  (unsigned long)codepoint, (int)stream->perl_pos, symbol_id);
+		    }
+		    tokens_accepted++;
+		    break;
+		  default:
+		    stream->codepoint = codepoint;
+		    stream->input_symbol_id = symbol_id;
+		    croak
+		      ("Problem alternative() failed at char ix %d; symbol id %d; codepoint 0x%lx\n"
+		       "Problem in r->input_string_read(), alternative() failed: %s",
+		       (int)stream->perl_pos, symbol_id, (unsigned long)codepoint,
+		       xs_g_error (stream->g0_wrapper));
+		  }
+	      }
+	      break;
+	    case op_earleme_complete:
+	      {
+		int result;
+		if (tokens_accepted < minimum_accepted) {
+		    stream->codepoint = codepoint;
+		    return -1;
+		}
+		marpa_r_latest_earley_set_value_set (r, (int)codepoint);
+		result = marpa_r_earleme_complete (r);
+		if (result > 0)
+		  {
+		    return_value = result;
+		    /* Advance one character before returning */
+		    goto ADVANCE_ONE_CHAR;
+		  }
+		if (result == -2)
+		  {
+		    const Marpa_Error_Code error =
+		      marpa_g_error (stream->g0_wrapper->g, NULL);
+		    if (error == MARPA_ERR_PARSE_EXHAUSTED)
+		      {
+			return -3;
+		      }
+		  }
+		if (result < 0)
+		  {
+		    croak
+		      ("Problem in r->input_string_read(), earleme_complete() failed: %s",
+		       xs_g_error (stream->g0_wrapper));
+		  }
+	      }
+	      break;
+	    case op_unregistered:
+	      croak ("Unregistered codepoint (0x%lx)",
+		     (unsigned long) codepoint);
+	    default:
+	      croak ("Unknown op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
+		     (unsigned long) op_code, (unsigned long) codepoint,
+		     (unsigned long) op_ix);
+	    }
+	}
+    ADVANCE_ONE_CHAR:;
+	stream->input_offset += codepoint_length;
+      stream->perl_pos++;
+      /* This logic does not allow a return value of 0,
+       * which is reserved for a indicating a full
+       * read of the input string without event
+       */
+      if (return_value)
+	{
+	  return return_value;
+	}
+    }
+  return 0;
+}
+
+static STRLEN
+u_pos_set(Unicode_Stream* stream, STRLEN new_pos)
+{
+  /* *SAFELY* change the position
+   * This requires care in UTF8
+   * Returns the position *BEFORE* the call
+   */
+  dTHX;
+  U8 *input;
+  int input_is_utf8;
+  STRLEN len;
+  const STRLEN old_pos = stream->perl_pos;
+
+  /* Zero position is easy special case */
+  if (new_pos == 0) {
+      stream->input_offset = new_pos;
+      stream->perl_pos = new_pos;
+      return old_pos;
+  }
+
+  /* Same as current position is another easy special case */
+  if (new_pos == old_pos) {
+      return old_pos;
+  }
+
+  input_is_utf8 = SvUTF8 (stream->input);
+  input = (U8 *) SvPV (stream->input, len);
+  if (input_is_utf8)
+    {
+      /* I am required to *know* that the "hop" is inside the string,
+       * which apparently can have Perl extensions -- it is *Perl* utf8, not
+       * standard UTF8.  The only safe thing
+       * to use the Perl API to hop one codepoint at a time,
+       * which is basically how utf8_hop() does it anyway.
+       */
+      IV hop = new_pos - old_pos;
+      U8 *p_current = input + stream->input_offset;
+      U8 *end_of_input = input + len;
+      while (hop > 0)
+	{
+	  if (p_current >= end_of_input)
+	    {
+	      croak
+		("Problem in stream->pos_set(): Attempt to set position after end of utf8 string");
+	    }
+	  p_current = utf8_hop (p_current, 1);
+	  hop--;
+	}
+      while (hop < 0)
+	{
+	  if (p_current <= input)
+	    {
+	      croak
+		("Problem in stream->pos_set(): Attempt to set position before start of utf8 string");
+	    }
+	  p_current = utf8_hop (p_current, -1);
+	  hop++;
+	}
+      stream->input_offset = p_current - input;
+      stream->perl_pos = new_pos;
+    }
+  else
+    {
+      /* STRLEN is assumed to be unsigned so no check for less than zero */
+      if (new_pos >= len)
+	{
+	  croak
+	    ("Problem in stream->pos_set(): new pos = %ld, but length = %ld",
+	     (long) new_pos, (long) len);
+	}
+      stream->input_offset = new_pos;
+      stream->perl_pos = new_pos;
+    }
+  return old_pos;
+}
+
+/* SLG static methods */
+
+#define SET_SLG_FROM_SLG_SV(slg, slg_sv) { \
+    IV tmp = SvIV ((SV *) SvRV (slg_sv)); \
+    (slg) = INT2PTR (Scanless_G *, tmp); \
+}
+
+/* SLR static methods */
+
+static IV 
+slr_stub_alterative(Scanless_R *slr, Marpa_Symbol_ID lexeme)
+{
+  Marpa_Recce r1 = slr->r1;
+  Unicode_Stream *stream = slr->stream;
+  int trace_level = slr->trace_level;
+  Marpa_Earley_Set_ID latest_earley_set = marpa_r_latest_earley_set (r1);
+  IV result = marpa_r_alternative (r1, lexeme, latest_earley_set + 1, 1);
+  switch (result)
+    {
+
+    case MARPA_ERR_UNEXPECTED_TOKEN_ID:
+      if (trace_level >= 10)
+	{
+	  warn
+	    ("slr->read() R1 Rejected unexpected symbol %d at pos %d",
+	     lexeme, (int) slr->stream->perl_pos);
+	}
+      return 0;
+
+    case MARPA_ERR_DUPLICATE_TOKEN:
+      if (trace_level >= 10)
+	{
+	  warn
+	    ("slr->read() R1 Rejected duplicate symbol %d at pos %d",
+	     lexeme, (int) slr->stream->perl_pos);
+	}
+      return 0;
+
+    case MARPA_ERR_NONE:
+      if (trace_level >= 10)
+	{
+	  warn
+	    ("slr->read() R1 Accepted symbol %d at pos %d",
+	     lexeme, (int) slr->stream->perl_pos);
+	}
+      return 1;
+
+    }
+
+  croak
+    ("Problem SLR->read() failed on symbol id %d at position %d: %s",
+     lexeme, (int) slr->stream->perl_pos, xs_g_error (slr->g1_wrapper));
+  /* NOTREACHED */
+  return 0;
+}
+
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
 PROTOTYPES: DISABLE
@@ -263,7 +813,7 @@ PPCODE:
   Marpa_Grammar g;
   G_Wrapper *g_wrapper;
   int throw = 1;
-  int interface = 0;
+  IV interface = 0;
   Marpa_Config marpa_configuration;
   Marpa_Error_Code error_code;
 
@@ -357,14 +907,15 @@ PPCODE:
 void
 DESTROY( g_wrapper )
     G_Wrapper *g_wrapper;
-PREINIT:
+PPCODE:
+{
     Marpa_Grammar grammar;
-CODE:
     if (g_wrapper->message_buffer)
 	Safefree(g_wrapper->message_buffer);
     grammar = g_wrapper->g;
     marpa_g_unref( grammar );
     Safefree( g_wrapper );
+}
 
 
 void
@@ -420,7 +971,7 @@ PPCODE:
 		Safefree(rhs);
 	        XSRETURN_UNDEF;
 	    } else {
-	        rhs[i] = SvIV(*elem);
+	        rhs[i] = (Marpa_Symbol_ID)SvIV(*elem);
 	    }
 	}
     }
@@ -465,7 +1016,7 @@ PPCODE:
 	    }
 	  if ((*key == 'm') && strnEQ (key, "min", (unsigned) retlen))
 	    {
-	      int raw_min = SvIV (arg_value);
+	      IV raw_min = SvIV (arg_value);
 	      if (raw_min < 0)
 		{
 		  char *error_message =
@@ -480,7 +1031,21 @@ PPCODE:
 		      XSRETURN_UNDEF;
 		    }
 		}
-	      min = raw_min;
+		if (raw_min > INT_MAX) {
+		  /* IV can be larger than int */
+		  char *error_message =
+		    form ("sequence_new(): min cannot be greater than %d", INT_MAX);
+		  set_error_from_string (g_wrapper, savepv(error_message));
+		  if (g_wrapper->throw)
+		    {
+		      croak ("%s", error_message);
+		    }
+		  else
+		    {
+		      XSRETURN_UNDEF;
+		    }
+		}
+	      min = (int)raw_min;
 	      continue;
 	    }
 	  if ((*key == 'p') && strnEQ (key, "proper", (unsigned) retlen))
@@ -491,7 +1056,7 @@ PPCODE:
 	    }
 	  if ((*key == 's') && strnEQ (key, "separator", (unsigned) retlen))
 	    {
-	      separator = SvIV (arg_value);
+	      separator = (Marpa_Symbol_ID)SvIV (arg_value);
 	      continue;
 	    }
 	  {
@@ -682,36 +1247,38 @@ PPCODE:
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::R
 
 void
-new( class, g_wrapper )
+new( class, g_sv )
     char * class;
-    G_Wrapper *g_wrapper;
+    SV* g_sv;
 PPCODE:
 {
-  int highest_symbol_id;
-  Marpa_Grammar g = g_wrapper->g;
-  SV *sv;
-  R_Wrapper *r_wrapper;
+  SV *sv_to_return;
+  G_Wrapper *g_wrapper;
   Marpa_Recce r;
+  Marpa_Grammar g;
+  if (!sv_isa (g_sv, "Marpa::R2::Thin::G"))
+    {
+      croak
+	("Problem in Marpa::R2->new(): arg is not of type Marpa::R2::Thin::G");
+    }
+  SET_G_WRAPPER_FROM_G_SV (g_wrapper, g_sv);
+  g = g_wrapper->g;
   r = marpa_r_new (g);
   if (!r)
     {
-      if (!g_wrapper->throw) { XSRETURN_UNDEF; }
-      croak ("failure in marpa_r_new: %s", xs_g_error (g_wrapper));
+      if (!g_wrapper->throw)
+	{
+	  XSRETURN_UNDEF;
+	}
+      croak ("failure in marpa_r_new(): %s", xs_g_error (g_wrapper));
     };
-  highest_symbol_id = marpa_g_highest_symbol_id (g);
-  if (highest_symbol_id < 0)
-    {
-      if (!g_wrapper->throw) { XSRETURN_UNDEF; }
-      croak ("failure in marpa_g_highest_symbol_id: %s", xs_g_error (g_wrapper));
-    };
-  Newx (r_wrapper, 1, R_Wrapper);
-  r_wrapper->r = r;
-  Newx (r_wrapper->terminals_buffer, highest_symbol_id+1, Marpa_Symbol_ID);
-  r_wrapper->ruby_slippers = 0;
-  r_wrapper->base = g_wrapper;
-  sv = sv_newmortal ();
-  sv_setref_pv (sv, recce_c_class_name, (void *) r_wrapper);
-  XPUSHs (sv);
+
+  {
+    R_Wrapper *r_wrapper = r_wrap (r, g_sv);
+    sv_to_return = sv_newmortal ();
+    sv_setref_pv (sv_to_return, recce_c_class_name, (void *) r_wrapper);
+  }
+  XPUSHs (sv_to_return);
 }
 
 void
@@ -719,10 +1286,8 @@ DESTROY( r_wrapper )
     R_Wrapper *r_wrapper;
 PPCODE:
 {
-    struct marpa_r *r = r_wrapper->r;
-    Safefree(r_wrapper->terminals_buffer);
-    marpa_r_unref( r );
-    Safefree( r_wrapper );
+    Marpa_Recce r = r_unwrap(r_wrapper);
+    marpa_r_unref (r);
 }
 
 void
@@ -807,71 +1372,48 @@ PPCODE:
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::U
 
 void
-new( class, r_sv )
+new( class, g_sv )
     char * class;
-    SV *r_sv;
+    SV *g_sv;
 PPCODE:
 {
-  if (!sv_isa (r_sv, "Marpa::R2::Thin::R"))
+  SV* new_sv;
+  Unicode_Stream *stream;
+  if (!sv_isa (g_sv, "Marpa::R2::Thin::G"))
     {
-      croak ("Problem in u->new(): arg is not of type Marpa::R2::Thin::R");
+      croak ("Problem in u->new(): arg is not of type Marpa::R2::Thin::G");
     }
-  SvREFCNT_inc (r_sv);
-  {
-    IV tmp = SvIV ((SV *) SvRV (r_sv));
-    R_Wrapper *r_wrapper = INT2PTR (R_Wrapper *, tmp);
-    SV *u_sv = sv_newmortal ();
-    Unicode_Stream *stream;
-    Newx (stream, 1, Unicode_Stream);
-    stream->trace = 0;
-    stream->base = r_wrapper->base;
-    stream->r_wrapper = r_wrapper;
-    stream->r_sv = r_sv;
-  stream->input = newSVpvn("", 0);
-  stream->perl_pos = 0;
-  stream->input_offset = 0;
-  stream->input_debug = 0;
-  stream->input_symbol_id = -1;
-  stream->per_codepoint_ops = newHV();
-  stream->ignore_rejection = 1;
-  stream->minimum_accepted = 1;
-    sv_setref_pv (u_sv, unicode_stream_class_name, (void *) stream);
-    XPUSHs (u_sv);
-  }
+  stream = u_new (g_sv);
+  new_sv = sv_newmortal ();
+  sv_setref_pv (new_sv, unicode_stream_class_name, (void *) stream);
+  XPUSHs (new_sv);
 }
-
-void
-recce_set( stream, new_r_sv )
-    Unicode_Stream *stream;
-    SV *new_r_sv;
-PPCODE:
-{
-  if (!sv_isa (new_r_sv, "Marpa::R2::Thin::R"))
-    {
-      croak ("Problem in u->recce_set(): arg is not of type Marpa::R2::Thin::R");
-    }
-  SvREFCNT_inc (new_r_sv);
-  {
-    IV tmp = SvIV ((SV *) SvRV (new_r_sv));
-    R_Wrapper *new_r_wrapper = INT2PTR (R_Wrapper *, tmp);
-    stream->base = new_r_wrapper->base;
-    stream->r_wrapper = new_r_wrapper;
-    SvREFCNT_dec(stream->r_sv);
-    stream->r_sv = new_r_sv;
-  }
-}
-
 
 void
 DESTROY( stream )
     Unicode_Stream *stream;
 PPCODE:
 {
-    const SV* r_sv = stream->r_sv;
-    SvREFCNT_dec(stream->input);
-    SvREFCNT_dec(stream->per_codepoint_ops);
-    SvREFCNT_dec(r_sv);
-    Safefree( stream );
+  u_destroy(stream);
+}
+
+ #  Always returns the same SV for a given stream -- 
+ #  it does not create a new one
+ # 
+void
+recce( stream )
+    Unicode_Stream *stream;
+PPCODE:
+{
+  SV* r0_sv = stream->r0_sv;
+  if (!r0_sv) {
+    R_Wrapper* r_wrapper = r_wrap (stream->r0, stream->g0_sv);
+    marpa_r_ref(stream->r0);
+    r0_sv = newSV(0);
+    sv_setref_pv (r0_sv, recce_c_class_name, (void *) r_wrapper);
+    stream->r0_sv = r0_sv;
+  }
+  XPUSHs (r0_sv);
 }
 
 void
@@ -1010,272 +1552,18 @@ pos_set( stream, new_pos )
      STRLEN new_pos;
 PPCODE:
 {
-  /* *SAFELY* change the position
-   * This requires care in UTF8
-   * Returns the position *BEFORE* the call
-   */
-  int input_is_utf8 = SvUTF8 (stream->input);
-  STRLEN len;
-  const STRLEN old_pos = stream->perl_pos;
-  U8 *input = (U8*)SvPV (stream->input, len);
-  if (input_is_utf8)
-    {
-      /* I am required to *know* that the "hop" is inside the string,
-       * which apparently can have Perl extensions -- it is *Perl* utf8, not
-       * standard UTF8.  The only safe thing
-       * to use the Perl API to hop one codepoint at a time,
-       * which is basically how utf8_hop() does it anyway.
-       */
-      int hop = new_pos - old_pos;
-      U8 *p_current = input + stream->input_offset;
-      U8 *end_of_input = input + len;
-      while (hop > 0)
-	{
-	  if (p_current >= end_of_input)
-	    {
-	      croak
-		("Problem in stream->pos_set(): Attempt to set position after end of utf8 string");
-	    }
-	  p_current = utf8_hop (p_current, 1);
-	  hop--;
-	}
-      while (hop < 0)
-	{
-	  if (p_current <= input)
-	    {
-	      croak
-		("Problem in stream->pos_set(): Attempt to set position before start of utf8 string");
-	    }
-	  p_current = utf8_hop (p_current, -1);
-	  hop++;
-	}
-      stream->input_offset = p_current - input;
-      stream->perl_pos = new_pos;
-    }
-  else
-    {
-      /* STRLEN is assumed to be unsigned so no check for less than zero */
-      if (new_pos >= len)
-	{
-	  croak
-	    ("Problem in stream->pos_set(): new pos = %ld, but length = %ld",
-	     (long) new_pos, (long) len);
-	}
-      stream->input_offset = new_pos;
-      stream->perl_pos = new_pos;
-    }
+  const STRLEN old_pos = u_pos_set(stream, new_pos);
+  u_r0_clear(stream);
   XSRETURN_IV (old_pos);
 }
 
- # Return values:
- # 1 or greater: an event count, as returned by earleme complete.
- # 0: success: a full reading of the input, with nothing to report.
- # -1: a character was rejected, when rejection is not being ignored
- # -2: an unregistered character was found
- # -3: earleme_complete() reported an exhausted parse.
- #
 void
 read( stream )
      Unicode_Stream *stream;
 PPCODE:
 {
-  const int trace_level = stream->trace;
-  const R_Wrapper* r_wrapper = stream->r_wrapper;
-  const Marpa_Recognizer r = r_wrapper->r;
-  U8* input;
-  int input_is_utf8;
-  int input_debug = stream->input_debug;
-  STRLEN len;
-  input_is_utf8 = SvUTF8 (stream->input);
-  input = (U8*)SvPV (stream->input, len);
-  for (;;)
-    {
-      int return_value = 0;
-      UV codepoint;
-      STRLEN codepoint_length = 1;
-      STRLEN op_ix;
-      STRLEN op_count;
-      UV *ops;
-      int ignore_rejection = stream->ignore_rejection;
-      int minimum_accepted = stream->minimum_accepted;
-      int tokens_accepted = 0;
-      if (stream->input_offset >= len)
-	break;
-      if (input_is_utf8)
-	{
-	  codepoint = utf8_to_uvchr(input+stream->input_offset, &codepoint_length);
-	  /* Perl API documents that return value is 0 and length is -1 on error,
-	   * "if possible".  length can be, and is, in fact unsigned.
-	   * I deal with this by noting that 0 is a valid UTF8 char but should
-	   * have a length of 1, when valid.
-	   */
-	  if (codepoint == 0 && codepoint_length != 1) {
-	    croak ("Problem in r->read_string(): invalid UTF8 character");
-	  }
-	}
-      else
-	{
-	  codepoint = (UV) input[stream->input_offset];
-	  codepoint_length = 1;
-	}
-      if (trace_level >= 10) {
-          warn("Thin::U::read() Reading codepoint 0x%04x at pos %d",
-	    (int)codepoint, (int)stream->perl_pos);
-      }
-      {
-	STRLEN dummy;
-	SV **p_ops_sv =
-	  hv_fetch (stream->per_codepoint_ops, (char *) &codepoint,
-		    (I32)sizeof (codepoint), 0);
-	if (!p_ops_sv)
-	  {
-	    stream->codepoint = codepoint;
-	    XSRETURN_IV (-2);
-	  }
-	ops = (UV *)SvPV (*p_ops_sv, dummy);
-      }
-	
-      /* ops[0] is codepoint */
-      op_count = ops[1];
-      for (op_ix = 2; op_ix < op_count; op_ix++)
-	{
-	  UV op_code = ops[op_ix];
-	  switch (op_code)
-	    {
-	    case op_report_rejection:
-	      {
-		 ignore_rejection = 0;
-	         break;
-	      }
-	    case op_ignore_rejection:
-	      {
-		 ignore_rejection = 1;
-	         break;
-	      }
-	    case op_alternative:
-	      {
-		int result;
-		int symbol_id;
-		int length;
-		int value;
-
-		op_ix++;
-		if (op_ix >= op_count)
-		  {
-		    croak
-		      ("Missing operand for op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
-		       (unsigned long) op_code, (unsigned long) codepoint,
-		       (unsigned long) op_ix);
-		  }
-		symbol_id = (int) ops[op_ix];
-		    if (op_ix + 2 >= op_count)
-		      {
-			croak
-			  ("Missing operand for op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
-			   (unsigned long) op_code, (unsigned long) codepoint,
-			   (unsigned long) op_ix);
-		      }
-		    value = (int) ops[++op_ix];
-		    length = (int) ops[++op_ix];
-		if (trace_level >= 10)
-		  {
-		    warn ("Thin::U::read() alternative(%p, %d, %d, %d)", r, symbol_id, value,
-			  length);
-		  }
-		result = marpa_r_alternative (r, symbol_id, value, length);
-		switch (result)
-		  {
-		  case MARPA_ERR_UNEXPECTED_TOKEN_ID:
-		    if (input_debug > 0) {
-		       warn("input_read_string unexpected token: %d,%d,%d",
-			 symbol_id, value, length);
-		    }
-		    # This guarantees that later, if we fall below
-		    # the minimum number of tokens accepted,
-		    # we have one of them as an example
-		    stream->input_symbol_id = symbol_id;
-		    if (trace_level >= 10) {
-			warn("Thin::U::read() Rejected codepoint 0x%04x at pos %d as symbol %d",
-			  (int)codepoint, (int)stream->perl_pos, symbol_id);
-		    }
-		    if (!ignore_rejection)
-		      {
-			stream->codepoint = codepoint;
-			XSRETURN_IV (-1);
-		      }
-		    break;
-		  case MARPA_ERR_NONE:
-		    if (trace_level >= 10) {
-			warn("Thin::U::read() Accepted codepoint 0x%04x at pos %d as symbol %d",
-			  (int)codepoint, (int)stream->perl_pos, symbol_id);
-		    }
-		    tokens_accepted++;
-		    break;
-		  default:
-		    stream->codepoint = codepoint;
-		    stream->input_symbol_id = symbol_id;
-		    croak
-		      ("Problem alternative() failed at char ix %d; symbol id %d; codepoint 0x%lx\n"
-		       "Problem in r->input_string_read(), alternative() failed: %s",
-		       (int)stream->perl_pos, symbol_id, codepoint,
-		       xs_g_error (stream->base));
-		  }
-	      }
-	      break;
-	    case op_earleme_complete:
-	      {
-		int result;
-		if (tokens_accepted < minimum_accepted) {
-		    stream->codepoint = codepoint;
-		    XSRETURN_IV (-1);
-		}
-		marpa_r_latest_earley_set_value_set (r, codepoint);
-		result = marpa_r_earleme_complete (r);
-		if (result > 0)
-		  {
-		    return_value = result;
-		    /* Advance one character before returning */
-		    goto ADVANCE_ONE_CHAR;
-		  }
-		if (result == -2)
-		  {
-		    const Marpa_Error_Code error =
-		      marpa_g_error (stream->base->g, NULL);
-		    if (error == MARPA_ERR_PARSE_EXHAUSTED)
-		      {
-			XSRETURN_IV (-3);
-		      }
-		  }
-		if (result < 0)
-		  {
-		    croak
-		      ("Problem in r->input_string_read(), earleme_complete() failed: %s",
-		       xs_g_error (stream->base));
-		  }
-	      }
-	      break;
-	    case op_unregistered:
-	      croak ("Unregistered codepoint (0x%lx)",
-		     (unsigned long) codepoint);
-	    default:
-	      croak ("Unknown op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
-		     (unsigned long) op_code, (unsigned long) codepoint,
-		     (unsigned long) op_ix);
-	    }
-	}
-    ADVANCE_ONE_CHAR:;
-	stream->input_offset += codepoint_length;
-      stream->perl_pos++;
-      /* This logic does not allow a return value of 0,
-       * which is reserved for a indicating a full
-       * read of the input string without event
-       */
-      if (return_value)
-	{
-	  XSRETURN_IV (return_value);
-	}
-    }
-  XSRETURN_IV(0);
+  const int return_value = u_read(stream);
+  XSRETURN_IV(return_value);
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::B
@@ -1297,6 +1585,11 @@ PPCODE:
       croak ("Problem in b->new(): %s", xs_g_error(r_wrapper->base));
     }
   Newx (b_wrapper, 1, B_Wrapper);
+  {
+    SV* base_sv = r_wrapper->base_sv;
+    SvREFCNT_inc (base_sv);
+    b_wrapper->base_sv = base_sv;
+  }
   b_wrapper->base = r_wrapper->base;
   b_wrapper->b = b;
   sv = sv_newmortal ();
@@ -1310,6 +1603,7 @@ DESTROY( b_wrapper )
 PPCODE:
 {
     const Marpa_Bocage b = b_wrapper->b;
+    SvREFCNT_dec (b_wrapper->base_sv);
     marpa_b_unref(b);
     Safefree( b_wrapper );
 }
@@ -1332,6 +1626,11 @@ PPCODE:
       croak ("Problem in o->new(): %s", xs_g_error(b_wrapper->base));
     }
   Newx (o_wrapper, 1, O_Wrapper);
+  {
+    SV* base_sv = b_wrapper->base_sv;
+    SvREFCNT_inc (base_sv);
+    o_wrapper->base_sv = base_sv;
+  }
   o_wrapper->base = b_wrapper->base;
   o_wrapper->o = o;
   sv = sv_newmortal ();
@@ -1345,6 +1644,7 @@ DESTROY( o_wrapper )
 PPCODE:
 {
     const Marpa_Order o = o_wrapper->o;
+    SvREFCNT_dec (o_wrapper->base_sv);
     marpa_o_unref(o);
     Safefree( o_wrapper );
 }
@@ -1367,6 +1667,11 @@ PPCODE:
       croak ("Problem in t->new(): %s", xs_g_error(o_wrapper->base));
     }
   Newx (t_wrapper, 1, T_Wrapper);
+  {
+    SV* base_sv = o_wrapper->base_sv;
+    SvREFCNT_inc (base_sv);
+    t_wrapper->base_sv = base_sv;
+  }
   t_wrapper->base = o_wrapper->base;
   t_wrapper->t = t;
   sv = sv_newmortal ();
@@ -1380,6 +1685,7 @@ DESTROY( t_wrapper )
 PPCODE:
 {
     const Marpa_Tree t = t_wrapper->t;
+    SvREFCNT_dec (t_wrapper->base_sv);
     marpa_t_unref(t);
     Safefree( t_wrapper );
 }
@@ -1402,6 +1708,11 @@ PPCODE:
       croak ("Problem in v->new(): %s", xs_g_error(t_wrapper->base));
     }
   Newx (v_wrapper, 1, V_Wrapper);
+  {
+    SV* base_sv = t_wrapper->base_sv;
+    SvREFCNT_inc (base_sv);
+    v_wrapper->base_sv = base_sv;
+  }
   v_wrapper->base = t_wrapper->base;
   v_wrapper->v = v;
   sv = sv_newmortal ();
@@ -1415,6 +1726,7 @@ DESTROY( v_wrapper )
 PPCODE:
 {
     const Marpa_Value v = v_wrapper->v;
+    SvREFCNT_dec (v_wrapper->base_sv);
     marpa_v_unref(v);
     Safefree( v_wrapper );
 }
@@ -2852,6 +3164,224 @@ PPCODE:
       croak ("Problem in v->_marpa_v_nook(): %s", xs_g_error(v_wrapper->base));
     }
   XPUSHs (sv_2mortal (newSViv (status)));
+}
+
+MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::SLG
+
+void
+new( class, g0_sv, g1_sv )
+    char * class;
+    SV *g0_sv;
+    SV *g1_sv;
+PPCODE:
+{
+  SV* new_sv;
+  Scanless_G *slg;
+  if (!sv_isa (g0_sv, "Marpa::R2::Thin::G"))
+    {
+      croak ("Problem in u->new(): g0 arg is not of type Marpa::R2::Thin::G");
+    }
+  if (!sv_isa (g1_sv, "Marpa::R2::Thin::G"))
+    {
+      croak ("Problem in u->new(): r1 arg is not of type Marpa::R2::Thin::G");
+    }
+  Newx (slg, 1, Scanless_G);
+
+  # Copy and take references to the parent objects
+  slg->g0_sv = g0_sv;
+  SvREFCNT_inc (g0_sv);
+  slg->g1_sv = g1_sv;
+  SvREFCNT_inc (g1_sv);
+
+  # These do not need references, because parent objects
+  # hold references to them
+  SET_G_WRAPPER_FROM_G_SV(slg->g0_wrapper, g0_sv)
+  SET_G_WRAPPER_FROM_G_SV(slg->g1_wrapper, g1_sv)
+
+  new_sv = sv_newmortal ();
+  sv_setref_pv (new_sv, scanless_g_class_name, (void *) slg);
+  XPUSHs (new_sv);
+}
+
+void
+DESTROY( slg )
+    Scanless_G *slg;
+PPCODE:
+{
+  SvREFCNT_dec (slg->g0_sv);
+  SvREFCNT_dec (slg->g1_sv);
+  Safefree(slg);
+}
+
+ #  Always returns the same SV for a given Scanless recce object -- 
+ #  it does not create a new one
+ # 
+void
+g0( slg )
+    Scanless_G *slg;
+PPCODE:
+{
+  /* Not mortalized because,
+   * held for the length of the scanless object.
+   */
+  XPUSHs (slg->g0_sv);
+}
+
+ #  Always returns the same SV for a given Scanless recce object -- 
+ #  it does not create a new one
+ # 
+void
+g1( slg )
+    Scanless_G *slg;
+PPCODE:
+{
+  /* Not mortalized because,
+   * held for the length of the scanless object.
+   */
+  XPUSHs (slg->g1_sv);
+}
+
+MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::SLR
+
+void
+new( class, slg_sv, r1_sv )
+    char * class;
+    SV *slg_sv;
+    SV *r1_sv;
+PPCODE:
+{
+  SV* new_sv;
+  Scanless_R *slr;
+  Scanless_G *slg;
+  if (!sv_isa (slg_sv, "Marpa::R2::Thin::SLG"))
+    {
+      croak ("Problem in u->new(): g0 arg is not of type Marpa::R2::Thin::SLG");
+    }
+  if (!sv_isa (r1_sv, "Marpa::R2::Thin::R"))
+    {
+      croak ("Problem in u->new(): r1 arg is not of type Marpa::R2::Thin::R");
+    }
+  Newx (slr, 1, Scanless_R);
+
+  slr->trace_level = 0;
+
+  # Copy and take references to the "parent objects",
+  # the ones responsible for holding references.
+  slr->slg_sv = slg_sv;
+  SvREFCNT_inc (slg_sv);
+  slr->r1_sv = r1_sv;
+  SvREFCNT_inc (r1_sv);
+
+  # These do not need references, because parent objects
+  # hold references to them
+  SET_R_WRAPPER_FROM_R_SV(slr->r1_wrapper, r1_sv);
+  SET_SLG_FROM_SLG_SV(slg, slg_sv);
+  slr->slg = slg;
+  slr->r1 = slr->r1_wrapper->r;
+  SET_G_WRAPPER_FROM_G_SV(slr->g1_wrapper, slr->r1_wrapper->base_sv);
+
+  {
+    SV* g0_sv = slg->g0_sv;
+    Unicode_Stream* stream = u_new (g0_sv);
+    SV* stream_sv = newSV (0);
+    sv_setref_pv (stream_sv, unicode_stream_class_name, (void *) stream);
+    slr->stream = stream;
+    slr->stream_sv = stream_sv;
+  }
+
+  new_sv = sv_newmortal ();
+  sv_setref_pv (new_sv, scanless_r_class_name, (void *) slr);
+  XPUSHs (new_sv);
+}
+
+void
+DESTROY( slr )
+    Scanless_R *slr;
+PPCODE:
+{
+  SvREFCNT_dec (slr->stream_sv);
+  SvREFCNT_dec (slr->slg_sv);
+  SvREFCNT_dec (slr->r1_sv);
+  Safefree(slr);
+}
+
+ #  Always returns the same SV for a given Scanless recce object -- 
+ #  it does not create a new one
+ # 
+void
+trace( slr, level )
+    Scanless_R *slr;
+    int level;
+PPCODE:
+{
+  /* Not mortalized because,
+   * held for the length of the scanless object.
+   */
+  IV old_level = slr->trace_level;
+  slr->trace_level = level;
+  warn("Changing SLR trace level from %d to %d", (int)old_level, (int)level);
+  XSRETURN_IV(old_level);
+}
+
+ #  Always returns the same SV for a given Scanless recce object -- 
+ #  it does not create a new one
+ # 
+void
+g0( slr )
+    Scanless_R *slr;
+PPCODE:
+{
+  /* Not mortalized because,
+   * held for the length of the scanless object.
+   */
+  XPUSHs (slr->slg->g0_sv);
+}
+
+ #  Always returns the same SV for a given Scanless recce object -- 
+ #  it does not create a new one
+ # 
+void
+g1( slr )
+    Scanless_R *slr;
+PPCODE:
+{
+  /* Not mortalized because,
+   * held for the length of the scanless object.
+   */
+  XPUSHs (slr->r1_wrapper->base_sv);
+}
+
+ #  Always returns the same SV for a given Scanless recce object -- 
+ #  it does not create a new one
+ # 
+void
+stream( slr )
+    Scanless_R *slr;
+PPCODE:
+{
+  /* Not mortalized because,
+   * held for the length of the scanless object.
+   */
+  XPUSHs (slr->stream_sv);
+}
+
+void
+read( slr )
+    Scanless_R *slr;
+PPCODE:
+{
+  const int return_value = u_read(slr->stream);
+  XSRETURN_IV(return_value);
+}
+
+void stub_alternative( slr, lexeme )
+    Scanless_R *slr;
+     Marpa_Symbol_ID lexeme;
+PPCODE:
+{
+  IV return_value;
+  return_value = slr_stub_alterative(slr, lexeme);
+  XSRETURN_IV(return_value);
 }
 
 INCLUDE: general_pattern.xsh
