@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.045_000';
+$VERSION        = '2.045_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1833,6 +1833,7 @@ sub parse_rules {
     state $mask_by_rule_id =
         $meta_grammar->[Marpa::R2::Inner::Scanless::G::MASK_BY_RULE_ID];
     my $meta_recce = Marpa::R2::Scanless::R->new({ grammar => $meta_grammar});
+    my $thin_meta_slr  = $meta_recce->[Marpa::R2::Inner::Scanless::R::C];
     $meta_recce->read($p_rules_source);
     my $thick_meta_g1_grammar =
         $meta_grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
@@ -1887,8 +1888,6 @@ sub parse_rules {
         $actions_by_rule_id[$rule_id] = $action;
     } ## end for my $rule_id ( grep { $thin_meta_g1_grammar->rule_length($_...)})
 
-    my $locations =
-        $meta_recce->[Marpa::R2::Inner::Scanless::R::LOCATIONS];
     my $p_input   = $meta_recce->[Marpa::R2::Inner::Scanless::R::P_INPUT_STRING];
 
     # The parse result object
@@ -1900,11 +1899,16 @@ sub parse_rules {
         last STEP if not defined $type;
         if ( $type eq 'MARPA_STEP_TOKEN' ) {
             my ( undef, $token_value_ix, $arg_n ) = @step_data;
-            my ($start, $end) = @{$locations->[$token_value_ix]};
-            my $token = substr ${$p_input}, $start, ( $end - $start );
+            my ( $start_earley_set, $end_earley_set ) = $valuator->location();
+            my ($start_position) =
+                $thin_meta_slr->locations( $start_earley_set + 1 );
+            my ( undef, $end_position ) =
+                $thin_meta_slr->locations($end_earley_set);
+            my $token = substr ${$p_input}, $start_position,
+                ( $end_position - $start_position );
             $stack[$arg_n] = $token;
             next STEP;
-        }
+        } ## end if ( $type eq 'MARPA_STEP_TOKEN' )
         if ( $type eq 'MARPA_STEP_RULE' ) {
             my ( $rule_id, $arg_0, $arg_n ) = @step_data;
 
