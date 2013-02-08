@@ -1,8 +1,8 @@
 /*1297:*/
-#line 15045 "./marpa.w"
+#line 15059 "./marpa.w"
 
 /*1293:*/
-#line 15017 "./marpa.w"
+#line 15031 "./marpa.w"
 
 /*
  * Copyright 2013 Jeffrey Kegler
@@ -27,7 +27,7 @@
  */
 
 /*:1293*/
-#line 15046 "./marpa.w"
+#line 15060 "./marpa.w"
 
 
 #ifndef __MARPA_H__
@@ -62,7 +62,7 @@ extern const unsigned int marpa_binary_age;
 
 #define MARPA_PROPER_SEPARATION  0x2
 /*:264*//*1102:*/
-#line 12724 "./marpa.w"
+#line 12725 "./marpa.w"
 
 #define marpa_v_step_type(v) ((v)->t_step_type)
 #define marpa_v_token(v) \
@@ -76,7 +76,8 @@ extern const unsigned int marpa_binary_age;
     ((v)->t_arg_0)
 #define marpa_v_arg_n(v) \
     ((v)->t_arg_n)
-#define marpa_v_result(v) marpa_v_arg_0(v)
+#define marpa_v_result(v) \
+    ((v)->t_result)
 #define marpa_v_rule_start_es_id(v) ((v)->t_rule_start_es_id)
 #define marpa_v_token_start_es_id(v) ((v)->t_token_start_es_id)
 #define marpa_v_es_id(v) ((v)->t_es_id)
@@ -183,11 +184,11 @@ typedef int Marpa_And_Node_ID;
 
 typedef int Marpa_Nook_ID;
 /*:1083*//*1137:*/
-#line 13061 "./marpa.w"
+#line 13071 "./marpa.w"
 
 typedef int Marpa_Step_Type;
 /*:1137*//*1268:*/
-#line 14717 "./marpa.w"
+#line 14731 "./marpa.w"
 
 typedef const char*Marpa_Message_ID;
 
@@ -231,6 +232,7 @@ int t_token_value;
 Marpa_Rule_ID t_rule_id;
 int t_arg_0;
 int t_arg_n;
+int t_result;
 Marpa_Earley_Set_ID t_token_start_es_id;
 Marpa_Earley_Set_ID t_rule_start_es_id;
 Marpa_Earley_Set_ID t_es_id;
@@ -239,11 +241,11 @@ Marpa_Earley_Set_ID t_es_id;
 #line 579 "./marpa.w"
 
 /*1274:*/
-#line 14769 "./marpa.w"
+#line 14783 "./marpa.w"
 
 void marpa_debug_handler_set(int(*debug_handler)(const char*,...));
 /*:1274*//*1276:*/
-#line 14777 "./marpa.w"
+#line 14791 "./marpa.w"
 
 void marpa_debug_level_set(int level);
 /*:1276*/
@@ -251,7 +253,7 @@ void marpa_debug_level_set(int level);
 
 
 /*:37*/
-#line 15052 "./marpa.w"
+#line 15066 "./marpa.w"
 
 
 #include "marpa_api.h"

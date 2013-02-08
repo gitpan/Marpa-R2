@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (6 February 2013) is for Libmarpa 2.46.0.
+This manual (7 February 2013) is for Libmarpa 2.47.0.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (6 February 2013) is for Libmarpa 2.46.0.
+This manual (7 February 2013) is for Libmarpa 2.47.0.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -2921,8 +2921,9 @@ File: api.info,  Node: Valuator steps by type,  Next: Basic step accessors,  Pre
      find the value of the rule's children in the stack locations from
      `marpa_v_arg_0(v)' to `marpa_v_arg_n(v)'.  The semantics for the
      rule whose ID is `marpa_v_rule(v)' should be executed on these
-     child values, and the result placed in `marpa_v_result(v)'.  The
-     stack location of `marpa_v_result(v)' is guaranteed to be equal to
+     child values, and the result placed in `marpa_v_result(v)'.  In
+     the case of a `MARPA_STEP_RULE' step, the stack location of
+     `marpa_v_result(v)' is guaranteed to be equal to
      `marpa_v_arg_0(v)'.
 
  -- Macro: Marpa_Step_Type MARPA_STEP_TOKEN
@@ -2964,38 +2965,38 @@ implemented as macros.  They always succeed.
 
  -- Macro: int marpa_v_arg_0 (Marpa_Value V)
      For a `MARPA_STEP_RULE' step, returns the stack location where the
-     value of first child can be found.  The value is always the same
-     as that for the `marpa_v_result()' macro.
+     value of first child can be found.
 
  -- Macro: int marpa_v_arg_n (Marpa_Value V)
      For a `MARPA_STEP_RULE' step, returns the stack location where the
      value of the last child can be found.
 
  -- Macro: int marpa_v_result (Marpa_Value V)
-     Return the stack location where the result of the semantics should
-     be placed.
+     For `MARPA_STEP_RULE', `MARPA_STEP_TOKEN', and
+     `MARPA_STEP_NULLING_SYMBOL' steps, returns the stack location
+     where the result of the semantics should be placed.
 
  -- Macro: Marpa_Rule_ID marpa_v_rule (Marpa_Value V)
-     Return value: Returns the ID of the rule token for the
-     `MARPA_STEP_RULE' step.
+     For the `MARPA_STEP_RULE' step, returns the ID of the rule.
 
  -- Macro: Marpa_Step_Type marpa_v_step_type (Marpa_Value V)
-     Return value: Returns the current step type: `MARPA_STEP_TOKEN',
+     Returns the current step type: `MARPA_STEP_TOKEN',
      `MARPA_STEP_RULE', etc.  Usually not needed since this is also the
      return value of `marpa_v_step()'.
 
  -- Macro: Marpa_Symbol_ID marpa_v_symbol (Marpa_Value V)
-     Return value: Returns the ID of the symbol for the
-     `MARPA_STEP_NULLING_SYMBOL' step.  The value is always the same as
-     that for the `marpa_v_token()' macro.
+     For the `MARPA_STEP_NULLING_SYMBOL' step, returns the ID of the
+     symbol.  The value returned is the same as that returned by the
+     `marpa_v_token()' macro.
 
  -- Macro: Marpa_Symbol_ID marpa_v_token (Marpa_Value V)
-     Return value: Returns the ID of the token for the
-     `MARPA_STEP_TOKEN' step.
+     For the `MARPA_STEP_TOKEN' step, returns the ID of the token.  The
+     value returned is the same as that returned by the
+     `marpa_v_symbol()' macro.
 
  -- Macro: void* marpa_v_token_value (Marpa_Value V)
-     Return value: Returns the integer which is (or which represents)
-     the value of the token for the `MARPA_STEP_TOKEN' step.
+     For the `MARPA_STEP_TOKEN' step, returns the integer which is (or
+     which represents) the value of the token.
 
 
 File: api.info,  Node: Other step accessors,  Prev: Basic step accessors,  Up: Value methods
@@ -4461,23 +4462,23 @@ Node: Valuator reference counting118403
 Node: Registering semantics119388
 Node: Stepping through the valuator121322
 Node: Valuator steps by type122088
-Node: Basic step accessors123989
-Node: Other step accessors125824
-Node: Events127370
-Node: Events overview127559
-Node: Event methods128429
-Node: Event codes129614
-Node: Error methods macros and codes131489
-Node: Error methods131758
-Node: Error Macros132585
-Node: External error codes132952
-Node: Internal error codes153357
-Node: Design notes156898
-Node: Why so many time objects157333
-Node: Design of numbered objects159083
-Node: LHS Terminals160322
-Node: Work in Progress161015
-Node: Untested methods161200
-Node: GNU Free Documentation License163474
+Node: Basic step accessors124035
+Node: Other step accessors125901
+Node: Events127447
+Node: Events overview127636
+Node: Event methods128506
+Node: Event codes129691
+Node: Error methods macros and codes131566
+Node: Error methods131835
+Node: Error Macros132662
+Node: External error codes133029
+Node: Internal error codes153434
+Node: Design notes156975
+Node: Why so many time objects157410
+Node: Design of numbered objects159160
+Node: LHS Terminals160399
+Node: Work in Progress161092
+Node: Untested methods161277
+Node: GNU Free Documentation License163551
 
 End Tag Table

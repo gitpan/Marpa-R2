@@ -15,6 +15,12 @@
 
 Revision history for Marpa::R2
 
+2.047_000
+
+     * New series of developer's releases
+
+     * Working on speedup of valuator.
+
 2.046000 Wed Feb  6 08:24:05 PST 2013
 
      * Core logic of Scanless recognizer converted to C --

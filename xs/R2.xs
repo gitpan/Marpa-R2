@@ -128,11 +128,25 @@ typedef struct {
 } T_Wrapper;
 
 typedef struct marpa_v Value;
-typedef struct {
-     Marpa_Value v;
-     SV* base_sv;
-     G_Wrapper* base;
+typedef struct
+{
+  Marpa_Value v;
+  SV *base_sv;
+  G_Wrapper *base;
+  AV *event_queue;
+  AV *token_values;
+  AV *stack;
+  IV trace_values;
+  int mode;			/* 'raw' or 'stack' */
+  int result;			/* stack location to which to write result */
+  AV *constants;
+  AV *rule_semantics;
+  AV *nulling_semantics;
 } V_Wrapper;
+
+#define MARPA_XS_V_MODE_IS_INITIAL 0
+#define MARPA_XS_V_MODE_IS_RAW 1
+#define MARPA_XS_V_MODE_IS_STACK 2
 
 static const char grammar_c_class_name[] = "Marpa::R2::Thin::G";
 static const char recce_c_class_name[] = "Marpa::R2::Thin::R";
@@ -264,23 +278,32 @@ static int marpa_r2_warn(const char* format, ...)
    return 1;
 }
 
-enum marpa_recce_op {
+enum marpa_op {
+   op_end_marker = 0,
    op_noop,
    op_ignore_rejection,
    op_report_rejection,
    op_alternative,
    op_earleme_complete,
    op_unregistered,
+   op_push_all,
+   op_push_sequence,
+   op_push_one,
+   op_callback,
+   op_result_is_array,
+   op_result_is_constant,
+   op_result_is_arg_0,
+   op_result_is_undef
 };
 
-/* Grammar statics */
+/* Static grammar methods */
 
 #define SET_G_WRAPPER_FROM_G_SV(g_wrapper, g_sv) { \
     IV tmp = SvIV ((SV *) SvRV (g_sv)); \
     (g_wrapper) = INT2PTR (G_Wrapper *, tmp); \
 }
 
-/* Recognizer statics */
+/* Static recognizer methods */
 
 #define SET_R_WRAPPER_FROM_R_SV(r_wrapper, r_sv) { \
     IV tmp = SvIV ((SV *) SvRV (r_sv)); \
@@ -741,14 +764,31 @@ u_pos_set(Unicode_Stream* stream, STRLEN new_pos)
   return old_pos;
 }
 
-/* SLG static methods */
+/* Static valuator methods */
+
+/* Return -1 on failure due to wrong mode */
+static IV
+v_create_stack(V_Wrapper* v_wrapper)
+{
+  dTHX;
+  if (v_wrapper->mode == MARPA_XS_V_MODE_IS_RAW)
+    {
+      return -1;
+    }
+  v_wrapper->stack = newAV ();
+  av_extend (v_wrapper->stack, 1023);
+  v_wrapper->mode = MARPA_XS_V_MODE_IS_STACK;
+  return 0;
+}
+
+/* Static SLG methods */
 
 #define SET_SLG_FROM_SLG_SV(slg, slg_sv) { \
     IV tmp = SvIV ((SV *) SvRV (slg_sv)); \
     (slg) = INT2PTR (Scanless_G *, tmp); \
 }
 
-/* SLR static methods */
+/* Static SLR methods */
 
 /*
  * Return values:
@@ -933,6 +973,66 @@ PPCODE:
       const char *error_name = marpa_error_description[error_code].name;
       XPUSHs (sv_2mortal (newSVpv (error_name, 0)));
     }
+}
+
+void
+op( op_name )
+     char *op_name;
+PPCODE:
+{
+  if (strEQ (op_name, "alternative"))
+    {
+      XSRETURN_IV (op_alternative);
+    }
+  if (strEQ (op_name, "ignore_rejection"))
+    {
+      XSRETURN_IV (op_ignore_rejection);
+    }
+  if (strEQ (op_name, "report_rejection"))
+    {
+      XSRETURN_IV (op_report_rejection);
+    }
+  if (strEQ (op_name, "earleme_complete"))
+    {
+      XSRETURN_IV (op_earleme_complete);
+    }
+  if (strEQ (op_name, "push_all"))
+    {
+      XSRETURN_IV (op_push_all);
+    }
+  if (strEQ (op_name, "push_sequence"))
+    {
+      XSRETURN_IV (op_push_sequence);
+    }
+  if (strEQ (op_name, "push_one"))
+    {
+      XSRETURN_IV (op_push_one);
+    }
+  if (strEQ (op_name, "callback"))
+    {
+      XSRETURN_IV (op_callback);
+    }
+  if (strEQ (op_name, "result_is_array"))
+    {
+      XSRETURN_IV (op_result_is_array);
+    }
+  if (strEQ (op_name, "result_is_arg_0"))
+    {
+      XSRETURN_IV (op_result_is_arg_0);
+    }
+  if (strEQ (op_name, "result_is_constant"))
+    {
+      XSRETURN_IV (op_result_is_constant);
+    }
+  if (strEQ (op_name, "result_is_undef"))
+    {
+      XSRETURN_IV (op_result_is_undef);
+    }
+  if (strEQ (op_name, "end_marker"))
+    {
+      XSRETURN_IV (op_end_marker);
+    }
+  XSRETURN_UNDEF;
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G
@@ -1536,15 +1636,16 @@ recce( stream )
     Unicode_Stream *stream;
 PPCODE:
 {
-  SV* r0_sv = stream->r0_sv;
-  if (!r0_sv) {
-    R_Wrapper* r_wrapper = r_wrap (stream->r0, stream->g0_sv);
-    marpa_r_ref(stream->r0);
-    r0_sv = newSV(0);
-    sv_setref_pv (r0_sv, recce_c_class_name, (void *) r_wrapper);
-    stream->r0_sv = r0_sv;
-  }
-  XPUSHs (r0_sv);
+  SV *r0_sv = stream->r0_sv;
+  if (!r0_sv)
+    {
+      R_Wrapper *r_wrapper = r_wrap (stream->r0, stream->g0_sv);
+      marpa_r_ref (stream->r0);
+      r0_sv = newSV (0);
+      sv_setref_pv (r0_sv, recce_c_class_name, (void *) r_wrapper);
+      stream->r0_sv = r0_sv;
+    }
+  XPUSHs (sv_2mortal (SvREFCNT_inc_simple_NN (r0_sv)));
 }
 
 void
@@ -1563,30 +1664,6 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (level)));
 }
 
-
-void
-op( op_name )
-     char *op_name;
-PPCODE:
-{
-  if (strEQ (op_name, "alternative"))
-    {
-      XSRETURN_IV (op_alternative);
-    }
-  if (strEQ (op_name, "ignore_rejection"))
-    {
-      XSRETURN_IV (op_ignore_rejection);
-    }
-  if (strEQ (op_name, "report_rejection"))
-    {
-      XSRETURN_IV (op_report_rejection);
-    }
-  if (strEQ (op_name, "earleme_complete"))
-    {
-      XSRETURN_IV (op_earleme_complete);
-    }
-  XSRETURN_UNDEF;
-}
 
 void
 ignore_rejection( stream, boolean )
@@ -1850,6 +1927,15 @@ PPCODE:
   }
   v_wrapper->base = t_wrapper->base;
   v_wrapper->v = v;
+  v_wrapper->event_queue = newAV();
+  v_wrapper->token_values = NULL;
+  v_wrapper->stack = NULL;
+  v_wrapper->mode = MARPA_XS_V_MODE_IS_INITIAL;
+  v_wrapper->result = 0;
+  v_wrapper->trace_values = 0;
+  v_wrapper->constants = newAV();
+  v_wrapper->rule_semantics = newAV();
+  v_wrapper->nulling_semantics = newAV();
   sv = sv_newmortal ();
   sv_setref_pv (sv, value_c_class_name, (void *) v_wrapper);
   XPUSHs (sv);
@@ -1860,10 +1946,51 @@ DESTROY( v_wrapper )
     V_Wrapper *v_wrapper;
 PPCODE:
 {
-    const Marpa_Value v = v_wrapper->v;
-    SvREFCNT_dec (v_wrapper->base_sv);
-    marpa_v_unref(v);
-    Safefree( v_wrapper );
+  const Marpa_Value v = v_wrapper->v;
+  SvREFCNT_dec (v_wrapper->base_sv);
+  SvREFCNT_dec (v_wrapper->event_queue);
+  SvREFCNT_dec (v_wrapper->constants);
+  SvREFCNT_dec (v_wrapper->rule_semantics);
+  SvREFCNT_dec (v_wrapper->nulling_semantics);
+  if (v_wrapper->stack)
+    {
+      SvREFCNT_dec (v_wrapper->stack);
+    }
+  if (v_wrapper->token_values)
+    {
+      SvREFCNT_dec (v_wrapper->token_values);
+    }
+  marpa_v_unref (v);
+  Safefree (v_wrapper);
+}
+
+void
+trace_values( v_wrapper, level )
+    V_Wrapper *v_wrapper;
+    IV level;
+PPCODE:
+{
+  IV old_level = v_wrapper->trace_values;
+  v_wrapper->trace_values = level;
+  {
+    AV *event;
+    SV *event_data[3];
+    event_data[0] = newSVpvs ("trace level");
+    event_data[1] = newSViv (old_level);
+    event_data[2] = newSViv (level);
+    event = av_make (Dim (event_data), event_data);
+    av_push (v_wrapper->event_queue, newRV_noinc ((SV *) event));
+  }
+  XSRETURN_IV (old_level);
+}
+
+void
+event( v_wrapper )
+    V_Wrapper *v_wrapper;
+PPCODE:
+{
+    SV* event = av_shift(v_wrapper->event_queue);
+    XPUSHs (sv_2mortal (event));
 }
 
 void
@@ -1877,6 +2004,15 @@ PPCODE:
   const char *result_string;
   const Marpa_Step_Type status = marpa_v_step (v);
 
+  if (v_wrapper->mode == MARPA_XS_V_MODE_IS_INITIAL) {
+    v_wrapper->mode = MARPA_XS_V_MODE_IS_RAW;
+  }
+  if (v_wrapper->mode != MARPA_XS_V_MODE_IS_RAW) {
+       if (v_wrapper->stack) {
+	  croak ("Problem in v->step(): Cannot call when valuator is in 'stack' mode");
+       }
+  }
+  av_clear (v_wrapper->event_queue);
   if (status == MARPA_STEP_INACTIVE)
     {
       XSRETURN_EMPTY;
@@ -1911,13 +2047,13 @@ PPCODE:
       token_id = marpa_v_token (v);
       XPUSHs (sv_2mortal (newSViv (token_id)));
       XPUSHs (sv_2mortal (newSViv (marpa_v_token_value (v))));
-      XPUSHs (sv_2mortal (newSViv (marpa_v_arg_n (v))));
+      XPUSHs (sv_2mortal (newSViv (marpa_v_result (v))));
     }
   if (status == MARPA_STEP_NULLING_SYMBOL)
     {
       token_id = marpa_v_token (v);
       XPUSHs (sv_2mortal (newSViv (token_id)));
-      XPUSHs (sv_2mortal (newSViv (marpa_v_arg_n (v))));
+      XPUSHs (sv_2mortal (newSViv (marpa_v_result (v))));
     }
   if (status == MARPA_STEP_RULE)
     {
@@ -1925,6 +2061,551 @@ PPCODE:
       XPUSHs (sv_2mortal (newSViv (rule_id)));
       XPUSHs (sv_2mortal (newSViv (marpa_v_arg_0 (v))));
       XPUSHs (sv_2mortal (newSViv (marpa_v_arg_n (v))));
+    }
+}
+
+void
+stack_mode_set( v_wrapper, token_values )
+    V_Wrapper *v_wrapper;
+    AV* token_values;
+PPCODE:
+{
+  Marpa_Grammar g = v_wrapper->base->g;
+  if (v_wrapper->mode != MARPA_XS_V_MODE_IS_INITIAL)
+    {
+      if (v_wrapper->stack)
+	{
+	  croak ("Problem in v->stack_mode_set(): Cannot re-set stack mode");
+	}
+    }
+  if (v_create_stack (v_wrapper) == -1)
+    {
+      croak ("Problem in v->stack_mode_set(): Could not create stack");
+    }
+
+  v_wrapper->token_values = token_values;
+  SvREFCNT_inc (token_values);
+
+  v_wrapper->constants = newAV ();
+
+  {
+    int ix;
+    UV ops[3];
+    const int highest_rule_id = marpa_g_highest_rule_id (g);
+    AV *av = v_wrapper->rule_semantics = newAV ();
+    av_extend (av, highest_rule_id);
+    ops[0] = op_push_all;
+    ops[1] = op_callback;
+    ops[2] = 0;
+    for (ix = 0; ix <= highest_rule_id; ix++)
+      {
+	SV **p_sv = av_fetch (av, ix, 1);
+	if (!p_sv)
+	  {
+	    croak
+	      ("Internal error in v->stack_mode_set(): av_fetch(%p,%ld,1) failed",
+	       (void *) av, (long) ix);
+	  }
+	sv_setpvn (*p_sv, (char *) ops, sizeof (ops));
+      }
+  }
+
+  {
+    int ix;
+    UV ops[2];
+    const int highest_symbol_id = marpa_g_highest_symbol_id (g);
+    AV *av = v_wrapper->nulling_semantics = newAV ();
+    av_extend (av, highest_symbol_id);
+    ops[0] = op_result_is_undef;
+    ops[1] = 0;
+    for (ix = 0; ix <= highest_symbol_id; ix++)
+      {
+	SV **p_sv = av_fetch (av, ix, 1);
+	if (!p_sv)
+	  {
+	    croak
+	      ("Internal error in v->stack_mode_set(): av_fetch(%p,%ld,1) failed",
+	       (void *) av, (long) ix);
+	  }
+	sv_setpvn (*p_sv, (char *) ops, sizeof (ops));
+      }
+  }
+
+  XSRETURN_YES;
+}
+
+void
+rule_register( v_wrapper, rule_id, ... )
+     V_Wrapper *v_wrapper;
+     Marpa_Rule_ID rule_id;
+PPCODE:
+{
+  /* OP Count is args less two */
+  const STRLEN op_count = items - 2;
+  STRLEN op_ix;
+  STRLEN dummy;
+  UV *ops;
+  SV *ops_sv;
+  AV *rule_semantics = v_wrapper->rule_semantics;
+
+  if (!rule_semantics)
+    {
+      croak ("Problem in v->rule_register(): valuator is not in stack mode");
+    }
+
+  /* Leave room for final 0 */
+  ops_sv = newSV ((op_count+1) * sizeof (UV));
+
+  SvPOK_on (ops_sv);
+  ops = (UV *) SvPV (ops_sv, dummy);
+  for (op_ix = 0; op_ix < op_count; op_ix++)
+    {
+      ops[op_ix] = SvUV (ST (op_ix+2));
+    }
+  ops[op_ix] = 0;
+  if (!av_store (rule_semantics, (I32) rule_id, ops_sv)) {
+     SvREFCNT_dec(ops_sv);
+  }
+}
+
+void
+nulling_symbol_register( v_wrapper, symbol_id, ... )
+     V_Wrapper *v_wrapper;
+     Marpa_Symbol_ID symbol_id;
+PPCODE:
+{
+  /* OP Count is args less two */
+  const STRLEN op_count = items - 2;
+  STRLEN op_ix;
+  STRLEN dummy;
+  UV *ops;
+  SV *ops_sv;
+  AV *nulling_semantics = v_wrapper->nulling_semantics;
+
+  if (!nulling_semantics)
+    {
+      croak ("Problem in v->nulling_symbol_register(): valuator is not in stack mode");
+    }
+
+  /* Leave room for final 0 */
+  ops_sv = newSV ((op_count+1) * sizeof (UV));
+
+  SvPOK_on (ops_sv);
+  ops = (UV *) SvPV (ops_sv, dummy);
+  for (op_ix = 0; op_ix < op_count; op_ix++)
+    {
+      ops[op_ix] = SvUV (ST (op_ix+2));
+    }
+  ops[op_ix] = 0;
+  if (!av_store (nulling_semantics, (I32) symbol_id, ops_sv)) {
+     SvREFCNT_dec(ops_sv);
+  }
+}
+
+void
+constant_register( v_wrapper, sv )
+     V_Wrapper *v_wrapper;
+     SV* sv;
+PPCODE:
+{
+  AV *constants = v_wrapper->constants;
+
+  if (!constants)
+    {
+      croak
+	("Problem in v->constant_register(): valuator is not in stack mode");
+    }
+
+  av_push (constants, SvREFCNT_inc_simple_NN (sv));
+  XSRETURN_IV (av_len (constants));
+}
+
+void
+highest_index( v_wrapper )
+    V_Wrapper *v_wrapper;
+PPCODE:
+{
+  AV* stack = v_wrapper->stack;
+  IV length = stack ? av_len(stack) : -1;
+  XSRETURN_IV(length);
+}
+
+void
+absolute( v_wrapper, index )
+    V_Wrapper *v_wrapper;
+    IV index;
+PPCODE:
+{
+  SV** p_sv;
+  AV* stack = v_wrapper->stack;
+  if (!stack) { XSRETURN_UNDEF; }
+  p_sv = av_fetch(stack, index, 0);
+  if (!p_sv) { XSRETURN_UNDEF; }
+  XPUSHs (sv_mortalcopy(*p_sv));
+}
+
+void
+relative( v_wrapper, index )
+    V_Wrapper *v_wrapper;
+    IV index;
+PPCODE:
+{
+  SV** p_sv;
+  IV length;
+  AV* stack = v_wrapper->stack;
+  if (!stack) { XSRETURN_UNDEF; }
+  length = stack ? av_len(stack) : -1;
+  p_sv = av_fetch(stack, index+v_wrapper->result, 0);
+  if (!p_sv) { XSRETURN_UNDEF; }
+  XPUSHs (sv_mortalcopy(*p_sv));
+}
+
+void
+result_set( v_wrapper, sv )
+    V_Wrapper *v_wrapper;
+    SV* sv;
+PPCODE:
+{
+  IV result_ix;
+  SV **p_stored_sv;
+  AV *stack = v_wrapper->stack;
+  if (!stack)
+    {
+      croak ("Problem in v->result_set(): valuator is not in stack mode");
+    }
+  result_ix = v_wrapper->result;
+  av_fill(stack, result_ix);
+
+  SvREFCNT_inc (sv);
+  p_stored_sv = av_store (stack, result_ix, sv);
+  if (!p_stored_sv)
+    {
+      SvREFCNT_dec (sv);
+    }
+}
+
+void
+stack_step( v_wrapper )
+    V_Wrapper *v_wrapper;
+PPCODE:
+{
+  const Marpa_Value v = v_wrapper->v;
+  const char *result_string;
+  Marpa_Step_Type status;
+  AV *stack = v_wrapper->stack;
+  AV *token_values = v_wrapper->token_values;
+
+  av_clear (v_wrapper->event_queue);
+
+  if (v_wrapper->mode != MARPA_XS_V_MODE_IS_STACK)
+    {
+      if (v_wrapper->stack)
+	{
+	  croak
+	    ("Problem in v->stack_step(): Cannot call unless valuator is in 'stack' mode");
+	}
+    }
+
+  while (1)
+    {
+      status = marpa_v_step (v);
+      if (status == MARPA_STEP_INACTIVE)
+	{
+	  XSRETURN_EMPTY;
+	}
+      if (status < 0)
+	{
+	  const char *error_message = xs_g_error (v_wrapper->base);
+	  if (v_wrapper->base->throw)
+	    {
+	      croak ("Problem in v->step(): %s", error_message);
+	    }
+	  XPUSHs (sv_2mortal
+		  (newSVpvf ("Problem in v->step(): %s", error_message)));
+	  XSRETURN (1);
+	}
+      result_string = step_type_to_string (status);
+      if (!result_string)
+	{
+	  char *error_message =
+	    form ("Problem in v->step(): unknown step type %d", status);
+	  set_error_from_string (v_wrapper->base, savepv (error_message));
+	  if (v_wrapper->base->throw)
+	    {
+	      croak ("%s", error_message);
+	    }
+	  XPUSHs (sv_2mortal (newSVpv (error_message, 0)));
+	  XSRETURN (1);
+	}
+      if (status == MARPA_STEP_TOKEN)
+	{
+	  IV token_value_ix = marpa_v_token_value (v);
+	  IV result = v_wrapper->result = marpa_v_result (v);
+	  SV **p_token_value_sv;
+
+	  p_token_value_sv = av_fetch (token_values, token_value_ix, 0);
+	  if (p_token_value_sv)
+	    {
+	      SV *token_value_sv = newSVsv (*p_token_value_sv);
+	      SV **stored_sv = av_store (stack, result, token_value_sv);
+	      if (!stored_sv)
+		{
+		  SvREFCNT_dec (token_value_sv);
+		}
+	    }
+	  else
+	    {
+	      av_store (stack, result, &PL_sv_undef);
+	    }
+
+	  if (v_wrapper->trace_values)
+	    {
+	      IV token_id = marpa_v_token (v);
+	      AV *event;
+	      SV *event_data[4];
+	      event_data[0] = newSVpv (result_string, 0);
+	      event_data[1] = newSViv (token_id);
+	      event_data[2] = newSViv (marpa_v_token_value (v));
+	      event_data[3] = newSViv (v_wrapper->result);
+	      event = av_make (Dim (event_data), event_data);
+	      av_push (v_wrapper->event_queue, newRV_noinc ((SV *) event));
+	    }
+	  goto NEXT_STEP;
+
+	}
+      if (status == MARPA_STEP_NULLING_SYMBOL)
+	{
+	  Marpa_Symbol_ID token_id = marpa_v_token (v);
+	  int result_stack_ix = v_wrapper->result = marpa_v_result (v);
+	  UV *nulling_ops;
+	  int op_ix;
+
+	  {
+	    STRLEN dummy;
+	    SV **p_ops_sv =
+	      av_fetch (v_wrapper->nulling_semantics, token_id, 0);
+	    if (!p_ops_sv)
+	      {
+		croak
+		  ("Problem in v->stack_step: symbol %d is not registered",
+		   token_id);
+	      }
+	    nulling_ops = (UV *) SvPV (*p_ops_sv, dummy);
+	  }
+
+	  op_ix = 0;
+	  while (1)
+	    {
+	      UV op_code = nulling_ops[op_ix++];
+
+	      switch (op_code)
+		{
+
+		case 0:
+		  goto NEXT_STEP;
+		  /* NOT REACHED */
+
+		case op_result_is_undef:
+		  {
+		    av_fill (stack, -1 + result_stack_ix);
+		    goto NEXT_STEP;
+		  }
+		  /* NOT REACHED */
+
+		case op_result_is_constant:
+		  {
+		    IV constant_ix = nulling_ops[op_ix++];
+		    SV **p_constant_sv;
+
+		    p_constant_sv =
+		      av_fetch (v_wrapper->constants, constant_ix, 0);
+		    if (p_constant_sv)
+		      {
+			SV *constant_sv = newSVsv (*p_constant_sv);
+			SV **stored_sv =
+			  av_store (stack, result_stack_ix, constant_sv);
+			if (!stored_sv)
+			  {
+			    SvREFCNT_dec (constant_sv);
+			  }
+		      }
+		    else
+		      {
+			av_store (stack, result_stack_ix, &PL_sv_undef);
+		      }
+
+		    if (v_wrapper->trace_values)
+		      {
+			AV *event;
+			SV *event_data[3];
+			event_data[0] = newSVpv (result_string, 0);
+			event_data[1] = newSViv (token_id);
+			event_data[2] = newSViv (result_stack_ix);
+			event = av_make (Dim (event_data), event_data);
+			av_push (v_wrapper->event_queue,
+				 newRV_noinc ((SV *) event));
+		      }
+		    goto NEXT_STEP;
+		  }
+		  /* NOT REACHED */
+
+
+		case op_callback:
+		  {
+		    XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
+		    XPUSHs (sv_2mortal (newSViv (token_id)));
+		    XPUSHs (sv_2mortal (newSViv (result_stack_ix)));
+		    XSRETURN (3);
+		  }
+		  /* NOT REACHED */
+		default:
+		  croak
+		    ("Problem in v->stack_step: Unimplemented op code: %lu",
+		     (unsigned long) op_code);
+		  /* NOT REACHED */
+		}
+	    }
+
+	  /* NOT REACHED */
+	  goto NEXT_STEP;
+	}
+
+      if (status == MARPA_STEP_RULE)
+	{
+	  AV *values_av = NULL;
+	  Marpa_Rule_ID rule_id = marpa_v_rule (v);
+	  IV arg_0 = marpa_v_arg_0 (v);
+	  IV arg_n = marpa_v_arg_n (v);
+	  UV *rule_ops;
+	  int op_ix;
+	  int done;
+
+	  v_wrapper->result = arg_0;
+
+	  {
+	    STRLEN dummy;
+	    SV **p_ops_sv = av_fetch (v_wrapper->rule_semantics, rule_id, 0);
+	    if (!p_ops_sv)
+	      {
+		croak ("Problem in v->stack_step: rule %d is not registered",
+		       rule_id);
+	      }
+	    rule_ops = (UV *) SvPV (*p_ops_sv, dummy);
+	  }
+
+	  /* Create a values_av or, if there is one,
+	   * clear the old values out.
+	   * It's mortal, so it will go away unless we
+	   * de-mortalize it.
+	   */
+	  if (!values_av)
+	    {
+	      values_av = (AV *) sv_2mortal ((SV *) newAV ());
+	    }
+	  av_clear (values_av);
+
+	  op_ix = 0;
+	  done = 0;
+	  while (!done)
+	    {
+	      UV op_code = rule_ops[op_ix++];
+	      int stack_ix;
+
+	      switch (op_code)
+		{
+
+		case 0:
+		  done = 1;
+		  break;
+
+		case op_result_is_undef:
+		  {
+		    av_fill (stack, -1 + arg_0);
+		    done = 1;
+		  }
+		  break;
+
+		case op_result_is_arg_0:
+		  {
+		    av_fill (stack, arg_0);
+		    done = 1;
+		  }
+		  break;
+
+		case op_push_all:
+		case op_push_sequence:
+		  {
+		    int increment = op_code == op_push_sequence ? 2 : 1;
+		    /* Create a mortalized array, so that it will go away
+		     * by default.
+		     */
+		    for (stack_ix = arg_0; stack_ix <= arg_n;
+			 stack_ix += increment)
+		      {
+			SV **p_sv = av_fetch (stack, stack_ix, 0);
+			if (!p_sv)
+			  {
+			    av_push (values_av, &PL_sv_undef);
+			  }
+			else
+			  {
+			    av_push (values_av,
+				     SvREFCNT_inc_simple_NN (*p_sv));
+			  }
+		      }
+		  }
+		  break;
+
+		case op_push_one:
+		  {
+		    int offset = rule_ops[op_ix++];
+		    /* Create a mortalized array, so that it will go away
+		     * by default.
+		     */
+		    SV **p_sv = av_fetch (stack, arg_0 + offset, 0);
+		    if (!p_sv)
+		      {
+			av_push (values_av, &PL_sv_undef);
+		      }
+		    else
+		      {
+			av_push (values_av, SvREFCNT_inc_simple_NN (*p_sv));
+		      }
+		  }
+		  break;
+
+		case op_callback:
+		  {
+		    XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
+		    XPUSHs (sv_2mortal (newSViv (rule_id)));
+		    /* Must increment ref cnt of array to de-mortalize it,
+		     * but the RV must be mortal.
+		     */
+		    XPUSHs (sv_2mortal (newRV_inc ((SV *) values_av)));
+		    XSRETURN (3);
+		  }
+		  /* NOT REACHED */
+		default:
+		  croak
+		    ("Problem in v->stack_step: Unimplemented op code: %lu",
+		     (unsigned long) op_code);
+		}
+	    }
+
+	  goto NEXT_STEP;
+	}
+
+      /* Default is just return the status string and let the upper
+       * layer deal with it.
+       */
+      XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
+      XSRETURN (1);
+
+    NEXT_STEP:;
+      if (v_wrapper->trace_values)
+	{
+	  XSRETURN_PV ("trace");
+	}
     }
 }
 
@@ -3373,7 +4054,7 @@ PPCODE:
   /* Not mortalized because,
    * held for the length of the scanless object.
    */
-  XPUSHs (slg->g0_sv);
+  XPUSHs (sv_2mortal (SvREFCNT_inc_NN (slg->g0_sv)));
 }
 
  #  Always returns the same SV for a given Scanless recce object -- 
@@ -3387,7 +4068,7 @@ PPCODE:
   /* Not mortalized because,
    * held for the length of the scanless object.
    */
-  XPUSHs (slg->g1_sv);
+  XPUSHs (sv_2mortal (SvREFCNT_inc_NN (slg->g1_sv)));
 }
 
 void
@@ -3548,10 +4229,7 @@ g0( slr )
     Scanless_R *slr;
 PPCODE:
 {
-  /* Not mortalized because,
-   * held for the length of the scanless object.
-   */
-  XPUSHs (slr->slg->g0_sv);
+  XPUSHs (sv_2mortal (SvREFCNT_inc_NN ( slr->slg->g0_sv)));
 }
 
  #  Always returns the same SV for a given Scanless recce object -- 
@@ -3562,10 +4240,7 @@ g1( slr )
     Scanless_R *slr;
 PPCODE:
 {
-  /* Not mortalized because,
-   * held for the length of the scanless object.
-   */
-  XPUSHs (slr->r1_wrapper->base_sv);
+  XPUSHs (sv_2mortal (SvREFCNT_inc_NN ( slr->r1_wrapper->base_sv)));
 }
 
  #  Always returns the same SV for a given Scanless recce object -- 
@@ -3576,10 +4251,7 @@ stream( slr )
     Scanless_R *slr;
 PPCODE:
 {
-  /* Not mortalized because,
-   * held for the length of the scanless object.
-   */
-  XPUSHs (slr->stream_sv);
+  XPUSHs (sv_2mortal (SvREFCNT_inc_NN ( slr->stream_sv)));
 }
 
 void
@@ -3674,18 +4346,6 @@ r1_earleme_complete_result (slr)
 PPCODE:
 {
   XPUSHs (sv_2mortal (newSViv ((IV) slr->r1_earleme_complete_result)));
-}
-
-   # Delete this after testing conversion to C
-void
-core_read( slr )
-    Scanless_R *slr;
-PPCODE:
-{
-  IV return_value;
-  av_clear(slr->event_queue);
-  return_value = u_read(slr->stream);
-  XSRETURN_IV(return_value);
 }
 
 void

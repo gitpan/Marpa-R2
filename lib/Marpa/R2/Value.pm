@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.046000';
+$VERSION        = '2.047_000';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -51,14 +51,10 @@ sub Marpa::R2::Internal::Recognizer::resolve_semantics {
         $recce->[Marpa::R2::Internal::Recognizer::TRACE_ACTIONS];
 
     # A reserved closure name;
-    return [ '::whatever', undef ] if not defined $closure_name;
+    return [ '::whatever', undef, '::whatever' ] if not defined $closure_name;
     if ( substr( $closure_name, 0, 2 ) eq q{::} ) {
-        return [ $closure_name, undef ]  if $closure_name eq '::whatever';
-        return [ $closure_name, \undef ] if $closure_name eq '::undef';
-        Marpa::R2::exception(
-            qq{Unknown reserved action name "$closure_name"\n},
-            q{  Action names beginning with "::" are reserved}
-        );
+        return [ $closure_name, \undef, $closure_name ] if $closure_name eq '::undef';
+        return [ $closure_name, undef, $closure_name ];
     } ## end if ( substr( $closure_name, 0, 2 ) eq q{::} )
 
     if ( my $closure = $closures->{$closure_name} ) {
@@ -152,6 +148,7 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
     my $rules         = $grammar->[Marpa::R2::Internal::Grammar::RULES];
     my $symbols       = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
     my $rule_closures = [];
+    my $rule_semantics = [];
     my $trace_actions =
         $recce->[Marpa::R2::Internal::Recognizer::TRACE_ACTIONS] // 0;
 
@@ -224,7 +221,7 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
     # a valid non-whatever resolution is not something random from
     # a whatever resolution
     RULE: for my $rule_id ( 0 .. $#{$rules} ) {
-        my ( $new_resolution, $closure ) = @{ $rule_resolutions->[$rule_id] };
+        my ( $new_resolution, $closure, $semantics ) = @{ $rule_resolutions->[$rule_id] };
         my $lhs_id = $grammar_c->rule_lhs($rule_id);
         $resolution_by_lhs[$lhs_id] //= $new_resolution;
         my $current_resolution = $resolution_by_lhs[$lhs_id];
@@ -243,6 +240,7 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
         if ( $new_resolution ne '::whatever' ) {
             $rule_closures->[$rule_id] = $closure;
         }
+	$rule_semantics->[$rule_id] = $semantics;
         push @{ $nullable_ruleids_by_lhs[$lhs_id] }, $rule_id
             if $grammar_c->rule_is_nullable($rule_id);
     } ## end RULE: for my $rule_id ( 0 .. $#{$rules} )
@@ -339,6 +337,7 @@ sub Marpa::R2::Internal::Recognizer::set_actions {
     $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES] =
         \@null_symbol_closures;
     $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES] = $rule_closures;
+    $recce->[Marpa::R2::Internal::Recognizer::RULE_SEMANTICS] = $rule_semantics;
 
     return 1;
 }    # set_actions
@@ -470,7 +469,6 @@ sub code_problems {
 
 } ## end sub code_problems
 
-# Does not modify stack
 sub Marpa::R2::Internal::Recognizer::evaluate {
     my ($recce) = @_;
     my $recce_c = $recce->[Marpa::R2::Internal::Recognizer::C];
@@ -543,13 +541,25 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
         Marpa::R2::Internal::Recognizer::set_actions($recce);
         $rule_closures =
             $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES];
-    }
+    } ## end if ( not defined $rule_closures )
 
+    my $rule_semantics = $recce->[Marpa::R2::Internal::Recognizer::RULE_SEMANTICS];
     my $null_values = $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES];
 
     my $value = Marpa::R2::Thin::V->new($tree);
     local $Marpa::R2::Internal::Context::VALUATOR = $value;
-    for my $rule_id ( 0 .. $#{$rule_closures} ) {
+    value_trace( $value, $trace_values ? 1 : 0 );
+    $value->trace_values($trace_values);
+    $value->stack_mode_set($token_values);
+
+    state $op_result_is_arg_0    = Marpa::R2::Thin::op('result_is_arg_0');
+    state $op_result_is_constant = Marpa::R2::Thin::op('result_is_constant');
+    state $op_result_is_undef    = Marpa::R2::Thin::op('result_is_undef');
+    state $op_push_sequence      = Marpa::R2::Thin::op('push_sequence');
+    state $op_push_one           = Marpa::R2::Thin::op('push_one');
+    state $op_callback           = Marpa::R2::Thin::op('callback');
+
+    RULE: for my $rule_id ( $grammar->rule_ids() ) {
         my $result = $value->rule_is_valued_set( $rule_id, 1 );
         if ( not $result ) {
             my $lhs_id   = $grammar_c->rule_lhs($rule_id);
@@ -559,8 +569,87 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                 q{because the LHS was already treated as an unvalued symbol}
             );
         } ## end if ( not $result )
-    } ## end for my $rule_id ( 0 .. $#{$rule_closures} )
 
+        my $rule = $rules->[$rule_id];
+	my $mask = $rule->[Marpa::R2::Internal::Rule::MASK];
+        my $semantics = $rule_semantics->[$rule_id];
+	my $rule_length = $grammar_c->rule_length($rule_id);
+
+	if ( defined $semantics ) {
+	    if ( $semantics eq '::undef' or $semantics eq '::whatever' ) {
+		$value->rule_register( $rule_id, $op_result_is_undef );
+		next RULE;
+	    }
+
+	    my $singleton;
+	    $singleton = 0 if $semantics eq '::first';
+	    $singleton = -1 if $semantics eq '::last';
+	    if ($semantics =~ m/\A [:][:] (\d+) (st|rd|th) \z/xms) {
+	        $singleton = $1 + 0;
+	    }
+	    if ( defined $singleton ) {
+		my @elements = grep { $mask->[$_] } 0 .. ( $rule_length - 1 );
+		if ( not scalar @elements ) {
+		    Marpa::R2::exception(
+			qq{Impossible semantics for empty rule: },
+			$grammar->brief_rule($rule_id),
+			"\n",
+			qq{    Semantics were specified as "$semantics"\n}
+		    );
+		} ## end if ( not scalar @elements )
+		my $singleton_element = $elements[$singleton];
+		if ( not defined $singleton_element ) {
+		    Marpa::R2::exception(
+			qq{Impossible semantics for rule: },
+			$grammar->brief_rule($rule_id),
+			"\n",
+			qq{    Semantics were specified as "$semantics"\n}
+		    );
+		} ## end if ( not defined $singleton_element )
+		if ( $singleton_element == 0 ) {
+		    $value->rule_register( $rule_id, $op_result_is_arg_0 );
+		    next RULE;
+		}
+		Marpa::R2::exception( qq{Unimplemented semantics: "$semantics"\n},
+		    qq{ Rule was }, $grammar->brief_rule($rule_id), "\n" );
+	    } ## end if ( defined $singleton )
+
+	    Marpa::R2::exception(
+		qq{Unknown semantics for rule },
+		$grammar->brief_rule($rule_id),
+		"\n", qq{    Semantics were specified as "$semantics"\n}
+	    );
+
+	} ## end if ( defined $semantics )
+
+        my $closure = $rule_closures->[$rule_id];
+        if ( !defined $closure
+            || ( ref $closure eq 'SCALAR' && !defined ${$closure} ) )
+        {
+            $value->rule_register( $rule_id, $op_result_is_undef );
+            next RULE;
+        } ## end if ( !defined $closure || ( ref $closure eq 'SCALAR'...))
+
+        # if here, $closure is defined
+        if ( defined $grammar_c->sequence_min($rule_id) ) {
+            if ( $rule->[Marpa::R2::Internal::Rule::DISCARD_SEPARATION] ) {
+                $value->rule_register( $rule_id, $op_push_sequence,
+                    $op_callback );
+            }
+
+            # KEEP SEPARATION can use the default
+            next RULE;
+
+        } ## end if ( defined $grammar_c->sequence_min($rule_id) )
+	next RULE if $rule_length <= 0;
+	my @push_ops =
+	    map { $mask->[$_] ? ( $op_push_one, $_ ) : () }
+	    0 .. $grammar_c->rule_length($rule_id) - 1;
+	$value->rule_register( $rule_id, @push_ops, $op_callback );
+    } ## end RULE: for my $rule_id ( 0 .. $#{$rule_closures} )
+
+    my @nulling_closures;
+    TOKEN:
     for my $token_id ( grep { defined $null_values->[$_] }
         0 .. $#{$null_values} )
     {
@@ -572,53 +661,139 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                 q{because it was already treated as an unvalued symbol}
             );
         } ## end if ( not $result )
+
+        my $semantic_rule_id = $null_values->[$token_id];
+        my $closure_ref      = $rule_closures->[$semantic_rule_id];
+        next TOKEN if not defined $closure_ref;
+        my $ref_type = Scalar::Util::reftype $closure_ref;
+        if ( $ref_type eq 'SCALAR') {
+            my $closure = ${$closure_ref};
+            next TOKEN if not defined $closure;
+            my $constant_ix = $value->constant_register( $closure );
+            $value->nulling_symbol_register( $token_id, $op_result_is_constant, $constant_ix );
+            next TOKEN;
+        }
+        if ( $ref_type eq 'CODE' ) {
+            $value->nulling_symbol_register( $token_id, $op_callback );
+            $nulling_closures[$token_id] = $closure_ref;
+            next TOKEN;
+        }
+        if (   $ref_type eq 'REF'
+            or $ref_type eq 'LVALUE'
+            or $ref_type eq 'VSTRING' )
+        {
+            my $constant_ix = $value->constant_register( $token_id, ${$closure_ref} );
+            $value->nulling_symbol_register( $token_id, $op_result_is_constant, $constant_ix );
+            next TOKEN;
+        } ## end if ( $ref_type eq 'REF' or $ref_type eq 'LVALUE' or ...)
+        my $token_name = $grammar->symbol_name($token_id);
+        Marpa::R2::exception(
+            qq{Nulling value of symbol <$token_name> is of type '$ref_type'\n},
+            qq{  '$ref_type' is not an allowed type\n}
+        );
+
     } ## end for my $token_id ( grep { defined $null_values->[$_] ...})
-    my @evaluation_stack = ();
-    value_trace( $value, $trace_values ? 1 : 0 );
 
-    EVENT: while (1) {
-        my ( $value_type, @value_data ) = $value->step();
-        last EVENT if not defined $value_type;
 
-        if ( $trace_values >= 3 ) {
-            for my $i ( reverse 0 .. $#evaluation_stack ) {
-                printf {$Marpa::R2::Internal::TRACE_FH} 'Stack position %3d:',
-                    $i
-                    or Marpa::R2::exception('print to trace handle failed');
-                print {$Marpa::R2::Internal::TRACE_FH} q{ },
-                    Data::Dumper->new( [ $evaluation_stack[$i] ] )->Terse(1)
-                    ->Dump
-                    or Marpa::R2::exception('print to trace handle failed');
-            } ## end for my $i ( reverse 0 .. $#evaluation_stack )
-        } ## end if ( $trace_values >= 3 )
+    STEP: while (1) {
+        my ( $value_type, @value_data ) = $value->stack_step();
 
-        if ( $value_type eq 'MARPA_STEP_TOKEN' ) {
-            my ( $token_id, $value_ix, $arg_n ) = @value_data;
-            my $value_ref = \( $token_values->[$value_ix] );
-            $evaluation_stack[$arg_n] = $value_ref;
-            trace_token_evaluation( $recce, $value, $token_id, $value_ref )
-                if $trace_values;
-            next EVENT;
-        } ## end if ( $value_type eq 'MARPA_STEP_TOKEN' )
+        if ($trace_values) {
+            EVENT: while (1) {
+                my $event = $value->event();
+                last EVENT if not defined $event;
+                my ( $event_type, @event_data ) = @{$event};
+                if ( $event_type eq 'MARPA_STEP_TOKEN' ) {
+                    my ( $token_id, $token_value_ix ) = @event_data;
+                    my $token_value = $token_values->[$token_value_ix];
+                    trace_token_evaluation( $recce, $value, $token_id,
+                        $token_value );
+                    next EVENT;
+                } ## end if ( $event_type eq 'MARPA_STEP_TOKEN' )
+                say {$Marpa::R2::Internal::TRACE_FH} join q{ },
+                    "value event:",
+                    map { $_ // 'undef' } $event_type, @event_data;
+            } ## end EVENT: while (1)
+
+            if ( $trace_values >= 3 ) {
+                for my $i ( reverse 0 .. $value->highest_index ) {
+                    printf {$Marpa::R2::Internal::TRACE_FH}
+                        'Stack position %3d:', $i
+                        or
+                        Marpa::R2::exception('print to trace handle failed');
+                    print {$Marpa::R2::Internal::TRACE_FH} q{ },
+                        Data::Dumper->new( [ \$value->absolute($i) ] )
+                        ->Terse(1)->Dump
+                        or
+                        Marpa::R2::exception('print to trace handle failed');
+                } ## end for my $i ( reverse 0 .. $value->highest_index )
+            } ## end if ( $trace_values >= 3 )
+
+        } ## end if ($trace_values)
+
+        last STEP if not defined $value_type;
+	next STEP if $value_type eq 'trace';
 
         if ( $value_type eq 'MARPA_STEP_NULLING_SYMBOL' ) {
             my ( $token_id, $arg_n ) = @value_data;
-            my $semantic_rule_id = $null_values->[$token_id];
-            my $value_ref        = $rule_closures->[$semantic_rule_id];
+            my $value_ref = $nulling_closures[$token_id];
+            my $result;
 
-            if ( ref $value_ref eq 'CODE' ) {
+            my @warnings;
+            my $eval_ok;
+
+            DO_EVAL: {
+                local $SIG{__WARN__} = sub {
+                    push @warnings, [ $_[0], ( caller 0 ) ];
+                };
+
+                $eval_ok = eval {
+                    local $Marpa::R2::Context::rule =
+                        $null_values->[$token_id];
+                    $result = $value_ref->($action_object);
+                    1;
+                };
+
+            } ## end DO_EVAL:
+
+            if ( not $eval_ok or @warnings ) {
+                my $fatal_error = $EVAL_ERROR;
+                code_problems(
+                    {   fatal_error => $fatal_error,
+                        grammar     => $grammar,
+                        eval_ok     => $eval_ok,
+                        warnings    => \@warnings,
+                        where       => 'computing value',
+                        long_where  => 'Computing value for null symbol: '
+                            . $grammar->symbol_name($token_id),
+                    }
+                );
+            } ## end if ( not $eval_ok or @warnings )
+
+            $value->result_set($result);
+            trace_token_evaluation( $recce, $value, $token_id, \$result )
+                if $trace_values;
+            next STEP;
+        } ## end if ( $value_type eq 'MARPA_STEP_NULLING_SYMBOL' )
+
+        if ( $value_type eq 'MARPA_STEP_RULE' ) {
+            my ( $rule_id, $values ) = @value_data;
+            my $closure = $rule_closures->[$rule_id];
+
+            next STEP if not defined $closure;
+            my $result;
+
+            if ( ref $closure eq 'CODE' ) {
                 my @warnings;
                 my $eval_ok;
-                my $result;
-
                 DO_EVAL: {
                     local $SIG{__WARN__} = sub {
                         push @warnings, [ $_[0], ( caller 0 ) ];
                     };
 
                     $eval_ok = eval {
-                        local $Marpa::R2::Context::rule = $semantic_rule_id;
-                        $result = $value_ref->($action_object);
+                        local $Marpa::R2::Context::rule = $rule_id;
+                        $result = $closure->( $action_object, @{$values} );
                         1;
                     };
 
@@ -632,98 +807,29 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                             eval_ok     => $eval_ok,
                             warnings    => \@warnings,
                             where       => 'computing value',
-                            long_where  => 'Computing value for null symbol: '
-                                . $grammar->symbol_name($token_id),
+                            long_where  => 'Computing value for rule: '
+                                . $grammar->brief_rule($rule_id),
                         }
                     );
                 } ## end if ( not $eval_ok or @warnings )
-                $value_ref = \$result;
-            } ## end if ( ref $value_ref eq 'CODE' )
+            } ## end if ( ref $closure eq 'CODE' )
+            else {
+                $result = ${$closure};
+            }
+            $value->result_set($result);
 
-            $evaluation_stack[$arg_n] = $value_ref;
-            trace_token_evaluation( $recce, $value, $token_id, $value_ref )
-                if $trace_values;
-            next EVENT;
-        } ## end if ( $value_type eq 'MARPA_STEP_NULLING_SYMBOL' )
+            if ($trace_values) {
+                say {$Marpa::R2::Internal::TRACE_FH}
+                    trace_stack_1( $grammar, $recce, $value, $values,
+                    $rule_id )
+                    or Marpa::R2::exception('Could not print to trace file');
+                print {$Marpa::R2::Internal::TRACE_FH}
+                    'Calculated and pushed value: ',
+                    Data::Dumper->new( [$result] )->Terse(1)->Dump
+                    or Marpa::R2::exception('print to trace handle failed');
+            } ## end if ($trace_values)
 
-        if ( $value_type eq 'MARPA_STEP_RULE' ) {
-            my ( $rule_id, $arg_0, $arg_n ) = @value_data;
-            my $closure = $rule_closures->[$rule_id];
-
-            if ( defined $closure ) {
-                my $result;
-                my $rule = $rules->[$rule_id];
-
-                my @args =
-                    map { defined $_ ? ${$_} : $_ }
-                    @evaluation_stack[ $arg_0 .. $arg_n ];
-                if ( defined $grammar_c->sequence_min($rule_id) ) {
-                    if ($rule->[Marpa::R2::Internal::Rule::DISCARD_SEPARATION]
-                        )
-                    {
-                        @args =
-                            @args[ map { 2 * $_ }
-                            ( 0 .. ( scalar @args + 1 ) / 2 - 1 ) ];
-                    } ## end if ( $rule->[...])
-                } ## end if ( defined $grammar_c->sequence_min($rule_id) )
-                else {
-                    my $mask = $rule->[Marpa::R2::Internal::Rule::MASK];
-                    @args = @args[ grep { $mask->[$_] } 0 .. $#args ];
-                }
-
-                if ( ref $closure eq 'CODE' ) {
-                    my @warnings;
-                    my $eval_ok;
-                    DO_EVAL: {
-                        local $SIG{__WARN__} = sub {
-                            push @warnings, [ $_[0], ( caller 0 ) ];
-                        };
-
-                        $eval_ok = eval {
-                            local $Marpa::R2::Context::rule = $rule_id;
-                            $result = $closure->( $action_object, @args );
-                            1;
-                        };
-
-                    } ## end DO_EVAL:
-
-                    if ( not $eval_ok or @warnings ) {
-                        my $fatal_error = $EVAL_ERROR;
-                        code_problems(
-                            {   fatal_error => $fatal_error,
-                                grammar     => $grammar,
-                                eval_ok     => $eval_ok,
-                                warnings    => \@warnings,
-                                where       => 'computing value',
-                                long_where  => 'Computing value for rule: '
-                                    . $grammar->brief_rule($rule_id),
-                            }
-                        );
-                    } ## end if ( not $eval_ok or @warnings )
-                    $evaluation_stack[$arg_0] = \$result;
-                } ## end if ( ref $closure eq 'CODE' )
-                else {
-                    $evaluation_stack[$arg_0] = $closure;
-                }
-
-                if ($trace_values) {
-                    say {$Marpa::R2::Internal::TRACE_FH}
-                        trace_stack_1( $grammar, $recce, $value, \@args,
-                        $rule_id )
-                        or
-                        Marpa::R2::exception('Could not print to trace file');
-                    print {$Marpa::R2::Internal::TRACE_FH}
-                        'Calculated and pushed value: ',
-                        Data::Dumper->new( [$result] )->Terse(1)->Dump
-                        or
-                        Marpa::R2::exception('print to trace handle failed');
-                } ## end if ($trace_values)
-
-                next EVENT;
-
-            } ## end if ( defined $closure )
-
-            next EVENT;
+            next STEP;
 
         } ## end if ( $value_type eq 'MARPA_STEP_RULE' )
 
@@ -735,17 +841,15 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                     or Marpa::R2::exception('Could not print to trace file');
             }
 
-            next EVENT;
+            next STEP;
 
         } ## end if ( $value_type eq 'MARPA_STEP_TRACE' )
 
         die "Internal error: Unknown value type $value_type";
 
-    } ## end EVENT: while (1)
+    } ## end STEP: while (1)
 
-    my $top_value = $evaluation_stack[0];
-
-    return $top_value // ( \undef );
+    return $value->absolute(0);
 
 } ## end sub Marpa::R2::Internal::Recognizer::evaluate
 
@@ -835,7 +939,7 @@ sub Marpa::R2::Recognizer::value { ## no critic (Subroutines::RequireArgUnpackin
     }
 
     return if not defined $tree->next();
-    return Marpa::R2::Internal::Recognizer::evaluate($recce);
+    return \Marpa::R2::Internal::Recognizer::evaluate($recce);
 
 } ## end sub Marpa::R2::Recognizer::value
 
@@ -1149,7 +1253,7 @@ sub Marpa::R2::Recognizer::show_tree {
 } ## end sub Marpa::R2::Recognizer::show_tree
 
 sub trace_token_evaluation {
-    my ( $recce, $value, $token_id, $value_ref ) = @_;
+    my ( $recce, $value, $token_id, $token_value ) = @_;
     my $order   = $recce->[Marpa::R2::Internal::Recognizer::O_C];
     my $tree    = $recce->[Marpa::R2::Internal::Recognizer::T_C];
     my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
@@ -1174,7 +1278,7 @@ sub trace_token_evaluation {
         Marpa::R2::Recognizer::and_node_tag( $recce, $and_node_id ),
         ': ',
         ( $token_name ? qq{$token_name = } : q{} ),
-        Data::Dumper->new( [$value_ref] )->Terse(1)->Dump
+        Data::Dumper->new( [\$token_value] )->Terse(1)->Dump
         or Marpa::R2::exception('print to trace handle failed');
 
     return;
