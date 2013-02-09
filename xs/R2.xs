@@ -280,20 +280,21 @@ static int marpa_r2_warn(const char* format, ...)
 
 enum marpa_op {
    op_end_marker = 0,
-   op_noop,
-   op_ignore_rejection,
-   op_report_rejection,
    op_alternative,
-   op_earleme_complete,
-   op_unregistered,
-   op_push_all,
-   op_push_sequence,
-   op_push_one,
+   op_bless,
    op_callback,
+   op_earleme_complete,
+   op_ignore_rejection,
+   op_noop,
+   op_push_all,
+   op_push_one,
+   op_push_sequence,
+   op_report_rejection,
    op_result_is_array,
    op_result_is_constant,
-   op_result_is_arg_0,
-   op_result_is_undef
+   op_result_is_rhs_n,
+   op_result_is_undef,
+   op_unregistered
 };
 
 /* Static grammar methods */
@@ -1008,6 +1009,10 @@ PPCODE:
     {
       XSRETURN_IV (op_push_one);
     }
+  if (strEQ (op_name, "bless"))
+    {
+      XSRETURN_IV (op_bless);
+    }
   if (strEQ (op_name, "callback"))
     {
       XSRETURN_IV (op_callback);
@@ -1016,9 +1021,9 @@ PPCODE:
     {
       XSRETURN_IV (op_result_is_array);
     }
-  if (strEQ (op_name, "result_is_arg_0"))
+  if (strEQ (op_name, "result_is_rhs_n"))
     {
-      XSRETURN_IV (op_result_is_arg_0);
+      XSRETURN_IV (op_result_is_rhs_n);
     }
   if (strEQ (op_name, "result_is_constant"))
     {
@@ -1916,26 +1921,33 @@ PPCODE:
   Marpa_Value v = marpa_v_new (t);
   if (!v)
     {
-      if (!t_wrapper->base->throw) { XSRETURN_UNDEF; }
-      croak ("Problem in v->new(): %s", xs_g_error(t_wrapper->base));
+      if (!t_wrapper->base->throw)
+	{
+	  XSRETURN_UNDEF;
+	}
+      croak ("Problem in v->new(): %s", xs_g_error (t_wrapper->base));
     }
   Newx (v_wrapper, 1, V_Wrapper);
   {
-    SV* base_sv = t_wrapper->base_sv;
+    SV *base_sv = t_wrapper->base_sv;
     SvREFCNT_inc (base_sv);
     v_wrapper->base_sv = base_sv;
   }
   v_wrapper->base = t_wrapper->base;
   v_wrapper->v = v;
-  v_wrapper->event_queue = newAV();
+  v_wrapper->event_queue = newAV ();
   v_wrapper->token_values = NULL;
   v_wrapper->stack = NULL;
   v_wrapper->mode = MARPA_XS_V_MODE_IS_INITIAL;
   v_wrapper->result = 0;
   v_wrapper->trace_values = 0;
-  v_wrapper->constants = newAV();
-  v_wrapper->rule_semantics = newAV();
-  v_wrapper->nulling_semantics = newAV();
+
+  v_wrapper->constants = newAV ();
+  /* Reserve position 0 */
+  av_push (v_wrapper->constants, &PL_sv_undef);
+
+  v_wrapper->rule_semantics = newAV ();
+  v_wrapper->nulling_semantics = newAV ();
   sv = sv_newmortal ();
   sv_setref_pv (sv, value_c_class_name, (void *) v_wrapper);
   XPUSHs (sv);
@@ -2085,8 +2097,6 @@ PPCODE:
 
   v_wrapper->token_values = token_values;
   SvREFCNT_inc (token_values);
-
-  v_wrapper->constants = newAV ();
 
   {
     int ix;
@@ -2403,14 +2413,12 @@ PPCODE:
 
 		case 0:
 		  goto NEXT_STEP;
-		  /* NOT REACHED */
 
 		case op_result_is_undef:
 		  {
 		    av_fill (stack, -1 + result_stack_ix);
-		    goto NEXT_STEP;
 		  }
-		  /* NOT REACHED */
+		  goto NEXT_STEP;
 
 		case op_result_is_constant:
 		  {
@@ -2445,10 +2453,8 @@ PPCODE:
 			av_push (v_wrapper->event_queue,
 				 newRV_noinc ((SV *) event));
 		      }
-		    goto NEXT_STEP;
 		  }
-		  /* NOT REACHED */
-
+		  goto NEXT_STEP;
 
 		case op_callback:
 		  {
@@ -2478,7 +2484,7 @@ PPCODE:
 	  IV arg_n = marpa_v_arg_n (v);
 	  UV *rule_ops;
 	  int op_ix;
-	  int done;
+	  UV blessing = 0;
 
 	  v_wrapper->result = arg_0;
 
@@ -2505,36 +2511,89 @@ PPCODE:
 	  av_clear (values_av);
 
 	  op_ix = 0;
-	  done = 0;
-	  while (!done)
+	  while (1)
 	    {
 	      UV op_code = rule_ops[op_ix++];
-	      int stack_ix;
 
 	      switch (op_code)
 		{
 
 		case 0:
-		  done = 1;
-		  break;
+		  goto NEXT_STEP;
 
 		case op_result_is_undef:
 		  {
 		    av_fill (stack, -1 + arg_0);
-		    done = 1;
 		  }
-		  break;
+		  goto NEXT_STEP;
 
-		case op_result_is_arg_0:
-		  {
+		case op_result_is_rhs_n:
+		{
+		    SV** stored_av;
+		    SV **p_sv;
+		    UV stack_ix = rule_ops[op_ix++];
+
+		    if (stack_ix == 0) {
+		      /* Special-cased for two reasons --
+		       * it's common and can be optimized.
+		       */
+		      av_fill (stack, arg_0);
+		      goto NEXT_STEP;
+		    }
+		    p_sv = av_fetch (stack, arg_0 + stack_ix, 0);
+		    if (!p_sv) {
+		      av_fill (stack, arg_0-1);
+		      goto NEXT_STEP;
+		    }
+		    stored_av = av_store(stack, arg_0, SvREFCNT_inc_NN (*p_sv));
+		    if (!stored_av) {
+		      SvREFCNT_dec (*p_sv);
+		      av_fill (stack, arg_0-1);
+		      goto NEXT_STEP;
+		    }
 		    av_fill (stack, arg_0);
-		    done = 1;
-		  }
-		  break;
+		}
+		goto NEXT_STEP;
+
+		case op_result_is_array:
+		{
+		    SV** stored_av;
+		    /* Increment ref count of values_av to de-mortalize it */
+		    SV* ref_to_values_av = newRV_inc((SV*)values_av);
+		    if (blessing)
+		      {
+			SV **p_blessing_sv = av_fetch (v_wrapper->constants, blessing, 0);
+			if (p_blessing_sv && SvPOK (*p_blessing_sv))
+			  {
+			    STRLEN blessing_length;
+			    char *classname = SvPV (*p_blessing_sv, blessing_length);
+			    sv_bless (ref_to_values_av, gv_stashpv (classname, 1));
+			  }
+		      }
+		    blessing = 0;
+		    stored_av = av_store(stack, arg_0, ref_to_values_av);
+
+		    /* Clear the way for a new values AV
+		     * The mortal refcount held by this pointer will be
+		     * decremented eventually
+		     */
+		    values_av = NULL;
+		    /* If the new RV did not get stored properly,
+		     * decrement its ref count
+		     */
+		    if (!stored_av) {
+		      SvREFCNT_dec (ref_to_values_av);
+		      av_fill (stack, arg_0 - 1);
+		      goto NEXT_STEP;
+		    }
+		    av_fill (stack, arg_0);
+		}
+		goto NEXT_STEP;
 
 		case op_push_all:
 		case op_push_sequence:
 		  {
+	      int stack_ix;
 		    int increment = op_code == op_push_sequence ? 2 : 1;
 		    /* Create a mortalized array, so that it will go away
 		     * by default.
@@ -2574,14 +2633,32 @@ PPCODE:
 		  }
 		  break;
 
+		case op_bless:
+		  {
+		    blessing = rule_ops[op_ix++];
+		  }
+		  break;
+
 		case op_callback:
 		  {
+		    SV* ref_to_values_av = sv_2mortal(newRV_inc((SV*)values_av));
+		    if (blessing)
+		      {
+			SV **p_blessing_sv = av_fetch (v_wrapper->constants, blessing, 0);
+			if (p_blessing_sv && SvPOK (*p_blessing_sv))
+			  {
+			    STRLEN blessing_length;
+			    char *classname = SvPV (*p_blessing_sv, blessing_length);
+			    sv_bless (ref_to_values_av, gv_stashpv (classname, 1));
+			  }
+		      }
+		    blessing = 0;
 		    XPUSHs (sv_2mortal (newSVpv (result_string, 0)));
 		    XPUSHs (sv_2mortal (newSViv (rule_id)));
 		    /* Must increment ref cnt of array to de-mortalize it,
 		     * but the RV must be mortal.
 		     */
-		    XPUSHs (sv_2mortal (newRV_inc ((SV *) values_av)));
+		    XPUSHs (ref_to_values_av);
 		    XSRETURN (3);
 		  }
 		  /* NOT REACHED */

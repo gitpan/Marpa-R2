@@ -28,7 +28,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_000';
+$VERSION        = '2.047_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -54,6 +54,7 @@ BEGIN {
     NAME
     DISCARD_SEPARATION
     MASK { Semantic mask of RHS symbols }
+    BLESSING
 
 END_OF_STRUCTURE
     Marpa::R2::offset($structure);
@@ -73,6 +74,7 @@ BEGIN {
     RULES { array of rule refs }
     SYMBOLS { array of symbol refs }
     ACTIONS { Default package in which to find actions }
+    BLESS_PACKAGE { Default package into which nodes are blessed }
     DEFAULT_ACTION { Action for rules without one }
     TRACE_FILE_HANDLE
     WARNINGS { print warnings about grammar? }
@@ -183,6 +185,7 @@ use constant GRAMMAR_OPTIONS => [
         _internal_
         action_object
         actions
+        bless_package
         infinite_action
         default_action
         default_empty_action
@@ -382,6 +385,10 @@ sub Marpa::R2::Grammar::set {
 
         if ( defined( my $value = $args->{'actions'} ) ) {
             $grammar->[Marpa::R2::Internal::Grammar::ACTIONS] = $value;
+        }
+
+        if ( defined( my $value = $args->{'bless_package'} ) ) {
+            $grammar->[Marpa::R2::Internal::Grammar::BLESS_PACKAGE] = $value;
         }
 
         if ( defined( my $value = $args->{'action_object'} ) ) {
@@ -1074,7 +1081,7 @@ sub add_user_rule {
     my $rules        = $grammar->[Marpa::R2::Internal::Grammar::RULES];
     my $default_rank = $grammar_c->default_rank();
 
-    my ( $lhs_name, $rhs_names, $action );
+    my ( $lhs_name, $rhs_names, $action, $blessing );
     my ( $min, $separator_name );
     my $rank;
     my $null_ranking;
@@ -1088,6 +1095,7 @@ sub add_user_rule {
         if ( $option eq 'rhs' )    { $rhs_names = $value; next OPTION }
         if ( $option eq 'lhs' )    { $lhs_name  = $value; next OPTION }
         if ( $option eq 'action' ) { $action    = $value; next OPTION }
+        if ( $option eq 'bless' ) { $blessing    = $value; next OPTION }
         if ( $option eq 'rank' )   { $rank      = $value; next OPTION }
         if ( $option eq 'null_ranking' ) {
             $null_ranking = $value;
@@ -1214,7 +1222,6 @@ sub add_user_rule {
         my $ordinary_rule_id = $grammar_c->rule_new( $lhs_id, \@rhs_ids );
         $grammar_c->throw_set(1);
 
-
         if ( $ordinary_rule_id < 0 ) {
             my $rule_description =
                 "$lhs_name -> " . ( join q{ }, @{$rhs_names} );
@@ -1230,8 +1237,8 @@ sub add_user_rule {
         my $ordinary_rule = $rules->[$ordinary_rule_id];
 
         # Only internal grammars can set a custom mask
-        if (not defined $mask or not $grammar_is_internal) {
-            $mask = [(1) x scalar @rhs_ids];
+        if ( not defined $mask or not $grammar_is_internal ) {
+            $mask = [ (1) x scalar @rhs_ids ];
         }
         $ordinary_rule->[Marpa::R2::Internal::Rule::MASK] = $mask;
 
@@ -1245,6 +1252,11 @@ sub add_user_rule {
             $ordinary_rule->[Marpa::R2::Internal::Rule::NAME] = $rule_name;
             $rules_by_name->{$rule_name} = $ordinary_rule;
         }
+
+        if ( defined $blessing ) {
+            $ordinary_rule->[Marpa::R2::Internal::Rule::BLESSING] = $blessing;
+        }
+
         return;
     }    # not defined $min
 
@@ -1299,6 +1311,9 @@ sub add_user_rule {
         $original_rule->[Marpa::R2::Internal::Rule::NAME] = $rule_name;
         $rules_by_name->{$rule_name} = $original_rule;
     }
+    if ( defined $blessing ) {
+            $original_rule->[Marpa::R2::Internal::Rule::BLESSING] = $blessing;
+            }
 
     return;
 
