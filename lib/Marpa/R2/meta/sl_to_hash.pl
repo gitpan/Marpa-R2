@@ -24,8 +24,10 @@ use Data::Dumper;
 # restrictions I use to guarantee portability.
 use autodie;
 
-# Appropriate PERLLIB settings are expected to
-# be external
+# I expect to be run from a subdirectory in the
+# development heirarchy
+use lib '../../../';
+use lib '../../../../blib/arch';
 use Marpa::R2;
 
 use Getopt::Long;
@@ -38,8 +40,6 @@ my $result           = Getopt::Long::GetOptions(
 die "usage $PROGRAM_NAME [--help] file ...\n" if $help_flag;
 
 my $bnf           = do { local $RS = undef; \(<>) };
-my @grammar_args  = ();
-my $dummy_grammar = Marpa::R2::Grammar->new( {@grammar_args} );
 my $parse_result =
     Marpa::R2::Scanless::G->_source_to_hash( $bnf );
 

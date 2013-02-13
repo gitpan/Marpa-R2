@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_001';
+$VERSION        = '2.047_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -64,8 +64,7 @@ BEGIN {
     { The following fields must be reinitialized when
     evaluation is reset }
 
-    RULE_CLOSURES
-    RULE_SEMANTICS
+    RULE_RESOLUTIONS
     NULL_VALUES
     EVENTS
     READ_STRING_ERROR
@@ -233,13 +232,12 @@ use constant RECOGNIZER_OPTIONS => [
 
 sub Marpa::R2::Recognizer::reset_evaluation {
     my ($recce) = @_;
-    $recce->[Marpa::R2::Internal::Recognizer::B_C]           = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::O_C]           = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::T_C]           = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::RULE_CLOSURES] = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::RULE_SEMANTICS] = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES]   = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::EVENTS]        = [];
+    $recce->[Marpa::R2::Internal::Recognizer::B_C]              = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::O_C]              = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::T_C]              = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::RULE_RESOLUTIONS] = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES]      = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::EVENTS]           = [];
     return;
 } ## end sub Marpa::R2::Recognizer::reset_evaluation
 
