@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_002';
+$VERSION        = '2.047_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -203,8 +203,9 @@ sub rhs_normalize {
 
 sub bless_hash_rule {
     my ( $self, $hash_rule, $blessing ) = @_;
-    return if $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL == 0;
-    $blessing //= $self->{default_adverbs}->{bless};
+    my $grammar_level = $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL;
+    return if $grammar_level == 0;
+    $blessing //= $self->{default_adverbs}->[$grammar_level]->{bless};
     return if not defined $blessing;
     FIND_BLESSING: {
         last FIND_BLESSING if $blessing =~ /\A [\w] /xms;
@@ -243,11 +244,9 @@ sub do_priority_rule {
     my @xs_rules = ();
     my $rules = $op_declare eq q{::=} ? \@xs_rules : $self->{lex_rules};
     local $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL = 0 if not $op_declare eq q{::=};
+    my $grammar_level = $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL;
 
-    my $default_adverbs =
-        $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL == 0
-        ? {}
-        : $self->{default_adverbs};
+    my $default_adverbs = $self->{default_adverbs}->[$grammar_level];
 
     if ( $priority_count <= 1 ) {
         ## If there is only one priority
@@ -403,10 +402,9 @@ sub do_empty_rule {
     my %rule = ( lhs => $lhs, rhs => [] );
 
     local $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL = 0 if not $op_declare eq q{::=};
-    my $default_adverbs =
-        $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL == 0
-        ? {}
-        : $self->{default_adverbs};
+    my $grammar_level = $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL;
+
+    my $default_adverbs = $self->{default_adverbs}->[$grammar_level];
 
     my $action = $adverb_list->{action} // $default_adverbs->{action};
     if ( defined $action ) {
@@ -437,33 +435,38 @@ sub do_empty_rule {
     return [];
 } ## end sub do_empty_rule
 
+sub do_bless_lexemes {
+    my ( $self ) = @_;
+    $self->{bless_lexemes} = 1;
+    return [];
+}
+
 sub do_default_rule {
     my ( $self, $lhs, $op_declare, $adverb_list ) = @_;
-    my %rule = ( lhs => $lhs, rhs => [] );
-    ADVERB: for my $key (keys %{$adverb_list}) {
-	my $value = $adverb_list->{$key};
-        if ($key eq 'action') {
-	    $self->{default_adverbs}->{$key} = $value;
-	    next ADVERB;
-	}
-        if ($key eq 'bless') {
-	    $self->{default_adverbs}->{$key} = $value;
-	    next ADVERB;
-	}
-        Marpa::R2::exception( qq{"$key" adverb not allowed in default rule"})
-    }
+    my $grammar_level = $op_declare eq q{::=} ? 1 : 0;
+    $self->{default_adverbs}->[$grammar_level] = {};
+    ADVERB: for my $key ( keys %{$adverb_list} ) {
+        my $value = $adverb_list->{$key};
+        if ( $key eq 'action' ) {
+            $self->{default_adverbs}->[$grammar_level]->{$key} = $value;
+            next ADVERB;
+        }
+        if ( $key eq 'bless' ) {
+            $self->{default_adverbs}->[$grammar_level]->{$key} = $value;
+            next ADVERB;
+        }
+        Marpa::R2::exception(qq{"$key" adverb not allowed in default rule"});
+    } ## end ADVERB: for my $key ( keys %{$adverb_list} )
     return [];
-} ## end sub do_empty_rule
+} ## end sub do_default_rule
 
 ## no critic(Subroutines::ProhibitManyArgs)
 sub do_quantified_rule {
     my ( $self, $lhs, $op_declare, $rhs, $quantifier, $adverb_list ) = @_;
 
     local $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL = 0 if not $op_declare eq q{::=};
-    my $default_adverbs =
-        $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL == 0
-        ? {}
-        : $self->{default_adverbs};
+    my $grammar_level = $Marpa::R2::Inner::Scanless::GRAMMAR_LEVEL;
+    my $default_adverbs = $self->{default_adverbs}->[$grammar_level];
 
     # Some properties of the sequence rule will not be altered
     # no matter how complicated this gets
@@ -608,6 +611,7 @@ my %hashed_closures = (
     do_discard_rule              => \&do_discard_rule,
     do_empty_rule                => \&do_empty_rule,
     do_default_rule                => \&do_default_rule,
+    do_bless_lexemes                => \&do_bless_lexemes,
     do_lhs                       => \&do_lhs,
     do_op_declare_bnf            => \&do_op_declare_bnf,
     do_op_declare_match          => \&do_op_declare_match,
@@ -807,7 +811,7 @@ state $grammar_options = { map { ($_, 1) } qw(
 }
 
 sub Marpa::R2::Scanless::G::_hash_to_runtime {
-    my ($self, $hashed_source) = @_;
+    my ( $self, $hashed_source ) = @_;
 
     my %lex_args = ();
     $lex_args{trace_file_handle} =
@@ -818,8 +822,8 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     $lex_args{'_internal_'} = 1;
     my $lex_grammar = Marpa::R2::Grammar->new( \%lex_args );
     $lex_grammar->precompute();
-    my $lex_tracer     = $lex_grammar->tracer();
-    my $g0_thin = $lex_tracer->grammar();
+    my $lex_tracer      = $lex_grammar->tracer();
+    my $g0_thin         = $lex_tracer->grammar();
     my @g0_lexeme_names = keys %{ $hashed_source->{is_lexeme} };
     $self->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR] = $lex_grammar;
     my $character_class_hash = $hashed_source->{character_classes};
@@ -839,10 +843,14 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     my %g1_args = ();
     $g1_args{trace_file_handle} =
         $self->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE] // \*STDERR;
-    $g1_args{action_object} = $self->[Marpa::R2::Inner::Scanless::G::ACTION_OBJECT];
-    $g1_args{bless_package} = $self->[Marpa::R2::Inner::Scanless::G::BLESS_PACKAGE];
-    $g1_args{default_action} = $self->[Marpa::R2::Inner::Scanless::G::DEFAULT_ACTION];
-    $g1_args{rules} = $hashed_source->{g1_rules};
+    $g1_args{action_object} =
+        $self->[Marpa::R2::Inner::Scanless::G::ACTION_OBJECT];
+    $g1_args{bless_package} =
+        $self->[Marpa::R2::Inner::Scanless::G::BLESS_PACKAGE];
+    $g1_args{default_action} =
+        $self->[Marpa::R2::Inner::Scanless::G::DEFAULT_ACTION];
+    $g1_args{rules}   = $hashed_source->{g1_rules};
+    $g1_args{symbols} = $hashed_source->{g1_symbols};
     state $g1_target_symbol = '[:start]';
     $g1_args{start} = $g1_target_symbol;
     $g1_args{'_internal_'} = 1;
@@ -855,7 +863,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     $g0_lexeme_to_g1_symbol[$_] = -1 for 0 .. $g1_thin->highest_symbol_id();
     state $discard_symbol_name = '[:discard]';
     my $g0_discard_symbol_id =
-    $self->[Marpa::R2::Inner::Scanless::G::G0_DISCARD_SYMBOL_ID] =
+        $self->[Marpa::R2::Inner::Scanless::G::G0_DISCARD_SYMBOL_ID] =
         $lex_tracer->symbol_by_name($discard_symbol_name) // -1;
 
     LEXEME_NAME: for my $lexeme_name (@g0_lexeme_names) {
@@ -868,7 +876,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
         }
         my $lex_symbol_id = $lex_tracer->symbol_by_name($lexeme_name);
         $g0_lexeme_to_g1_symbol[$lex_symbol_id] = $g1_symbol_id;
-        $g1_symbol_to_g0_lexeme[$g1_symbol_id] = $lex_symbol_id;
+        $g1_symbol_to_g0_lexeme[$g1_symbol_id]  = $lex_symbol_id;
     } ## end LEXEME_NAME: for my $lexeme_name (@g0_lexeme_names)
 
     SYMBOL_ID: for my $symbol_id ( 0 .. $g1_thin->highest_symbol_id() ) {
@@ -903,12 +911,14 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
         $thin_slg->g0_rule_to_g1_lexeme_set( $rule_id, $lexeme_id );
     } ## end RULE_ID: for my $rule_id ( 0 .. $g0_thin->highest_rule_id() )
 
-    $self->[Marpa::R2::Inner::Scanless::G::G0_RULE_TO_G1_LEXEME] = \@g0_rule_to_g1_lexeme;
-    $self->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR] = $thick_g1_grammar;
+    $self->[Marpa::R2::Inner::Scanless::G::G0_RULE_TO_G1_LEXEME] =
+        \@g0_rule_to_g1_lexeme;
+    $self->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR] =
+        $thick_g1_grammar;
 
     return 1;
 
-} ## end sub Marpa::R2::Scanless::G::new
+} ## end sub Marpa::R2::Scanless::G::_hash_to_runtime
 
 sub Marpa::R2::Scanless::G::show_rules {
     my ( $self ) = @_;
@@ -950,6 +960,7 @@ my %actions_by_lhs_symbol = (
     'priority rule'                  => 'do_priority_rule',
     'empty rule'                     => 'do_empty_rule',
     'default rule'                     => 'do_default_rule',
+    'bless lexemes statement'                     => 'do_bless_lexemes',
     'quantified rule'                => 'do_quantified_rule',
     'discard rule'                   => 'do_discard_rule',
     priorities                       => 'do_discard_separators',
@@ -976,28 +987,32 @@ sub Marpa::R2::Scanless::G::_source_to_hash {
         },
         __PACKAGE__;
 
+    $inner_self->{default_adverbs}->[$_] = {} for 0, 1;
+
     # Track earley set positions in input,
     # for debuggging
     my @positions = (0);
 
-    my $meta_recce = Marpa::R2::Internal::Scanless::meta_recce();
+    my $meta_recce   = Marpa::R2::Internal::Scanless::meta_recce();
     my $meta_grammar = $meta_recce->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
     state $mask_by_rule_id =
         $meta_grammar->[Marpa::R2::Inner::Scanless::G::MASK_BY_RULE_ID];
-    my $thin_meta_recce  = $meta_recce->[Marpa::R2::Inner::Scanless::R::C];
+    my $thin_meta_recce = $meta_recce->[Marpa::R2::Inner::Scanless::R::C];
     $meta_recce->read($p_rules_source);
     my $thick_meta_g1_grammar =
         $meta_grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
     my $meta_g1_tracer       = $thick_meta_g1_grammar->tracer();
     my $thin_meta_g1_grammar = $thick_meta_g1_grammar->thin();
-    my $thick_meta_g1_recce = $meta_recce->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $thin_meta_g1_recce   = $thick_meta_g1_recce->thin();
+    my $thick_meta_g1_recce =
+        $meta_recce->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    my $thin_meta_g1_recce = $thick_meta_g1_recce->thin();
     my $thick_g1_recce =
         $meta_recce->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
 
     $thin_meta_g1_grammar->throw_set(0);
     my $latest_earley_set_id = $thin_meta_g1_recce->latest_earley_set();
-    my $bocage = Marpa::R2::Thin::B->new( $thin_meta_g1_recce, $latest_earley_set_id );
+    my $bocage =
+        Marpa::R2::Thin::B->new( $thin_meta_g1_recce, $latest_earley_set_id );
     $thin_meta_g1_grammar->throw_set(1);
     if ( !defined $bocage ) {
         die q{Last rule successfully parsed was: },
@@ -1011,7 +1026,8 @@ sub Marpa::R2::Scanless::G::_source_to_hash {
     my $valuator = Marpa::R2::Thin::V->new($tree);
     my @actions_by_rule_id;
 
-    my $meta_g1_rules = $thick_meta_g1_grammar->[Marpa::R2::Internal::Grammar::RULES];
+    my $meta_g1_rules =
+        $thick_meta_g1_grammar->[Marpa::R2::Internal::Grammar::RULES];
     RULE:
     for my $rule_id ( grep { $thin_meta_g1_grammar->rule_length($_); }
         0 .. $thin_meta_g1_grammar->highest_rule_id() )
@@ -1020,28 +1036,30 @@ sub Marpa::R2::Scanless::G::_source_to_hash {
         my ( $lhs, @rhs ) =
             map { Marpa::R2::Grammar::original_symbol_name($_) }
             $meta_g1_tracer->rule($rule_id);
-        if (scalar @rhs == 1) {
+        if ( scalar @rhs == 1 ) {
+
             # These actions are by rhs symbol, for rules
             # with only one RHS symbol
-            my $action = $actions_by_rhs_symbol{$rhs[0]};
-            if (defined $action) {
+            my $action = $actions_by_rhs_symbol{ $rhs[0] };
+            if ( defined $action ) {
                 $actions_by_rule_id[$rule_id] = $action;
                 next RULE;
             }
-        }
+        } ## end if ( scalar @rhs == 1 )
         my $action = $actions_by_lhs_symbol{$lhs};
-        if (defined $action) {
+        if ( defined $action ) {
             $actions_by_rule_id[$rule_id] = $action;
             next RULE;
         }
         my $rule = $meta_g1_rules->[$rule_id];
         $action = $rule->[Marpa::R2::Internal::Rule::ACTION_NAME];
-        $action = undef if $action eq '::dwim'; # temporary hack
+        $action = undef if $action eq '::dwim';    # temporary hack
         next RULE if not defined $action;
         $actions_by_rule_id[$rule_id] = $action;
-    } ## end for my $rule_id ( grep { $thin_meta_g1_grammar->rule_length($_...)})
+    } ## end for my $rule_id ( grep { $thin_meta_g1_grammar->rule_length...})
 
-    my $p_input   = $meta_recce->[Marpa::R2::Inner::Scanless::R::P_INPUT_STRING];
+    my $p_input =
+        $meta_recce->[Marpa::R2::Inner::Scanless::R::P_INPUT_STRING];
 
     my @stack = ();
     STEP: while (1) {
@@ -1080,6 +1098,7 @@ sub Marpa::R2::Scanless::G::_source_to_hash {
                 next STEP;
             }
             if ( $action eq '::first' ) {
+
                 # No-op -- value is arg 0
                 next STEP;
             }
@@ -1088,12 +1107,13 @@ sub Marpa::R2::Scanless::G::_source_to_hash {
                 next STEP;
             }
             if ( $action eq 'do_bracketed_name' ) {
+
                 # normalize whitespace
                 $stack[$arg_0] =~ s/\A [<] \s*//xms;
                 $stack[$arg_0] =~ s/ \s* [>] \z//xms;
                 $stack[$arg_0] =~ s/ \s+ / /gxms;
                 next STEP;
-            }
+            } ## end if ( $action eq 'do_bracketed_name' )
             if ( $action eq 'do_array' ) {
                 $stack[$arg_0] = [@args];
                 next STEP;
@@ -1181,18 +1201,17 @@ sub Marpa::R2::Scanless::G::_source_to_hash {
                     next SYMBOL;
                 } ## end if ( $needed_symbol eq '[:ws*]' )
                 if ( $needed_symbol eq '[:ws]' ) {
-                    push @ws_rules,
-                        { lhs => '[:ws]', rhs => ['[:ws+]'],  };
+                    push @ws_rules, { lhs => '[:ws]', rhs => ['[:ws+]'], };
                     $needed{'[:ws+]'} = 1;
                     next SYMBOL;
-                } ## end if ( $needed_symbol eq '[:ws]' )
+                }
                 if ( $needed_symbol eq '[:Space]' ) {
                     my $true_ws = assign_symbol_by_char_class( $inner_self,
                         '[\p{White_Space}]' );
                     push @ws_rules,
                         {
-                        lhs  => '[:Space]',
-                        rhs  => [ $true_ws->name() ],
+                        lhs => '[:Space]',
+                        rhs => [ $true_ws->name() ],
                         };
                 } ## end if ( $needed_symbol eq '[:Space]' )
             } ## end SYMBOL: for my $needed_symbol (@needed_symbols)
@@ -1205,19 +1224,40 @@ sub Marpa::R2::Scanless::G::_source_to_hash {
     $inner_self->{lex_rules} = $lex_rules;
     my %lex_lhs = ();
     my %lex_rhs = ();
-    for my $lex_rule (@{$lex_rules}) {
-        $lex_lhs{$lex_rule->{lhs}} = 1;
-        $lex_rhs{$_} = 1 for @{$lex_rule->{rhs}};
+    for my $lex_rule ( @{$lex_rules} ) {
+        $lex_lhs{ $lex_rule->{lhs} } = 1;
+        $lex_rhs{$_} = 1 for @{ $lex_rule->{rhs} };
     }
 
-    my %lexemes = map { $_ => 1 } grep { not $lex_rhs{$_}} keys %lex_lhs;
-    $inner_self->{is_lexeme} = \%lexemes;
-    my @unproductive = grep { not $lex_lhs{$_} and not $_ =~ /\A \[\[ /xms } keys %lex_rhs;
+    my $bless_lexemes = $inner_self->{bless_lexemes};
+    my $g1_symbols    = {};
+    my %is_lexeme =
+        map { ( $_, 1 ); } grep { not $lex_rhs{$_} } keys %lex_lhs;
+    if ($bless_lexemes) {
+        LEXEME: for my $lexeme ( keys %is_lexeme ) {
+            next LEXEME if $lexeme =~ m/ \] \z/xms;
+            if ( $lexeme =~ / [^ [:alnum:]] /xms ) {
+                Marpa::R2::exception(
+                    qq{Lexeme blessing only allowed if lexeme name is whitespace and alphanumerics\n},
+                    qq{   Problematic lexeme was <$lexeme>\n}
+                );
+            } ## end if ( $lexeme =~ / [^ [:alnum:]] /xms )
+            my $blessing = $lexeme;
+            $blessing =~ s/[ ]/_/gxms;
+            $g1_symbols->{$lexeme}->{bless} = $blessing;
+        } ## end LEXEME: for my $lexeme ( keys %is_lexeme )
+    } ## end if ($bless_lexemes)
+    $inner_self->{is_lexeme}  = \%is_lexeme;
+    $inner_self->{g1_symbols} = $g1_symbols;
+
+    my @unproductive =
+        grep { not $lex_lhs{$_} and not $_ =~ /\A \[\[ /xms } keys %lex_rhs;
     if (@unproductive) {
-        Marpa::R2::exception('Unproductive lexical symbols: ', join q{ }, @unproductive);
+        Marpa::R2::exception( 'Unproductive lexical symbols: ',
+            join q{ }, @unproductive );
     }
     push @{ $inner_self->{lex_rules} },
-        map { ; { lhs => '[:start_lex]', rhs => [$_] } } sort keys %lexemes;
+        map { ; { lhs => '[:start_lex]', rhs => [$_] } } sort keys %is_lexeme;
 
     my $raw_cc = $inner_self->{character_classes};
     if ( defined $raw_cc ) {
@@ -1229,7 +1269,7 @@ sub Marpa::R2::Scanless::G::_source_to_hash {
         $inner_self->{character_classes} = $stripped_cc;
     } ## end if ( defined $raw_cc )
     return $inner_self;
-} ## end sub rules_add
+} ## end sub Marpa::R2::Scanless::G::_source_to_hash
 
 my %recce_options = map { ($_, 1) } qw{
     grammar
@@ -1298,6 +1338,8 @@ sub Marpa::R2::Scanless::R::new {
     my $thick_g1_recce =
         $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE] =
         Marpa::R2::Recognizer->new( \%g1_recce_args );
+
+    $thick_g1_recce->semantics_set();
 
     $self->[Marpa::R2::Inner::Scanless::R::C] = Marpa::R2::Thin::SLR->new(
         $grammar->[Marpa::R2::Inner::Scanless::G::C],
