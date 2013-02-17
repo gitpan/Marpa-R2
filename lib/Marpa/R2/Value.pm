@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_003';
+$VERSION        = '2.047_004';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -92,9 +92,10 @@ sub Marpa::R2::Internal::Recognizer::resolve_action {
             return qq{The action string cannot be the empty string};
         }
 
-    if ( substr( $closure_name, 0, 2 ) eq q{::} ) {
-        return [ '', \undef, $closure_name ]
-            if $closure_name eq '::undef';
+    return [ '', \undef, $closure_name ] if $closure_name eq '::undef';
+    if (   substr( $closure_name, 0, 2 ) eq q{::}
+        or substr( $closure_name, 0, 1 ) eq '[' )
+    {
         return [ '', undef, $closure_name ];
     }
 
@@ -362,12 +363,18 @@ sub Marpa::R2::Internal::Recognizer::semantics_set {
                 @{ $rule_resolutions->[$rule_id] };
             my $lhs_id = $grammar_c->rule_lhs($rule_id);
             $rules_by_lhs[$lhs_id]++;
-            $whatevers_by_lhs[$lhs_id]++ if $semantics eq 'whatever';
+
+            # Normalize array semantics
+            $semantics =~ s/ //gxms if (substr $semantics, 0, 1) eq '[';
+
+            $whatevers_by_lhs[$lhs_id]++ if $semantics eq '::whatever';
             $semantics_by_rule_id[$rule_id] = $semantics;
             $blessing_by_rule_id[$rule_id]  = $blessing;
 
             if (    not $allowed_semantics->{$semantics}
-                and not $semantics =~ m/ \A rhs \d+ \z /xms )
+                and not $semantics =~ m/ \A rhs \d+ \z /xms
+                and not (substr $semantics, 0, 1) eq '['
+                )
             {
                 Marpa::R2::exception(
                     qq{Unknown semantics for rule },
@@ -382,7 +389,9 @@ sub Marpa::R2::Internal::Recognizer::semantics_set {
             if (    $blessing ne ''
                 and not $closure
                 and $semantics ne '::dwim'
-                and $semantics ne '::array' )
+                and $semantics ne '::array'
+                and (substr $semantics, 0, 1) ne '['
+                )
             {
                 Marpa::R2::exception(
                     qq{Cannot bless rule when the semantics are "$semantics"},
@@ -405,7 +414,7 @@ sub Marpa::R2::Internal::Recognizer::semantics_set {
         # Look for LHS id has more than one rule with whatever semantics
         # and at least one rule without "whatever" semantics.
         my @problem_lhs_ids = grep {
-            $whatevers_by_lhs[$_] > 0
+                    $whatevers_by_lhs[$_]
                 and $whatevers_by_lhs[$_] != $rules_by_lhs[$_]
         } ( 0 .. $#whatevers_by_lhs );
         if ( scalar @problem_lhs_ids ) {
@@ -769,6 +778,7 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
     state $op_push_all           = Marpa::R2::Thin::op('push_all');
     state $op_push_one           = Marpa::R2::Thin::op('push_one');
     state $op_push_sequence      = Marpa::R2::Thin::op('push_sequence');
+    state $op_push_token_value      = Marpa::R2::Thin::op('push_token_value');
     state $op_result_is_array    = Marpa::R2::Thin::op('result_is_array');
     state $op_result_is_constant = Marpa::R2::Thin::op('result_is_constant');
     state $op_result_is_rhs_n    = Marpa::R2::Thin::op('result_is_rhs_n');
@@ -898,10 +908,36 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
         } ## end if ($is_sequence)
 
         my @push_ops = ();
+        SET_PUSH_OPS: {
+        if ( ( substr $semantics, 0, 1 ) eq '[' ) {
+            my $array_descriptor = substr $semantics, 1, -2;
+            RESULT_DESCRIPTOR:
+            for my $result_descriptor ( split /[,]/xms, $array_descriptor ) {
+                if ( $result_descriptor eq 'start' ) {
+                    # push @push_ops, $op_push_start;
+                    next RESULT_DESCRIPTOR;
+                }
+                if ( $result_descriptor eq 'end' ) {
+                    # push @push_ops, $op_push_end;
+                    next RESULT_DESCRIPTOR;
+                }
+                if ( $result_descriptor eq 'values' ) {
+                    # push @push_ops, $op_push_values;
+                    next RESULT_DESCRIPTOR;
+                }
+                Marpa::R2::exception(
+                    qq{Unknown result descriptor: "$result_descriptor"\n},
+                    qq{  The full semantics were "$semantics"}
+                );
+            } ## end RESULT_DESCRIPTOR: for my $result_descriptor ( split /[,]/xms, ...)
+            last SET_PUSH_OPS;
+        } ## end if ( ( substr $semantics, 0, 1 ) eq '[' ) (])
+
         if ( $rule_length > 0 ) {
             push @push_ops,
                 map { $mask->[$_] ? ( $op_push_one, $_ ) : () }
                 0 .. $rule_length - 1;
+        }
         }
         $value->rule_register( $rule_id, @push_ops, @bless_ops, $array_fate );
 
@@ -973,7 +1009,7 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
 
         my $constant_ix = $value->constant_register($blessing);
         $value->token_register( $lexeme_id, $op_bless, $constant_ix,
-            $op_result_is_array );
+            $op_push_token_value, $op_result_is_array );
 
     } ## end for my $lexeme_id ( grep { defined $symbol_resolutions...})
 
