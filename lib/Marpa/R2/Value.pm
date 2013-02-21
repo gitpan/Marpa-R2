@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_004';
+$VERSION        = '2.047_005';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -768,6 +768,10 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
     my $blessing_by_symbol_id = $rule_resolutions->{blessing_by_symbol};
 
     my $value = Marpa::R2::Thin::V->new($tree);
+    if ( my $slr = $recce->[Marpa::R2::Internal::Recognizer::SLR])
+    {
+        $value->set_slr($slr);
+    }
     local $Marpa::R2::Internal::Context::VALUATOR = $value;
     value_trace( $value, $trace_values ? 1 : 0 );
     $value->trace_values($trace_values);
@@ -825,10 +829,12 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
         # Determine the "fate" of the array of child values
         my $array_fate;
         ARRAY_FATE: {
-            if ( $semantics eq '::array' ) {
+            if ( $semantics eq '::array'
+                or ( substr $semantics, 0, 1 ) eq '[' )
+            {
                 $array_fate = $op_result_is_array;
                 last ARRAY_FATE;
-            }
+            } ## end if ( $semantics eq '::array' or ( substr $semantics,...))
 
             if ( defined $closure
                 && ( ref $closure ne 'SCALAR' || defined ${$closure} ) )
@@ -1053,7 +1059,7 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
         next STEP if $value_type eq 'trace';
 
         if ( $value_type eq 'MARPA_STEP_NULLING_SYMBOL' ) {
-            my ( $token_id, $arg_n ) = @value_data;
+            my ( $token_id ) = @value_data;
             my $value_ref = $nulling_closures[$token_id];
             my $result;
 
