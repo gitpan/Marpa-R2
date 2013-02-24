@@ -64,7 +64,6 @@ typedef struct {
      */
      STRLEN input_offset; /* byte position, ignoring Unicode */
      SV* input;
-     int input_debug; /* debug level for input */
      Marpa_Symbol_ID input_symbol_id;
      UV codepoint; /* For error returns */
      HV* per_codepoint_ops;
@@ -73,7 +72,8 @@ typedef struct {
      /* The minimum number of tokens that must
        be accepted at an earleme */
      IV minimum_accepted;
-     IV trace; /* trace level */
+     IV trace_g0; /* trace level */
+     AV* event_queue;
 } Unicode_Stream;
 
 typedef struct {
@@ -98,7 +98,7 @@ typedef struct {
      G_Wrapper* g1_wrapper;
      AV* event_queue;
      int trace_level;
-     int trace_terminals;
+     int trace_lexemes;
      STRLEN start_of_lexeme;
      STRLEN end_of_lexeme;
      int please_start_lex_recce;
@@ -289,37 +289,39 @@ enum marpa_op
   op_earleme_complete,
   op_ignore_rejection,
   op_noop,
-  op_push_all,
   op_push_one,
+  op_push_undef,
   op_push_sequence,
-  op_push_token_value,
+  op_push_values,
   op_push_slr_range,
   op_report_rejection,
   op_result_is_array,
   op_result_is_constant,
   op_result_is_rhs_n,
+  op_result_is_n_of_sequence,
   op_result_is_token_value,
   op_result_is_undef
 };
 
 typedef struct { enum marpa_op op; const char *name; } Marpa_XS_OP_Data;
 static Marpa_XS_OP_Data marpa_op_data[] = {
-{  op_end_marker, "end_marker" },
 {  op_alternative, "alternative" },
 {  op_bless, "bless" },
 {  op_callback, "callback" },
 {  op_earleme_complete, "earleme_complete" },
+{  op_end_marker, "end_marker" },
 {  op_ignore_rejection, "ignore_rejection" },
 {  op_noop, "noop" },
-{  op_push_all, "push_all" },
 {  op_push_one, "push_one" },
 {  op_push_sequence, "push_sequence" },
-{  op_push_token_value, "push_token_value" },
 {  op_push_slr_range, "push_slr_range" },
+{  op_push_undef, "push_undef" },
+{  op_push_values, "push_values" },
 {  op_report_rejection, "report_rejection" },
 {  op_result_is_array, "result_is_array" },
 {  op_result_is_constant, "result_is_constant" },
 {  op_result_is_rhs_n, "result_is_rhs_n" },
+{  op_result_is_n_of_sequence, "result_is_n_of_sequence" },
 {  op_result_is_token_value, "result_is_token_value" },
 {  op_result_is_undef, "result_is_undef" },
   { -1, (char *)NULL}
@@ -415,7 +417,6 @@ static Unicode_Stream* u_new(SV* g_sv)
   IV tmp = SvIV ((SV *) SvRV (g_sv));
   G_Wrapper *g_wrapper = INT2PTR (G_Wrapper *, tmp);
   Newx (stream, 1, Unicode_Stream);
-  stream->trace = 0;
   stream->g0_wrapper = g_wrapper;
   stream->r0 = NULL;
   /* Hold a ref to the grammar SV we were called with --
@@ -427,11 +428,12 @@ static Unicode_Stream* u_new(SV* g_sv)
   stream->input = newSVpvn ("", 0);
   stream->perl_pos = 0;
   stream->input_offset = 0;
-  stream->input_debug = 0;
   stream->input_symbol_id = -1;
   stream->per_codepoint_ops = newHV ();
   stream->ignore_rejection = 1;
   stream->minimum_accepted = 1;
+  stream->trace_g0 = 0;
+  stream->event_queue = newAV ();
   return stream;
 }
 
@@ -443,6 +445,7 @@ static void u_destroy(Unicode_Stream *stream)
     {
       marpa_r_unref (r0);
     }
+  SvREFCNT_dec (stream->event_queue);
   SvREFCNT_dec (stream->input);
   SvREFCNT_dec (stream->per_codepoint_ops);
   SvREFCNT_dec (stream->g0_sv);
@@ -506,6 +509,7 @@ u_r0_new (Unicode_Stream * stream)
  * -1: a character was rejected, when rejection is not being ignored
  * -2: an unregistered character was found
  * -3: earleme_complete() reported an exhausted parse.
+ * -4: we are tracing, character by character
  */
 static int
 u_read(Unicode_Stream *stream)
@@ -515,8 +519,7 @@ u_read(Unicode_Stream *stream)
   STRLEN len;
   int input_is_utf8;
 
-  const IV trace_level = stream->trace;
-  int input_debug = stream->input_debug;
+  const IV trace_g0 = stream->trace_g0;
   Marpa_Recognizer r = stream->r0;
 
   if (!r) {
@@ -533,7 +536,7 @@ u_read(Unicode_Stream *stream)
       STRLEN codepoint_length = 1;
       STRLEN op_ix;
       STRLEN op_count;
-      UV *ops;
+      IV *ops;
       IV ignore_rejection = stream->ignore_rejection;
       IV minimum_accepted = stream->minimum_accepted;
       int tokens_accepted = 0;
@@ -569,10 +572,6 @@ u_read(Unicode_Stream *stream)
 	  codepoint = (UV) input[stream->input_offset];
 	  codepoint_length = 1;
 	}
-      if (trace_level >= 1) {
-          warn("Thin::U::read() Reading codepoint 0x%04x at pos %d",
-	    (int)codepoint, (int)stream->perl_pos);
-      }
       {
 	STRLEN dummy;
 	SV **p_ops_sv =
@@ -583,14 +582,23 @@ u_read(Unicode_Stream *stream)
 	    stream->codepoint = codepoint;
 	    return -2;
 	  }
-	ops = (UV *)SvPV (*p_ops_sv, dummy);
+	ops = (IV *)SvPV (*p_ops_sv, dummy);
+      }
+      if (trace_g0 >= 1) {
+		AV *event;
+		SV *event_data[3];
+		event_data[0] = newSVpv ("g0 reading codepoint", 0);
+		event_data[1] = newSViv ((IV)codepoint);
+		event_data[2] = newSViv ((IV)stream->perl_pos);
+		event = av_make (Dim (event_data), event_data);
+		av_push (stream->event_queue, newRV_noinc ((SV *) event));
       }
 	
       /* ops[0] is codepoint */
       op_count = ops[1];
       for (op_ix = 2; op_ix < op_count; op_ix++)
 	{
-	  UV op_code = ops[op_ix];
+	  IV op_code = ops[op_ix];
 	  switch (op_code)
 	    {
 	    case op_report_rejection:
@@ -628,27 +636,24 @@ u_read(Unicode_Stream *stream)
 		      }
 		    value = (int) ops[++op_ix];
 		    length = (int) ops[++op_ix];
-		    if (trace_level >= 1)
-		      {
-			warn ("Thin::U::read() alternative(%p, %d, %d, %d)", (void *) r,
-			      symbol_id, value, length);
-		      }
 		result = marpa_r_alternative (r, symbol_id, value, length);
 		switch (result)
 		  {
 		  case MARPA_ERR_UNEXPECTED_TOKEN_ID:
-		    if (input_debug > 0) {
-		       warn("input_read_string unexpected token: %d,%d,%d",
-			 symbol_id, value, length);
-		    }
 		    /* This guarantees that later, if we fall below
 		     * the minimum number of tokens accepted,
 		     * we have one of them as an example
 		     */
 		    stream->input_symbol_id = symbol_id;
-		    if (trace_level >= 1) {
-			warn("Thin::U::read() Rejected codepoint 0x%04lx at pos %d as symbol %d",
-			  (unsigned long)codepoint, (int)stream->perl_pos, symbol_id);
+		    if (trace_g0 >= 1) {
+			AV *event;
+			SV *event_data[4];
+			event_data[0] = newSVpv ("g0 rejected codepoint", 0);
+			event_data[1] = newSViv ((IV)codepoint);
+			event_data[2] = newSViv ((IV)stream->perl_pos);
+			event_data[3] = newSViv ((IV)symbol_id);
+			event = av_make (Dim (event_data), event_data);
+			av_push (stream->event_queue, newRV_noinc ((SV *) event));
 		    }
 		    if (!ignore_rejection)
 		      {
@@ -657,9 +662,15 @@ u_read(Unicode_Stream *stream)
 		      }
 		    break;
 		  case MARPA_ERR_NONE:
-		    if (trace_level >= 1) {
-			warn("Thin::U::read() Accepted codepoint 0x%04lx at pos %d as symbol %d",
-			  (unsigned long)codepoint, (int)stream->perl_pos, symbol_id);
+		    if (trace_g0 >= 1) {
+			AV *event;
+			SV *event_data[4];
+			event_data[0] = newSVpv ("g0 accepted codepoint", 0);
+			event_data[1] = newSViv ((IV)codepoint);
+			event_data[2] = newSViv ((IV)stream->perl_pos);
+			event_data[3] = newSViv ((IV)symbol_id);
+			event = av_make (Dim (event_data), event_data);
+			av_push (stream->event_queue, newRV_noinc ((SV *) event));
 		    }
 		    tokens_accepted++;
 		    break;
@@ -722,6 +733,9 @@ u_read(Unicode_Stream *stream)
       if (return_value)
 	{
 	  return return_value;
+	}
+	if (trace_g0) {
+	   return -4;
 	}
     }
   return 0;
@@ -831,7 +845,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
   const Marpa_Value v = v_wrapper->v;
   const Marpa_Step_Type step_type = marpa_v_step_type (v);
   IV result_ix = marpa_v_result (v);
-  UV *ops;
+  IV *ops;
   int op_ix;
   UV blessing = 0;
 
@@ -855,7 +869,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	    croak ("Problem in v->stack_step: rule %d is not registered",
 		   marpa_v_rule (v));
 	  }
-	ops = (UV *) SvPV (*p_ops_sv, dummy);
+	ops = (IV *) SvPV (*p_ops_sv, dummy);
       }
       break;
     case MARPA_STEP_TOKEN:
@@ -867,7 +881,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	    croak ("Problem in v->stack_step: token %d is not registered",
 		   marpa_v_token (v));
 	  }
-	ops = (UV *) SvPV (*p_ops_sv, dummy);
+	ops = (IV *) SvPV (*p_ops_sv, dummy);
       }
       break;
     case MARPA_STEP_NULLING_SYMBOL:
@@ -880,7 +894,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	      ("Problem in v->stack_step: nulling symbol %d is not registered",
 	       marpa_v_token (v));
 	  }
-	ops = (UV *) SvPV (*p_ops_sv, dummy);
+	ops = (IV *) SvPV (*p_ops_sv, dummy);
       }
       break;
     default:
@@ -891,7 +905,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
   op_ix = 0;
   while (1)
     {
-      UV op_code = ops[op_ix++];
+      IV op_code = ops[op_ix++];
 
       switch (op_code)
 	{
@@ -931,7 +945,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 		SV *event_data[3];
 		const char *result_string = step_type_to_string (step_type);
 		if (!result_string)
-		  result_string = "Unknown";
+		  result_string = "valuator unknown step";
 		event_data[0] = newSVpv (result_string, 0);
 		event_data[1] = newSViv (marpa_v_token (v));
 		event_data[2] = newSViv (result_ix);
@@ -942,24 +956,64 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	  return -1;
 
 	case op_result_is_rhs_n:
+	case op_result_is_n_of_sequence:
 	  {
 	    SV **stored_av;
 	    SV **p_sv;
-	    UV stack_ix = ops[op_ix++];
+	    IV stack_offset = ops[op_ix++];
+	    IV fetch_ix;
 
 	    if (step_type != MARPA_STEP_RULE)
 	      {
-		goto BAD_OP;
+		av_fill (stack, result_ix - 1);
+		return -1;
 	      }
-	    if (stack_ix == 0)
+	    if (stack_offset == 0)
 	      {
-		/* Special-cased for two reasons --
-		 * it's common and can be optimized.
+		/* Special-cased for 4 reasons --
+		 * it's common, it's reference count handling is
+		 * a special case and it can be easily and highly optimized.
 		 */
 		av_fill (stack, result_ix);
 		return -1;
 	      }
-	    p_sv = av_fetch (stack, result_ix + stack_ix, 0);
+
+	    /* Determine index of SV to fetch */
+	    if (op_code == op_result_is_rhs_n)
+	      {
+		if (stack_offset > 0)
+		  {
+		    fetch_ix = result_ix + stack_offset;
+		  }
+		else
+		  {
+		    fetch_ix = marpa_v_arg_n (v) + 1 - stack_offset;
+		  }
+	      }
+	    else
+	      {			/* sequence */
+		int item_ix;
+		if (stack_offset >= 0)
+		  {
+		    item_ix = stack_offset;
+		  }
+		else
+		  {
+		    int item_count =
+		      (marpa_v_arg_n (v) - marpa_v_arg_0 (v)) / 2 + 1;
+		    item_ix = (item_count + stack_offset);
+		  }
+		  fetch_ix = result_ix + item_ix * 2;
+	      }
+
+	    /* Bounds check fetch ix */
+	    if (fetch_ix > marpa_v_arg_n (v) || fetch_ix < result_ix)
+	      {
+		/* return an undef */
+		av_fill (stack, result_ix - 1);
+		return -1;
+	      }
+	    p_sv = av_fetch (stack, fetch_ix, 0);
 	    if (!p_sv)
 	      {
 		av_fill (stack, result_ix - 1);
@@ -1013,39 +1067,71 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	  }
 	  return -1;
 
-	case op_push_all:
+	case op_push_values:
 	case op_push_sequence:
 	  {
-	    int stack_ix;
-	    int increment = op_code == op_push_sequence ? 2 : 1;
-
-	    if (step_type == MARPA_STEP_TOKEN)
-	      {
-		goto BAD_OP;
-	      }
 
 	    if (!values_av)
 	      {
 		values_av = (AV *) sv_2mortal ((SV *) newAV ());
 	      }
 
-	    if (step_type == MARPA_STEP_RULE)
+	    switch (step_type)
 	      {
-		const int arg_n = marpa_v_arg_n (v);
-		for (stack_ix = result_ix; stack_ix <= arg_n;
-		     stack_ix += increment)
-		  {
-		    SV **p_sv = av_fetch (stack, stack_ix, 0);
-		    if (!p_sv)
-		      {
-			av_push (values_av, &PL_sv_undef);
-		      }
-		    else
-		      {
-			av_push (values_av, SvREFCNT_inc_simple_NN (*p_sv));
-		      }
-		  }
+	      case MARPA_STEP_TOKEN:
+		{
+		  SV **p_token_value_sv;
+		  p_token_value_sv =
+		    av_fetch (v_wrapper->token_values,
+			      marpa_v_token_value (v), 0);
+		  if (p_token_value_sv)
+		    {
+		      av_push (values_av,
+			       SvREFCNT_inc_NN (*p_token_value_sv));
+		    }
+		  else
+		    {
+		      av_push (values_av, &PL_sv_undef);
+		    }
+		}
+		break;
+
+	      case MARPA_STEP_RULE:
+		{
+		  int stack_ix;
+		  const int arg_n = marpa_v_arg_n (v);
+		  int increment = op_code == op_push_sequence ? 2 : 1;
+
+		  for (stack_ix = result_ix; stack_ix <= arg_n;
+		       stack_ix += increment)
+		    {
+		      SV **p_sv = av_fetch (stack, stack_ix, 0);
+		      if (!p_sv)
+			{
+			  av_push (values_av, &PL_sv_undef);
+			}
+		      else
+			{
+			  av_push (values_av, SvREFCNT_inc_simple_NN (*p_sv));
+			}
+		    }
+		}
+		break;
+
+	      default:
+		goto PUSH_UNDEF;
 	      }
+	  }
+	  break;
+
+	case op_push_undef:
+	  {
+	  PUSH_UNDEF:;
+	    if (!values_av)
+	      {
+		values_av = (AV *) sv_2mortal ((SV *) newAV ());
+	      }
+	    av_push (values_av, &PL_sv_undef);
 	  }
 	  break;
 
@@ -1056,14 +1142,14 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 
 	    if (step_type != MARPA_STEP_RULE)
 	      {
-		goto BAD_OP;
+		goto PUSH_UNDEF;
 	      }
-	    offset = ops[op_ix++];
-	    p_sv = av_fetch (stack, result_ix + offset, 0);
 	    if (!values_av)
 	      {
 		values_av = (AV *) sv_2mortal ((SV *) newAV ());
 	      }
+	    offset = ops[op_ix++];
+	    p_sv = av_fetch (stack, result_ix + offset, 0);
 	    if (!p_sv)
 	      {
 		av_push (values_av, &PL_sv_undef);
@@ -1162,38 +1248,14 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	  }
 	  /* NOT REACHED */
 
-	case op_push_token_value:
-	  {
-	    SV **p_token_value_sv;
-
-	    if (step_type != MARPA_STEP_TOKEN)
-	      {
-		goto BAD_OP;
-	      }
-	    if (!values_av)
-	      {
-		values_av = (AV *) sv_2mortal ((SV *) newAV ());
-	      }
-	    p_token_value_sv =
-	      av_fetch (v_wrapper->token_values, marpa_v_token_value (v), 0);
-	    if (p_token_value_sv)
-	      {
-		av_push (values_av, SvREFCNT_inc_NN (*p_token_value_sv));
-	      }
-	    else
-	      {
-		av_push (values_av, &PL_sv_undef);
-	      }
-	  }
-	  break;
-
 	case op_result_is_token_value:
 	  {
 	    SV **p_token_value_sv;
 
 	    if (step_type != MARPA_STEP_TOKEN)
 	      {
-		goto BAD_OP;
+		av_fill (stack, result_ix - 1);
+		return -1;
 	      }
 	    p_token_value_sv =
 	      av_fetch (v_wrapper->token_values, marpa_v_token_value (v), 0);
@@ -1208,7 +1270,8 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	      }
 	    else
 	      {
-		av_store (stack, result_ix, &PL_sv_undef);
+		av_fill (stack, result_ix - 1);
+		return -1;
 	      }
 
 	    if (v_wrapper->trace_values)
@@ -1218,7 +1281,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 		const char *step_type_string =
 		  step_type_to_string (step_type);
 		if (!step_type_string)
-		  step_type_string = "Unknown";
+		  step_type_string = "token value written to tos";
 		event_data[0] = newSVpv (step_type_string, 0);
 		event_data[1] = newSViv (marpa_v_token (v));
 		event_data[2] = newSViv (marpa_v_token_value (v));
@@ -1256,32 +1319,27 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 
 /* Static SLR methods */
 
-/*
- * Return values:
- * 0 OK.
- * -4: Exhausted, but lexemes remain.
- */
-static IV 
-slr_alternative(Scanless_R *slr, Marpa_Symbol_ID lexeme,
-    IV attempted)
+static void
+slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme, IV attempted)
 {
   dTHX;
   int result;
   Marpa_Recce r1 = slr->r1;
   int trace_level = slr->trace_level;
-  int trace_terminals = slr->trace_terminals;
+  int trace_lexemes = slr->trace_lexemes;
   Marpa_Earley_Set_ID latest_earley_set = marpa_r_latest_earley_set (r1);
   STRLEN start_pos = slr->start_of_lexeme;
   STRLEN end_pos = slr->end_of_lexeme;
 
-  if (!attempted) {
-       if (marpa_r_is_exhausted(r1)) { return -4; }
-       /* Set values for Earley set n-1 to positions of lexeme --
-        * that way we use set 0, and we can record position of a last,
-	* rejected lexeme.
-	*/
-       marpa_r_latest_earley_set_values_set(r1, start_pos, INT2PTR(void*, end_pos));
-  }
+  if (!attempted)
+    {
+      /* Set values for Earley set n-1 to positions of lexeme --
+       * that way we use set 0, and we can record position of a last,
+       * rejected lexeme.
+       */
+      marpa_r_latest_earley_set_values_set (r1, start_pos,
+					    INT2PTR (void *, end_pos));
+    }
   result = marpa_r_alternative (r1, lexeme, latest_earley_set + 1, 1);
   switch (result)
     {
@@ -1293,17 +1351,18 @@ slr_alternative(Scanless_R *slr, Marpa_Symbol_ID lexeme,
 	    ("slr->read() R1 Rejected unexpected symbol %d at pos %d",
 	     lexeme, (int) slr->stream->perl_pos);
 	}
-	if (trace_terminals) {
-	    AV* event;
-	    SV* event_data[4];
-	    event_data[0] = newSVpvs("unexpected");
-	    event_data[1] = newSViv(start_pos); /* start */
-	    event_data[2] = newSViv(end_pos); /* end */
-	    event_data[3] = newSViv(lexeme); /* lexeme */
-	    event = av_make(Dim(event_data), event_data);
-	    av_push(slr->event_queue, newRV_noinc((SV*)event));
+      if (trace_lexemes)
+	{
+	  AV *event;
+	  SV *event_data[4];
+	  event_data[0] = newSVpvs ("g1 unexpected lexeme");
+	  event_data[1] = newSViv (start_pos);	/* start */
+	  event_data[2] = newSViv (end_pos);	/* end */
+	  event_data[3] = newSViv (lexeme);	/* lexeme */
+	  event = av_make (Dim (event_data), event_data);
+	  av_push (slr->event_queue, newRV_noinc ((SV *) event));
 	}
-      return 0;
+      return;
 
     case MARPA_ERR_DUPLICATE_TOKEN:
       if (trace_level >= 1)
@@ -1312,17 +1371,18 @@ slr_alternative(Scanless_R *slr, Marpa_Symbol_ID lexeme,
 	    ("slr->read() R1 Rejected duplicate symbol %d at pos %d",
 	     lexeme, (int) slr->stream->perl_pos);
 	}
-	if (trace_terminals) {
-	    AV* event;
-	    SV* event_data[4];
-	    event_data[0] = newSVpvs("duplicate");
-	    event_data[1] = newSViv(start_pos); /* start */
-	    event_data[2] = newSViv(end_pos); /* end */
-	    event_data[3] = newSViv(lexeme); /* lexeme */
-	    event = av_make(Dim(event_data), event_data);
-	    av_push(slr->event_queue, newRV_noinc((SV*)event));
+      if (trace_lexemes)
+	{
+	  AV *event;
+	  SV *event_data[4];
+	  event_data[0] = newSVpvs ("g1 duplicate lexeme");
+	  event_data[1] = newSViv (start_pos);	/* start */
+	  event_data[2] = newSViv (end_pos);	/* end */
+	  event_data[3] = newSViv (lexeme);	/* lexeme */
+	  event = av_make (Dim (event_data), event_data);
+	  av_push (slr->event_queue, newRV_noinc ((SV *) event));
 	}
-      return 0;
+      return;
 
     case MARPA_ERR_NONE:
       if (trace_level >= 1)
@@ -1331,17 +1391,18 @@ slr_alternative(Scanless_R *slr, Marpa_Symbol_ID lexeme,
 	    ("slr->read() R1 Accepted symbol %d at pos %d",
 	     lexeme, (int) slr->stream->perl_pos);
 	}
-	if (trace_terminals) {
-	    AV* event;
-	    SV* event_data[4];
-	    event_data[0] = newSVpvs("accepted");
-	    event_data[1] = newSViv(start_pos); /* start */
-	    event_data[2] = newSViv(end_pos); /* end */
-	    event_data[3] = newSViv(lexeme); /* lexeme */
-	    event = av_make(Dim(event_data), event_data);
-	    av_push(slr->event_queue, newRV_noinc((SV*)event));
+      if (trace_lexemes)
+	{
+	  AV *event;
+	  SV *event_data[4];
+	  event_data[0] = newSVpvs ("g1 accepted lexeme");
+	  event_data[1] = newSViv (start_pos);	/* start */
+	  event_data[2] = newSViv (end_pos);	/* end */
+	  event_data[3] = newSViv (lexeme);	/* lexeme */
+	  event = av_make (Dim (event_data), event_data);
+	  av_push (slr->event_queue, newRV_noinc ((SV *) event));
 	}
-      return 0;
+      return;
 
     }
 
@@ -1349,7 +1410,7 @@ slr_alternative(Scanless_R *slr, Marpa_Symbol_ID lexeme,
     ("Problem SLR->read() failed on symbol id %d at position %d: %s",
      lexeme, (int) slr->stream->perl_pos, xs_g_error (slr->g1_wrapper));
   /* NOTREACHED */
-  return 0;
+  return;
 }
 
 /*
@@ -1357,61 +1418,124 @@ slr_alternative(Scanless_R *slr, Marpa_Symbol_ID lexeme,
  * 0 OK.
  * -4: Exhausted, but lexemes remain.
  */
-static IV 
-slr_alternatives(Scanless_R *slr,
-  IV*lexemes_found, IV*lexemes_attempted)
+static IV
+slr_alternatives (Scanless_R * slr, IV * lexemes_found,
+		  IV * lexemes_attempted)
 {
   dTHX;
   int return_value;
+  int lexemes_discarded = 0;
   Marpa_Recce r0;
   Marpa_Earley_Set_ID earley_set;
+  int r1_is_exhausted = marpa_r_is_exhausted (slr->r1);
 
   r0 = slr->stream->r0;
   if (!r0)
     {
       croak ("Problem in slr->read(): No R0 at %s %d", __FILE__, __LINE__);
     }
-  earley_set = marpa_r_latest_earley_set(r0);
+  earley_set = marpa_r_latest_earley_set (r0);
   *lexemes_attempted = 0;
   *lexemes_found = 0;
-  while (earley_set > 0) {
-      return_value = marpa_r_progress_report_start(r0, earley_set);
-      if (return_value < 0) {
-	   croak ("Problem in marpa_r_progress_report_start(%p, %ld): %s",
-	       (void*)r0, (unsigned long)earley_set, xs_g_error (slr->g0_wrapper));
-      }
-      while (1) {
+  while (earley_set > 0)
+    {
+      return_value = marpa_r_progress_report_start (r0, earley_set);
+      if (return_value < 0)
+	{
+	  croak ("Problem in marpa_r_progress_report_start(%p, %ld): %s",
+		 (void *) r0, (unsigned long) earley_set,
+		 xs_g_error (slr->g0_wrapper));
+	}
+      while (1)
+	{
 	  Marpa_Symbol_ID g1_lexeme;
-          int dot_position;
+	  int dot_position;
 	  Marpa_Earley_Set_ID origin;
-	  Marpa_Rule_ID rule_id = marpa_r_progress_item(r0, &dot_position, &origin);
-	  if (rule_id <= -2) {
-	   croak ("Problem in marpa_r_progress_item(): %s",
-	        xs_g_error (slr->g0_wrapper));
-	  }
-	  if (rule_id == -1) goto NO_MORE_REPORT_ITEMS;
-	  if (origin < 0) goto NEXT_REPORT_ITEM;
-	  if (dot_position != -1) goto NEXT_REPORT_ITEM;
+	  Marpa_Rule_ID rule_id =
+	    marpa_r_progress_item (r0, &dot_position, &origin);
+	  if (rule_id <= -2)
+	    {
+	      croak ("Problem in marpa_r_progress_item(): %s",
+		     xs_g_error (slr->g0_wrapper));
+	    }
+	  if (rule_id == -1)
+	    goto NO_MORE_REPORT_ITEMS;
+	  if (origin < 0)
+	    goto NEXT_REPORT_ITEM;
+	  if (dot_position != -1)
+	    goto NEXT_REPORT_ITEM;
 	  g1_lexeme = slr->slg->g0_rule_to_g1_lexeme[rule_id];
-	  if (g1_lexeme == -1) goto NEXT_REPORT_ITEM;
+	  if (g1_lexeme == -1)
+	    goto NEXT_REPORT_ITEM;
 	  (*lexemes_found)++;
 	  slr->end_of_lexeme = slr->start_of_lexeme + earley_set;
 
 	  /* -2 means a discarded item */
-	  if (g1_lexeme <= -2) goto NEXT_REPORT_ITEM;
-	  return_value = slr_alternative(slr, g1_lexeme, *lexemes_attempted);
-	  if (return_value == -4) { return return_value; }
+	  if (g1_lexeme <= -2)
+	    {
+	      lexemes_discarded++;
+	      if (slr->trace_lexemes)
+		{
+		  AV *event;
+		  SV *event_data[4];
+		  event_data[0] = newSVpvs ("discarded lexeme");
+		  /* We do not have the lexeme, but we have the 
+		   * g0 rule.
+		   * The upper level will have to figure things out.
+		   */
+		  event_data[1] = newSViv (rule_id);
+		  event_data[2] = newSViv (slr->start_of_lexeme);
+		  event_data[3] = newSViv (slr->end_of_lexeme);
+		  event = av_make (Dim (event_data), event_data);
+		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		}
+	      goto NEXT_REPORT_ITEM;
+	    }
+	  /* We don't try to read lexemes into an exhasuted
+	   * R1 -- we only are looking for discardable tokens.
+	   */
+	  if (r1_is_exhausted)
+	    {
+	      if (slr->trace_lexemes)
+		{
+		  AV *event;
+		  SV *event_data[4];
+		  event_data[0] = newSVpvs ("ignored lexeme");
+		  event_data[1] = newSViv (g1_lexeme);
+		  event_data[2] = newSViv (slr->start_of_lexeme);
+		  event_data[3] = newSViv (slr->end_of_lexeme);
+		  event = av_make (Dim (event_data), event_data);
+		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		}
+	      goto NEXT_REPORT_ITEM;
+	    }
+
+	  /* trace_lexemes done inside slr_alternative */
+	  slr_alternative (slr, g1_lexeme, *lexemes_attempted);
 	  (*lexemes_attempted)++;
-	  NEXT_REPORT_ITEM: ;
-      }
-      NO_MORE_REPORT_ITEMS: ;
-      if (*lexemes_found) goto LEXEMES_FOUND;
+	NEXT_REPORT_ITEM:;
+	}
+    NO_MORE_REPORT_ITEMS:;
+      if (*lexemes_found)
+	goto LEXEMES_FOUND;
       earley_set--;
       /* Zero length lexemes are not of interest, so we do *not*
        * search the 0'th Earley set.
        */
-  }
-  LEXEMES_FOUND: ;
+    }
+
+  /* If
+   * 1) we reached the longest tokens match (or no match)
+   * 2) no tokens were discarded, and
+   * 3) r1 is exhausted, then
+   * r1 was exhausted with unconsumed text.
+   * Report that as an error.
+   */
+LEXEMES_FOUND:;
+  if (r1_is_exhausted && !lexemes_discarded)
+    {
+      return -4;
+    }
   return 0;
 }
 
@@ -2114,7 +2238,7 @@ PPCODE:
 }
 
 void
-trace( stream, level )
+trace_g0( stream, level )
      Unicode_Stream *stream;
     int level;
 PPCODE:
@@ -2124,11 +2248,19 @@ PPCODE:
       /* Always thrown */
       croak ("Problem in u->trace(%d): argument must be greater than 0", level);
     }
-  warn ("Setting Marpa scannerless stream trace level to %d", level);
-  stream->trace = level;
+  warn ("Setting Marpa scannerless stream G0 trace level to %d", level);
+  stream->trace_g0 = level;
   XPUSHs (sv_2mortal (newSViv (level)));
 }
 
+void
+event( stream )
+     Unicode_Stream *stream;
+PPCODE:
+{
+    SV* event = av_shift(stream->event_queue);
+    XPUSHs (sv_2mortal (event));
+}
 
 void
 ignore_rejection( stream, boolean )
@@ -2158,10 +2290,10 @@ PPCODE:
   const STRLEN op_count = items;
   STRLEN op_ix;
   STRLEN dummy;
-  UV *ops;
-  SV *ops_sv = newSV (op_count * sizeof (UV));
+  IV *ops;
+  SV *ops_sv = newSV (op_count * sizeof (ops[0]));
   SvPOK_on (ops_sv);
-  ops = (UV *) SvPV (ops_sv, dummy);
+  ops = (IV *) SvPV (ops_sv, dummy);
   ops[0] = codepoint;
   ops[1] = op_count;
   for (op_ix = 2; op_ix < op_count; op_ix++)
@@ -2239,7 +2371,9 @@ read( stream )
      Unicode_Stream *stream;
 PPCODE:
 {
-  const int return_value = u_read(stream);
+  int return_value;
+  av_clear(stream->event_queue);
+  return_value = u_read(stream);
   XSRETURN_IV(return_value);
 }
 
@@ -2453,7 +2587,7 @@ PPCODE:
   {
     AV *event;
     SV *event_data[3];
-    event_data[0] = newSVpvs ("trace level");
+    event_data[0] = newSVpvs ("valuator trace level");
     event_data[1] = newSViv (old_level);
     event_data[2] = newSViv (level);
     event = av_make (Dim (event_data), event_data);
@@ -2580,11 +2714,11 @@ PPCODE:
 
   {
     int ix;
-    UV ops[3];
+    IV ops[3];
     const int highest_rule_id = marpa_g_highest_rule_id (g);
     AV *av = v_wrapper->rule_semantics;
     av_extend (av, highest_rule_id);
-    ops[0] = op_push_all;
+    ops[0] = op_push_values;
     ops[1] = op_callback;
     ops[2] = 0;
     for (ix = 0; ix <= highest_rule_id; ix++)
@@ -2596,13 +2730,13 @@ PPCODE:
 	      ("Internal error in v->stack_mode_set(): av_fetch(%p,%ld,1) failed",
 	       (void *) av, (long) ix);
 	  }
-	sv_setpvn (*p_sv, (char *) ops, sizeof (ops));
+	sv_setpvn (*p_sv, (char *) ops, Dim(ops)*sizeof (ops[0]));
       }
   }
 
   { /* Set the default nulling symbol semantics */
     int ix;
-    UV ops[2];
+    IV ops[2];
     const int highest_symbol_id = marpa_g_highest_symbol_id (g);
     AV *av = v_wrapper->nulling_semantics;
     av_extend (av, highest_symbol_id);
@@ -2617,13 +2751,13 @@ PPCODE:
 	      ("Internal error in v->stack_mode_set(): av_fetch(%p,%ld,1) failed",
 	       (void *) av, (long) ix);
 	  }
-	sv_setpvn (*p_sv, (char *) ops, sizeof (ops));
+	sv_setpvn (*p_sv, (char *) ops, Dim(ops) *sizeof (ops[0]));
       }
   }
 
   { /* Set the default token semantics */
     int ix;
-    UV ops[2];
+    IV ops[2];
     const int highest_symbol_id = marpa_g_highest_symbol_id (g);
     AV *av = v_wrapper->token_semantics;
     av_extend (av, highest_symbol_id);
@@ -2638,7 +2772,7 @@ PPCODE:
 	      ("Internal error in v->stack_mode_set(): av_fetch(%p,%ld,1) failed",
 	       (void *) av, (long) ix);
 	  }
-	sv_setpvn (*p_sv, (char *) ops, sizeof (ops));
+	sv_setpvn (*p_sv, (char *) ops, Dim(ops)*sizeof (ops[0]));
       }
   }
 
@@ -2655,7 +2789,7 @@ PPCODE:
   const STRLEN op_count = items - 2;
   STRLEN op_ix;
   STRLEN dummy;
-  UV *ops;
+  IV *ops;
   SV *ops_sv;
   AV *rule_semantics = v_wrapper->rule_semantics;
 
@@ -2665,10 +2799,10 @@ PPCODE:
     }
 
   /* Leave room for final 0 */
-  ops_sv = newSV ((op_count+1) * sizeof (UV));
+  ops_sv = newSV ((op_count+1) * sizeof (ops[0]));
 
   SvPOK_on (ops_sv);
-  ops = (UV *) SvPV (ops_sv, dummy);
+  ops = (IV *) SvPV (ops_sv, dummy);
   for (op_ix = 0; op_ix < op_count; op_ix++)
     {
       ops[op_ix] = SvUV (ST (op_ix+2));
@@ -2689,7 +2823,7 @@ PPCODE:
   const STRLEN op_count = items - 2;
   STRLEN op_ix;
   STRLEN dummy;
-  UV *ops;
+  IV *ops;
   SV *ops_sv;
   AV *token_semantics = v_wrapper->token_semantics;
 
@@ -2699,13 +2833,13 @@ PPCODE:
     }
 
   /* Leave room for final 0 */
-  ops_sv = newSV ((op_count+1) * sizeof (UV));
+  ops_sv = newSV ((op_count+1) * sizeof (ops[0]));
 
   SvPOK_on (ops_sv);
-  ops = (UV *) SvPV (ops_sv, dummy);
+  ops = (IV *) SvPV (ops_sv, dummy);
   for (op_ix = 0; op_ix < op_count; op_ix++)
     {
-      ops[op_ix] = SvUV (ST (op_ix+2));
+      ops[op_ix] = SvIV (ST (op_ix+2));
     }
   ops[op_ix] = 0;
   if (!av_store (token_semantics, (I32) token_id, ops_sv)) {
@@ -2723,7 +2857,7 @@ PPCODE:
   const STRLEN op_count = items - 2;
   STRLEN op_ix;
   STRLEN dummy;
-  UV *ops;
+  IV *ops;
   SV *ops_sv;
   AV *nulling_semantics = v_wrapper->nulling_semantics;
 
@@ -2733,13 +2867,13 @@ PPCODE:
     }
 
   /* Leave room for final 0 */
-  ops_sv = newSV ((op_count+1) * sizeof (UV));
+  ops_sv = newSV ((op_count+1) * sizeof (ops[0]));
 
   SvPOK_on (ops_sv);
-  ops = (UV *) SvPV (ops_sv, dummy);
+  ops = (IV *) SvPV (ops_sv, dummy);
   for (op_ix = 0; op_ix < op_count; op_ix++)
     {
-      ops[op_ix] = SvUV (ST (op_ix+2));
+      ops[op_ix] = SvIV (ST (op_ix+2));
     }
   ops[op_ix] = 0;
   if (!av_store (nulling_semantics, (I32) symbol_id, ops_sv)) {
@@ -4428,7 +4562,7 @@ PPCODE:
   Newx (slr, 1, Scanless_R);
 
   slr->trace_level = 0;
-  slr->trace_terminals = 0;
+  slr->trace_lexemes = 0;
 
   # Copy and take references to the "parent objects",
   # the ones responsible for holding references.
@@ -4481,30 +4615,48 @@ PPCODE:
 }
 
 void
-trace( slr, level )
+trace( slr, new_level )
     Scanless_R *slr;
-    int level;
+    int new_level;
 PPCODE:
 {
   IV old_level = slr->trace_level;
-  slr->trace_level = level;
-  warn("Changing SLR trace level from %d to %d", (int)old_level, (int)level);
+  slr->trace_level = new_level;
+  warn("Changing SLR trace level from %d to %d", (int)old_level, (int)new_level);
   XSRETURN_IV(old_level);
 }
 
 void
-trace_terminals( slr, level )
+trace_g0( slr, new_level )
     Scanless_R *slr;
-    int level;
+    int new_level;
 PPCODE:
 {
-  IV old_level = slr->trace_terminals;
-  slr->trace_terminals = level;
+  Unicode_Stream *stream = slr->stream;
+  IV old_level = stream->trace_g0;
+  stream->trace_g0 = new_level;
   if (slr->trace_level) {
-    /* Note that we use *trace_level*, not *trace_terminals* to control warning.
-     * We never warn() for trace_terminals, just report events.
+    /* Note that we use *trace_level*, not *trace_g0* to control warning.
+     * We never warn() for trace_lexemes, just report events.
      */
-    warn("Changing SLR trace terminals level from %d to %d", (int)old_level, (int)level);
+    warn("Changing SLR g0 trace level from %d to %d", (int)old_level, (int)new_level);
+  }
+  XSRETURN_IV(old_level);
+}
+
+void
+trace_lexemes( slr, new_level )
+    Scanless_R *slr;
+    int new_level;
+PPCODE:
+{
+  IV old_level = slr->trace_lexemes;
+  slr->trace_lexemes = new_level;
+  if (slr->trace_level) {
+    /* Note that we use *trace_level*, not *trace_lexemes* to control warning.
+     * We never warn() for trace_lexemes, just report events.
+     */
+    warn("Changing SLR trace_lexemes level from %d to %d", (int)old_level, (int)new_level);
   }
   XSRETURN_IV(old_level);
 }
@@ -4548,9 +4700,13 @@ read(slr)
 PPCODE:
 {
   int result = 0;		/* Hold various results */
+  Unicode_Stream *stream = slr->stream;
+  int trace_g0 = stream->trace_g0;
 
   slr->stream_read_result = 0;
   slr->r1_earleme_complete_result = 0;
+  av_clear (stream->event_queue);
+
   while (1)
     {
       IV lexemes_found = 0;
@@ -4558,7 +4714,6 @@ PPCODE:
 
       if (slr->please_start_lex_recce)
 	{
-	  Unicode_Stream *stream = slr->stream;
 	  STRLEN input_length = SvCUR (stream->input);
 
 	  slr->start_of_lexeme = slr->end_of_lexeme;
@@ -4570,11 +4725,24 @@ PPCODE:
 
 	  slr->please_start_lex_recce = 0;
 	  u_r0_clear (stream);
+	  if (trace_g0 >= 1)
+	    {
+	      AV *event;
+	      SV *event_data[2];
+	      event_data[0] = newSVpv ("g0 restarted recognizer", 0);
+	      event_data[1] = newSViv ((IV) slr->start_of_lexeme);
+	      event = av_make (Dim (event_data), event_data);
+	      av_push (stream->event_queue, newRV_noinc ((SV *) event));
+	    }
 	}
 
       av_clear (slr->event_queue);
 
-      result = slr->stream_read_result = u_read (slr->stream);
+      result = slr->stream_read_result = u_read (stream);
+      if (result == -4)
+	{
+	  XSRETURN_PV ("trace");
+	}
       if (result == -2)
 	{
 	  XSRETURN_PV ("unregistered char");
@@ -4584,8 +4752,7 @@ PPCODE:
 	  XSRETURN_PV ("R0 read() problem");
 	}
 
-      result =
-	slr_alternatives (slr, &lexemes_found, &lexemes_attempted);
+      result = slr_alternatives (slr, &lexemes_found, &lexemes_attempted);
       if (result == -4)
 	{
 	  XSRETURN_PV ("R0 exhausted before end");
@@ -4598,7 +4765,6 @@ PPCODE:
 
       if (lexemes_attempted)
 	{
-	  G_Wrapper *g1_wrapper = slr->g1_wrapper;
 	  slr->g1_wrapper->throw = 0;
 	  result = slr->r1_earleme_complete_result =
 	    marpa_r_earleme_complete (slr->r1);
@@ -4609,7 +4775,7 @@ PPCODE:
 	    }
 	}
 
-      if (slr->trace_terminals)
+      if (slr->trace_lexemes || stream->trace_g0)
 	{
 	  XSRETURN_PV ("trace");
 	}
@@ -4641,8 +4807,11 @@ event(slr)
     Scanless_R *slr;
 PPCODE:
 {
-    SV* event = av_shift(slr->event_queue);
-    XPUSHs (sv_2mortal (event));
+  Unicode_Stream *stream = slr->stream;
+  SV *event =
+    (av_len (stream->event_queue) >=
+     0) ? av_shift (stream->event_queue) : av_shift (slr->event_queue);
+  XPUSHs (sv_2mortal (event));
 }
 
 void
@@ -4651,7 +4820,6 @@ locations(slr, earley_set)
     IV earley_set;
 PPCODE:
 {
-  int result = 0;
   int start_position;
   int end_position;
   slr_locations(slr, earley_set, &start_position, &end_position);

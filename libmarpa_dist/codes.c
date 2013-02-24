@@ -32,7 +32,7 @@
  * In particular, it lacks definitions of its structures.
  * To compile this code, you must include it in a larger file.
  * Applications may prefer to read it as a text file.
- */;
+ */
 
 const struct s_marpa_error_description marpa_error_description[] = {
   { 0, "MARPA_ERR_NONE", "No error" },
