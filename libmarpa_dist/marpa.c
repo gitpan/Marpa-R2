@@ -1,5 +1,5 @@
-/*1291:*/
-#line 14969 "./marpa.w"
+/*1292:*/
+#line 14996 "./marpa.w"
 
 /*
  * Copyright 2013 Jeffrey Kegler
@@ -23,8 +23,8 @@
  * It is not intended to be modified directly
  */
 
-/*:1291*//*1292:*/
-#line 14992 "./marpa.w"
+/*:1292*//*1293:*/
+#line 15019 "./marpa.w"
 
 #include "config.h"
 #include "marpa.h"
@@ -598,7 +598,7 @@ FSTACK_INDEX((tree) ->t_nook_stack,NOOK_Object,nook_id)
 #define MARPA_ERROR(code) (set_error(g,(code) ,NULL,0u) ) 
 #define MARPA_FATAL(code) (set_error(g,(code) ,NULL,FATAL_FLAG) ) 
 
-#line 15010 "./marpa.w"
+#line 15037 "./marpa.w"
 
 #include "marpa_obs.h"
 #include "avl.h"
@@ -715,28 +715,28 @@ typedef struct s_nook*NOOK;
 #line 12686 "./marpa.w"
 
 typedef struct s_value*VALUE;
-/*:1098*//*1200:*/
-#line 14089 "./marpa.w"
+/*:1098*//*1201:*/
+#line 14116 "./marpa.w"
 
 struct s_dstack;
 typedef struct s_dstack*DSTACK;
-/*:1200*//*1203:*/
-#line 14125 "./marpa.w"
+/*:1201*//*1204:*/
+#line 14152 "./marpa.w"
 
 struct s_dqueue;
 typedef struct s_dqueue*DQUEUE;
-/*:1203*//*1210:*/
-#line 14190 "./marpa.w"
+/*:1204*//*1211:*/
+#line 14217 "./marpa.w"
 
 struct s_per_earley_set_list;
 typedef struct s_per_earley_set_list*PSL;
-/*:1210*//*1212:*/
-#line 14205 "./marpa.w"
+/*:1211*//*1213:*/
+#line 14232 "./marpa.w"
 
 struct s_per_earley_set_arena;
 typedef struct s_per_earley_set_arena*PSAR;
-/*:1212*/
-#line 15013 "./marpa.w"
+/*:1213*/
+#line 15040 "./marpa.w"
 
 /*44:*/
 #line 622 "./marpa.w"
@@ -832,31 +832,31 @@ typedef struct marpa_progress_item*PROGRESS;
 #line 12545 "./marpa.w"
 
 typedef Marpa_Nook_ID NOOKID;
-/*:1084*//*1142:*/
-#line 13324 "./marpa.w"
+/*:1084*//*1143:*/
+#line 13351 "./marpa.w"
 
 typedef unsigned int LBW;
 typedef LBW*LBV;
 
-/*:1142*//*1148:*/
-#line 13397 "./marpa.w"
+/*:1143*//*1149:*/
+#line 13424 "./marpa.w"
 
 typedef LBW Bit_Vector_Word;
 typedef Bit_Vector_Word*Bit_Vector;
-/*:1148*//*1182:*/
-#line 13864 "./marpa.w"
+/*:1149*//*1183:*/
+#line 13891 "./marpa.w"
 
 typedef Bit_Vector_Word*Bit_Matrix;
 
-/*:1182*/
-#line 15014 "./marpa.w"
+/*:1183*/
+#line 15041 "./marpa.w"
 
-/*1201:*/
-#line 14092 "./marpa.w"
+/*1202:*/
+#line 14119 "./marpa.w"
 
 struct s_dstack{int t_count;int t_capacity;void*t_base;};
-/*:1201*/
-#line 15015 "./marpa.w"
+/*:1202*/
+#line 15042 "./marpa.w"
 
 /*43:*/
 #line 616 "./marpa.w"
@@ -1350,11 +1350,11 @@ ES t_next_earley_set;
 
 EIM*t_earley_items;
 
-/*:629*//*1220:*/
-#line 14275 "./marpa.w"
+/*:629*//*1221:*/
+#line 14302 "./marpa.w"
 
 PSL t_dot_psl;
-/*:1220*/
+/*:1221*/
 #line 6580 "./marpa.w"
 
 int t_postdot_sym_count;
@@ -1656,13 +1656,13 @@ unsigned int t_is_nulling:1;
 int t_parse_count;
 };
 
-/*:1051*//*1204:*/
-#line 14128 "./marpa.w"
+/*:1051*//*1205:*/
+#line 14155 "./marpa.w"
 
 struct s_dqueue{int t_current;struct s_dstack t_stack;};
 
-/*:1204*//*1211:*/
-#line 14196 "./marpa.w"
+/*:1205*//*1212:*/
+#line 14223 "./marpa.w"
 
 struct s_per_earley_set_list{
 PSL t_prev;
@@ -1671,8 +1671,8 @@ PSL*t_owner;
 void*t_data[1];
 };
 typedef struct s_per_earley_set_list PSL_Object;
-/*:1211*//*1213:*/
-#line 14221 "./marpa.w"
+/*:1212*//*1214:*/
+#line 14248 "./marpa.w"
 
 struct s_per_earley_set_arena{
 int t_psl_length;
@@ -1680,8 +1680,8 @@ PSL t_first_psl;
 PSL t_first_free_psl;
 };
 typedef struct s_per_earley_set_arena PSAR_Object;
-/*:1213*/
-#line 15016 "./marpa.w"
+/*:1214*/
+#line 15043 "./marpa.w"
 
 /*34:*/
 #line 525 "./marpa.w"
@@ -1701,8 +1701,8 @@ static const OR dummy_or_node= (OR)&dummy_or_node_type;
 
 static const struct marpa_progress_item progress_report_not_ready= {-2,-2,-2};
 
-/*:963*//*1149:*/
-#line 13404 "./marpa.w"
+/*:963*//*1150:*/
+#line 13431 "./marpa.w"
 
 static const unsigned int bv_wordbits= lbv_wordbits;
 static const unsigned int bv_modmask= lbv_wordbits-1u;
@@ -1710,15 +1710,15 @@ static const unsigned int bv_hiddenwords= 3;
 static const unsigned int bv_lsb= lbv_lsb;
 static const unsigned int bv_msb= lbv_msb;
 
-/*:1149*//*1273:*/
-#line 14778 "./marpa.w"
+/*:1150*//*1274:*/
+#line 14805 "./marpa.w"
 
 int(*_marpa_debug_handler)(const char*,...)= 
 MARPA_DEFAULT_DEBUG_HANDLER;
 int _marpa_debug_level= 0;
 
-/*:1273*/
-#line 15017 "./marpa.w"
+/*:1274*/
+#line 15044 "./marpa.w"
 
 /*567:*/
 #line 6155 "./marpa.w"
@@ -1798,11 +1798,11 @@ struct s_ur_node_stack t_ur_node_stack;
 
 const struct marpa_progress_item*t_current_report_item;
 AVL_TRAV t_progress_report_traverser;
-/*:958*//*1214:*/
-#line 14229 "./marpa.w"
+/*:958*//*1215:*/
+#line 14256 "./marpa.w"
 
 PSAR_Object t_dot_psar_object;
-/*:1214*/
+/*:1215*/
 #line 6158 "./marpa.w"
 
 /*570:*/
@@ -1843,7 +1843,7 @@ unsigned int t_trace_source_type:3;
 };
 
 /*:567*/
-#line 15018 "./marpa.w"
+#line 15045 "./marpa.w"
 
 /*705:*/
 #line 7566 "./marpa.w"
@@ -1882,7 +1882,7 @@ struct s_source_link t_unique;
 };
 
 /*:709*/
-#line 15019 "./marpa.w"
+#line 15046 "./marpa.w"
 
 /*655:*/
 #line 6865 "./marpa.w"
@@ -1909,7 +1909,7 @@ unsigned int t_source_type:3;
 typedef struct s_earley_item EIM_Object;
 
 /*:655*/
-#line 15020 "./marpa.w"
+#line 15047 "./marpa.w"
 
 /*975:*/
 #line 11232 "./marpa.w"
@@ -1961,35 +1961,35 @@ unsigned int t_is_nulling:1;
 };
 
 /*:975*/
-#line 15021 "./marpa.w"
+#line 15048 "./marpa.w"
 
 #include "private.h"
 #if MARPA_DEBUG
-/*1279:*/
-#line 14845 "./marpa.w"
+/*1280:*/
+#line 14872 "./marpa.w"
 
 static const char*eim_tag_safe(char*buffer,EIM eim)UNUSED;
 static const char*eim_tag(EIM eim)UNUSED;
-/*:1279*//*1281:*/
-#line 14870 "./marpa.w"
+/*:1280*//*1282:*/
+#line 14897 "./marpa.w"
 
 static char*lim_tag_safe(char*buffer,LIM lim)UNUSED;
 static char*lim_tag(LIM lim)UNUSED;
-/*:1281*//*1283:*/
-#line 14896 "./marpa.w"
+/*:1282*//*1284:*/
+#line 14923 "./marpa.w"
 
 static const char*or_tag_safe(char*buffer,OR or)UNUSED;
 static const char*or_tag(OR or)UNUSED;
-/*:1283*//*1285:*/
-#line 14928 "./marpa.w"
+/*:1284*//*1286:*/
+#line 14955 "./marpa.w"
 
 static const char*aim_tag_safe(char*buffer,AIM aim)UNUSED;
 static const char*aim_tag(AIM aim)UNUSED;
-/*:1285*/
-#line 15024 "./marpa.w"
+/*:1286*/
+#line 15051 "./marpa.w"
 
-/*1270:*/
-#line 14751 "./marpa.w"
+/*1271:*/
+#line 14778 "./marpa.w"
 
 int _marpa_default_debug_handler(const char*format,...)
 {
@@ -2002,8 +2002,8 @@ return 1;
 }
 
 
-/*:1270*//*1280:*/
-#line 14849 "./marpa.w"
+/*:1271*//*1281:*/
+#line 14876 "./marpa.w"
 
 static const char*
 eim_tag_safe(char*buffer,EIM eim)
@@ -2022,8 +2022,8 @@ eim_tag(EIM eim)
 return eim_tag_safe(DEBUG_eim_tag_buffer,eim);
 }
 
-/*:1280*//*1282:*/
-#line 14875 "./marpa.w"
+/*:1281*//*1283:*/
+#line 14902 "./marpa.w"
 
 static char*
 lim_tag_safe(char*buffer,LIM lim)
@@ -2040,8 +2040,8 @@ lim_tag(LIM lim)
 return lim_tag_safe(DEBUG_lim_tag_buffer,lim);
 }
 
-/*:1282*//*1284:*/
-#line 14900 "./marpa.w"
+/*:1283*//*1285:*/
+#line 14927 "./marpa.w"
 
 static const char*
 or_tag_safe(char*buffer,OR or)
@@ -2063,8 +2063,8 @@ or_tag(OR or)
 return or_tag_safe(DEBUG_or_tag_buffer,or);
 }
 
-/*:1284*//*1286:*/
-#line 14931 "./marpa.w"
+/*:1285*//*1287:*/
+#line 14958 "./marpa.w"
 
 static const char*
 aim_tag_safe(char*buffer,AIM aim)
@@ -2086,8 +2086,8 @@ aim_tag(AIM aim)
 return aim_tag_safe(DEBUG_aim_tag_buffer,aim);
 }
 
-/*:1286*/
-#line 15025 "./marpa.w"
+/*:1287*/
+#line 15052 "./marpa.w"
 
 #endif
 /*35:*/
@@ -2345,22 +2345,22 @@ my_slice_free(struct marpa_g,g);
 #line 713 "./marpa.w"
 
 int marpa_g_highest_symbol_id(Marpa_Grammar g){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 715 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 716 "./marpa.w"
 
 return XSY_Count_of_G(g)-1;
@@ -2397,43 +2397,43 @@ return isyid>=0&&isyid<ISY_Count_of_G(g);
 #line 769 "./marpa.w"
 
 int marpa_g_highest_rule_id(Marpa_Grammar g){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 771 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 772 "./marpa.w"
 
 return XRL_Count_of_G(g)-1;
 }
 int _marpa_g_irl_count(Marpa_Grammar g){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 776 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 777 "./marpa.w"
 
 return IRL_Count_of_G(g);
@@ -2457,22 +2457,22 @@ g->t_max_rule_length= MAX(Length_of_XRL(rule),g->t_max_rule_length);
 
 Marpa_Symbol_ID marpa_g_start_symbol(Marpa_Grammar g)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 812 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 813 "./marpa.w"
 
 return g->t_start_xsy_id;
@@ -2482,53 +2482,53 @@ return g->t_start_xsy_id;
 
 Marpa_Symbol_ID marpa_g_start_symbol_set(Marpa_Grammar g,Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 825 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 826 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 827 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 828 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 829 "./marpa.w"
 
 return g->t_start_xsy_id= xsy_id;
@@ -2539,23 +2539,23 @@ return g->t_start_xsy_id= xsy_id;
 
 Marpa_Rank marpa_g_default_rank(Marpa_Grammar g)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 889 "./marpa.w"
 
 clear_error(g);
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 891 "./marpa.w"
 
 return Default_Rank_of_G(g);
@@ -2565,34 +2565,34 @@ return Default_Rank_of_G(g);
 
 Marpa_Rank marpa_g_default_rank_set(Marpa_Grammar g,Marpa_Rank rank)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 899 "./marpa.w"
 
 clear_error(g);
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 901 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 902 "./marpa.w"
 
 if(UNLIKELY(rank<MINIMUM_RANK))
@@ -2613,22 +2613,22 @@ return Default_Rank_of_G(g)= rank;
 
 int marpa_g_is_precomputed(Marpa_Grammar g)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 924 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 925 "./marpa.w"
 
 return G_is_Precomputed(g);
@@ -2639,22 +2639,22 @@ return G_is_Precomputed(g);
 
 int marpa_g_has_cycle(Marpa_Grammar g)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 936 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 937 "./marpa.w"
 
 return g->t_has_cycle;
@@ -2690,11 +2690,11 @@ Marpa_Event_Type
 marpa_g_event(Marpa_Grammar g,Marpa_Event*public_event,
 int ix)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1026 "./marpa.w"
 
 DSTACK events= &g->t_events;
@@ -2722,22 +2722,22 @@ return type;
 Marpa_Event_Type
 marpa_g_event_count(Marpa_Grammar g)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1050 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1051 "./marpa.w"
 
 return DSTACK_LENGTH(g->t_events);
@@ -2853,42 +2853,42 @@ return ID_of_SYM(symbol);
 
 int marpa_g_symbol_is_start(Marpa_Grammar g,Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1209 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1210 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1211 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1212 "./marpa.w"
 
 return SYM_by_ID(xsy_id)->t_is_start;
@@ -2901,43 +2901,43 @@ int marpa_g_symbol_rank(Marpa_Grammar g,
 Marpa_Symbol_ID xsy_id)
 {
 SYM xsy;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1227 "./marpa.w"
 
 clear_error(g);
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1229 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1230 "./marpa.w"
 
-/*1251:*/
-#line 14577 "./marpa.w"
+/*1252:*/
+#line 14604 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1251*/
+/*:1252*/
 #line 1231 "./marpa.w"
 
 xsy= SYM_by_ID(xsy_id);
@@ -2950,54 +2950,54 @@ int marpa_g_symbol_rank_set(
 Marpa_Grammar g,Marpa_Symbol_ID xsy_id,Marpa_Rank rank)
 {
 SYM xsy;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1240 "./marpa.w"
 
 clear_error(g);
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1242 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 1243 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1244 "./marpa.w"
 
-/*1251:*/
-#line 14577 "./marpa.w"
+/*1252:*/
+#line 14604 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1251*/
+/*:1252*/
 #line 1245 "./marpa.w"
 
 xsy= SYM_by_ID(xsy_id);
@@ -3021,31 +3021,31 @@ int _marpa_g_symbol_is_semantic(
 Marpa_Grammar g,
 Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1288 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1289 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1290 "./marpa.w"
 
 return SYM_is_Semantic(SYM_by_ID(xsy_id));
@@ -3058,31 +3058,31 @@ int marpa_g_symbol_is_valued(
 Marpa_Grammar g,
 Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1316 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1317 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1318 "./marpa.w"
 
 return XSY_is_Valued(SYM_by_ID(xsy_id));
@@ -3095,31 +3095,31 @@ int marpa_g_symbol_is_valued_set(
 Marpa_Grammar g,Marpa_Symbol_ID xsy_id,int value)
 {
 SYM symbol;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1327 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1328 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1329 "./marpa.w"
 
 symbol= SYM_by_ID(xsy_id);
@@ -3143,52 +3143,52 @@ return value;
 
 int marpa_g_symbol_is_accessible(Marpa_Grammar g,Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1361 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1362 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 1363 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1364 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1365 "./marpa.w"
 
 return XSY_is_Accessible(XSY_by_ID(xsy_id));
@@ -3200,42 +3200,42 @@ return XSY_is_Accessible(XSY_by_ID(xsy_id));
 int marpa_g_symbol_is_counted(Marpa_Grammar g,
 Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1377 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1378 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1379 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1380 "./marpa.w"
 
 return SYM_by_ID(xsy_id)->t_is_counted;
@@ -3246,52 +3246,52 @@ return SYM_by_ID(xsy_id)->t_is_counted;
 
 int marpa_g_symbol_is_nulling(Marpa_Grammar g,Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1393 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1394 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 1395 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1396 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1397 "./marpa.w"
 
 return SYM_is_Nulling(SYM_by_ID(xsy_id));
@@ -3302,52 +3302,52 @@ return SYM_is_Nulling(SYM_by_ID(xsy_id));
 
 int marpa_g_symbol_is_nullable(Marpa_Grammar g,Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1410 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1411 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 1412 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1413 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1414 "./marpa.w"
 
 return XSY_is_Nullable(SYM_by_ID(xsy_id));
@@ -3359,42 +3359,42 @@ return XSY_is_Nullable(SYM_by_ID(xsy_id));
 int marpa_g_symbol_is_terminal(Marpa_Grammar g,
 Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1438 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1439 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1440 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1441 "./marpa.w"
 
 return SYMID_is_Terminal(xsy_id);
@@ -3406,53 +3406,53 @@ int marpa_g_symbol_is_terminal_set(
 Marpa_Grammar g,Marpa_Symbol_ID xsy_id,int value)
 {
 SYM symbol;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1449 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1450 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 1451 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1452 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1453 "./marpa.w"
 
 symbol= SYM_by_ID(xsy_id);
@@ -3478,52 +3478,52 @@ int marpa_g_symbol_is_productive(
 Marpa_Grammar g,
 Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1481 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1482 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 1483 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1484 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1485 "./marpa.w"
 
 return XSY_is_Productive(XSY_by_ID(xsy_id));
@@ -3538,31 +3538,31 @@ Marpa_Symbol_ID xsy_id)
 {
 XSY xsy;
 ISY isy;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1510 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1511 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1512 "./marpa.w"
 
 xsy= XSY_by_ID(xsy_id);
@@ -3579,31 +3579,31 @@ Marpa_Symbol_ID xsy_id)
 {
 XSY xsy;
 ISY isy;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1542 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 1543 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 1544 "./marpa.w"
 
 xsy= XSY_by_ID(xsy_id);
@@ -3695,22 +3695,22 @@ return new_isy;
 #line 1649 "./marpa.w"
 
 int _marpa_g_isy_count(Marpa_Grammar g){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1651 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1652 "./marpa.w"
 
 return ISY_Count_of_G(g);
@@ -3721,42 +3721,42 @@ return ISY_Count_of_G(g);
 
 int _marpa_g_isy_is_start(Marpa_Grammar g,Marpa_ISY_ID isy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1663 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1664 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 1665 "./marpa.w"
 
-/*1252:*/
-#line 14582 "./marpa.w"
+/*1253:*/
+#line 14609 "./marpa.w"
 
 if(UNLIKELY(!isy_is_valid(g,isy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_ISYID);
 return failure_indicator;
 }
-/*:1252*/
+/*:1253*/
 #line 1666 "./marpa.w"
 
 return ISY_is_Start(ISY_by_ID(isy_id));
@@ -3767,42 +3767,42 @@ return ISY_is_Start(ISY_by_ID(isy_id));
 
 int _marpa_g_isy_is_lhs(Marpa_Grammar g,Marpa_ISY_ID isy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1677 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1678 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 1679 "./marpa.w"
 
-/*1252:*/
-#line 14582 "./marpa.w"
+/*1253:*/
+#line 14609 "./marpa.w"
 
 if(UNLIKELY(!isy_is_valid(g,isy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_ISYID);
 return failure_indicator;
 }
-/*:1252*/
+/*:1253*/
 #line 1680 "./marpa.w"
 
 return ISY_is_LHS(ISY_by_ID(isy_id));
@@ -3813,42 +3813,42 @@ return ISY_is_LHS(ISY_by_ID(isy_id));
 
 int _marpa_g_isy_is_nulling(Marpa_Grammar g,Marpa_ISY_ID isy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1691 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1692 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 1693 "./marpa.w"
 
-/*1252:*/
-#line 14582 "./marpa.w"
+/*1253:*/
+#line 14609 "./marpa.w"
 
 if(UNLIKELY(!isy_is_valid(g,isy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_ISYID);
 return failure_indicator;
 }
-/*:1252*/
+/*:1253*/
 #line 1694 "./marpa.w"
 
 return ISY_is_Nulling(ISY_by_ID(isy_id));
@@ -3862,21 +3862,21 @@ Marpa_Grammar g,
 Marpa_IRL_ID isy_id)
 {
 XSY source_xsy;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1711 "./marpa.w"
 
-/*1252:*/
-#line 14582 "./marpa.w"
+/*1253:*/
+#line 14609 "./marpa.w"
 
 if(UNLIKELY(!isy_is_valid(g,isy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_ISYID);
 return failure_indicator;
 }
-/*:1252*/
+/*:1253*/
 #line 1712 "./marpa.w"
 
 source_xsy= Source_XSY_of_ISY(ISY_by_ID(isy_id));
@@ -3888,21 +3888,21 @@ return source_xsy?ID_of_XSY(source_xsy):-1;
 
 Marpa_Rule_ID _marpa_g_isy_lhs_xrl(Marpa_Grammar g,Marpa_ISY_ID isy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1743 "./marpa.w"
 
-/*1252:*/
-#line 14582 "./marpa.w"
+/*1253:*/
+#line 14609 "./marpa.w"
 
 if(UNLIKELY(!isy_is_valid(g,isy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_ISYID);
 return failure_indicator;
 }
-/*:1252*/
+/*:1253*/
 #line 1744 "./marpa.w"
 
 {
@@ -3919,22 +3919,22 @@ return-1;
 
 int _marpa_g_isy_xrl_offset(Marpa_Grammar g,Marpa_ISY_ID isy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1767 "./marpa.w"
 
 ISY isy;
-/*1252:*/
-#line 14582 "./marpa.w"
+/*1253:*/
+#line 14609 "./marpa.w"
 
 if(UNLIKELY(!isy_is_valid(g,isy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_ISYID);
 return failure_indicator;
 }
-/*:1252*/
+/*:1253*/
 #line 1769 "./marpa.w"
 
 isy= ISY_by_ID(isy_id);
@@ -3948,21 +3948,21 @@ Marpa_Rank _marpa_g_isy_rank(
 Marpa_Grammar g,
 Marpa_ISY_ID isy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1787 "./marpa.w"
 
-/*1252:*/
-#line 14582 "./marpa.w"
+/*1253:*/
+#line 14609 "./marpa.w"
 
 if(UNLIKELY(!isy_is_valid(g,isy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_ISYID);
 return failure_indicator;
 }
-/*:1252*/
+/*:1253*/
 #line 1788 "./marpa.w"
 
 return Rank_of_ISY(ISY_by_ID(isy_id));
@@ -4132,35 +4132,35 @@ Marpa_Rule_ID
 marpa_g_rule_new(Marpa_Grammar g,
 Marpa_Symbol_ID lhs_id,Marpa_Symbol_ID*rhs_ids,int length)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1905 "./marpa.w"
 
 Marpa_Rule_ID rule_id;
 RULE rule;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1908 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 1909 "./marpa.w"
 
 if(UNLIKELY(length> MAX_RHS_LENGTH))
@@ -4216,33 +4216,33 @@ int min,int flags)
 {
 RULE original_rule;
 RULEID original_rule_id= -2;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 1961 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 1962 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 1963 "./marpa.w"
 
 /*229:*/
@@ -4352,42 +4352,42 @@ return rule->t_symbols[0];}
 #line 2106 "./marpa.w"
 
 Marpa_Symbol_ID marpa_g_rule_lhs(Marpa_Grammar g,Marpa_Rule_ID xrl_id){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2108 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2109 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2110 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2111 "./marpa.w"
 
 return rule_lhs_get(XRL_by_ID(xrl_id));
@@ -4403,42 +4403,42 @@ return rule->t_symbols+1;}
 
 Marpa_Symbol_ID marpa_g_rule_rhs(Marpa_Grammar g,Marpa_Rule_ID xrl_id,int ix){
 RULE rule;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2121 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2122 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2123 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2124 "./marpa.w"
 
 rule= XRL_by_ID(xrl_id);
@@ -4457,42 +4457,42 @@ return RHS_ID_of_RULE(rule,ix);
 #line 2137 "./marpa.w"
 
 int marpa_g_rule_length(Marpa_Grammar g,Marpa_Rule_ID xrl_id){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2139 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2140 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2141 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2142 "./marpa.w"
 
 return Length_of_XRL(XRL_by_ID(xrl_id));
@@ -4505,43 +4505,43 @@ int marpa_g_rule_rank(Marpa_Grammar g,
 Marpa_Rule_ID xrl_id)
 {
 XRL xrl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2174 "./marpa.w"
 
 clear_error(g);
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2176 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2177 "./marpa.w"
 
-/*1255:*/
-#line 14600 "./marpa.w"
+/*1256:*/
+#line 14627 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return failure_indicator;
 }
-/*:1255*/
+/*:1256*/
 #line 2178 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -4554,54 +4554,54 @@ int marpa_g_rule_rank_set(
 Marpa_Grammar g,Marpa_Rule_ID xrl_id,Marpa_Rank rank)
 {
 XRL xrl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2187 "./marpa.w"
 
 clear_error(g);
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2189 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 2190 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2191 "./marpa.w"
 
-/*1255:*/
-#line 14600 "./marpa.w"
+/*1256:*/
+#line 14627 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return failure_indicator;
 }
-/*:1255*/
+/*:1256*/
 #line 2192 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -4625,42 +4625,42 @@ int marpa_g_rule_null_high(Marpa_Grammar g,
 Marpa_Rule_ID xrl_id)
 {
 XRL xrl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2223 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2224 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2225 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2226 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -4673,53 +4673,53 @@ int marpa_g_rule_null_high_set(
 Marpa_Grammar g,Marpa_Rule_ID xrl_id,int flag)
 {
 XRL xrl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2235 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2236 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 2237 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2238 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2239 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -4738,43 +4738,43 @@ int marpa_g_sequence_min(
 Marpa_Grammar g,
 Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2281 "./marpa.w"
 
 XRL xrl;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2283 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2284 "./marpa.w"
 
-/*1255:*/
-#line 14600 "./marpa.w"
+/*1256:*/
+#line 14627 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return failure_indicator;
 }
-/*:1255*/
+/*:1256*/
 #line 2285 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -4789,43 +4789,43 @@ Marpa_Symbol_ID marpa_g_sequence_separator(
 Marpa_Grammar g,
 Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2306 "./marpa.w"
 
 XRL xrl;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2308 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2309 "./marpa.w"
 
-/*1255:*/
-#line 14600 "./marpa.w"
+/*1256:*/
+#line 14627 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return failure_indicator;
 }
-/*:1255*/
+/*:1256*/
 #line 2310 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -4840,42 +4840,42 @@ int _marpa_g_rule_is_keep_separation(
 Marpa_Grammar g,
 Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2339 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2340 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2341 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2342 "./marpa.w"
 
 return!XRL_by_ID(xrl_id)->t_is_discard;
@@ -4888,42 +4888,42 @@ int marpa_g_rule_is_proper_separation(
 Marpa_Grammar g,
 Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2379 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2380 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2381 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2382 "./marpa.w"
 
 return!XRL_is_Proper_Separation(XRL_by_ID(xrl_id));
@@ -4934,52 +4934,52 @@ return!XRL_is_Proper_Separation(XRL_by_ID(xrl_id));
 
 int marpa_g_rule_is_loop(Marpa_Grammar g,Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2398 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2399 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2400 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2401 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2402 "./marpa.w"
 
 return XRL_by_ID(xrl_id)->t_is_loop;
@@ -4990,43 +4990,43 @@ return XRL_by_ID(xrl_id)->t_is_loop;
 
 int marpa_g_rule_is_nulling(Marpa_Grammar g,Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2415 "./marpa.w"
 
 XRL xrl;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2417 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2418 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2419 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -5038,43 +5038,43 @@ return XRL_is_Nulling(xrl);
 
 int marpa_g_rule_is_nullable(Marpa_Grammar g,Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2433 "./marpa.w"
 
 XRL xrl;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2435 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2436 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2437 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -5086,43 +5086,43 @@ return XRL_is_Nullable(xrl);
 
 int marpa_g_rule_is_accessible(Marpa_Grammar g,Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2451 "./marpa.w"
 
 XRL xrl;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2453 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2454 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2455 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -5134,43 +5134,43 @@ return XRL_is_Accessible(xrl);
 
 int marpa_g_rule_is_productive(Marpa_Grammar g,Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2469 "./marpa.w"
 
 XRL xrl;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2471 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2472 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2473 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
@@ -5183,31 +5183,31 @@ return XRL_is_Productive(xrl);
 int
 _marpa_g_rule_is_used(Marpa_Grammar g,Marpa_Rule_ID xrl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2487 "./marpa.w"
 
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
+/*:1257*/
 #line 2488 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
+/*:1255*/
 #line 2489 "./marpa.w"
 
 return XRL_is_Used(XRL_by_ID(xrl_id));
@@ -5220,21 +5220,21 @@ Marpa_Rule_ID
 _marpa_g_irl_semantic_equivalent(Marpa_Grammar g,Marpa_IRL_ID irl_id)
 {
 IRL irl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2501 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2502 "./marpa.w"
 
 irl= IRL_by_ID(irl_id);
@@ -5247,42 +5247,42 @@ return ID_of_XRL(Source_XRL_of_IRL(irl));
 
 Marpa_ISY_ID _marpa_g_irl_lhs(Marpa_Grammar g,Marpa_IRL_ID irl_id){
 IRL irl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2544 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2545 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2546 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2547 "./marpa.w"
 
 irl= IRL_by_ID(irl_id);
@@ -5294,42 +5294,42 @@ return LHSID_of_IRL(irl);
 
 Marpa_ISY_ID _marpa_g_irl_rhs(Marpa_Grammar g,Marpa_IRL_ID irl_id,int ix){
 IRL irl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2557 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2558 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2559 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2560 "./marpa.w"
 
 irl= IRL_by_ID(irl_id);
@@ -5341,42 +5341,42 @@ return RHSID_of_IRL(irl,ix);
 #line 2568 "./marpa.w"
 
 int _marpa_g_irl_length(Marpa_Grammar g,Marpa_IRL_ID irl_id){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2570 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2571 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2572 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2573 "./marpa.w"
 
 return Length_of_IRL(IRL_by_ID(irl_id));
@@ -5389,31 +5389,31 @@ int _marpa_g_irl_is_virtual_lhs(
 Marpa_Grammar g,
 Marpa_IRL_ID irl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2602 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2603 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2604 "./marpa.w"
 
 return IRL_has_Virtual_LHS(IRL_by_ID(irl_id));
@@ -5426,31 +5426,31 @@ int _marpa_g_irl_is_virtual_rhs(
 Marpa_Grammar g,
 Marpa_IRL_ID irl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2618 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2619 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2620 "./marpa.w"
 
 return IRL_has_Virtual_RHS(IRL_by_ID(irl_id));
@@ -5463,31 +5463,31 @@ int _marpa_g_real_symbol_count(
 Marpa_Grammar g,
 Marpa_IRL_ID irl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2638 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2639 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2640 "./marpa.w"
 
 return Real_SYM_Count_of_IRL(IRL_by_ID(irl_id));
@@ -5501,31 +5501,31 @@ Marpa_Grammar g,
 Marpa_IRL_ID irl_id)
 {
 IRL irl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2657 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2658 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2659 "./marpa.w"
 
 irl= IRL_by_ID(irl_id);
@@ -5540,31 +5540,31 @@ Marpa_Grammar g,
 Marpa_IRL_ID irl_id)
 {
 IRL irl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2677 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 2678 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2679 "./marpa.w"
 
 irl= IRL_by_ID(irl_id);
@@ -5579,21 +5579,21 @@ Marpa_Grammar g,
 Marpa_IRL_ID irl_id)
 {
 XRL source_xrl;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2699 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2700 "./marpa.w"
 
 source_xrl= Source_XRL_of_IRL(IRL_by_ID(irl_id));
@@ -5607,21 +5607,21 @@ Marpa_Rank _marpa_g_irl_rank(
 Marpa_Grammar g,
 Marpa_IRL_ID irl_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2726 "./marpa.w"
 
-/*1253:*/
-#line 14587 "./marpa.w"
+/*1254:*/
+#line 14614 "./marpa.w"
 
 if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
-/*:1253*/
+/*:1254*/
 #line 2727 "./marpa.w"
 
 return Rank_of_IRL(IRL_by_ID(irl_id));
@@ -5649,11 +5649,11 @@ return-1;
 
 int marpa_g_precompute(Marpa_Grammar g)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 2805 "./marpa.w"
 
 int return_value= failure_indicator;
@@ -5677,15 +5677,15 @@ Bit_Matrix reach_matrix= NULL;
 /*:352*/
 #line 2808 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 2809 "./marpa.w"
 
 G_EVENTS_CLEAR(g);
@@ -5700,15 +5700,15 @@ goto FAILURE;
 /*:337*/
 #line 2811 "./marpa.w"
 
-/*1247:*/
-#line 14554 "./marpa.w"
+/*1248:*/
+#line 14581 "./marpa.w"
 
 if(UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
 
-/*:1247*/
+/*:1248*/
 #line 2812 "./marpa.w"
 
 /*339:*/
@@ -8280,21 +8280,21 @@ return item_id<(AIMID)AIM_Count_of_G(g)&&item_id>=0;
 #line 4433 "./marpa.w"
 
 int _marpa_g_AHFA_item_count(Marpa_Grammar g){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4435 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4436 "./marpa.w"
 
 return AIM_Count_of_G(g);
@@ -8305,31 +8305,31 @@ return AIM_Count_of_G(g);
 
 Marpa_IRL_ID _marpa_g_AHFA_item_irl(Marpa_Grammar g,
 Marpa_AHFA_Item_ID item_id){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4443 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4444 "./marpa.w"
 
-/*1257:*/
-#line 14611 "./marpa.w"
+/*1258:*/
+#line 14638 "./marpa.w"
 
 if(UNLIKELY(!aim_is_valid(g,item_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
 return failure_indicator;
 }
-/*:1257*/
+/*:1258*/
 #line 4445 "./marpa.w"
 
 return IRLID_of_AIM(AIM_by_ID(item_id));
@@ -8340,31 +8340,31 @@ return IRLID_of_AIM(AIM_by_ID(item_id));
 
 int _marpa_g_AHFA_item_position(Marpa_Grammar g,
 Marpa_AHFA_Item_ID item_id){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4453 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4454 "./marpa.w"
 
-/*1257:*/
-#line 14611 "./marpa.w"
+/*1258:*/
+#line 14638 "./marpa.w"
 
 if(UNLIKELY(!aim_is_valid(g,item_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
 return failure_indicator;
 }
-/*:1257*/
+/*:1258*/
 #line 4455 "./marpa.w"
 
 return Position_of_AIM(AIM_by_ID(item_id));
@@ -8375,31 +8375,31 @@ return Position_of_AIM(AIM_by_ID(item_id));
 
 Marpa_Symbol_ID _marpa_g_AHFA_item_postdot(Marpa_Grammar g,
 Marpa_AHFA_Item_ID item_id){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4463 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4464 "./marpa.w"
 
-/*1257:*/
-#line 14611 "./marpa.w"
+/*1258:*/
+#line 14638 "./marpa.w"
 
 if(UNLIKELY(!aim_is_valid(g,item_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
 return failure_indicator;
 }
-/*:1257*/
+/*:1258*/
 #line 4465 "./marpa.w"
 
 return Postdot_ISYID_of_AIM(AIM_by_ID(item_id));
@@ -8410,31 +8410,31 @@ return Postdot_ISYID_of_AIM(AIM_by_ID(item_id));
 
 int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
 Marpa_AHFA_Item_ID item_id){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4472 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4473 "./marpa.w"
 
-/*1257:*/
-#line 14611 "./marpa.w"
+/*1258:*/
+#line 14638 "./marpa.w"
 
 if(UNLIKELY(!aim_is_valid(g,item_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
 return failure_indicator;
 }
-/*:1257*/
+/*:1258*/
 #line 4474 "./marpa.w"
 
 return Sort_Key_of_AIM(AIM_by_ID(item_id));
@@ -8528,33 +8528,33 @@ return AHFA_Count_of_G(g);
 
 int
 _marpa_g_AHFA_state_item_count(Marpa_Grammar g,AHFAID AHFA_state_id)
-{/*1246:*/
-#line 14549 "./marpa.w"
+{/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4871 "./marpa.w"
 
 AHFA state;
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4873 "./marpa.w"
 
-/*1258:*/
-#line 14616 "./marpa.w"
+/*1259:*/
+#line 14643 "./marpa.w"
 
 if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
 
-/*:1258*/
+/*:1259*/
 #line 4874 "./marpa.w"
 
 state= AHFA_of_G_by_ID(g,AHFA_state_id);
@@ -8568,32 +8568,32 @@ Marpa_AHFA_Item_ID _marpa_g_AHFA_state_item(Marpa_Grammar g,
 AHFAID AHFA_state_id,
 int item_ix){
 AHFA state;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4886 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4887 "./marpa.w"
 
-/*1258:*/
-#line 14616 "./marpa.w"
+/*1259:*/
+#line 14643 "./marpa.w"
 
 if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
 
-/*:1258*/
+/*:1259*/
 #line 4888 "./marpa.w"
 
 state= AHFA_of_G_by_ID(g,AHFA_state_id);
@@ -8614,32 +8614,32 @@ return AIMID_of_AHFA_by_AEX(g,state,item_ix);
 int _marpa_g_AHFA_state_is_predict(Marpa_Grammar g,
 AHFAID AHFA_state_id){
 AHFA state;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4905 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4906 "./marpa.w"
 
-/*1258:*/
-#line 14616 "./marpa.w"
+/*1259:*/
+#line 14643 "./marpa.w"
 
 if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
 
-/*:1258*/
+/*:1259*/
 #line 4907 "./marpa.w"
 
 state= AHFA_of_G_by_ID(g,AHFA_state_id);
@@ -8651,33 +8651,33 @@ return AHFA_is_Predicted(state);
 
 Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol(Marpa_Grammar g,
 Marpa_AHFA_State_ID AHFA_state_id){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 4926 "./marpa.w"
 
 AHFA state;
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 4928 "./marpa.w"
 
-/*1258:*/
-#line 14616 "./marpa.w"
+/*1259:*/
+#line 14643 "./marpa.w"
 
 if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
 
-/*:1258*/
+/*:1259*/
 #line 4929 "./marpa.w"
 
 state= AHFA_of_G_by_ID(g,AHFA_state_id);
@@ -8931,11 +8931,11 @@ int*buffer,
 int buffer_size
 ){
 
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 5984 "./marpa.w"
 
 AHFA from_ahfa_state;
@@ -8950,25 +8950,25 @@ const int max_results= max_ix/2;
 
 
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 5997 "./marpa.w"
 
-/*1258:*/
-#line 14616 "./marpa.w"
+/*1259:*/
+#line 14643 "./marpa.w"
 
 if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
 
-/*:1258*/
+/*:1259*/
 #line 5998 "./marpa.w"
 
 if(max_results<=0)return 0;
@@ -8992,32 +8992,32 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
 AHFAID AHFA_state_id){
 AHFA state;
 AHFA empty_transition_state;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6023 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 6024 "./marpa.w"
 
-/*1258:*/
-#line 14616 "./marpa.w"
+/*1259:*/
+#line 14643 "./marpa.w"
 
 if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
 
-/*:1258*/
+/*:1259*/
 #line 6025 "./marpa.w"
 
 state= AHFA_of_G_by_ID(g,AHFA_state_id);
@@ -9095,20 +9095,20 @@ Marpa_Recognizer marpa_r_new(Marpa_Grammar g)
 {
 RECCE r;
 ISYID isy_count;
-/*1245:*/
-#line 14546 "./marpa.w"
+/*1246:*/
+#line 14573 "./marpa.w"
 void*const failure_indicator= NULL;
-/*:1245*/
+/*:1246*/
 #line 6172 "./marpa.w"
 
-/*1248:*/
-#line 14560 "./marpa.w"
+/*1249:*/
+#line 14587 "./marpa.w"
 
 if(UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
-/*:1248*/
+/*:1249*/
 #line 6173 "./marpa.w"
 
 isy_count= ISY_Count_of_G(g);
@@ -9213,11 +9213,11 @@ ur_node_stack_init(URS_of_R(r));
 
 r->t_current_report_item= &progress_report_not_ready;
 r->t_progress_report_traverser= NULL;
-/*:959*//*1215:*/
-#line 14231 "./marpa.w"
+/*:959*//*1216:*/
+#line 14258 "./marpa.w"
 
 psar_init(Dot_PSAR_of_R(r),AHFA_Count_of_R(r));
-/*:1215*/
+/*:1216*/
 #line 6177 "./marpa.w"
 
 return r;
@@ -9311,11 +9311,11 @@ r->t_progress_report_traverser= NULL;
 /*:960*/
 #line 10994 "./marpa.w"
 ;
-/*:961*//*1216:*/
-#line 14233 "./marpa.w"
+/*:961*//*1217:*/
+#line 14260 "./marpa.w"
 
 psar_destroy(Dot_PSAR_of_R(r));
-/*:1216*/
+/*:1217*/
 #line 6224 "./marpa.w"
 
 grammar_unref(g);
@@ -9376,11 +9376,11 @@ unsigned int marpa_r_furthest_earleme(Marpa_Recognizer r)
 
 int marpa_r_terminals_expected(Marpa_Recognizer r,Marpa_Symbol_ID*buffer)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6335 "./marpa.w"
 
 /*575:*/
@@ -9393,25 +9393,25 @@ const GRAMMAR g= G_of_I(input);
 
 unsigned int min,max,start;
 int ix= 0;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6339 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 6340 "./marpa.w"
 
 for(start= 0;bv_scan(r->t_bv_isyid_is_expected,start,&min,&max);
@@ -9436,11 +9436,11 @@ int marpa_r_expected_symbol_event_set(Marpa_Recognizer r,Marpa_Symbol_ID xsy_id,
 XSY xsy;
 ISY isy;
 ISYID isyid;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6377 "./marpa.w"
 
 /*575:*/
@@ -9451,35 +9451,35 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6378 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6379 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 6380 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 6381 "./marpa.w"
 
 if(UNLIKELY(value<0||value> 1))
@@ -9517,22 +9517,22 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6475 "./marpa.w"
 
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6476 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6477 "./marpa.w"
 
 return r->t_use_leo_flag;
@@ -9551,32 +9551,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6484 "./marpa.w"
 
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6485 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6486 "./marpa.w"
 
-/*1259:*/
-#line 14625 "./marpa.w"
+/*1260:*/
+#line 14652 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)!=R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_STARTED);
 return failure_indicator;
 }
-/*:1259*/
+/*:1260*/
 #line 6487 "./marpa.w"
 
 return r->t_use_leo_flag= value?1:0;
@@ -9595,22 +9595,22 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6516 "./marpa.w"
 
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6517 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6518 "./marpa.w"
 
 return R_is_Exhausted(r);
@@ -9621,11 +9621,11 @@ return R_is_Exhausted(r);
 
 int marpa_r_earley_set_value(Marpa_Recognizer r,Marpa_Earley_Set_ID set_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6629 "./marpa.w"
 
 ES earley_set;
@@ -9637,25 +9637,25 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6631 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6632 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 6633 "./marpa.w"
 
 if(set_id<0)
@@ -9680,11 +9680,11 @@ int
 marpa_r_earley_set_values(Marpa_Recognizer r,Marpa_Earley_Set_ID set_id,
 int*p_value,void**p_pvalue)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6654 "./marpa.w"
 
 ES earley_set;
@@ -9696,25 +9696,25 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6656 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6657 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 6658 "./marpa.w"
 
 if(set_id<0)
@@ -9740,11 +9740,11 @@ return 1;
 int marpa_r_latest_earley_set_value_set(Marpa_Recognizer r,int value)
 {
 ES earley_set;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6680 "./marpa.w"
 
 /*575:*/
@@ -9755,25 +9755,25 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6681 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6682 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 6683 "./marpa.w"
 
 earley_set= Latest_ES_of_R(r);
@@ -9787,11 +9787,11 @@ int marpa_r_latest_earley_set_values_set(Marpa_Recognizer r,int value,
 void*pvalue)
 {
 ES earley_set;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6693 "./marpa.w"
 
 /*575:*/
@@ -9802,25 +9802,25 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6694 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6695 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 6696 "./marpa.w"
 
 earley_set= Latest_ES_of_R(r);
@@ -9852,12 +9852,12 @@ Next_ES_of_ES(set)= NULL;
 Value_of_ES(set)= -1;
 PValue_of_ES(set)= NULL;
 
-/*:635*//*1221:*/
-#line 14277 "./marpa.w"
+/*:635*//*1222:*/
+#line 14304 "./marpa.w"
 
 {set->t_dot_psl= NULL;}
 
-/*:1221*/
+/*:1222*/
 #line 6719 "./marpa.w"
 
 return set;
@@ -9868,11 +9868,11 @@ return set;
 
 Marpa_Earley_Set_ID _marpa_r_trace_earley_set(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6739 "./marpa.w"
 
 /*575:*/
@@ -9884,32 +9884,32 @@ const GRAMMAR g= G_of_I(input);
 #line 6740 "./marpa.w"
 
 ES trace_earley_set= r->t_trace_earley_set;
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 6742 "./marpa.w"
 
 if(!trace_earley_set){
@@ -9924,11 +9924,11 @@ return Ord_of_ES(trace_earley_set);
 
 Marpa_Earley_Set_ID marpa_r_latest_earley_set(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6753 "./marpa.w"
 
 /*575:*/
@@ -9939,32 +9939,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6754 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 6755 "./marpa.w"
 
 return Ord_of_ES(Latest_ES_of_R(r));
@@ -9983,33 +9983,33 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6762 "./marpa.w"
 
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6763 "./marpa.w"
 
 ES earley_set;
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 6765 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6766 "./marpa.w"
 
 if(set_id<0){
@@ -10031,11 +10031,11 @@ return Earleme_of_ES(earley_set);
 
 int _marpa_r_earley_set_size(Marpa_Recognizer r,Marpa_Earley_Set_ID set_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 6786 "./marpa.w"
 
 ES earley_set;
@@ -10047,25 +10047,25 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 6788 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 6789 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 6790 "./marpa.w"
 
 r_update_earley_sets(r);
@@ -10084,10 +10084,10 @@ return EIM_Count_of_ES(earley_set);
 PRIVATE EIM earley_item_create(const RECCE r,
 const EIK_Object key)
 {
-/*1245:*/
-#line 14546 "./marpa.w"
+/*1246:*/
+#line 14573 "./marpa.w"
 void*const failure_indicator= NULL;
-/*:1245*/
+/*:1246*/
 #line 6890 "./marpa.w"
 
 /*575:*/
@@ -10187,11 +10187,11 @@ _marpa_r_earley_set_trace(Marpa_Recognizer r,Marpa_Earley_Set_ID set_id)
 {
 ES earley_set;
 const int es_does_not_exist= -1;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7041 "./marpa.w"
 
 /*575:*/
@@ -10202,32 +10202,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7042 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7043 "./marpa.w"
 
 if(r->t_trace_earley_set&&Ord_of_ES(r->t_trace_earley_set)==set_id)
@@ -10277,11 +10277,11 @@ Marpa_AHFA_State_ID
 _marpa_r_earley_item_trace(Marpa_Recognizer r,Marpa_Earley_Item_ID item_id)
 {
 const int eim_does_not_exist= -1;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7077 "./marpa.w"
 
 ES trace_earley_set;
@@ -10295,32 +10295,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7081 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7082 "./marpa.w"
 
 trace_earley_set= r->t_trace_earley_set;
@@ -10385,11 +10385,11 @@ trace_source_link_clear(r);
 
 Marpa_Earley_Set_ID _marpa_r_earley_item_origin(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7125 "./marpa.w"
 
 EIM item= r->t_trace_earley_item;
@@ -10401,32 +10401,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7127 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7128 "./marpa.w"
 
 if(!item){
@@ -10450,11 +10450,11 @@ return Origin_Ord_of_EIM(item);
 Marpa_Symbol_ID _marpa_r_leo_predecessor_symbol(Marpa_Recognizer r)
 {
 const Marpa_Symbol_ID no_predecessor= -1;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7207 "./marpa.w"
 
 PIM postdot_item= r->t_trace_postdot_item;
@@ -10467,32 +10467,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7210 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7211 "./marpa.w"
 
 if(!postdot_item){
@@ -10514,11 +10514,11 @@ return Postdot_ISYID_of_LIM(predecessor_leo_item);
 Marpa_Earley_Set_ID _marpa_r_leo_base_origin(Marpa_Recognizer r)
 {
 const EARLEME pim_is_not_a_leo_item= -1;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7229 "./marpa.w"
 
 PIM postdot_item= r->t_trace_postdot_item;
@@ -10531,32 +10531,32 @@ const GRAMMAR g= G_of_I(input);
 #line 7231 "./marpa.w"
 
 EIM base_earley_item;
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7233 "./marpa.w"
 
 if(!postdot_item){
@@ -10574,11 +10574,11 @@ return Origin_Ord_of_EIM(base_earley_item);
 Marpa_AHFA_State_ID _marpa_r_leo_base_state(Marpa_Recognizer r)
 {
 const EARLEME pim_is_not_a_leo_item= -1;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7247 "./marpa.w"
 
 PIM postdot_item= r->t_trace_postdot_item;
@@ -10591,32 +10591,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7250 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7251 "./marpa.w"
 
 if(!postdot_item){
@@ -10634,11 +10634,11 @@ return AHFAID_of_EIM(base_earley_item);
 Marpa_AHFA_State_ID _marpa_r_leo_expansion_ahfa(Marpa_Recognizer r)
 {
 const EARLEME pim_is_not_a_leo_item= -1;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7289 "./marpa.w"
 
 const PIM postdot_item= r->t_trace_postdot_item;
@@ -10650,32 +10650,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7291 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7292 "./marpa.w"
 
 if(!postdot_item)
@@ -10733,11 +10733,11 @@ Marpa_Symbol_ID
 _marpa_r_postdot_symbol_trace(Marpa_Recognizer r,
 Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7393 "./marpa.w"
 
 ES current_es= r->t_trace_earley_set;
@@ -10760,52 +10760,52 @@ r->t_trace_postdot_item= NULL;
 /*:694*/
 #line 7398 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7399 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
+/*:1250*/
 #line 7400 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
+/*:1251*/
 #line 7401 "./marpa.w"
 
 if(!current_es){
@@ -10826,11 +10826,11 @@ return xsy_id;
 Marpa_Symbol_ID
 _marpa_r_first_postdot_item_trace(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7428 "./marpa.w"
 
 ES current_earley_set= r->t_trace_earley_set;
@@ -10853,32 +10853,32 @@ r->t_trace_postdot_item= NULL;
 /*:694*/
 #line 7433 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7434 "./marpa.w"
 
 if(!current_earley_set){
@@ -10908,11 +10908,11 @@ Marpa_Symbol_ID
 _marpa_r_next_postdot_item_trace(Marpa_Recognizer r)
 {
 const SYMID no_more_postdot_symbols= -1;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7460 "./marpa.w"
 
 ES current_set= r->t_trace_earley_set;
@@ -10942,32 +10942,32 @@ if(!pim_isy_p||!pim){
 MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
 return failure_indicator;
 }
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7473 "./marpa.w"
 
 if(!current_set){
@@ -10994,11 +10994,11 @@ return Postdot_ISYID_of_PIM(pim);
 
 Marpa_AHFA_State_ID _marpa_r_postdot_item_symbol(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7496 "./marpa.w"
 
 PIM postdot_item= r->t_trace_postdot_item;
@@ -11010,32 +11010,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7498 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7499 "./marpa.w"
 
 if(!postdot_item){
@@ -11200,11 +11200,11 @@ return;
 
 Marpa_Symbol_ID _marpa_r_first_token_link_trace(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7856 "./marpa.w"
 
 SRCL source_link;
@@ -11218,32 +11218,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7860 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7861 "./marpa.w"
 
 /*743:*/
@@ -11287,11 +11287,11 @@ return-1;
 
 Marpa_Symbol_ID _marpa_r_next_token_link_trace(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7897 "./marpa.w"
 
 SRCL source_link;
@@ -11304,32 +11304,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7900 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7901 "./marpa.w"
 
 /*743:*/
@@ -11364,11 +11364,11 @@ return ISYID_of_SRCL(source_link);
 
 Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7927 "./marpa.w"
 
 SRCL source_link;
@@ -11382,32 +11382,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7931 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7932 "./marpa.w"
 
 /*743:*/
@@ -11450,11 +11450,11 @@ return-1;
 
 Marpa_Symbol_ID _marpa_r_next_completion_link_trace(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7967 "./marpa.w"
 
 SRCL source_link;
@@ -11467,32 +11467,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 7970 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 7971 "./marpa.w"
 
 /*743:*/
@@ -11528,11 +11528,11 @@ return Cause_AHFAID_of_SRCL(source_link);
 Marpa_Symbol_ID
 _marpa_r_first_leo_link_trace(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 7998 "./marpa.w"
 
 SRCL source_link;
@@ -11545,32 +11545,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 8001 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 8002 "./marpa.w"
 
 /*743:*/
@@ -11602,11 +11602,11 @@ return-1;
 Marpa_Symbol_ID
 _marpa_r_next_leo_link_trace(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 8026 "./marpa.w"
 
 SRCL source_link;
@@ -11619,32 +11619,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 8029 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 8030 "./marpa.w"
 
 /*743:*/
@@ -11690,11 +11690,11 @@ r->t_trace_source_type= NO_SOURCE;
 
 AHFAID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 8075 "./marpa.w"
 
 unsigned int source_type;
@@ -11707,32 +11707,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 8078 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 8079 "./marpa.w"
 
 source_type= r->t_trace_source_type;
@@ -11766,11 +11766,11 @@ return failure_indicator;
 
 Marpa_Symbol_ID _marpa_r_source_token(Marpa_Recognizer r,int*value_p)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 8116 "./marpa.w"
 
 unsigned int source_type;
@@ -11783,32 +11783,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 8119 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 8120 "./marpa.w"
 
 source_type= r->t_trace_source_type;
@@ -11838,11 +11838,11 @@ return failure_indicator;
 
 Marpa_Symbol_ID _marpa_r_source_leo_transition_symbol(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 8148 "./marpa.w"
 
 unsigned int source_type;
@@ -11855,32 +11855,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 8151 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 8152 "./marpa.w"
 
 source_type= r->t_trace_source_type;
@@ -11910,11 +11910,11 @@ return failure_indicator;
 
 Marpa_Earley_Set_ID _marpa_r_source_middle(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 8194 "./marpa.w"
 
 const EARLEME no_predecessor= -1;
@@ -11928,32 +11928,32 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 8198 "./marpa.w"
 
-/*1262:*/
-#line 14641 "./marpa.w"
-
 /*1263:*/
-#line 14645 "./marpa.w"
+#line 14668 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 14642 "./marpa.w"
+/*:1264*/
+#line 14669 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
-#line 14643 "./marpa.w"
+/*:1261*/
+#line 14670 "./marpa.w"
 
 
-/*:1262*/
+/*:1263*/
 #line 8199 "./marpa.w"
 
 source_type= r->t_trace_source_type;
@@ -12094,21 +12094,21 @@ Bit_Vector bv_ok_for_chain= bv_create(isy_count);
 /*:773*/
 #line 8437 "./marpa.w"
 
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 8438 "./marpa.w"
 
-/*1259:*/
-#line 14625 "./marpa.w"
+/*1260:*/
+#line 14652 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)!=R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_STARTED);
 return failure_indicator;
 }
-/*:1259*/
+/*:1260*/
 #line 8439 "./marpa.w"
 
 Current_Earleme_of_R(r)= 0;
@@ -12386,11 +12386,11 @@ return MARPA_ERR_NONE;
 Marpa_Earleme
 marpa_r_earleme_complete(Marpa_Recognizer r)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 8765 "./marpa.w"
 
 /*575:*/
@@ -12419,15 +12419,15 @@ Bit_Vector bv_ok_for_chain= bv_create(isy_count);
 /*:799*/
 #line 8777 "./marpa.w"
 
-/*1261:*/
-#line 14635 "./marpa.w"
+/*1262:*/
+#line 14662 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)!=R_DURING_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
 return failure_indicator;
 }
 
-/*:1261*/
+/*:1262*/
 #line 8778 "./marpa.w"
 
 G_EVENTS_CLEAR(g);
@@ -13257,22 +13257,22 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 10863 "./marpa.w"
 
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 10864 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 10865 "./marpa.w"
 
 return AND_Count_of_B(b);
@@ -13285,11 +13285,11 @@ int _marpa_b_and_node_parent(Marpa_Bocage b,
 Marpa_And_Node_ID and_node_id)
 {
 AND and_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 10896 "./marpa.w"
 
 /*978:*/
@@ -13338,11 +13338,11 @@ int _marpa_b_and_node_predecessor(Marpa_Bocage b,
 Marpa_And_Node_ID and_node_id)
 {
 AND and_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 10907 "./marpa.w"
 
 /*978:*/
@@ -13396,11 +13396,11 @@ int _marpa_b_and_node_cause(Marpa_Bocage b,
 Marpa_And_Node_ID and_node_id)
 {
 AND and_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 10923 "./marpa.w"
 
 /*978:*/
@@ -13454,11 +13454,11 @@ int _marpa_b_and_node_symbol(Marpa_Bocage b,
 Marpa_And_Node_ID and_node_id)
 {
 AND and_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 10939 "./marpa.w"
 
 /*978:*/
@@ -13513,11 +13513,11 @@ Marpa_And_Node_ID and_node_id,int*value_p)
 {
 TOK token;
 AND and_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 10956 "./marpa.w"
 
 /*978:*/
@@ -13603,11 +13603,11 @@ int marpa_r_progress_report_start(
 Marpa_Recognizer r,
 Marpa_Earley_Set_ID set_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11035 "./marpa.w"
 
 ES earley_set;
@@ -13619,25 +13619,25 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 11037 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11038 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 11039 "./marpa.w"
 
 if(set_id<0)
@@ -13800,11 +13800,11 @@ return marpa_avl_count(report_tree);
 
 int marpa_r_progress_report_finish(Marpa_Recognizer r){
 const int success= 1;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11180 "./marpa.w"
 
 /*575:*/
@@ -13850,11 +13850,11 @@ return success;
 Marpa_Rule_ID marpa_r_progress_item(
 Marpa_Recognizer r,int*position,Marpa_Earley_Set_ID*origin
 ){
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11192 "./marpa.w"
 
 PROGRESS report_item;
@@ -13867,25 +13867,25 @@ const GRAMMAR g= G_of_I(input);
 /*:575*/
 #line 11195 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11196 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 11197 "./marpa.w"
 
 traverser= r->t_progress_report_traverser;
@@ -13923,10 +13923,10 @@ return RULEID_of_PROGRESS(report_item);
 Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
 Marpa_Earley_Set_ID ordinal_arg)
 {
-/*1245:*/
-#line 14546 "./marpa.w"
+/*1246:*/
+#line 14573 "./marpa.w"
 void*const failure_indicator= NULL;
-/*:1245*/
+/*:1246*/
 #line 11261 "./marpa.w"
 
 /*984:*/
@@ -13956,25 +13956,25 @@ struct s_bocage_setup_per_es*per_es_data= NULL;
 #line 11262 "./marpa.w"
 
 INPUT input;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11264 "./marpa.w"
 
-/*1260:*/
-#line 14630 "./marpa.w"
+/*1261:*/
+#line 14657 "./marpa.w"
 
 if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
-/*:1260*/
+/*:1261*/
 #line 11265 "./marpa.w"
 
 {
@@ -14409,8 +14409,8 @@ OR**const nodes_by_item= per_es_data[work_earley_set_ordinal].t_aexes_by_item;
 psar_dealloc(or_psar);
 #define PSL_ES_ORD work_earley_set_ordinal
 #define CLAIMED_PSL this_earley_set_psl
-/*1227:*/
-#line 14334 "./marpa.w"
+/*1228:*/
+#line 14361 "./marpa.w"
 
 {
 PSL*psl_owner= &per_es_data[PSL_ES_ORD].t_or_psl;
@@ -14421,7 +14421,7 @@ psl_claim(psl_owner,or_psar);
 #undef PSL_ES_ORD
 #undef CLAIMED_PSL
 
-/*:1227*/
+/*:1228*/
 #line 10104 "./marpa.w"
 
 /*903:*/
@@ -14451,8 +14451,8 @@ ahfa_item_symbol_instance= SYMI_of_AIM(ahfa_item);
 PSL or_psl;
 #define PSL_ES_ORD work_origin_ordinal
 #define CLAIMED_PSL or_psl
-/*1227:*/
-#line 14334 "./marpa.w"
+/*1228:*/
+#line 14361 "./marpa.w"
 
 {
 PSL*psl_owner= &per_es_data[PSL_ES_ORD].t_or_psl;
@@ -14463,7 +14463,7 @@ psl_claim(psl_owner,or_psar);
 #undef PSL_ES_ORD
 #undef CLAIMED_PSL
 
-/*:1227*/
+/*:1228*/
 #line 10142 "./marpa.w"
 
 /*906:*/
@@ -14616,8 +14616,8 @@ OR or_node;
 PSL leo_psl;
 #define PSL_ES_ORD ordinal_of_set_of_this_leo_item
 #define CLAIMED_PSL leo_psl
-/*1227:*/
-#line 14334 "./marpa.w"
+/*1228:*/
+#line 14361 "./marpa.w"
 
 {
 PSL*psl_owner= &per_es_data[PSL_ES_ORD].t_or_psl;
@@ -14628,7 +14628,7 @@ psl_claim(psl_owner,or_psar);
 #undef PSL_ES_ORD
 #undef CLAIMED_PSL
 
-/*:1227*/
+/*:1228*/
 #line 10322 "./marpa.w"
 
 or_node= PSL_Datum(leo_psl,symbol_instance_of_path_ahfa_item);
@@ -15265,11 +15265,11 @@ return NULL;
 
 Marpa_Or_Node_ID _marpa_b_top_or_node(Marpa_Bocage b)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11465 "./marpa.w"
 
 /*978:*/
@@ -15281,15 +15281,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 11466 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11467 "./marpa.w"
 
 return Top_ORID_of_B(b);
@@ -15388,11 +15388,11 @@ int _marpa_b_or_node_set(Marpa_Bocage b,
 Marpa_Or_Node_ID or_node_id)
 {
 OR or_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11573 "./marpa.w"
 
 /*978:*/
@@ -15404,15 +15404,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 11574 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11575 "./marpa.w"
 
 /*1007:*/
@@ -15452,11 +15452,11 @@ int _marpa_b_or_node_origin(Marpa_Bocage b,
 Marpa_Or_Node_ID or_node_id)
 {
 OR or_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11585 "./marpa.w"
 
 /*978:*/
@@ -15468,15 +15468,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 11586 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11587 "./marpa.w"
 
 /*1007:*/
@@ -15516,11 +15516,11 @@ Marpa_IRL_ID _marpa_b_or_node_irl(Marpa_Bocage b,
 Marpa_Or_Node_ID or_node_id)
 {
 OR or_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11597 "./marpa.w"
 
 /*978:*/
@@ -15532,15 +15532,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 11598 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11599 "./marpa.w"
 
 /*1007:*/
@@ -15580,11 +15580,11 @@ int _marpa_b_or_node_position(Marpa_Bocage b,
 Marpa_Or_Node_ID or_node_id)
 {
 OR or_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11609 "./marpa.w"
 
 /*978:*/
@@ -15596,15 +15596,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 11610 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11611 "./marpa.w"
 
 /*1007:*/
@@ -15644,11 +15644,11 @@ int _marpa_b_or_node_first_and(Marpa_Bocage b,
 Marpa_Or_Node_ID or_node_id)
 {
 OR or_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11621 "./marpa.w"
 
 /*978:*/
@@ -15660,15 +15660,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 11622 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11623 "./marpa.w"
 
 /*1007:*/
@@ -15708,11 +15708,11 @@ int _marpa_b_or_node_last_and(Marpa_Bocage b,
 Marpa_Or_Node_ID or_node_id)
 {
 OR or_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11633 "./marpa.w"
 
 /*978:*/
@@ -15724,15 +15724,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 11634 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11635 "./marpa.w"
 
 /*1007:*/
@@ -15773,11 +15773,11 @@ int _marpa_b_or_node_and_count(Marpa_Bocage b,
 Marpa_Or_Node_ID or_node_id)
 {
 OR or_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11646 "./marpa.w"
 
 /*978:*/
@@ -15789,15 +15789,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:978*/
 #line 11647 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11648 "./marpa.w"
 
 /*1007:*/
@@ -15835,10 +15835,10 @@ return AND_Count_of_OR(or_node);
 
 Marpa_Order marpa_o_new(Marpa_Bocage b)
 {
-/*1245:*/
-#line 14546 "./marpa.w"
+/*1246:*/
+#line 14573 "./marpa.w"
 void*const failure_indicator= NULL;
-/*:1245*/
+/*:1246*/
 #line 11692 "./marpa.w"
 
 /*978:*/
@@ -15851,15 +15851,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 #line 11693 "./marpa.w"
 
 ORDER o;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11695 "./marpa.w"
 
 o= my_slice_new(*o);
@@ -15959,11 +15959,11 @@ int marpa_o_high_rank_only_set(
 Marpa_Order o,
 int count)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11776 "./marpa.w"
 
 /*1028:*/
@@ -15983,15 +15983,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1028*/
 #line 11777 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11778 "./marpa.w"
 
 if(O_is_Frozen(o))
@@ -16012,11 +16012,11 @@ return High_Rank_Count_of_O(o)= count;
 
 int marpa_o_high_rank_only(Marpa_Order o)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11796 "./marpa.w"
 
 /*1028:*/
@@ -16036,15 +16036,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1028*/
 #line 11797 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11798 "./marpa.w"
 
 return High_Rank_Count_of_O(o);
@@ -16058,11 +16058,11 @@ int marpa_o_rank(Marpa_Order o)
 ANDID**and_node_orderings;
 struct obstack*obs;
 int bocage_was_reordered= 0;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 11858 "./marpa.w"
 
 /*1028:*/
@@ -16082,15 +16082,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1028*/
 #line 11859 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 11860 "./marpa.w"
 
 if(O_is_Frozen(o))
@@ -16329,11 +16329,11 @@ Marpa_And_Node_ID _marpa_o_and_order_get(Marpa_Order o,
 Marpa_Or_Node_ID or_node_id,int ix)
 {
 OR or_node;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12078 "./marpa.w"
 
 /*1028:*/
@@ -16353,15 +16353,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1028*/
 #line 12079 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12080 "./marpa.w"
 
 /*1007:*/
@@ -16424,10 +16424,10 @@ T_is_Exhausted(t)= 1;
 
 Marpa_Tree marpa_t_new(Marpa_Order o)
 {
-/*1245:*/
-#line 14546 "./marpa.w"
+/*1246:*/
+#line 14573 "./marpa.w"
 void*const failure_indicator= NULL;
-/*:1245*/
+/*:1246*/
 #line 12155 "./marpa.w"
 
 TREE t;
@@ -16448,15 +16448,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1028*/
 #line 12157 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12158 "./marpa.w"
 
 t= my_slice_new(*t);
@@ -16581,11 +16581,11 @@ tree_unref(t);
 
 int marpa_t_next(Marpa_Tree t)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12294 "./marpa.w"
 
 const int termination_indicator= -1;
@@ -16615,15 +16615,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1052*/
 #line 12297 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12298 "./marpa.w"
 
 if(T_is_Paused(t)){
@@ -16855,11 +16855,11 @@ return t->t_parse_count;
 
 int _marpa_t_size(Marpa_Tree t)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12531 "./marpa.w"
 
 /*1052:*/
@@ -16887,15 +16887,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1052*/
 #line 12532 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12533 "./marpa.w"
 
 if(T_is_Exhausted(t)){
@@ -16912,11 +16912,11 @@ return Size_of_T(t);
 int _marpa_t_nook_or_node(Marpa_Tree t,int nook_id)
 {
 NOOK nook;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12598 "./marpa.w"
 
 /*1052:*/
@@ -16948,15 +16948,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 #line 12576 "./marpa.w"
 {
 NOOK base_nook;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12578 "./marpa.w"
 
 if(T_is_Exhausted(t)){
@@ -16986,11 +16986,11 @@ return ID_of_OR(OR_of_NOOK(nook));
 int _marpa_t_nook_choice(Marpa_Tree t,int nook_id)
 {
 NOOK nook;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12608 "./marpa.w"
 
 /*1052:*/
@@ -17022,15 +17022,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 #line 12576 "./marpa.w"
 {
 NOOK base_nook;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12578 "./marpa.w"
 
 if(T_is_Exhausted(t)){
@@ -17060,11 +17060,11 @@ return Choice_of_NOOK(nook);
 int _marpa_t_nook_parent(Marpa_Tree t,int nook_id)
 {
 NOOK nook;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12618 "./marpa.w"
 
 /*1052:*/
@@ -17096,15 +17096,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 #line 12576 "./marpa.w"
 {
 NOOK base_nook;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12578 "./marpa.w"
 
 if(T_is_Exhausted(t)){
@@ -17134,11 +17134,11 @@ return Parent_of_NOOK(nook);
 int _marpa_t_nook_cause_is_ready(Marpa_Tree t,int nook_id)
 {
 NOOK nook;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12628 "./marpa.w"
 
 /*1052:*/
@@ -17170,15 +17170,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 #line 12576 "./marpa.w"
 {
 NOOK base_nook;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12578 "./marpa.w"
 
 if(T_is_Exhausted(t)){
@@ -17208,11 +17208,11 @@ return NOOK_Cause_is_Ready(nook);
 int _marpa_t_nook_predecessor_is_ready(Marpa_Tree t,int nook_id)
 {
 NOOK nook;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12638 "./marpa.w"
 
 /*1052:*/
@@ -17244,15 +17244,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 #line 12576 "./marpa.w"
 {
 NOOK base_nook;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12578 "./marpa.w"
 
 if(T_is_Exhausted(t)){
@@ -17282,11 +17282,11 @@ return NOOK_Predecessor_is_Ready(nook);
 int _marpa_t_nook_is_cause(Marpa_Tree t,int nook_id)
 {
 NOOK nook;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12648 "./marpa.w"
 
 /*1052:*/
@@ -17318,15 +17318,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 #line 12576 "./marpa.w"
 {
 NOOK base_nook;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12578 "./marpa.w"
 
 if(T_is_Exhausted(t)){
@@ -17356,11 +17356,11 @@ return NOOK_is_Cause(nook);
 int _marpa_t_nook_is_predecessor(Marpa_Tree t,int nook_id)
 {
 NOOK nook;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12658 "./marpa.w"
 
 /*1052:*/
@@ -17392,15 +17392,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 #line 12576 "./marpa.w"
 {
 NOOK base_nook;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12578 "./marpa.w"
 
 if(T_is_Exhausted(t)){
@@ -17429,10 +17429,10 @@ return NOOK_is_Predecessor(nook);
 
 Marpa_Value marpa_v_new(Marpa_Tree t)
 {
-/*1245:*/
-#line 14546 "./marpa.w"
+/*1246:*/
+#line 14573 "./marpa.w"
 void*const failure_indicator= NULL;
-/*:1245*/
+/*:1246*/
 #line 12840 "./marpa.w"
 
 /*1052:*/
@@ -17460,15 +17460,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1052*/
 #line 12841 "./marpa.w"
 ;
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12842 "./marpa.w"
 
 if(t->t_parse_count<=0){
@@ -17615,11 +17615,11 @@ my_obstack_free(v->t_obs);
 
 int _marpa_v_trace(Marpa_Value public_v,int flag)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12939 "./marpa.w"
 
 const VALUE v= (VALUE)public_v;
@@ -17656,15 +17656,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1119*/
 #line 12941 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12942 "./marpa.w"
 
 if(UNLIKELY(!V_is_Active(v))){
@@ -17680,11 +17680,11 @@ return 1;
 
 Marpa_Nook_ID _marpa_v_nook(Marpa_Value public_v)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
+/*:1247*/
 #line 12961 "./marpa.w"
 
 const VALUE v= (VALUE)public_v;
@@ -17721,15 +17721,15 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*:1119*/
 #line 12963 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
+/*:1264*/
 #line 12964 "./marpa.w"
 
 if(UNLIKELY(V_is_Nulling(v)))return-1;
@@ -17741,18 +17741,18 @@ return NOOK_of_V(v);
 }
 
 /*:1128*//*1133:*/
-#line 12991 "./marpa.w"
+#line 12990 "./marpa.w"
 
 int marpa_v_symbol_is_valued(
 Marpa_Value public_v,
 Marpa_Symbol_ID xsy_id)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
-#line 12996 "./marpa.w"
+/*:1247*/
+#line 12995 "./marpa.w"
 
 const VALUE v= (VALUE)public_v;
 /*1119:*/
@@ -17786,54 +17786,54 @@ const GRAMMAR g UNUSED= G_of_I(input);
 
 
 /*:1119*/
-#line 12998 "./marpa.w"
+#line 12997 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 12999 "./marpa.w"
+/*:1264*/
+#line 12998 "./marpa.w"
 
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
-#line 13000 "./marpa.w"
+/*:1250*/
+#line 12999 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
-#line 13001 "./marpa.w"
+/*:1251*/
+#line 13000 "./marpa.w"
 
 return lbv_bit_test(XSY_is_Valued_BV_of_V(v),xsy_id);
 }
 
 /*:1133*//*1134:*/
-#line 13005 "./marpa.w"
+#line 13006 "./marpa.w"
 
 PRIVATE int symbol_is_valued_set(
 VALUE v,XSYID xsy_id,int value)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
-#line 13009 "./marpa.w"
+/*:1247*/
+#line 13010 "./marpa.w"
 
 const int old_value= lbv_bit_test(XSY_is_Valued_BV_of_V(v),xsy_id);
 if(old_value==value){
@@ -17854,18 +17854,18 @@ return value;
 }
 
 /*:1134*//*1135:*/
-#line 13028 "./marpa.w"
+#line 13029 "./marpa.w"
 
 int marpa_v_symbol_is_valued_set(
 Marpa_Value public_v,Marpa_Symbol_ID xsy_id,int value)
 {
 const VALUE v= (VALUE)public_v;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
-#line 13033 "./marpa.w"
+/*:1247*/
+#line 13034 "./marpa.w"
 
 /*1119:*/
 #line 12918 "./marpa.w"
@@ -17898,60 +17898,134 @@ const GRAMMAR g UNUSED= G_of_I(input);
 
 
 /*:1119*/
-#line 13034 "./marpa.w"
+#line 13035 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 13035 "./marpa.w"
+/*:1264*/
+#line 13036 "./marpa.w"
 
 if(UNLIKELY(value<0||value> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
 }
-/*1249:*/
-#line 14565 "./marpa.w"
+/*1250:*/
+#line 14592 "./marpa.w"
 
 if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
-/*:1249*/
-#line 13041 "./marpa.w"
+/*:1250*/
+#line 13042 "./marpa.w"
 
-/*1250:*/
-#line 14572 "./marpa.w"
+/*1251:*/
+#line 14599 "./marpa.w"
 
 if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
-/*:1250*/
-#line 13042 "./marpa.w"
+/*:1251*/
+#line 13043 "./marpa.w"
 
 return symbol_is_valued_set(v,xsy_id,value);
 }
 
 /*:1135*//*1136:*/
-#line 13046 "./marpa.w"
+#line 13049 "./marpa.w"
+
+int
+marpa_v_valued_force(Marpa_Value public_v)
+{
+const VALUE v= (VALUE)public_v;
+/*1247:*/
+#line 14576 "./marpa.w"
+const int failure_indicator= -2;
+
+/*:1247*/
+#line 13054 "./marpa.w"
+
+XSYID xsy_count;
+XSYID xsy_id;
+/*1119:*/
+#line 12918 "./marpa.w"
+
+TREE t= T_of_V(v);
+/*1052:*/
+#line 12130 "./marpa.w"
+
+ORDER o= O_of_T(t);
+/*1028:*/
+#line 11751 "./marpa.w"
+
+const BOCAGE b= B_of_O(o);
+/*978:*/
+#line 11244 "./marpa.w"
+
+const INPUT input= I_of_B(b);
+const GRAMMAR g UNUSED= G_of_I(input);
+
+/*:978*/
+#line 11753 "./marpa.w"
+
+
+/*:1028*/
+#line 12132 "./marpa.w"
+;
+
+/*:1052*/
+#line 12920 "./marpa.w"
+
+
+/*:1119*/
+#line 13057 "./marpa.w"
+
+/*1264:*/
+#line 14672 "./marpa.w"
+
+if(UNLIKELY(!IS_G_OK(g))){
+MARPA_ERROR(g->t_error);
+return failure_indicator;
+}
+
+/*:1264*/
+#line 13058 "./marpa.w"
+
+xsy_count= XSY_Count_of_G(g);
+for(xsy_id= 0;xsy_id<xsy_count;xsy_id++)
+{
+if(UNLIKELY(!lbv_bit_test(XSY_is_Valued_BV_of_V(v),xsy_id)&&
+lbv_bit_test(Valued_Locked_BV_of_V(v),xsy_id)))
+{
+return failure_indicator;
+}
+lbv_bit_set(Valued_Locked_BV_of_V(v),xsy_id);
+lbv_bit_set(XSY_is_Valued_BV_of_V(v),xsy_id);
+}
+return xsy_count;
+}
+
+/*:1136*//*1137:*/
+#line 13073 "./marpa.w"
 
 int marpa_v_rule_is_valued_set(
 Marpa_Value public_v,Marpa_Rule_ID xrl_id,int value)
 {
 const VALUE v= (VALUE)public_v;
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
-#line 13051 "./marpa.w"
+/*:1247*/
+#line 13078 "./marpa.w"
 
 /*1119:*/
 #line 12918 "./marpa.w"
@@ -17984,43 +18058,43 @@ const GRAMMAR g UNUSED= G_of_I(input);
 
 
 /*:1119*/
-#line 13052 "./marpa.w"
+#line 13079 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 13053 "./marpa.w"
+/*:1264*/
+#line 13080 "./marpa.w"
 
 if(UNLIKELY(value<0||value> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
 }
-/*1256:*/
-#line 14606 "./marpa.w"
+/*1257:*/
+#line 14633 "./marpa.w"
 
 if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
-/*:1256*/
-#line 13059 "./marpa.w"
+/*:1257*/
+#line 13086 "./marpa.w"
 
-/*1254:*/
-#line 14595 "./marpa.w"
+/*1255:*/
+#line 14622 "./marpa.w"
 
 if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
-/*:1254*/
-#line 13060 "./marpa.w"
+/*:1255*/
+#line 13087 "./marpa.w"
 
 {
 const XRL xrl= XRL_by_ID(xrl_id);
@@ -18029,17 +18103,17 @@ return symbol_is_valued_set(v,xsy_id,value);
 }
 }
 
-/*:1136*//*1138:*/
-#line 13075 "./marpa.w"
+/*:1137*//*1139:*/
+#line 13102 "./marpa.w"
 
 Marpa_Step_Type marpa_v_step(Marpa_Value public_v)
 {
-/*1246:*/
-#line 14549 "./marpa.w"
+/*1247:*/
+#line 14576 "./marpa.w"
 const int failure_indicator= -2;
 
-/*:1246*/
-#line 13078 "./marpa.w"
+/*:1247*/
+#line 13105 "./marpa.w"
 
 const VALUE v= (VALUE)public_v;
 
@@ -18075,10 +18149,10 @@ const GRAMMAR g UNUSED= G_of_I(input);
 
 
 /*:1119*/
-#line 13082 "./marpa.w"
+#line 13109 "./marpa.w"
 
-/*1140:*/
-#line 13163 "./marpa.w"
+/*1141:*/
+#line 13190 "./marpa.w"
 
 {
 while(V_is_Active(v))
@@ -18102,8 +18176,8 @@ return Step_Type_of_V(v)= MARPA_STEP_NULLING_SYMBOL;
 }
 }
 
-/*:1140*/
-#line 13083 "./marpa.w"
+/*:1141*/
+#line 13110 "./marpa.w"
 
 return Step_Type_of_V(v)= MARPA_STEP_INACTIVE;
 }
@@ -18146,12 +18220,12 @@ const GRAMMAR g UNUSED= G_of_I(input);
 
 
 /*:1119*/
-#line 13094 "./marpa.w"
+#line 13121 "./marpa.w"
 
 xsy_count= XSY_Count_of_G(g);
 lbv_fill(Valued_Locked_BV_of_V(v),xsy_count);
-/*1139:*/
-#line 13147 "./marpa.w"
+/*1140:*/
+#line 13174 "./marpa.w"
 
 {
 const LBV xsy_bv= XSY_is_Valued_BV_of_V(v);
@@ -18168,14 +18242,14 @@ lbv_bit_set(xrl_bv,xrlid);
 }
 }
 
-/*:1139*/
-#line 13097 "./marpa.w"
+/*:1140*/
+#line 13124 "./marpa.w"
 
 }
 
 case STEP_GET_DATA:
-/*1141:*/
-#line 13186 "./marpa.w"
+/*1142:*/
+#line 13213 "./marpa.w"
 
 {
 AND and_nodes;
@@ -18215,18 +18289,18 @@ const GRAMMAR g UNUSED= G_of_I(input);
 
 
 /*:1119*/
-#line 13194 "./marpa.w"
+#line 13221 "./marpa.w"
 
-/*1263:*/
-#line 14645 "./marpa.w"
+/*1264:*/
+#line 14672 "./marpa.w"
 
 if(UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
 
-/*:1263*/
-#line 13195 "./marpa.w"
+/*:1264*/
+#line 13222 "./marpa.w"
 
 and_nodes= ANDs_of_B(B_of_O(o));
 
@@ -18344,8 +18418,8 @@ if(V_is_Trace(v))break;
 }
 }
 
-/*:1141*/
-#line 13101 "./marpa.w"
+/*:1142*/
+#line 13128 "./marpa.w"
 
 if(!V_is_Active(v))break;
 
@@ -18388,16 +18462,16 @@ Next_Value_Type_of_V(v)= MARPA_STEP_INACTIVE;
 return Step_Type_of_V(v)= MARPA_STEP_INACTIVE;
 }
 
-/*:1138*//*1143:*/
-#line 13329 "./marpa.w"
+/*:1139*//*1144:*/
+#line 13356 "./marpa.w"
 
 PRIVATE int lbv_bits_to_size(int bits)
 {
 return(bits+(lbv_wordbits-1))/lbv_wordbits;
 }
 
-/*:1143*//*1144:*/
-#line 13336 "./marpa.w"
+/*:1144*//*1145:*/
+#line 13363 "./marpa.w"
 
 PRIVATE Bit_Vector
 lbv_obs_new0(struct obstack*obs,int bits)
@@ -18411,8 +18485,8 @@ while(size--)*addr++= 0u;
 return lbv;
 }
 
-/*:1144*//*1146:*/
-#line 13360 "./marpa.w"
+/*:1145*//*1147:*/
+#line 13387 "./marpa.w"
 
 PRIVATE LBV lbv_copy(
 struct obstack*obs,LBV old_lbv,int bits)
@@ -18427,8 +18501,8 @@ while(size--)*to_addr++= *from_addr++;
 return new_lbv;
 }
 
-/*:1146*//*1147:*/
-#line 13376 "./marpa.w"
+/*:1147*//*1148:*/
+#line 13403 "./marpa.w"
 
 PRIVATE LBV lbv_fill(
 LBV lbv,int bits)
@@ -18441,15 +18515,15 @@ while(size--)*to_addr++= ~((LBW)0);
 return lbv;
 }
 
-/*:1147*//*1150:*/
-#line 13412 "./marpa.w"
+/*:1148*//*1151:*/
+#line 13439 "./marpa.w"
 
 PRIVATE unsigned int bv_bits_to_size(unsigned int bits)
 {
 return(bits+bv_modmask)/bv_wordbits;
 }
-/*:1150*//*1151:*/
-#line 13418 "./marpa.w"
+/*:1151*//*1152:*/
+#line 13445 "./marpa.w"
 
 PRIVATE unsigned int bv_bits_to_unused_mask(unsigned int bits)
 {
@@ -18458,8 +18532,8 @@ if(mask)mask= (unsigned int)~(~0uL<<mask);else mask= (unsigned int)~0uL;
 return(mask);
 }
 
-/*:1151*//*1153:*/
-#line 13432 "./marpa.w"
+/*:1152*//*1154:*/
+#line 13459 "./marpa.w"
 
 PRIVATE Bit_Vector bv_create(unsigned int bits)
 {
@@ -18472,8 +18546,8 @@ unsigned int*addr= (Bit_Vector)my_malloc0((size_t)bytes);
 return addr;
 }
 
-/*:1153*//*1155:*/
-#line 13450 "./marpa.w"
+/*:1154*//*1156:*/
+#line 13477 "./marpa.w"
 
 PRIVATE Bit_Vector
 bv_obs_create(struct obstack*obs,unsigned int bits)
@@ -18492,8 +18566,8 @@ return addr;
 }
 
 
-/*:1155*//*1156:*/
-#line 13471 "./marpa.w"
+/*:1156*//*1157:*/
+#line 13498 "./marpa.w"
 
 PRIVATE Bit_Vector bv_shadow(Bit_Vector bv)
 {
@@ -18504,8 +18578,8 @@ PRIVATE Bit_Vector bv_obs_shadow(struct obstack*obs,Bit_Vector bv)
 return bv_obs_create(obs,BV_BITS(bv));
 }
 
-/*:1156*//*1157:*/
-#line 13485 "./marpa.w"
+/*:1157*//*1158:*/
+#line 13512 "./marpa.w"
 
 PRIVATE
 Bit_Vector bv_copy(Bit_Vector bv_to,Bit_Vector bv_from)
@@ -18520,8 +18594,8 @@ while(count--)*p_to++= *bv_from++;
 return(bv_to);
 }
 
-/*:1157*//*1158:*/
-#line 13503 "./marpa.w"
+/*:1158*//*1159:*/
+#line 13530 "./marpa.w"
 
 PRIVATE
 Bit_Vector bv_clone(Bit_Vector bv)
@@ -18535,8 +18609,8 @@ Bit_Vector bv_obs_clone(struct obstack*obs,Bit_Vector bv)
 return bv_copy(bv_obs_shadow(obs,bv),bv);
 }
 
-/*:1158*//*1159:*/
-#line 13517 "./marpa.w"
+/*:1159*//*1160:*/
+#line 13544 "./marpa.w"
 
 PRIVATE void bv_free(Bit_Vector vector)
 {
@@ -18547,8 +18621,8 @@ my_free(vector);
 }
 }
 
-/*:1159*//*1160:*/
-#line 13528 "./marpa.w"
+/*:1160*//*1161:*/
+#line 13555 "./marpa.w"
 
 PRIVATE void bv_fill(Bit_Vector bv)
 {
@@ -18559,8 +18633,8 @@ while(size--)*bv++= ~0u;
 *bv&= BV_MASK(bv);
 }
 
-/*:1160*//*1161:*/
-#line 13539 "./marpa.w"
+/*:1161*//*1162:*/
+#line 13566 "./marpa.w"
 
 PRIVATE void bv_clear(Bit_Vector bv)
 {
@@ -18569,8 +18643,8 @@ if(size<=0)return;
 while(size--)*bv++= 0u;
 }
 
-/*:1161*//*1163:*/
-#line 13553 "./marpa.w"
+/*:1162*//*1164:*/
+#line 13580 "./marpa.w"
 
 PRIVATE void bv_over_clear(Bit_Vector bv,unsigned int bit)
 {
@@ -18578,32 +18652,32 @@ unsigned int length= bit/bv_wordbits+1;
 while(length--)*bv++= 0u;
 }
 
-/*:1163*//*1165:*/
-#line 13561 "./marpa.w"
+/*:1164*//*1166:*/
+#line 13588 "./marpa.w"
 
 PRIVATE void bv_bit_set(Bit_Vector vector,unsigned int bit)
 {
 *(vector+(bit/bv_wordbits))|= (bv_lsb<<(bit%bv_wordbits));
 }
 
-/*:1165*//*1166:*/
-#line 13568 "./marpa.w"
+/*:1166*//*1167:*/
+#line 13595 "./marpa.w"
 
 PRIVATE void bv_bit_clear(Bit_Vector vector,unsigned int bit)
 {
 *(vector+(bit/bv_wordbits))&= ~(bv_lsb<<(bit%bv_wordbits));
 }
 
-/*:1166*//*1167:*/
-#line 13575 "./marpa.w"
+/*:1167*//*1168:*/
+#line 13602 "./marpa.w"
 
 PRIVATE int bv_bit_test(Bit_Vector vector,unsigned int bit)
 {
 return(*(vector+(bit/bv_wordbits))&(bv_lsb<<(bit%bv_wordbits)))!=0u;
 }
 
-/*:1167*//*1168:*/
-#line 13583 "./marpa.w"
+/*:1168*//*1169:*/
+#line 13610 "./marpa.w"
 
 PRIVATE int
 bv_bit_test_and_set(Bit_Vector vector,unsigned int bit)
@@ -18616,8 +18690,8 @@ return 1;
 return 0;
 }
 
-/*:1168*//*1169:*/
-#line 13596 "./marpa.w"
+/*:1169*//*1170:*/
+#line 13623 "./marpa.w"
 
 PRIVATE
 int bv_is_empty(Bit_Vector addr)
@@ -18631,8 +18705,8 @@ while(r&&(size--> 0))r= (*addr++==0);
 return(r);
 }
 
-/*:1169*//*1170:*/
-#line 13610 "./marpa.w"
+/*:1170*//*1171:*/
+#line 13637 "./marpa.w"
 
 PRIVATE void bv_not(Bit_Vector X,Bit_Vector Y)
 {
@@ -18642,8 +18716,8 @@ while(size--> 0)*X++= ~*Y++;
 *(--X)&= mask;
 }
 
-/*:1170*//*1171:*/
-#line 13620 "./marpa.w"
+/*:1171*//*1172:*/
+#line 13647 "./marpa.w"
 
 PRIVATE void bv_and(Bit_Vector X,Bit_Vector Y,Bit_Vector Z)
 {
@@ -18653,8 +18727,8 @@ while(size--> 0)*X++= *Y++&*Z++;
 *(--X)&= mask;
 }
 
-/*:1171*//*1172:*/
-#line 13630 "./marpa.w"
+/*:1172*//*1173:*/
+#line 13657 "./marpa.w"
 
 PRIVATE void bv_or(Bit_Vector X,Bit_Vector Y,Bit_Vector Z)
 {
@@ -18664,8 +18738,8 @@ while(size--> 0)*X++= *Y++|*Z++;
 *(--X)&= mask;
 }
 
-/*:1172*//*1173:*/
-#line 13640 "./marpa.w"
+/*:1173*//*1174:*/
+#line 13667 "./marpa.w"
 
 PRIVATE void bv_or_assign(Bit_Vector X,Bit_Vector Y)
 {
@@ -18675,8 +18749,8 @@ while(size--> 0)*X++|= *Y++;
 *(--X)&= mask;
 }
 
-/*:1173*//*1174:*/
-#line 13650 "./marpa.w"
+/*:1174*//*1175:*/
+#line 13677 "./marpa.w"
 
 PRIVATE_NOT_INLINE
 int bv_scan(Bit_Vector bv,unsigned int start,
@@ -18748,8 +18822,8 @@ start++;
 return 1;
 }
 
-/*:1174*//*1175:*/
-#line 13722 "./marpa.w"
+/*:1175*//*1176:*/
+#line 13749 "./marpa.w"
 
 PRIVATE unsigned int
 bv_count(Bit_Vector v)
@@ -18763,8 +18837,8 @@ count+= max-min+1;
 return count;
 }
 
-/*:1175*//*1180:*/
-#line 13770 "./marpa.w"
+/*:1176*//*1181:*/
+#line 13797 "./marpa.w"
 
 PRIVATE void
 rhs_closure(GRAMMAR g,Bit_Vector bv,XRLID**xrl_list_x_rh_sym)
@@ -18838,8 +18912,8 @@ NEXT_RULE:;
 FSTACK_DESTROY(stack);
 }
 
-/*:1180*//*1184:*/
-#line 13872 "./marpa.w"
+/*:1181*//*1185:*/
+#line 13899 "./marpa.w"
 
 PRIVATE Bit_Matrix matrix_obs_create(struct obstack*obs,unsigned int rows,unsigned int columns)
 {
@@ -18861,8 +18935,8 @@ while(data_word_counter--)*p_current_word++= 0;
 return matrix_addr;
 }
 
-/*:1184*//*1185:*/
-#line 13899 "./marpa.w"
+/*:1185*//*1186:*/
+#line 13926 "./marpa.w"
 
 PRIVATE int matrix_columns(Bit_Matrix matrix)
 {
@@ -18870,8 +18944,8 @@ Bit_Vector row0= matrix+bv_hiddenwords;
 return BV_BITS(row0);
 }
 
-/*:1185*//*1186:*/
-#line 13915 "./marpa.w"
+/*:1186*//*1187:*/
+#line 13942 "./marpa.w"
 
 PRIVATE Bit_Vector matrix_row(Bit_Matrix matrix,unsigned int row)
 {
@@ -18880,8 +18954,8 @@ unsigned int words_per_row= BV_SIZE(row0)+bv_hiddenwords;
 return row0+row*words_per_row;
 }
 
-/*:1186*//*1188:*/
-#line 13924 "./marpa.w"
+/*:1187*//*1189:*/
+#line 13951 "./marpa.w"
 
 PRIVATE void matrix_bit_set(Bit_Matrix matrix,unsigned int row,unsigned int column)
 {
@@ -18889,8 +18963,8 @@ Bit_Vector vector= matrix_row(matrix,row);
 bv_bit_set(vector,column);
 }
 
-/*:1188*//*1190:*/
-#line 13932 "./marpa.w"
+/*:1189*//*1191:*/
+#line 13959 "./marpa.w"
 
 PRIVATE void matrix_bit_clear(Bit_Matrix matrix,unsigned int row,unsigned int column)
 {
@@ -18898,8 +18972,8 @@ Bit_Vector vector= matrix_row(matrix,row);
 bv_bit_clear(vector,column);
 }
 
-/*:1190*//*1192:*/
-#line 13940 "./marpa.w"
+/*:1191*//*1193:*/
+#line 13967 "./marpa.w"
 
 PRIVATE int matrix_bit_test(Bit_Matrix matrix,unsigned int row,unsigned int column)
 {
@@ -18907,8 +18981,8 @@ Bit_Vector vector= matrix_row(matrix,row);
 return bv_bit_test(vector,column);
 }
 
-/*:1192*//*1193:*/
-#line 13957 "./marpa.w"
+/*:1193*//*1194:*/
+#line 13984 "./marpa.w"
 
 PRIVATE_NOT_INLINE void transitive_closure(Bit_Matrix matrix)
 {
@@ -18929,8 +19003,8 @@ bv_or_assign(inner_row_v,outer_row_v);
 }
 }
 
-/*:1193*//*1202:*/
-#line 14096 "./marpa.w"
+/*:1194*//*1203:*/
+#line 14123 "./marpa.w"
 
 PRIVATE_NOT_INLINE void*dstack_resize(struct s_dstack*this,size_t type_bytes)
 {
@@ -18939,8 +19013,8 @@ this->t_base= my_realloc(this->t_base,this->t_capacity*type_bytes);
 return this->t_base;
 }
 
-/*:1202*//*1217:*/
-#line 14235 "./marpa.w"
+/*:1203*//*1218:*/
+#line 14262 "./marpa.w"
 
 PRIVATE void
 psar_init(const PSAR psar,int length)
@@ -18948,8 +19022,8 @@ psar_init(const PSAR psar,int length)
 psar->t_psl_length= length;
 psar->t_first_psl= psar->t_first_free_psl= psl_new(psar);
 }
-/*:1217*//*1218:*/
-#line 14242 "./marpa.w"
+/*:1218*//*1219:*/
+#line 14269 "./marpa.w"
 
 PRIVATE void psar_destroy(const PSAR psar)
 {
@@ -18964,8 +19038,8 @@ my_slice_free1(Sizeof_PSL(psar),psl);
 psl= next_psl;
 }
 }
-/*:1218*//*1219:*/
-#line 14256 "./marpa.w"
+/*:1219*//*1220:*/
+#line 14283 "./marpa.w"
 
 PRIVATE PSL psl_new(const PSAR psar)
 {
@@ -18979,8 +19053,8 @@ PSL_Datum(new_psl,i)= NULL;
 }
 return new_psl;
 }
-/*:1219*//*1222:*/
-#line 14287 "./marpa.w"
+/*:1220*//*1223:*/
+#line 14314 "./marpa.w"
 
 PRIVATE void psar_reset(const PSAR psar)
 {
@@ -18995,8 +19069,8 @@ psl= psl->t_next;
 psar_dealloc(psar);
 }
 
-/*:1222*//*1224:*/
-#line 14305 "./marpa.w"
+/*:1223*//*1225:*/
+#line 14332 "./marpa.w"
 
 PRIVATE void psar_dealloc(const PSAR psar)
 {
@@ -19011,8 +19085,8 @@ psl= psl->t_next;
 psar->t_first_free_psl= psar->t_first_psl;
 }
 
-/*:1224*//*1226:*/
-#line 14325 "./marpa.w"
+/*:1225*//*1227:*/
+#line 14352 "./marpa.w"
 
 PRIVATE void psl_claim(
 PSL*const psl_owner,const PSAR psar)
@@ -19022,8 +19096,8 @@ PSL new_psl= psl_alloc(psar);
 new_psl->t_owner= psl_owner;
 }
 
-/*:1226*//*1228:*/
-#line 14349 "./marpa.w"
+/*:1227*//*1229:*/
+#line 14376 "./marpa.w"
 
 PRIVATE PSL psl_alloc(const PSAR psar)
 {
@@ -19037,8 +19111,8 @@ psar->t_first_free_psl= next_psl;
 return free_psl;
 }
 
-/*:1228*//*1231:*/
-#line 14375 "./marpa.w"
+/*:1229*//*1232:*/
+#line 14402 "./marpa.w"
 
 PRIVATE_NOT_INLINE void*
 _marpa_default_out_of_memory(void)
@@ -19047,8 +19121,8 @@ abort();
 }
 void*(*_marpa_out_of_memory)(void)= _marpa_default_out_of_memory;
 
-/*:1231*//*1266:*/
-#line 14689 "./marpa.w"
+/*:1232*//*1267:*/
+#line 14716 "./marpa.w"
 
 PRIVATE_NOT_INLINE void
 set_error(GRAMMAR g,Marpa_Error_Code code,const char*message,unsigned int flags)
@@ -19058,8 +19132,8 @@ g->t_error_string= message;
 if(flags&FATAL_FLAG)
 g->t_is_ok= 0;
 }
-/*:1266*//*1267:*/
-#line 14708 "./marpa.w"
+/*:1267*//*1268:*/
+#line 14735 "./marpa.w"
 
 PRIVATE Marpa_Error_Code
 clear_error(GRAMMAR g)
@@ -19075,24 +19149,24 @@ g->t_error_string= NULL;
 return MARPA_ERR_NONE;
 }
 
-/*:1267*//*1275:*/
-#line 14785 "./marpa.w"
+/*:1268*//*1276:*/
+#line 14812 "./marpa.w"
 
 void marpa_debug_handler_set(int(*debug_handler)(const char*,...))
 {
 _marpa_debug_handler= debug_handler;
 }
 
-/*:1275*//*1277:*/
-#line 14793 "./marpa.w"
+/*:1276*//*1278:*/
+#line 14820 "./marpa.w"
 
 void marpa_debug_level_set(int level)
 {
 _marpa_debug_level= level;
 }
 
-/*:1277*/
-#line 15027 "./marpa.w"
+/*:1278*/
+#line 15054 "./marpa.w"
 
 
-/*:1292*/
+/*:1293*/

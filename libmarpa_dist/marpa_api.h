@@ -111,6 +111,7 @@ Marpa_Event_Type marpa_g_event (Marpa_Grammar g, Marpa_Event* event, int ix);
 int marpa_g_event_count ( Marpa_Grammar g );
 Marpa_Error_Code marpa_g_error ( Marpa_Grammar g, const char** p_error_string);
 Marpa_Error_Code marpa_g_error_clear ( Marpa_Grammar g );
+int marpa_v_valued_force ( Marpa_Value v);
 Marpa_Rank marpa_g_default_rank ( Marpa_Grammar g);
 Marpa_Rank marpa_g_default_rank_set ( Marpa_Grammar g, Marpa_Rank rank);
 Marpa_Rank marpa_g_symbol_rank ( Marpa_Grammar g, Marpa_Symbol_ID sym_id);

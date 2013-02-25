@@ -1,8 +1,8 @@
-/*1297:*/
-#line 15059 "./marpa.w"
+/*1298:*/
+#line 15086 "./marpa.w"
 
-/*1293:*/
-#line 15031 "./marpa.w"
+/*1294:*/
+#line 15058 "./marpa.w"
 
 /*
  * Copyright 2013 Jeffrey Kegler
@@ -26,8 +26,8 @@
  * It is not intended to be modified directly
  */
 
-/*:1293*/
-#line 15060 "./marpa.w"
+/*:1294*/
+#line 15087 "./marpa.w"
 
 
 #ifndef __MARPA_H__
@@ -183,16 +183,16 @@ typedef int Marpa_And_Node_ID;
 #line 12543 "./marpa.w"
 
 typedef int Marpa_Nook_ID;
-/*:1083*//*1137:*/
-#line 13071 "./marpa.w"
+/*:1083*//*1138:*/
+#line 13098 "./marpa.w"
 
 typedef int Marpa_Step_Type;
-/*:1137*//*1268:*/
-#line 14731 "./marpa.w"
+/*:1138*//*1269:*/
+#line 14758 "./marpa.w"
 
 typedef const char*Marpa_Message_ID;
 
-/*:1268*/
+/*:1269*/
 #line 578 "./marpa.w"
 
 /*39:*/
@@ -240,23 +240,23 @@ Marpa_Earley_Set_ID t_es_id;
 /*:1101*/
 #line 579 "./marpa.w"
 
-/*1274:*/
-#line 14783 "./marpa.w"
+/*1275:*/
+#line 14810 "./marpa.w"
 
 void marpa_debug_handler_set(int(*debug_handler)(const char*,...));
-/*:1274*//*1276:*/
-#line 14791 "./marpa.w"
+/*:1275*//*1277:*/
+#line 14818 "./marpa.w"
 
 void marpa_debug_level_set(int level);
-/*:1276*/
+/*:1277*/
 #line 580 "./marpa.w"
 
 
 /*:37*/
-#line 15066 "./marpa.w"
+#line 15093 "./marpa.w"
 
 
 #include "marpa_api.h"
 #endif 
 
-/*:1297*/
+/*:1298*/

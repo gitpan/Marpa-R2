@@ -843,18 +843,16 @@ PPCODE:
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::V
 
 void
-symbol_is_valued_set( v_wrapper, symbol_id, value )
+valued_force( v_wrapper )
     V_Wrapper *v_wrapper;
-    Marpa_Symbol_ID symbol_id;
-    int value;
 PPCODE:
 {
   Marpa_Value self = v_wrapper->v;
-  int gp_result = marpa_v_symbol_is_valued_set(self, symbol_id, value);
+  int gp_result = marpa_v_valued_force(self);
   if ( gp_result == -1 ) { XSRETURN_UNDEF; }
   if ( gp_result < 0 && v_wrapper->base->throw ) {
-    croak( "Problem in v->symbol_is_valued_set(%d, %d): %s",
-     symbol_id, value, xs_g_error( v_wrapper->base ));
+    croak( "Problem in v->valued_force(): %s",
+     xs_g_error( v_wrapper->base ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
@@ -871,6 +869,23 @@ PPCODE:
   if ( gp_result == -1 ) { XSRETURN_UNDEF; }
   if ( gp_result < 0 && v_wrapper->base->throw ) {
     croak( "Problem in v->rule_is_valued_set(%d, %d): %s",
+     symbol_id, value, xs_g_error( v_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+symbol_is_valued_set( v_wrapper, symbol_id, value )
+    V_Wrapper *v_wrapper;
+    Marpa_Symbol_ID symbol_id;
+    int value;
+PPCODE:
+{
+  Marpa_Value self = v_wrapper->v;
+  int gp_result = marpa_v_symbol_is_valued_set(self, symbol_id, value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && v_wrapper->base->throw ) {
+    croak( "Problem in v->symbol_is_valued_set(%d, %d): %s",
      symbol_id, value, xs_g_error( v_wrapper->base ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
