@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_008';
+$VERSION        = '2.047_009';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -94,11 +94,12 @@ lhs
 op_declare
 op_declare_bnf
 parenthesized_rhs_primary_list
-priority_rule
 priorities
+priority_rule
 proper_specification
 quantified_rule
 quantifier
+reserved_action_name
 reserved_blessing_name
 rhs
 rhs_primary
@@ -120,6 +121,7 @@ $node_status{character_class} = "Character classes are not allowed";
 $node_status{discard_rule} = ":discard rules are not allowed";
 $node_status{single_quoted_string} = "Quoted strings are not allowed";
 $node_status{lexeme_default_statement} = "The lexeme default statement is not allowed";
+$node_status{array_descriptor} = "Actions in the form of array descriptors are not allowed";
 $node_status{op_declare_match} = "G0 rules are not allowed";
 
 my %catch_error_node = 

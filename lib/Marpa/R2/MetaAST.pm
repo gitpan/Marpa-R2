@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_008';
+$VERSION        = '2.047_009';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -178,12 +178,17 @@ sub Marpa::R2::Internal::MetaAST::bless_hash_rule {
     return 1;
 } ## end sub bless_hash_rule
 
+sub Marpa::R2::Internal::MetaAST_Nodes::bare_name::name { return $_[0]->[2] }
+sub Marpa::R2::Internal::MetaAST_Nodes::reserved_action_name::name {
+    my ( $self, $parse ) = @_;
+    return $self->[2];
+}
+
 sub Marpa::R2::Internal::MetaAST_Nodes::action_name::name {
-    my ($self, $parse) = @_;
+    my ( $self, $parse ) = @_;
     return $self->[2]->name($parse);
 }
 
-sub Marpa::R2::Internal::MetaAST_Nodes::bare_name::name { return $_[0]->[2] }
 
 sub Marpa::R2::Internal::MetaAST_Nodes::array_descriptor::name {
     return $_[0]->[2];
