@@ -31,17 +31,22 @@ use lib '../../../../blib/arch';
 use Marpa::R2;
 
 use Getopt::Long;
-my $verbose          = 1;
-my $help_flag        = 0;
-my $scannerless_flag = 1;
-my $result           = Getopt::Long::GetOptions(
-    'help'      => \$help_flag,
+my $verbose         = 1;
+my $help_flag       = 0;
+my $ast_before_flag = 0;
+my $result          = Getopt::Long::GetOptions(
+    'help'       => \$help_flag,
+    'ast_before' => \$ast_before_flag,
 );
 die "usage $PROGRAM_NAME [--help] file ...\n" if $help_flag;
 
-my $bnf           = do { local $RS = undef; \(<>) };
-my $parse_result =
-    Marpa::R2::Scanless::G->_source_to_hash( $bnf );
+my $bnf = do { local $RS = undef; \(<>) };
+my $ast = Marpa::R2::Internal::MetaAST->new($bnf);
+if ($ast_before_flag) {
+    say Data::Dumper::Dumper($ast);
+    exit 0;
+}
+my $parse_result = $ast->ast_to_hash($bnf);
 
 sub sort_bnf {
     my $cmp = $a->{lhs} cmp $b->{lhs};
@@ -50,7 +55,7 @@ sub sort_bnf {
     my $b_rhs_length = scalar @{ $b->{rhs} };
     $cmp = $a_rhs_length <=> $b_rhs_length;
     return $cmp if $cmp;
-    for my $ix ( 0 .. ($a_rhs_length-1) ) {
+    for my $ix ( 0 .. ( $a_rhs_length - 1 ) ) {
         $cmp = $a->{rhs}->[$ix] cmp $b->{rhs}->[$ix];
         return $cmp if $cmp;
     }
@@ -59,11 +64,11 @@ sub sort_bnf {
 
 my %cooked_parse_result = (
     is_lexeme         => $parse_result->{is_lexeme},
+    character_classes => $parse_result->{character_classes},
     g1_symbols        => $parse_result->{g1_symbols},
-    character_classes => $parse_result->{character_classes}
 );
 
-for my $rule_set (qw(lex_rules g1_rules)) {
+for my $rule_set (qw(g0_rules g1_rules)) {
     my $aoh        = $parse_result->{$rule_set};
     my $sorted_aoh = [ sort sort_bnf @{$aoh} ];
     $cooked_parse_result{$rule_set} = $sorted_aoh;

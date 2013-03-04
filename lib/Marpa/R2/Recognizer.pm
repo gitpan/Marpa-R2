@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_007';
+$VERSION        = '2.047_008';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -227,7 +227,7 @@ use constant RECOGNIZER_OPTIONS => [
         }
 ];
 
-sub Marpa::R2::Recognizer::set_slr {
+sub Marpa::R2::Recognizer::slr_set {
     my ($recce, $slr) = @_;
     return $recce->[Marpa::R2::Internal::Recognizer::SLR] = $slr;
 }

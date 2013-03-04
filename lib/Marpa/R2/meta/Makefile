@@ -21,3 +21,4 @@ doit:
 	-test -r metag-g1.pl && mv metag-g1.pl metag-g2.pl
 	-mv metag.pl metag-g1.pl
 	perl sl_to_hash.pl < metag.bnf > metag.pl
+

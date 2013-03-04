@@ -898,7 +898,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
       }
       break;
     default:
-      /* Never reached -- turns off warning about unitialized ops */
+      /* Never reached -- turns off warning about uninitialized ops */
       ops = NULL;
     }
 
@@ -906,6 +906,20 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
   while (1)
     {
       IV op_code = ops[op_ix++];
+
+      if (v_wrapper->trace_values >= 2)
+	{
+	  AV *event;
+	  SV *event_data[3];
+	  const char *result_string = step_type_to_string (step_type);
+	  if (!result_string)
+	    result_string = "valuator unknown step";
+	  event_data[0] = newSVpvs ("starting op");
+	  event_data[1] = newSVpv (result_string, 0);
+	  event_data[2] = newSVpv (op_to_op_name (op_code), 0);
+	  event = av_make (Dim (event_data), event_data);
+	  av_push (v_wrapper->event_queue, newRV_noinc ((SV *) event));
+	}
 
       switch (op_code)
 	{
@@ -1003,7 +1017,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 		      (marpa_v_arg_n (v) - marpa_v_arg_0 (v)) / 2 + 1;
 		    item_ix = (item_count + stack_offset);
 		  }
-		  fetch_ix = result_ix + item_ix * 2;
+		fetch_ix = result_ix + item_ix * 2;
 	      }
 
 	    /* Bounds check fetch ix */
@@ -1128,29 +1142,29 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 
 	case op_push_undef:
 	  {
-	  PUSH_UNDEF:;
 	    if (!values_av)
 	      {
 		values_av = (AV *) sv_2mortal ((SV *) newAV ());
 	      }
 	    av_push (values_av, &PL_sv_undef);
 	  }
-	  break;
+	  goto NEXT_OP_CODE;
 
 	case op_push_one:
 	  {
 	    int offset;
 	    SV **p_sv;
 
-	    if (step_type != MARPA_STEP_RULE)
-	      {
-		goto PUSH_UNDEF;
-	      }
+	    offset = ops[op_ix++];
 	    if (!values_av)
 	      {
 		values_av = (AV *) sv_2mortal ((SV *) newAV ());
 	      }
-	    offset = ops[op_ix++];
+	    if (step_type != MARPA_STEP_RULE)
+	      {
+		av_push (values_av, &PL_sv_undef);
+		goto NEXT_OP_CODE;
+	      }
 	    p_sv = av_fetch (stack, result_ix + offset, 0);
 	    if (!p_sv)
 	      {
@@ -1161,11 +1175,10 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 		av_push (values_av, SvREFCNT_inc_simple_NN (*p_sv));
 	      }
 	  }
-	  break;
+	  goto NEXT_OP_CODE;
 
 	case op_push_slr_range:
 	  {
-	    Marpa_Earley_Set_ID earley_set;
 	    int start_location;
 	    int end_location;
 	    Scanless_R *slr = v_wrapper->slr;
@@ -1179,23 +1192,58 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 		croak
 		  ("Problem in v->stack_step: 'push_slr_range' op attempted when no slr is set");
 	      }
-	    earley_set =
-	      step_type ==
-	      MARPA_STEP_RULE ? marpa_v_rule_start_es_id (v) :
-	      marpa_v_token_start_es_id (v);
-	    slr_locations (slr, earley_set, &start_location, &end_location);
-	    av_push (values_av, newSViv ((IV) start_location));
-	    earley_set = marpa_v_es_id (v);
-	    slr_locations (slr, earley_set, &start_location, &end_location);
-	    av_push (values_av, newSViv ((IV) end_location));
+	    switch (step_type)
+	      {
+	      case MARPA_STEP_NULLING_SYMBOL:
+		{
+		  Marpa_Earley_Set_ID earley_set =
+		    marpa_v_token_start_es_id (v);
+		  slr_locations (slr, earley_set, &start_location,
+				 &end_location);
+		}
+		goto NEXT_OP_CODE;
+	      case MARPA_STEP_RULE:
+		{
+		  int dummy;
+		  Marpa_Earley_Set_ID start_earley_set =
+		    marpa_v_rule_start_es_id (v);
+		  Marpa_Earley_Set_ID end_earley_set = marpa_v_es_id (v);
+		  slr_locations (slr, start_earley_set + 1, &start_location,
+				 &dummy);
+		  av_push (values_av, newSViv ((IV) start_location));
+		  slr_locations (slr, end_earley_set, &dummy, &end_location);
+		  av_push (values_av, newSViv ((IV) end_location));
+		}
+		goto NEXT_OP_CODE;
+	      case MARPA_STEP_TOKEN:
+		{
+		  int dummy;
+		  Marpa_Earley_Set_ID start_earley_set =
+		    marpa_v_token_start_es_id (v);
+		  Marpa_Earley_Set_ID end_earley_set = marpa_v_es_id (v);
+		  slr_locations (slr, start_earley_set + 1, &start_location,
+				 &dummy);
+		  av_push (values_av, newSViv ((IV) start_location));
+		  slr_locations (slr, end_earley_set, &dummy, &end_location);
+		  av_push (values_av, newSViv ((IV) end_location));
+		}
+		goto NEXT_OP_CODE;
+	      default:
+		{
+		  croak
+		    ("Problem in v->stack_step: Range requested for improper step type: %s",
+		     step_type_to_string (step_type));
+		}
+	      }
 	  }
-	  break;
+	  /* Not reached */
+	  goto NEXT_OP_CODE;
 
 	case op_bless:
 	  {
 	    blessing = ops[op_ix++];
 	  }
-	  break;
+	  goto NEXT_OP_CODE;
 
 	case op_callback:
 	  {
@@ -1307,6 +1355,9 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	       step_type_string);
 	  }
 	}
+
+    NEXT_OP_CODE:;		/* continue while(1) loop */
+
     }
 
   return -1;
@@ -1322,7 +1373,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 /* Static SLR methods */
 
 static void
-slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme, IV attempted)
+slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme)
 {
   dTHX;
   int result;
@@ -1333,15 +1384,6 @@ slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme, IV attempted)
   STRLEN start_pos = slr->start_of_lexeme;
   STRLEN end_pos = slr->end_of_lexeme;
 
-  if (!attempted)
-    {
-      /* Set values for Earley set n-1 to positions of lexeme --
-       * that way we use set 0, and we can record position of a last,
-       * rejected lexeme.
-       */
-      marpa_r_latest_earley_set_values_set (r1, start_pos,
-					    INT2PTR (void *, end_pos));
-    }
   result = marpa_r_alternative (r1, lexeme, latest_earley_set + 1, 1);
   switch (result)
     {
@@ -1358,8 +1400,8 @@ slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme, IV attempted)
 	  AV *event;
 	  SV *event_data[4];
 	  event_data[0] = newSVpvs ("g1 unexpected lexeme");
-	  event_data[1] = newSViv (start_pos);	/* start */
-	  event_data[2] = newSViv (end_pos);	/* end */
+	  event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
+	  event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
 	  event_data[3] = newSViv (lexeme);	/* lexeme */
 	  event = av_make (Dim (event_data), event_data);
 	  av_push (slr->event_queue, newRV_noinc ((SV *) event));
@@ -1378,8 +1420,8 @@ slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme, IV attempted)
 	  AV *event;
 	  SV *event_data[4];
 	  event_data[0] = newSVpvs ("g1 duplicate lexeme");
-	  event_data[1] = newSViv (start_pos);	/* start */
-	  event_data[2] = newSViv (end_pos);	/* end */
+	  event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
+	  event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
 	  event_data[3] = newSViv (lexeme);	/* lexeme */
 	  event = av_make (Dim (event_data), event_data);
 	  av_push (slr->event_queue, newRV_noinc ((SV *) event));
@@ -1398,8 +1440,8 @@ slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme, IV attempted)
 	  AV *event;
 	  SV *event_data[4];
 	  event_data[0] = newSVpvs ("g1 accepted lexeme");
-	  event_data[1] = newSViv (start_pos);	/* start */
-	  event_data[2] = newSViv (end_pos);	/* end */
+	  event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
+	  event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
 	  event_data[3] = newSViv (lexeme);	/* lexeme */
 	  event = av_make (Dim (event_data), event_data);
 	  av_push (slr->event_queue, newRV_noinc ((SV *) event));
@@ -1513,7 +1555,7 @@ slr_alternatives (Scanless_R * slr, IV * lexemes_found,
 	    }
 
 	  /* trace_terminals done inside slr_alternative */
-	  slr_alternative (slr, g1_lexeme, *lexemes_attempted);
+	  slr_alternative (slr, g1_lexeme);
 	  (*lexemes_attempted)++;
 	NEXT_REPORT_ITEM:;
 	}
@@ -1547,8 +1589,7 @@ slr_locations (Scanless_R * slr, Marpa_Earley_Set_ID earley_set, int *p_start,
 {
   dTHX;
   int result = 0;
-  /* We need to fake the values for Earley set 0,
-   *  since we are using it to store the values for Earley set 1.
+  /* We fake the values for Earley set 0,
    */
   if (earley_set <= 0)
     {
@@ -1559,13 +1600,13 @@ slr_locations (Scanless_R * slr, Marpa_Earley_Set_ID earley_set, int *p_start,
     {
       void *end_pos;
       result =
-	marpa_r_earley_set_values (slr->r1, earley_set - 1, p_start,
-				   &end_pos);
+	marpa_r_earley_set_values (slr->r1, earley_set, p_start, &end_pos);
       *p_end = (int) PTR2IV (end_pos);
     }
   if (result < 0)
     {
-      croak ("failure in slr->location(): %s", xs_g_error (slr->g1_wrapper));
+      croak ("failure in slr->location(%d): %s", earley_set,
+	     xs_g_error (slr->g1_wrapper));
     }
 }
 
@@ -1611,7 +1652,7 @@ PPCODE:
 	  XSRETURN_IV ((IV) op_data->op);
 	}
     }
-  XSRETURN_UNDEF;
+  croak("Problem with Marpa::R2::Thin->op('%s'): No such op", op_name);
 }
 
  # This search is not optimized.  This list is short
@@ -4775,6 +4816,8 @@ PPCODE:
 	    {
 	      XSRETURN_PV ("R1 earleme_complete() problem");
 	    }
+      marpa_r_latest_earley_set_values_set (slr->r1, slr->start_of_lexeme,
+					    INT2PTR (void *, slr->end_of_lexeme));
 	}
 
       if (slr->trace_terminals || stream->trace_g0)
@@ -4837,39 +4880,6 @@ PPCODE:
   STRLEN end_of_lexeme = slr->end_of_lexeme;
   XPUSHs (sv_2mortal (newSViv ((IV) slr->start_of_lexeme)));
   XPUSHs (sv_2mortal (newSViv ((IV)end_of_lexeme)));
-}
-
-  # Eliminate after converstion?
-void
-lexeme_locations_set (slr, start, end)
-     Scanless_R *slr;
-     STRLEN start;
-     STRLEN end;
-PPCODE:
-{
-  Unicode_Stream *stream = slr->stream;
-  STRLEN input_length = SvCUR (stream->input);
-  if (end < start)
-    {
-      croak
-	("Problem in slr->lexeme_locations_set(): start (%lu) is after the end (%lu)",
-	 (unsigned long) start, (unsigned long) end);
-    }
-  if (start > input_length)
-    {
-      croak
-	("Problem in slr->lexeme_locations_set(): new pos = %lu, but start = %lu",
-	 (unsigned long) input_length, (unsigned long) start);
-    }
-  if (end > input_length)
-    {
-      croak
-	("Problem in slr->lexeme_locations_set(): new pos = %lu, but end = %lu",
-	 (unsigned long) input_length, (unsigned long) end);
-    }
-  slr->start_of_lexeme = start;
-  slr->end_of_lexeme = end;
-  XSRETURN_YES;
 }
 
 INCLUDE: general_pattern.xsh

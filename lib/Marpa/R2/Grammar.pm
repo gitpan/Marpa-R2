@@ -26,7 +26,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_007';
+$VERSION        = '2.047_008';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -38,6 +38,7 @@ BEGIN {
     :package=Marpa::R2::Internal::Symbol
     ID { Unique ID }
     BLESSING
+    LEXEME_SEMANTICS
 
 END_OF_STRUCTURE
     Marpa::R2::offset($structure);
@@ -355,22 +356,9 @@ sub Marpa::R2::Grammar::set {
                 )
                 if $grammar->[Marpa::R2::Internal::Grammar::INTERFACE] ne
                     'stuifzand';
-            Marpa::R2::exception(
-                qq{Attempt to use the BNF interface with a grammar that is already using the standard interface\n},
-                q{  Mixing the BNF and standard interface is not allowed},
-                )
-                if $grammar->[Marpa::R2::Internal::Grammar::INTERFACE] ne
-                    'stuifzand';
             my $parse_result =
-                Marpa::R2::Internal::Stuifzand::parse_rules( $grammar,
+                Marpa::R2::Internal::Stuifzand::parse_rules( 
                 $stuifzand_source );
-            my $character_classes = $parse_result->{character_classes};
-            Marpa::R2::exception(
-                qq{Attempt to use character class with a grammar that is not scannerless\n},
-            ) if defined $character_classes;
-            $grammar->[Marpa::R2::Internal::Grammar::CHARACTER_CLASSES] =
-                $character_classes
-                if defined $character_classes;
             for my $rule ( @{ $parse_result->{rules} } ) {
                 add_user_rule( $grammar, $rule );
             }
@@ -985,6 +973,11 @@ sub assign_symbol {
     my $symbol = shadow_symbol( $grammar, $symbol_id );
 
     PROPERTY: for my $property ( sort keys %{$options} ) {
+        if ( $property eq 'semantics' ) {
+            my $value = $options->{$property};
+            $symbol->[Marpa::R2::Internal::Symbol::LEXEME_SEMANTICS] = $value;
+            next PROPERTY;
+        }
         if ( $property eq 'bless' ) {
             my $value = $options->{$property};
             $symbol->[Marpa::R2::Internal::Symbol::BLESSING] = $value;
