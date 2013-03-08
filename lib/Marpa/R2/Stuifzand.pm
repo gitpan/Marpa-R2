@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_011';
+$VERSION        = '2.047_012';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -62,13 +62,6 @@ use English qw( -no_match_vars );
 sub Marpa::R2::Grammar::original_symbol_name {
    $_[0] =~ s/\[ prec \d+ \] \z//xms;
    return shift;
-}
-
-sub last_rule {
-   my ($meta_recce) = @_;
-   my ($start, $end) = $meta_recce->last_completed_range( 'rule' );
-   return 'No rule was completed' if not defined $start;
-   return $meta_recce->range_to_string( $start, $end);
 }
 
 my %node_status =

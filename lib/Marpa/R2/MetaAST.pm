@@ -20,13 +20,15 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_011';
+$VERSION        = '2.047_012';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
 ## use critic
 
 package Marpa::R2::Internal::MetaAST;
+
+use English qw( -no_match_vars );
 
 sub new {
     my ( $class, $p_rules_source ) = @_;
@@ -50,8 +52,8 @@ sub new {
 }
 
 sub substring {
-    my ($parse, $start, $end) = @_;
-    my $string = substr ${$parse->{p_source}}, $start, ($end-$start+1);
+    my ($parse, $start, $length) = @_;
+    my $string = substr ${$parse->{p_source}}, $start, $length;
     chomp $string;
     return $string;
 }
@@ -65,7 +67,22 @@ sub ast_to_hash {
     };
 
     my (undef, undef, @statements) = @{$ast};
-    $_->evaluate($parse) for @statements;
+
+    # This is the last ditch exception catcher
+    # It forces all Marpa exceptions to be die's,
+    # then catches them and rethrows using Carp.
+    #
+    # The plan is to use die(), with higher levels
+    # catching and re-die()'ing after adding
+    # helpful location information.  After the
+    # re-throw it is caught here and passed to
+    # Carp.
+    my $eval_ok = eval {
+        local $Marpa::R2::JUST_DIE = 1;
+        $_->evaluate($parse) for @statements;
+        1;
+    };
+    Marpa::R2::exception($EVAL_ERROR) if not $eval_ok;
 
     my $g1_rules = $parse->{g1_rules};
     my $g0_rules = $parse->{g0_rules};
@@ -144,17 +161,14 @@ sub Marpa::R2::Internal::MetaAST::Proto_Alternative::combine {
     my $self = bless {}, $class;
     for my $hash_to_add (@hashes) {
         for my $key ( keys %{$hash_to_add} ) {
-            Marpa::R2::exception(
-                'duplicate key in ',
-                $PROTO_ALTERNATIVE,
-                "::combine(): $key"
-            ) if exists $self->{$key};
-
+            ## expect to be caught and rethrown
+            die qq{A Marpa rule contained a duplicate key\n}, qq{  The key was "$key"\n}
+            if exists $self->{$key};
             $self->{$key} = $hash_to_add->{$key};
-        } ## end for my $key ( keys %{$hash_to_add} )
+        }
     } ## end for my $hash_to_add (@hashes)
     return $self;
-} ## end sub combine
+} ## end sub Marpa::R2::Internal::MetaAST::Proto_Alternative::combine
 
 sub Marpa::R2::Internal::MetaAST::bless_hash_rule {
     my ( $parse, $hash_rule, $blessing, $original_lhs ) = @_;
@@ -269,15 +283,27 @@ sub Marpa::R2::Internal::MetaAST_Nodes::parenthesized_rhs_primary_list::evaluate
 
 sub Marpa::R2::Internal::MetaAST_Nodes::rhs::evaluate {
     my ( $data, $parse ) = @_;
-    my (undef, undef, @values) = @{$data};
-    my @symbol_lists = map { $_->evaluate($parse) } @values;
-    my $flattened_list =
-        Marpa::R2::Internal::MetaAST::Symbol_List->combine(@symbol_lists);
-    return bless {
-        rhs  => $flattened_list->names($parse),
-        mask => $flattened_list->mask()
-        },
-        $PROTO_ALTERNATIVE;
+    my ( $start, $length, @values ) = @{$data};
+    my $rhs = eval {
+        my @symbol_lists = map { $_->evaluate($parse) } @values;
+        my $flattened_list =
+            Marpa::R2::Internal::MetaAST::Symbol_List->combine(@symbol_lists);
+        bless {
+            rhs  => $flattened_list->names($parse),
+            mask => $flattened_list->mask()
+            },
+            $PROTO_ALTERNATIVE;
+    };
+    if ( not $rhs ) {
+        my $eval_error = $EVAL_ERROR;
+        chomp $eval_error;
+        Marpa::R2::exception(
+            qq{$eval_error\n},
+            q{  RHS involved was },
+            $parse->substring( $start, $length )
+        );
+    } ## end if ( not $rhs )
+    return $rhs;
 } ## end sub Marpa::R2::Internal::MetaAST_Nodes::rhs::evaluate
 
 sub Marpa::R2::Internal::MetaAST_Nodes::rhs_primary::evaluate {
@@ -371,12 +397,12 @@ sub Marpa::R2::Internal::MetaAST_Nodes::default_rule::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_default_statement::evaluate {
     my ( $data, $parse ) = @_;
-    my ( $start, $end, $raw_adverb_list ) = @{$data};
+    my ( $start, $length, $raw_adverb_list ) = @{$data};
     local $Marpa::R2::Internal::GRAMMAR_LEVEL = 1;
 
     my $adverb_list = $raw_adverb_list->evaluate($parse);
     if ( exists $parse->{lexeme_default_adverbs} ) {
-        my $problem_rule = $parse->substring( $start, $end );
+        my $problem_rule = $parse->substring( $start, $length );
         Marpa::R2::exception(
             qq{More than one lexeme default statement is not allowed\n},
             qq{  This was the rule that caused the problem:\n},
@@ -402,12 +428,13 @@ sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_default_statement::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
     my ( $values, $parse ) = @_;
-    my ( undef, undef, $raw_lhs, $op_declare, $raw_priorities ) = @{$values};
+    my ( $start, $length, $raw_lhs, $op_declare, $raw_priorities ) = @{$values};
+
     my $grammar_level = $op_declare->op() eq q{::=} ? 1 : 0;
     local $Marpa::R2::Internal::GRAMMAR_LEVEL = $grammar_level;
     my $lhs = $raw_lhs->name($parse);
 
-    my (undef, undef, @priorities) = @{$raw_priorities};
+    my ( undef, undef, @priorities ) = @{$raw_priorities};
     my $priority_count = scalar @priorities;
     my @working_rules  = ();
 
@@ -417,13 +444,29 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
 
     if ( $priority_count <= 1 ) {
         ## If there is only one priority
-        my (undef, undef, @alternatives) = @{ $priorities[0] } ;
+        my ( undef, undef, @alternatives ) = @{ $priorities[0] };
         for my $alternative (@alternatives) {
-            my ( undef, undef, $raw_rhs, $raw_adverb_list ) = @{$alternative};
-            my $proto_rule  = $raw_rhs->evaluate($parse);
-            my $adverb_list = $raw_adverb_list->evaluate($parse);
-            my @rhs_names   = @{ $proto_rule->{rhs} };
-            my @mask        = @{ $proto_rule->{mask} };
+            my ($alternative_start, $alternative_end,
+                $raw_rhs,           $raw_adverb_list
+            ) = @{$alternative};
+            my ( $proto_rule, $adverb_list );
+            my $eval_ok = eval {
+                $proto_rule  = $raw_rhs->evaluate($parse);
+                $adverb_list = $raw_adverb_list->evaluate($parse);
+                1;
+            };
+            if ( not $eval_ok ) {
+                my $eval_error = $EVAL_ERROR;
+                chomp $eval_error;
+                Marpa::R2::exception(
+                    qq{$eval_error\n},
+                    qq{  The problem was in this RHS alternative:\n},
+                    q{  }, $parse->substring( $alternative_start, $alternative_end ),
+                    "\n"
+                );
+            } ## end if ( not $eval_ok )
+            my @rhs_names = @{ $proto_rule->{rhs} };
+            my @mask      = @{ $proto_rule->{mask} };
             if ( $grammar_level <= 0 and grep { !$_ } @mask ) {
                 Marpa::R2::exception(
                     qq{hidden symbols are not allowed in lexical rules (rules LHS was "$lhs")}
@@ -454,16 +497,34 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
 
             push @{$rules}, \%hash_rule;
         } ## end for my $alternative (@alternatives)
-        return 'consumed trivial priority rule';
+        return undef;
     } ## end if ( $priority_count <= 1 )
 
     for my $priority_ix ( 0 .. $priority_count - 1 ) {
         my $priority = $priority_count - ( $priority_ix + 1 );
-        my (undef, undef, @alternatives) = @{ $priorities[$priority_ix] } ;
-        for my $alternative ( @alternatives) {
-            my ( undef, undef, $rhs, $adverb_list ) = @{$alternative};
+        my ( undef, undef, @alternatives ) = @{ $priorities[$priority_ix] };
+        for my $alternative (@alternatives) {
+            my ($alternative_start, $alternative_end,
+                $raw_rhs,           $raw_adverb_list
+            ) = @{$alternative};
+            my ($adverb_list, $rhs);
+            my $eval_ok = eval {
+                $adverb_list = $raw_adverb_list->evaluate($parse);
+                $rhs         = $raw_rhs->evaluate($parse);
+                1;
+            };
+            if ( not $eval_ok ) {
+                my $eval_error = $EVAL_ERROR;
+                chomp $eval_error;
+                Marpa::R2::exception(
+                    qq{$eval_error\n},
+                    qq{  The problem was in this RHS alternative:\n},
+                    q{  }, $parse->substring( $alternative_start, $alternative_end ),
+                    "\n"
+                );
+            } ## end if ( not $eval_ok )
             push @working_rules, [ $priority, $rhs, $adverb_list ];
-        }
+        } ## end for my $alternative (@alternatives)
     } ## end for my $priority_ix ( 0 .. $priority_count - 1 )
 
     # Default mask (all ones) is OK for this rule
@@ -480,13 +541,11 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
         } 1 .. $priority_count - 1
         );
     RULE: for my $working_rule (@working_rules) {
-        my ( $priority, $raw_rhs, $raw_adverb_list ) = @{$working_rule};
-        my $adverb_list = $raw_adverb_list->evaluate($parse);
-        my $rhs = $raw_rhs->evaluate($parse);
-        my $assoc   = $adverb_list->{assoc} // 'L';
-        my @new_rhs = @{$rhs->{rhs}};
-        my @arity   = grep { $new_rhs[$_] eq $lhs } 0 .. $#new_rhs;
-        my $length  = scalar @new_rhs;
+        my ( $priority, $rhs, $adverb_list ) = @{$working_rule};
+        my $assoc       = $adverb_list->{assoc} // 'L';
+        my @new_rhs     = @{ $rhs->{rhs} };
+        my @arity       = grep { $new_rhs[$_] eq $lhs } 0 .. $#new_rhs;
+        my $length      = scalar @new_rhs;
 
         my $current_exp = $lhs . '[prec' . $priority . ']';
         my @mask        = @{ $rhs->{mask} };
@@ -560,7 +619,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
         $new_xs_rule{rhs} = \@new_rhs;
         push @{$rules}, \%new_xs_rule;
     } ## end RULE: for my $working_rule (@working_rules)
-    return 'consumed priority rule';
+    return undef;
 } ## end sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate
 
 sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
@@ -605,10 +664,10 @@ sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_rule::evaluate {
     my ( $values, $parse ) = @_;
-    my ( $start, $end, undef, $op_declare, $unevaluated_adverb_list ) =
+    my ( $start, $length, undef, $op_declare, $unevaluated_adverb_list ) =
         @{$values};
     Marpa::R2::exception( "lexeme rule not allowed in G0\n",
-        "  Rule was ", $parse->positions_to_string( $start, $end ) )
+        "  Rule was ", $parse->positions_to_string( $start, $length ) )
         if $op_declare->op() ne q{::=};
     my $adverb_list = $unevaluated_adverb_list->evaluate($parse);
 
@@ -646,7 +705,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::statement_body::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::start_rule::evaluate {
     my ( $values, $parse ) = @_;
-    my ( $start, $end, $symbol ) = @{$values};
+    my ( $start, $length, $symbol ) = @{$values};
     local $Marpa::R2::Internal::GRAMMAR_LEVEL = 0;
     push @{ $parse->{g1_rules} },
         {
@@ -659,7 +718,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::start_rule::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::discard_rule::evaluate {
     my ( $values, $parse ) = @_;
-    my ( $start, $end, $symbol ) = @{$values};
+    my ( $start, $length, $symbol ) = @{$values};
     local $Marpa::R2::Internal::GRAMMAR_LEVEL = 0;
     push @{ $parse->{g0_rules} },
         { lhs => '[:discard]', rhs => $symbol->names($parse) };
@@ -732,9 +791,20 @@ sub Marpa::R2::Internal::MetaAST_Nodes::alternatives::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::alternative::evaluate {
     my ( $values, $parse ) = @_;
-    my ( undef, undef, $rhs, $adverbs ) = @{$values};
-    return Marpa::R2::Internal::MetaAST::Proto_Alternative->combine( map { $_->evaluate($parse) } $rhs, $adverbs);
-} ## end sub evaluate
+    my ( $start, $length, $rhs, $adverbs ) = @{$values};
+    my $alternative = eval {
+        Marpa::R2::Internal::MetaAST::Proto_Alternative->combine(
+            map { $_->evaluate($parse) } $rhs, $adverbs );
+    };
+    if ( not $alternative ) {
+        Marpa::R2::exception(
+            $EVAL_ERROR, "\n",
+            q{  Alternative involved was },
+            $parse->substring( $start, $length )
+        );
+    } ## end if ( not $alternative )
+    return $alternative;
+} ## end sub Marpa::R2::Internal::MetaAST_Nodes::alternative::evaluate
 
 sub Marpa::R2::Internal::MetaAST_Nodes::single_symbol::names {
     my ( $values, $parse ) = @_;

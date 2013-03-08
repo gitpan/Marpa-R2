@@ -13,8 +13,8 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-:default ::= action => [range,values] bless => ::lhs
-lexeme default = action => [range,value] bless => ::name
+:default ::= action => [start,length,values] bless => ::lhs
+lexeme default = action => [start,length,value] bless => ::name
 
 :start ::= statements
 statements ::= statement+
@@ -101,7 +101,7 @@ boolean ~ [01]
 
 <array descriptor> ~ '[' <result item descriptor list> ']'
 <result item descriptor list> ~ <result item descriptor>* separator => [,]
-<result item descriptor> ~ 'range' | 'value' | 'values'
+<result item descriptor> ~ 'start' | 'length' | 'value' | 'values'
 
 # In single quotes strings and character classes
 # no escaping or internal newlines, and disallow empty string

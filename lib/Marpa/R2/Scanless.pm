@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_011';
+$VERSION        = '2.047_012';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -149,12 +149,21 @@ package Marpa::R2::Inner::Scanless;
 
 use English qw( -no_match_vars );
 
+sub Marpa::R2::Scanless::R::last_completed_range {
+    my ( $self, $symbol_name ) = @_;
+    my ($start, $length) = $self->last_completed($symbol_name);
+    return if not defined $start;
+    my $end = $start + $length;
+    return ($start, $end);
+}
+
 # Given a scanless
 # recognizer and a symbol,
-# return the start and end earley sets
+# return the start earley set
+# and length
 # of the last such symbol completed,
 # undef if there was none.
-sub Marpa::R2::Scanless::R::last_completed_range {
+sub Marpa::R2::Scanless::R::last_completed {
     my ( $self, $symbol_name ) = @_;
     my $grammar = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
     my $thick_g1_grammar =
@@ -165,12 +174,13 @@ sub Marpa::R2::Scanless::R::last_completed_range {
     my $g1_tracer       = $thick_g1_grammar->tracer();
     my $thin_g1_grammar = $thick_g1_grammar->thin();
     my $symbol_id       = $g1_tracer->symbol_by_name($symbol_name);
-    Marpa::R2::exception("Bad symbol in last_completed_range(): $symbol_name")
+    Marpa::R2::exception("Bad symbol in last_completed(): $symbol_name")
         if not defined $symbol_id;
     my @sought_rules =
         grep { $thin_g1_grammar->rule_lhs($_) == $symbol_id; }
         0 .. $thin_g1_grammar->highest_rule_id();
-    Marpa::R2::exception( "Looking for completion of non-existent rule lhs: $symbol_name")
+    Marpa::R2::exception(
+        "Looking for completion of non-existent rule lhs: $symbol_name")
         if not scalar @sought_rules;
     my $latest_earley_set = $thin_g1_recce->latest_earley_set();
     my $earley_set        = $latest_earley_set;
@@ -193,21 +203,28 @@ sub Marpa::R2::Scanless::R::last_completed_range {
         $earley_set--;
     } ## end EARLEY_SET: while ( $earley_set >= 0 )
     return if $earley_set < 0;
-    return ( $first_origin, $earley_set );
-} ## end sub Marpa::R2::Scanless::R::last_completed_range
+    return ( $first_origin, ( $earley_set - $first_origin ) );
+} ## end sub Marpa::R2::Scanless::R::last_completed
+
+sub Marpa::R2::Scanless::R::range_to_string {
+    my ( $self, $start_earley_set, $end_earley_set ) = @_;
+    return $self->substring($start_earley_set, $end_earley_set-$start_earley_set);
+}
 
 # Given a scanless recognizer and
 # and two earley sets, return the input string
-sub Marpa::R2::Scanless::R::range_to_string {
-    my ( $self, $start_earley_set, $end_earley_set ) = @_;
+sub Marpa::R2::Scanless::R::substring {
+    my ( $self, $start_earley_set, $length_in_parse_locations ) = @_;
     return if not defined $start_earley_set;
-    my $thin_self  = $self->[Marpa::R2::Inner::Scanless::R::C];
-    my ($start_position) = $thin_self->locations($start_earley_set+1);
-    my (undef, $end_position) = $thin_self->locations($end_earley_set);
-    my $p_input   = $self->[Marpa::R2::Inner::Scanless::R::P_INPUT_STRING];
-    return substr ${$p_input}, $start_position,
-        ( $end_position - $start_position );
-} ## end sub Marpa::R2::Scanless::R::range_to_string
+    my $thin_self = $self->[Marpa::R2::Inner::Scanless::R::C];
+    my ($first_start_position) = $thin_self->span( $start_earley_set + 1 );
+    my ( $last_start_position, $last_length ) =
+        $thin_self->span( $start_earley_set + $length_in_parse_locations );
+    my $length_in_characters =
+        ( $last_start_position + $last_length ) - $first_start_position;
+    my $p_input = $self->[Marpa::R2::Inner::Scanless::R::P_INPUT_STRING];
+    return substr ${$p_input}, $first_start_position, $length_in_characters;
+} ## end sub Marpa::R2::Scanless::R::substring
 
 sub Marpa::R2::Internal::Scanless::meta_grammar {
 
@@ -233,13 +250,6 @@ sub Marpa::R2::Internal::Scanless::meta_recce {
     my $self = Marpa::R2::Scanless::R->new($hash_args);
     return $self;
 } ## end sub Marpa::R2::Internal::Scanless::meta_recce
-
-sub Marpa::R2::Scanless::R::last_rule {
-   my ($meta_recce) = @_;
-   my ($start, $end) = $meta_recce->last_completed_range( 'rule' );
-   return 'No rule was completed' if not defined $start;
-   return $meta_recce->range_to_string( $start, $end);
-}
 
 sub Marpa::R2::Scanless::G::new {
     my ( $class, $args ) = @_;
@@ -807,13 +817,13 @@ sub Marpa::R2::Scanless::R::read_problem {
     my $g1_status = 0;
     CODE_TO_PROBLEM: {
         if ( $problem_code eq 'R0 exhausted before end' ) {
-            my ($lexeme_start_pos) = $thin_self->lexeme_locations();
+            my ($lexeme_start_pos) = $thin_self->lexeme_span();
             $problem =
                 "Parse exhausted, but lexemes remain, at position $lexeme_start_pos\n";
             last CODE_TO_PROBLEM;
         }
         if ( $problem_code eq 'no lexeme' ) {
-            my ($lexeme_start) = $thin_self->lexeme_locations();
+            my ($lexeme_start) = $thin_self->lexeme_span();
             $problem = "No lexeme found at position $lexeme_start";
             last CODE_TO_PROBLEM;
         }
@@ -910,7 +920,9 @@ sub Marpa::R2::Scanless::R::read_problem {
     my $read_string_error;
     if ($g1_status) {
         my $latest_earley_set = $thin_g1_recce->latest_earley_set();
-        my (undef, $last_pos) = $thin_self->locations($latest_earley_set);
+        my ( $start_location, $length ) =
+            $thin_self->span($latest_earley_set);
+        my $last_pos = $start_location + $length;
         my $prefix =
             $last_pos >= 72
             ? ( substr ${$p_string}, $last_pos - 72, 72 )
@@ -921,7 +933,8 @@ sub Marpa::R2::Scanless::R::read_problem {
             . "* String before error:\n"
             . Marpa::R2::escape_string( $prefix, -72 ) . "\n"
             . "* String after error:\n"
-            . Marpa::R2::escape_string( ( substr ${$p_string}, $last_pos, 72 ), 72 )
+            . Marpa::R2::escape_string(
+            ( substr ${$p_string}, $last_pos, 72 ), 72 )
             . "\n";
     } ## end if ($g1_status)
     elsif ( $pos < $length_of_string ) {
@@ -980,8 +993,8 @@ sub Marpa::R2::Scanless::R::value {
     my @token_values = ('');
     my $latest_earley_set = $thick_g1_recce->latest_earley_set();
     for (my $earley_set = 1 ; $earley_set <= $latest_earley_set; $earley_set++) {
-        my ($start_position, $end_position) = $thin_self->locations($earley_set);
-        push @token_values, substr ${$p_input}, $start_position, ( $end_position - $start_position );
+        my ($start_position, $length) = $thin_self->span($earley_set);
+        push @token_values, substr ${$p_input}, $start_position, $length;
     }
     $thick_g1_recce->[Marpa::R2::Internal::Recognizer::TOKEN_VALUES] = \@token_values;
     my $thick_g1_value = $thick_g1_recce->value();

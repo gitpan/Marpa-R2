@@ -290,10 +290,11 @@ enum marpa_op
   op_ignore_rejection,
   op_noop,
   op_push_one,
+  op_push_length,
   op_push_undef,
   op_push_sequence,
   op_push_values,
-  op_push_slr_range,
+  op_push_start_location,
   op_report_rejection,
   op_result_is_array,
   op_result_is_constant,
@@ -312,16 +313,17 @@ static Marpa_XS_OP_Data marpa_op_data[] = {
 {  op_end_marker, "end_marker" },
 {  op_ignore_rejection, "ignore_rejection" },
 {  op_noop, "noop" },
+{  op_push_length, "push_length" },
 {  op_push_one, "push_one" },
 {  op_push_sequence, "push_sequence" },
-{  op_push_slr_range, "push_slr_range" },
+{  op_push_start_location, "push_start_location" },
 {  op_push_undef, "push_undef" },
 {  op_push_values, "push_values" },
 {  op_report_rejection, "report_rejection" },
 {  op_result_is_array, "result_is_array" },
 {  op_result_is_constant, "result_is_constant" },
-{  op_result_is_rhs_n, "result_is_rhs_n" },
 {  op_result_is_n_of_sequence, "result_is_n_of_sequence" },
+{  op_result_is_rhs_n, "result_is_rhs_n" },
 {  op_result_is_token_value, "result_is_token_value" },
 {  op_result_is_undef, "result_is_undef" },
   { -1, (char *)NULL}
@@ -834,8 +836,8 @@ v_create_stack(V_Wrapper* v_wrapper)
   return 0;
 }
 
-static void slr_locations (Scanless_R * slr, Marpa_Earley_Set_ID earley_set,
-			   int *p_start, int *p_end);
+static void slr_span (Scanless_R * slr, Marpa_Earley_Set_ID earley_set,
+			   int *p_start, int *p_length);
 
 static int
 v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
@@ -1177,10 +1179,47 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	  }
 	  goto NEXT_OP_CODE;
 
-	case op_push_slr_range:
+	case op_push_start_location:
 	  {
 	    int start_location;
-	    int end_location;
+	    Scanless_R *slr = v_wrapper->slr;
+	    Marpa_Earley_Set_ID start_earley_set;
+	    int dummy;
+
+	    if (!values_av)
+	      {
+		values_av = (AV *) sv_2mortal ((SV *) newAV ());
+	      }
+	    if (!slr)
+	      {
+		croak
+		  ("Problem in v->stack_step: 'push_start_location' op attempted when no slr is set");
+	      }
+	    switch (step_type)
+	      {
+	      case MARPA_STEP_RULE:
+		start_earley_set = marpa_v_rule_start_es_id (v) + 1;
+		break;
+	      case MARPA_STEP_NULLING_SYMBOL:
+		start_earley_set = marpa_v_token_start_es_id (v);
+		break;
+	      case MARPA_STEP_TOKEN:
+		start_earley_set = marpa_v_token_start_es_id (v) + 1;
+		break;
+	      default:
+		croak
+		  ("Problem in v->stack_step: Range requested for improper step type: %s",
+		   step_type_to_string (step_type));
+	      }
+	    slr_span (slr, start_earley_set, &start_location,
+			   &dummy);
+	    av_push (values_av, newSViv ((IV) start_location));
+	  }
+	  goto NEXT_OP_CODE;
+
+	case op_push_length:
+	  {
+	    int length;
 	    Scanless_R *slr = v_wrapper->slr;
 
 	    if (!values_av)
@@ -1190,53 +1229,42 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	    if (!slr)
 	      {
 		croak
-		  ("Problem in v->stack_step: 'push_slr_range' op attempted when no slr is set");
+		  ("Problem in v->stack_step: 'push_length' op attempted when no slr is set");
 	      }
 	    switch (step_type)
 	      {
 	      case MARPA_STEP_NULLING_SYMBOL:
-		{
-		  Marpa_Earley_Set_ID earley_set =
-		    marpa_v_token_start_es_id (v);
-		  slr_locations (slr, earley_set, &start_location,
-				 &end_location);
-		}
-		goto NEXT_OP_CODE;
+		length = 0;
+		break;
 	      case MARPA_STEP_RULE:
 		{
-		  int dummy;
+		  int first_start_location, last_start_location, last_length, dummy;
 		  Marpa_Earley_Set_ID start_earley_set =
 		    marpa_v_rule_start_es_id (v);
 		  Marpa_Earley_Set_ID end_earley_set = marpa_v_es_id (v);
-		  slr_locations (slr, start_earley_set + 1, &start_location,
-				 &dummy);
-		  av_push (values_av, newSViv ((IV) start_location));
-		  slr_locations (slr, end_earley_set, &dummy, &end_location);
-		  av_push (values_av, newSViv ((IV) end_location));
+		  slr_span (slr, start_earley_set + 1, &first_start_location, &dummy);
+		  slr_span (slr, end_earley_set, &last_start_location, &last_length);
+		  length = (last_start_location + last_length) - first_start_location;
 		}
-		goto NEXT_OP_CODE;
+		break;
 	      case MARPA_STEP_TOKEN:
 		{
-		  int dummy;
+		  int first_start_location, last_start_location, last_length, dummy;
 		  Marpa_Earley_Set_ID start_earley_set =
 		    marpa_v_token_start_es_id (v);
 		  Marpa_Earley_Set_ID end_earley_set = marpa_v_es_id (v);
-		  slr_locations (slr, start_earley_set + 1, &start_location,
-				 &dummy);
-		  av_push (values_av, newSViv ((IV) start_location));
-		  slr_locations (slr, end_earley_set, &dummy, &end_location);
-		  av_push (values_av, newSViv ((IV) end_location));
+		  slr_span (slr, start_earley_set + 1, &first_start_location, &dummy);
+		  slr_span (slr, end_earley_set, &last_start_location, &last_length);
+		  length = (last_start_location + last_length) - first_start_location;
 		}
-		goto NEXT_OP_CODE;
+		break;
 	      default:
-		{
-		  croak
-		    ("Problem in v->stack_step: Range requested for improper step type: %s",
-		     step_type_to_string (step_type));
-		}
+		croak
+		  ("Problem in v->stack_step: Range requested for improper step type: %s",
+		   step_type_to_string (step_type));
 	      }
+	    av_push (values_av, newSViv ((IV) length));
 	  }
-	  /* Not reached */
 	  goto NEXT_OP_CODE;
 
 	case op_bless:
@@ -1584,8 +1612,8 @@ LEXEMES_FOUND:;
 }
 
 static void
-slr_locations (Scanless_R * slr, Marpa_Earley_Set_ID earley_set, int *p_start,
-	       int *p_end)
+slr_span (Scanless_R * slr, Marpa_Earley_Set_ID earley_set, int *p_start,
+	       int *p_length)
 {
   dTHX;
   int result = 0;
@@ -1594,18 +1622,19 @@ slr_locations (Scanless_R * slr, Marpa_Earley_Set_ID earley_set, int *p_start,
   if (earley_set <= 0)
     {
       *p_start = 0;
-      *p_end = 0;
+      *p_length = 0;
     }
   else
     {
-      void *end_pos;
+      void *length_as_ptr;
       result =
-	marpa_r_earley_set_values (slr->r1, earley_set, p_start, &end_pos);
-      *p_end = (int) PTR2IV (end_pos);
+	marpa_r_earley_set_values (slr->r1, earley_set, p_start,
+				   &length_as_ptr);
+      *p_length = (int) PTR2IV (length_as_ptr);
     }
   if (result < 0)
     {
-      croak ("failure in slr->location(%d): %s", earley_set,
+      croak ("failure in slr->span(%d): %s", earley_set,
 	     xs_g_error (slr->g1_wrapper));
     }
 }
@@ -2360,7 +2389,7 @@ PPCODE:
   stream->perl_pos = 0;
   stream->input_offset = 0;
   /* Get our own copy and coerce it to a PV.
-   * Stealing in OK, magic is not.
+   * Stealing is OK, magic is not.
    */
   SvSetSV (stream->input, string);
   SvPV_force_nomg (stream->input, length);
@@ -4808,6 +4837,8 @@ PPCODE:
 
       if (lexemes_attempted)
 	{
+	  const int lexeme_start = slr->start_of_lexeme;
+	  const int lexeme_length = slr->end_of_lexeme - lexeme_start;
 	  slr->g1_wrapper->throw = 0;
 	  result = slr->r1_earleme_complete_result =
 	    marpa_r_earleme_complete (slr->r1);
@@ -4816,8 +4847,8 @@ PPCODE:
 	    {
 	      XSRETURN_PV ("R1 earleme_complete() problem");
 	    }
-      marpa_r_latest_earley_set_values_set (slr->r1, slr->start_of_lexeme,
-					    INT2PTR (void *, slr->end_of_lexeme));
+	  marpa_r_latest_earley_set_values_set (slr->r1, lexeme_start,
+						INT2PTR (void *, lexeme_length));
 	}
 
       if (slr->trace_terminals || stream->trace_g0)
@@ -4860,26 +4891,26 @@ PPCODE:
 }
 
 void
-locations(slr, earley_set)
+span(slr, earley_set)
     Scanless_R *slr;
     IV earley_set;
 PPCODE:
 {
   int start_position;
-  int end_position;
-  slr_locations(slr, earley_set, &start_position, &end_position);
+  int length;
+  slr_span(slr, earley_set, &start_position, &length);
   XPUSHs (sv_2mortal (newSViv ((IV) start_position)));
-  XPUSHs (sv_2mortal (newSViv ((IV) end_position)));
+  XPUSHs (sv_2mortal (newSViv ((IV) length)));
 }
 
 void
-lexeme_locations (slr)
+lexeme_span (slr)
      Scanless_R *slr;
 PPCODE:
 {
-  STRLEN end_of_lexeme = slr->end_of_lexeme;
+  STRLEN length = slr->end_of_lexeme - slr->start_of_lexeme;
   XPUSHs (sv_2mortal (newSViv ((IV) slr->start_of_lexeme)));
-  XPUSHs (sv_2mortal (newSViv ((IV)end_of_lexeme)));
+  XPUSHs (sv_2mortal (newSViv ((IV) length)));
 }
 
 INCLUDE: general_pattern.xsh

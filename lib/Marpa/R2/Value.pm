@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.047_011';
+$VERSION        = '2.047_012';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -763,7 +763,6 @@ sub code_problems {
         push @msg, $fatal_error_message;
     } ## end if ($fatal_error)
 
-    push @msg, q{* ONE PLACE TO LOOK FOR THE PROBLEM IS IN THE CODE};
     Marpa::R2::exception(@msg);
 
     # this is to keep perlcritic happy
@@ -861,12 +860,14 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
     $value->trace_values($trace_values);
     $value->stack_mode_set($token_values);
 
-    state $op_bless              = Marpa::R2::Thin::op('bless');
-    state $op_callback           = Marpa::R2::Thin::op('callback');
-    state $op_push_values        = Marpa::R2::Thin::op('push_values');
-    state $op_push_one           = Marpa::R2::Thin::op('push_one');
-    state $op_push_sequence      = Marpa::R2::Thin::op('push_sequence');
-    state $op_push_slr_range     = Marpa::R2::Thin::op('push_slr_range');
+    state $op_bless         = Marpa::R2::Thin::op('bless');
+    state $op_callback      = Marpa::R2::Thin::op('callback');
+    state $op_push_values   = Marpa::R2::Thin::op('push_values');
+    state $op_push_one      = Marpa::R2::Thin::op('push_one');
+    state $op_push_sequence = Marpa::R2::Thin::op('push_sequence');
+    state $op_push_length   = Marpa::R2::Thin::op('push_length');
+    state $op_push_start_location =
+        Marpa::R2::Thin::op('push_start_location');
     state $op_result_is_array    = Marpa::R2::Thin::op('result_is_array');
     state $op_result_is_constant = Marpa::R2::Thin::op('result_is_constant');
     state $op_result_is_rhs_n    = Marpa::R2::Thin::op('result_is_rhs_n');
@@ -975,6 +976,14 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                     @ops = ( $op_result_is_constant, $constant_ix );
                     last SET_OPS;
                 } ## end if ( $ref_type eq 'SCALAR' )
+                if (   $ref_type eq 'HASH'
+                    or $ref_type eq 'ARRAY' )
+                {
+                    # For hash and array, do not de-reference
+                    my $constant_ix = $value->constant_register($thingy_ref);
+                    @ops = ( $op_result_is_constant, $constant_ix );
+                    last SET_OPS;
+                } ## end if ( $ref_type eq 'HASH' or $ref_type eq 'ARRAY' )
                 if (   $ref_type eq 'REF'
                     or $ref_type eq 'LVALUE'
                     or $ref_type eq 'VSTRING' )
@@ -984,6 +993,9 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
                     @ops = ( $op_result_is_constant, $constant_ix );
                     last SET_OPS;
                 } ## end if ( $ref_type eq 'REF' or $ref_type eq 'LVALUE' or ...)
+                Marpa::R2::exception(
+                    qq{Constant action is not of an allowed type.\n},
+                    q{  Rule was }, $grammar->brief_rule($rule_id), "\n" );
             } ## end DO_CONSTANT:
 
             # After this point, any closure will be a ref to 'CODE'
@@ -1062,8 +1074,12 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
             my $array_descriptor = substr $semantics, 1, -1;
             RESULT_DESCRIPTOR:
             for my $result_descriptor ( split /[,]/xms, $array_descriptor ) {
-                if ( $result_descriptor eq 'range' ) {
-                    push @push_ops, $op_push_slr_range;
+                if ( $result_descriptor eq 'start' ) {
+                    push @push_ops, $op_push_start_location;
+                    next RESULT_DESCRIPTOR;
+                }
+                if ( $result_descriptor eq 'length' ) {
+                    push @push_ops, $op_push_length;
                     next RESULT_DESCRIPTOR;
                 }
                 if (   $result_descriptor eq 'values'
