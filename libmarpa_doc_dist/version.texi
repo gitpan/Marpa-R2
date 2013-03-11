@@ -1,4 +1,4 @@
-@set UPDATED 7 March 2013
+@set UPDATED 10 March 2013
 @set UPDATED-MONTH March 2013
-@set EDITION 2.47.12
-@set VERSION 2.47.12
+@set EDITION 2.48.0
+@set VERSION 2.48.0
