@@ -19,9 +19,20 @@
 #include <EXTERN.h>
 #include <perl.h>
 #include <XSUB.h>
+#include "ppport.h"
 
 #include "config.h"
 #include "marpa.h"
+
+
+/* utf8_to_uvchr is deprecated in 5.16, but
+ * utf8_to_uvchr_buf is not available before 5.16
+ * If I need to get fancier, I should look at Dumper.xs
+ * in Data::Dumper
+ */
+#if PERL_VERSION <= 15 && ! defined(utf8_to_uvchr_buf)
+#define utf8_to_uvchr_buf(s, send, p_length) (utf8_to_uvchr(s, p_length))
+#endif
 
 typedef SV* SVREF;
 
@@ -52,6 +63,11 @@ typedef struct {
 } R_Wrapper;
 
 typedef struct {
+    int next_offset; /* Offset of *NEXT* codepoint */
+    int linecol;
+} Pos_Entry;
+
+typedef struct {
      G_Wrapper* g0_wrapper;
      /* Need to keep a copy of the G0 SV in order to properly "wrap"
       * a recognizer.
@@ -59,10 +75,11 @@ typedef struct {
      SV* g0_sv;
      Marpa_Recce r0;
      SV* r0_sv;
-     STRLEN perl_pos; /* character position, taking into account Unicode
+     /* character position, taking into account Unicode
          Equivalent to Perl pos()
+	 One past last actual position indicates past-end-of-string
      */
-     STRLEN input_offset; /* byte position, ignoring Unicode */
+     int perl_pos;
      SV* input;
      Marpa_Symbol_ID input_symbol_id;
      UV codepoint; /* For error returns */
@@ -74,7 +91,16 @@ typedef struct {
      IV minimum_accepted;
      IV trace_g0; /* trace level */
      AV* event_queue;
+     Pos_Entry* pos_db;
+     int pos_db_logical_size;
+     int pos_db_physical_size;
 } Unicode_Stream;
+
+#undef POS_TO_OFFSET
+#define POS_TO_OFFSET(stream, pos) \
+  ((pos) > 0 ? (stream)->pos_db[(pos) - 1].next_offset : 0)
+#undef OFFSET_OF_STREAM
+#define OFFSET_OF_STREAM(stream) POS_TO_OFFSET((stream), (stream)->perl_pos)
 
 typedef struct {
      SV* g0_sv;
@@ -293,6 +319,7 @@ enum marpa_op
   op_push_length,
   op_push_undef,
   op_push_sequence,
+  op_push_token_literal,
   op_push_values,
   op_push_start_location,
   op_report_rejection,
@@ -300,6 +327,7 @@ enum marpa_op
   op_result_is_constant,
   op_result_is_rhs_n,
   op_result_is_n_of_sequence,
+  op_result_is_token_literal,
   op_result_is_token_value,
   op_result_is_undef
 };
@@ -318,12 +346,14 @@ static Marpa_XS_OP_Data marpa_op_data[] = {
 {  op_push_sequence, "push_sequence" },
 {  op_push_start_location, "push_start_location" },
 {  op_push_undef, "push_undef" },
+{  op_push_token_literal, "push_token_literal" },
 {  op_push_values, "push_values" },
 {  op_report_rejection, "report_rejection" },
 {  op_result_is_array, "result_is_array" },
 {  op_result_is_constant, "result_is_constant" },
 {  op_result_is_n_of_sequence, "result_is_n_of_sequence" },
 {  op_result_is_rhs_n, "result_is_rhs_n" },
+{  op_result_is_token_literal, "result_is_token_literal" },
 {  op_result_is_token_value, "result_is_token_value" },
 {  op_result_is_undef, "result_is_undef" },
   { -1, (char *)NULL}
@@ -429,7 +459,9 @@ static Unicode_Stream* u_new(SV* g_sv)
   stream->r0_sv = NULL;
   stream->input = newSVpvn ("", 0);
   stream->perl_pos = 0;
-  stream->input_offset = 0;
+  stream->pos_db = 0;
+  stream->pos_db_logical_size = -1;
+  stream->pos_db_physical_size = -1;
   stream->input_symbol_id = -1;
   stream->per_codepoint_ops = newHV ();
   stream->ignore_rejection = 1;
@@ -448,6 +480,7 @@ static void u_destroy(Unicode_Stream *stream)
       marpa_r_unref (r0);
     }
   SvREFCNT_dec (stream->event_queue);
+  Safefree(stream->pos_db);
   SvREFCNT_dec (stream->input);
   SvREFCNT_dec (stream->per_codepoint_ops);
   SvREFCNT_dec (stream->g0_sv);
@@ -517,20 +550,21 @@ static int
 u_read(Unicode_Stream *stream)
 {
   dTHX;
-  U8* input;
+  U8 *input;
   STRLEN len;
   int input_is_utf8;
 
   const IV trace_g0 = stream->trace_g0;
   Marpa_Recognizer r = stream->r0;
 
-  if (!r) {
-      r = u_r0_new(stream);
+  if (!r)
+    {
+      r = u_r0_new (stream);
       if (!r)
 	croak ("Problem in u_read(): %s", xs_g_error (stream->g0_wrapper));
-  }
+    }
   input_is_utf8 = SvUTF8 (stream->input);
-  input = (U8*)SvPV (stream->input, len);
+  input = (U8 *) SvPV (stream->input, len);
   for (;;)
     {
       int return_value = 0;
@@ -542,60 +576,55 @@ u_read(Unicode_Stream *stream)
       IV ignore_rejection = stream->ignore_rejection;
       IV minimum_accepted = stream->minimum_accepted;
       int tokens_accepted = 0;
-      if (stream->input_offset >= len)
+      if (stream->perl_pos >= stream->pos_db_logical_size)
 	break;
+
       if (input_is_utf8)
 	{
 
-  /* utf8_to_uvchr is deprecated in 5.16, but
-   * utf8_to_uvchr_buf is not available before 5.16
-   * If I need to get fancier, I should look at Dumper.xs
-   * in Data::Dumper
-   */
-#if PERL_VERSION <= 15 && ! defined(utf8_to_uvchr_buf)
-	  codepoint = utf8_to_uvchr(input+stream->input_offset, &codepoint_length);
-#else
 	  codepoint =
-	  utf8_to_uvchr_buf (input + stream->input_offset, input + len,
-			     &codepoint_length);
-#endif
+	    utf8_to_uvchr_buf (input + OFFSET_OF_STREAM (stream),
+			       input + len, &codepoint_length);
 
 	  /* Perl API documents that return value is 0 and length is -1 on error,
 	   * "if possible".  length can be, and is, in fact unsigned.
 	   * I deal with this by noting that 0 is a valid UTF8 char but should
 	   * have a length of 1, when valid.
 	   */
-	  if (codepoint == 0 && codepoint_length != 1) {
-	    croak ("Problem in r->read_string(): invalid UTF8 character");
-	  }
+	  if (codepoint == 0 && codepoint_length != 1)
+	    {
+	      croak ("Problem in r->read_string(): invalid UTF8 character");
+	    }
 	}
       else
 	{
-	  codepoint = (UV) input[stream->input_offset];
+	  codepoint = (UV) input[OFFSET_OF_STREAM (stream)];
 	  codepoint_length = 1;
 	}
+
       {
 	STRLEN dummy;
 	SV **p_ops_sv =
 	  hv_fetch (stream->per_codepoint_ops, (char *) &codepoint,
-		    (I32)sizeof (codepoint), 0);
+		    (I32) sizeof (codepoint), 0);
 	if (!p_ops_sv)
 	  {
 	    stream->codepoint = codepoint;
 	    return -2;
 	  }
-	ops = (IV *)SvPV (*p_ops_sv, dummy);
+	ops = (IV *) SvPV (*p_ops_sv, dummy);
       }
-      if (trace_g0 >= 1) {
-		AV *event;
-		SV *event_data[3];
-		event_data[0] = newSVpv ("g0 reading codepoint", 0);
-		event_data[1] = newSViv ((IV)codepoint);
-		event_data[2] = newSViv ((IV)stream->perl_pos);
-		event = av_make (Dim (event_data), event_data);
-		av_push (stream->event_queue, newRV_noinc ((SV *) event));
-      }
-	
+      if (trace_g0 >= 1)
+	{
+	  AV *event;
+	  SV *event_data[3];
+	  event_data[0] = newSVpv ("g0 reading codepoint", 0);
+	  event_data[1] = newSViv ((IV) codepoint);
+	  event_data[2] = newSViv ((IV) stream->perl_pos);
+	  event = av_make (Dim (event_data), event_data);
+	  av_push (stream->event_queue, newRV_noinc ((SV *) event));
+	}
+
       /* ops[0] is codepoint */
       op_count = ops[1];
       for (op_ix = 2; op_ix < op_count; op_ix++)
@@ -605,13 +634,13 @@ u_read(Unicode_Stream *stream)
 	    {
 	    case op_report_rejection:
 	      {
-		 ignore_rejection = 0;
-	         break;
+		ignore_rejection = 0;
+		break;
 	      }
 	    case op_ignore_rejection:
 	      {
-		 ignore_rejection = 1;
-	         break;
+		ignore_rejection = 1;
+		break;
 	      }
 	    case op_alternative:
 	      {
@@ -629,15 +658,15 @@ u_read(Unicode_Stream *stream)
 		       (unsigned long) op_ix);
 		  }
 		symbol_id = (int) ops[op_ix];
-		    if (op_ix + 2 >= op_count)
-		      {
-			croak
-			  ("Missing operand for op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
-			   (unsigned long) op_code, (unsigned long) codepoint,
-			   (unsigned long) op_ix);
-		      }
-		    value = (int) ops[++op_ix];
-		    length = (int) ops[++op_ix];
+		if (op_ix + 2 >= op_count)
+		  {
+		    croak
+		      ("Missing operand for op code (0x%lx); codepoint=0x%lx, op_ix=0x%lx",
+		       (unsigned long) op_code, (unsigned long) codepoint,
+		       (unsigned long) op_ix);
+		  }
+		value = (int) ops[++op_ix];
+		length = (int) ops[++op_ix];
 		result = marpa_r_alternative (r, symbol_id, value, length);
 		switch (result)
 		  {
@@ -647,16 +676,18 @@ u_read(Unicode_Stream *stream)
 		     * we have one of them as an example
 		     */
 		    stream->input_symbol_id = symbol_id;
-		    if (trace_g0 >= 1) {
+		    if (trace_g0 >= 1)
+		      {
 			AV *event;
 			SV *event_data[4];
 			event_data[0] = newSVpv ("g0 rejected codepoint", 0);
-			event_data[1] = newSViv ((IV)codepoint);
-			event_data[2] = newSViv ((IV)stream->perl_pos);
-			event_data[3] = newSViv ((IV)symbol_id);
+			event_data[1] = newSViv ((IV) codepoint);
+			event_data[2] = newSViv ((IV) stream->perl_pos);
+			event_data[3] = newSViv ((IV) symbol_id);
 			event = av_make (Dim (event_data), event_data);
-			av_push (stream->event_queue, newRV_noinc ((SV *) event));
-		    }
+			av_push (stream->event_queue,
+				 newRV_noinc ((SV *) event));
+		      }
 		    if (!ignore_rejection)
 		      {
 			stream->codepoint = codepoint;
@@ -664,16 +695,18 @@ u_read(Unicode_Stream *stream)
 		      }
 		    break;
 		  case MARPA_ERR_NONE:
-		    if (trace_g0 >= 1) {
+		    if (trace_g0 >= 1)
+		      {
 			AV *event;
 			SV *event_data[4];
 			event_data[0] = newSVpv ("g0 accepted codepoint", 0);
-			event_data[1] = newSViv ((IV)codepoint);
-			event_data[2] = newSViv ((IV)stream->perl_pos);
-			event_data[3] = newSViv ((IV)symbol_id);
+			event_data[1] = newSViv ((IV) codepoint);
+			event_data[2] = newSViv ((IV) stream->perl_pos);
+			event_data[3] = newSViv ((IV) symbol_id);
 			event = av_make (Dim (event_data), event_data);
-			av_push (stream->event_queue, newRV_noinc ((SV *) event));
-		    }
+			av_push (stream->event_queue,
+				 newRV_noinc ((SV *) event));
+		      }
 		    tokens_accepted++;
 		    break;
 		  default:
@@ -682,7 +715,8 @@ u_read(Unicode_Stream *stream)
 		    croak
 		      ("Problem alternative() failed at char ix %d; symbol id %d; codepoint 0x%lx\n"
 		       "Problem in r->input_string_read(), alternative() failed: %s",
-		       (int)stream->perl_pos, symbol_id, (unsigned long)codepoint,
+		       (int) stream->perl_pos, symbol_id,
+		       (unsigned long) codepoint,
 		       xs_g_error (stream->g0_wrapper));
 		  }
 	      }
@@ -690,11 +724,11 @@ u_read(Unicode_Stream *stream)
 	    case op_earleme_complete:
 	      {
 		int result;
-		if (tokens_accepted < minimum_accepted) {
+		if (tokens_accepted < minimum_accepted)
+		  {
 		    stream->codepoint = codepoint;
 		    return -1;
-		}
-		marpa_r_latest_earley_set_value_set (r, (int)codepoint);
+		  }
 		result = marpa_r_earleme_complete (r);
 		if (result > 0)
 		  {
@@ -726,7 +760,6 @@ u_read(Unicode_Stream *stream)
 	    }
 	}
     ADVANCE_ONE_CHAR:;
-	stream->input_offset += codepoint_length;
       stream->perl_pos++;
       /* This logic does not allow a return value of 0,
        * which is reserved for a indicating a full
@@ -736,86 +769,30 @@ u_read(Unicode_Stream *stream)
 	{
 	  return return_value;
 	}
-	if (trace_g0) {
-	   return -4;
+      if (trace_g0)
+	{
+	  return -4;
 	}
     }
   return 0;
 }
 
 static STRLEN
-u_pos_set(Unicode_Stream* stream, STRLEN new_pos)
+u_pos_set (Unicode_Stream * stream, int new_pos)
 {
-  /* *SAFELY* change the position
-   * This requires care in UTF8
-   * Returns the position *BEFORE* the call
-   */
   dTHX;
   U8 *input;
   int input_is_utf8;
   STRLEN len;
   const STRLEN old_pos = stream->perl_pos;
 
-  /* Zero position is easy special case */
-  if (new_pos == 0) {
-      stream->input_offset = new_pos;
-      stream->perl_pos = new_pos;
-      return old_pos;
-  }
-
-  /* Same as current position is another easy special case */
-  if (new_pos == old_pos) {
-      return old_pos;
-  }
-
-  input_is_utf8 = SvUTF8 (stream->input);
-  input = (U8 *) SvPV (stream->input, len);
-  if (input_is_utf8)
+  /* OK to set pos to last codepoint + 1 */
+  if (new_pos < 0 || new_pos > stream->pos_db_logical_size)
     {
-      /* I am required to *know* that the "hop" is inside the string,
-       * which apparently can have Perl extensions -- it is *Perl* utf8, not
-       * standard UTF8.  The only safe thing
-       * to use the Perl API to hop one codepoint at a time,
-       * which is basically how utf8_hop() does it anyway.
-       */
-      IV hop = new_pos - old_pos;
-      U8 *p_current = input + stream->input_offset;
-      U8 *end_of_input = input + len;
-      while (hop > 0)
-	{
-	  if (p_current >= end_of_input)
-	    {
-	      croak
-		("Problem in stream->pos_set(): Attempt to set position after end of utf8 string");
-	    }
-	  p_current = utf8_hop (p_current, 1);
-	  hop--;
-	}
-      while (hop < 0)
-	{
-	  if (p_current <= input)
-	    {
-	      croak
-		("Problem in stream->pos_set(): Attempt to set position before start of utf8 string");
-	    }
-	  p_current = utf8_hop (p_current, -1);
-	  hop++;
-	}
-      stream->input_offset = p_current - input;
-      stream->perl_pos = new_pos;
+      croak ("Problem in stream->pos_set(): new pos = %ld, but length = %ld",
+	     (long) new_pos, (long) stream->pos_db_logical_size);
     }
-  else
-    {
-      /* STRLEN is assumed to be unsigned so no check for less than zero */
-      if (new_pos >= len)
-	{
-	  croak
-	    ("Problem in stream->pos_set(): new pos = %ld, but length = %ld",
-	     (long) new_pos, (long) len);
-	}
-      stream->input_offset = new_pos;
-      stream->perl_pos = new_pos;
-    }
+  stream->perl_pos = new_pos;
   return old_pos;
 }
 
@@ -836,8 +813,15 @@ v_create_stack(V_Wrapper* v_wrapper)
   return 0;
 }
 
-static void slr_span (Scanless_R * slr, Marpa_Earley_Set_ID earley_set,
+static void slr_es_to_span (Scanless_R * slr, Marpa_Earley_Set_ID earley_set,
 			   int *p_start, int *p_length);
+static void
+slr_es_to_literal_span (Scanless_R * slr,
+			Marpa_Earley_Set_ID start_earley_set, int length,
+			int *p_start, int *p_length);
+static SV*
+slr_es_span_to_literal_sv (Scanless_R * slr,
+			Marpa_Earley_Set_ID start_earley_set, int length);
 
 static int
 v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
@@ -1083,6 +1067,38 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	  }
 	  return -1;
 
+	case op_push_token_literal:
+	  {
+	    Scanless_R *slr = v_wrapper->slr;
+	    if (!values_av)
+	      {
+		values_av = (AV *) sv_2mortal ((SV *) newAV ());
+	      }
+	    if (!slr)
+	      {
+		croak
+		  ("Problem in v->stack_step: 'push_token_literal' op attempted when no slr is set");
+	      }
+	    if (step_type == MARPA_STEP_TOKEN)
+	      {
+		SV *sv;
+		int dummy;
+		Marpa_Earley_Set_ID start_earley_set =
+		  marpa_v_token_start_es_id (v);
+		Marpa_Earley_Set_ID end_earley_set = marpa_v_es_id (v);
+		sv =
+		  slr_es_span_to_literal_sv (slr, start_earley_set,
+					     end_earley_set -
+					     start_earley_set);
+		av_push (values_av, sv);
+	      }
+	    else
+	      {
+		av_push (values_av, &PL_sv_undef);
+	      }
+	  }
+	  break;
+
 	case op_push_values:
 	case op_push_sequence:
 	  {
@@ -1198,21 +1214,19 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	    switch (step_type)
 	      {
 	      case MARPA_STEP_RULE:
-		start_earley_set = marpa_v_rule_start_es_id (v) + 1;
+		start_earley_set = marpa_v_rule_start_es_id (v);
 		break;
 	      case MARPA_STEP_NULLING_SYMBOL:
-		start_earley_set = marpa_v_token_start_es_id (v);
-		break;
 	      case MARPA_STEP_TOKEN:
-		start_earley_set = marpa_v_token_start_es_id (v) + 1;
+		start_earley_set = marpa_v_token_start_es_id (v);
 		break;
 	      default:
 		croak
 		  ("Problem in v->stack_step: Range requested for improper step type: %s",
 		   step_type_to_string (step_type));
 	      }
-	    slr_span (slr, start_earley_set, &start_location,
-			   &dummy);
+	    slr_es_to_literal_span (slr, start_earley_set, 0, &start_location,
+				    &dummy);
 	    av_push (values_av, newSViv ((IV) start_location));
 	  }
 	  goto NEXT_OP_CODE;
@@ -1238,24 +1252,24 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 		break;
 	      case MARPA_STEP_RULE:
 		{
-		  int first_start_location, last_start_location, last_length, dummy;
+		  int dummy;
 		  Marpa_Earley_Set_ID start_earley_set =
 		    marpa_v_rule_start_es_id (v);
 		  Marpa_Earley_Set_ID end_earley_set = marpa_v_es_id (v);
-		  slr_span (slr, start_earley_set + 1, &first_start_location, &dummy);
-		  slr_span (slr, end_earley_set, &last_start_location, &last_length);
-		  length = (last_start_location + last_length) - first_start_location;
+		  slr_es_to_literal_span (slr, start_earley_set,
+					  end_earley_set - start_earley_set,
+					  &dummy, &length);
 		}
 		break;
 	      case MARPA_STEP_TOKEN:
 		{
-		  int first_start_location, last_start_location, last_length, dummy;
+		  int dummy;
 		  Marpa_Earley_Set_ID start_earley_set =
 		    marpa_v_token_start_es_id (v);
 		  Marpa_Earley_Set_ID end_earley_set = marpa_v_es_id (v);
-		  slr_span (slr, start_earley_set + 1, &first_start_location, &dummy);
-		  slr_span (slr, end_earley_set, &last_start_location, &last_length);
-		  length = (last_start_location + last_length) - first_start_location;
+		  slr_es_to_literal_span (slr, start_earley_set,
+					  end_earley_set - start_earley_set,
+					  &dummy, &length);
 		}
 		break;
 	      default:
@@ -1325,6 +1339,38 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	    return p_stack_results - stack_results;
 	  }
 	  /* NOT REACHED */
+
+	case op_result_is_token_literal:
+	  {
+	    Scanless_R *slr = v_wrapper->slr;
+	    if (step_type != MARPA_STEP_TOKEN)
+	      {
+		av_fill (stack, result_ix - 1);
+		return -1;
+	      }
+	    if (!slr)
+	      {
+		croak
+		  ("Problem in v->stack_step: 'result_is_token_literal' op attempted when no slr is set");
+	      }
+	    {
+	      SV **stored_sv;
+	      SV *token_literal_sv;
+	      int dummy;
+	      Marpa_Earley_Set_ID start_earley_set =
+		marpa_v_token_start_es_id (v);
+	      Marpa_Earley_Set_ID end_earley_set = marpa_v_es_id (v);
+	      token_literal_sv =
+		slr_es_span_to_literal_sv (slr, start_earley_set,
+					   end_earley_set - start_earley_set);
+	      stored_sv = av_store (stack, result_ix, token_literal_sv);
+	      if (!stored_sv)
+		{
+		  SvREFCNT_dec (token_literal_sv);
+		}
+	    }
+	  }
+	  return -1;
 
 	case op_result_is_token_value:
 	  {
@@ -1412,6 +1458,17 @@ slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme)
   STRLEN start_pos = slr->start_of_lexeme;
   STRLEN end_pos = slr->end_of_lexeme;
 
+      if (trace_terminals > 2)
+	{
+	  AV *event;
+	  SV *event_data[4];
+	  event_data[0] = newSVpvs ("g1 attempting lexeme");
+	  event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
+	  event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
+	  event_data[3] = newSViv (lexeme);	/* lexeme */
+	  event = av_make (Dim (event_data), event_data);
+	  av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	}
   result = marpa_r_alternative (r1, lexeme, latest_earley_set + 1, 1);
   switch (result)
     {
@@ -1532,7 +1589,7 @@ slr_alternatives (Scanless_R * slr, IV * lexemes_found,
 	    }
 	  if (rule_id == -1)
 	    goto NO_MORE_REPORT_ITEMS;
-	  if (origin < 0)
+	  if (origin != 0)
 	    goto NEXT_REPORT_ITEM;
 	  if (dot_position != -1)
 	    goto NEXT_REPORT_ITEM;
@@ -1612,7 +1669,7 @@ LEXEMES_FOUND:;
 }
 
 static void
-slr_span (Scanless_R * slr, Marpa_Earley_Set_ID earley_set, int *p_start,
+slr_es_to_span (Scanless_R * slr, Marpa_Earley_Set_ID earley_set, int *p_start,
 	       int *p_length)
 {
   dTHX;
@@ -1637,6 +1694,61 @@ slr_span (Scanless_R * slr, Marpa_Earley_Set_ID earley_set, int *p_start,
       croak ("failure in slr->span(%d): %s", earley_set,
 	     xs_g_error (slr->g1_wrapper));
     }
+}
+
+static void
+slr_es_to_literal_span (Scanless_R * slr,
+			Marpa_Earley_Set_ID start_earley_set, int length,
+			int *p_start, int *p_length)
+{
+  dTHX;
+  const Marpa_Recce r1 = slr->r1;
+  const Marpa_Earley_Set_ID latest_earley_set =
+    marpa_r_latest_earley_set (r1);
+  if (start_earley_set >= latest_earley_set)
+    {
+      /* Should only happen if length == 0 */
+      *p_start = slr->stream->pos_db_logical_size;
+      *p_length = 0;
+      return;
+    }
+  slr_es_to_span (slr, start_earley_set + 1, p_start, p_length);
+  if (length == 0)
+    *p_length = 0;
+  if (length > 1)
+    {
+      int last_lexeme_start_position;
+      int last_lexeme_length;
+      slr_es_to_span (slr, start_earley_set + 1, &last_lexeme_start_position,
+		      &last_lexeme_length);
+      *p_length = last_lexeme_start_position + last_lexeme_length - *p_start;
+    }
+}
+
+static SV*
+slr_es_span_to_literal_sv (Scanless_R * slr,
+			Marpa_Earley_Set_ID start_earley_set, int length)
+{
+  dTHX;
+  if (length > 0)
+    {
+      int length_in_bytes;
+      int length_in_positions;
+      int start_offset;
+      int start_position;
+      STRLEN dummy;
+      Unicode_Stream *stream = slr->stream;
+      char *input = SvPV (stream->input, dummy);
+      slr_es_to_literal_span (slr,
+			      start_earley_set, length,
+			      &start_position, &length_in_positions);
+      start_offset = POS_TO_OFFSET (stream, start_position);
+      length_in_bytes =
+	POS_TO_OFFSET (stream,
+		       start_position + length_in_positions) - start_offset;
+      return newSVpvn (input + start_offset, length_in_bytes);
+    }
+  return newSVpvn ("", 0);
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
@@ -1719,7 +1831,7 @@ PPCODE:
       throw = throw_sv && SvTRUE (throw_sv);
     }
     break;
-    default: croak_xs_usage (cv, "class, arg_hash");
+    croak("Usage: Marpa::R2::Thin:G::new(class, arg_hash)");
     case 2:
       {
 	I32 retlen;
@@ -2385,14 +2497,60 @@ string_set( stream, string )
      SVREF string;
 PPCODE:
 {
-  STRLEN length; /* set, but not used */
+  U8* p;
+  U8* start_of_string;
+  U8* end_of_string;
+  int input_is_utf8;
+  STRLEN length;
   stream->perl_pos = 0;
-  stream->input_offset = 0;
   /* Get our own copy and coerce it to a PV.
    * Stealing is OK, magic is not.
    */
   SvSetSV (stream->input, string);
-  SvPV_force_nomg (stream->input, length);
+  start_of_string = (U8*)SvPV_force_nomg (stream->input, length);
+  end_of_string = start_of_string + length;
+  input_is_utf8 = SvUTF8 (stream->input);
+
+  stream->pos_db_logical_size = 0;
+  /* This original buffer size is sub-optimal,
+   * but for now it tests the reallocation logic.
+   */
+  stream->pos_db_physical_size = 16;
+  Newx (stream->pos_db, stream->pos_db_physical_size, Pos_Entry);
+
+  for (p = start_of_string; p < end_of_string; ) {
+      STRLEN codepoint_length;
+      UV codepoint;
+      if (input_is_utf8)
+	{
+	  codepoint = utf8_to_uvchr_buf (p, end_of_string, &codepoint_length);
+	  /* Perl API documents that return value is 0 and length is -1 on error,
+	   * "if possible".  length can be, and is, in fact unsigned.
+	   * I deal with this by noting that 0 is a valid UTF8 char but should
+	   * have a length of 1, when valid.
+	   */
+	  if (codepoint == 0 && codepoint_length != 1)
+	    {
+	      croak
+		("Problem in stream->string_set(): invalid UTF8 character");
+	    }
+	}
+      else
+	{
+	  codepoint = (UV) * p;
+	  codepoint_length = 1;
+	}
+      /* Ensure that there is enough space */
+      if (stream->pos_db_logical_size >= stream->pos_db_physical_size)
+	{
+	  stream->pos_db_physical_size *= 2;
+	  stream->pos_db =
+	    Renew (stream->pos_db, stream->pos_db_physical_size, Pos_Entry);
+	}
+      p += codepoint_length;
+      stream->pos_db[stream->pos_db_logical_size++].next_offset =
+	p - start_of_string;
+    }
 }
 
 void
@@ -2420,17 +2578,9 @@ PPCODE:
 }
 
 void
-offset( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  XSRETURN_IV(stream->input_offset);
-}
-
-void
 pos_set( stream, new_pos )
      Unicode_Stream *stream;
-     STRLEN new_pos;
+     int new_pos;
 PPCODE:
 {
   const STRLEN old_pos = u_pos_set(stream, new_pos);
@@ -4790,7 +4940,7 @@ PPCODE:
 
 	  slr->start_of_lexeme = slr->end_of_lexeme;
 	  u_pos_set (stream, slr->start_of_lexeme);
-	  if (stream->input_offset >= input_length)
+	  if (stream->perl_pos >= stream->pos_db_logical_size)
 	    {
 	      XSRETURN_PV ("");
 	    }
@@ -4898,7 +5048,7 @@ PPCODE:
 {
   int start_position;
   int length;
-  slr_span(slr, earley_set, &start_position, &length);
+  slr_es_to_span(slr, earley_set, &start_position, &length);
   XPUSHs (sv_2mortal (newSViv ((IV) start_position)));
   XPUSHs (sv_2mortal (newSViv ((IV) length)));
 }
