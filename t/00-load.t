@@ -17,17 +17,42 @@
 use 5.010;
 use warnings;
 use strict;
+use English qw( -no_match_vars );
 
-use Test::More tests => 2;
+use Test::More tests => 4;
 
 use Marpa::R2;
 
 defined $INC{'Marpa/R2.pm'}
     or Test::More::BAIL_OUT('Could not load Marpa::R2');
 
-Test::More::ok( ( defined $Marpa::R2::VERSION ),
-    'Marpa::R2 version is ' . $Marpa::R2::VERSION );
-Test::More::ok( ( defined $Marpa::R2::STRING_VERSION ),
-    'Marpa::R2 string version is ' . $Marpa::R2::STRING_VERSION );
+my $marpa_version_ok = defined $Marpa::R2::VERSION;
+my $marpa_version_desc =
+    $marpa_version_ok
+    ? 'Marpa::R2 version is ' . $Marpa::R2::VERSION
+    : 'No Marpa::R2::VERSION';
+Test::More::ok( $marpa_version_ok, $marpa_version_desc );
+
+my $marpa_string_version_ok   = defined $Marpa::R2::STRING_VERSION;
+my $marpa_string_version_desc = "Marpa::R2 version is " . $Marpa::R2::STRING_VERSION
+    // 'No Marpa::R2::STRING_VERSION';
+Test::More::ok( $marpa_string_version_ok, $marpa_string_version_desc );
+
+my @libmarpa_version    = Marpa::R2::Thin::version();
+my $libmarpa_version_ok = scalar @libmarpa_version;
+my $libmarpa_version_desc =
+    $libmarpa_version_ok
+    ? ( "Libmarpa version is " . join q{.}, @libmarpa_version )
+    : "No Libmarpa version";
+Test::More::ok( $libmarpa_version_ok, $libmarpa_version_desc );
+
+Test::More::diag($marpa_string_version_desc);
+Test::More::diag($libmarpa_version_desc);
+
+my $grammar;
+my $eval_ok = eval { $grammar = Marpa::R2::Thin::G->new( { if => 1 } ); 1 };
+Test::More::diag($EVAL_ERROR) if not $eval_ok;
+Test::More::ok( ($eval_ok && $grammar), 'Thin grammar created' )
+    or Test::More::BAIL_OUT('Could not create Marpa grammar');
 
 # vim: expandtab shiftwidth=4:
