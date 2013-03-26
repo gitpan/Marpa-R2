@@ -80,11 +80,12 @@ typedef struct {
 	 One past last actual position indicates past-end-of-string
      */
      int perl_pos;
+     /* Location (exclusive) at which to stop reading */
+     int end_pos;
      SV* input;
      Marpa_Symbol_ID input_symbol_id;
      UV codepoint; /* For error returns */
      HV* per_codepoint_ops;
-     IV ignore_rejection;
 
      /* The minimum number of tokens that must
        be accepted at an earleme */
@@ -123,6 +124,8 @@ typedef struct {
      G_Wrapper* g0_wrapper;
      G_Wrapper* g1_wrapper;
      AV* event_queue;
+     HV* token_values;
+     int next_token_ix;
      int trace_level;
      int trace_terminals;
      STRLEN start_of_lexeme;
@@ -160,7 +163,7 @@ typedef struct
   SV *base_sv;
   G_Wrapper *base;
   AV *event_queue;
-  AV *token_values;
+  HV *token_values;
   AV *stack;
   IV trace_values;
   int mode;			/* 'raw' or 'stack' */
@@ -313,7 +316,6 @@ enum marpa_op
   op_bless,
   op_callback,
   op_earleme_complete,
-  op_ignore_rejection,
   op_noop,
   op_push_one,
   op_push_length,
@@ -322,7 +324,6 @@ enum marpa_op
   op_push_token_literal,
   op_push_values,
   op_push_start_location,
-  op_report_rejection,
   op_result_is_array,
   op_result_is_constant,
   op_result_is_rhs_n,
@@ -339,7 +340,6 @@ static Marpa_XS_OP_Data marpa_op_data[] = {
 {  op_callback, "callback" },
 {  op_earleme_complete, "earleme_complete" },
 {  op_end_marker, "end_marker" },
-{  op_ignore_rejection, "ignore_rejection" },
 {  op_noop, "noop" },
 {  op_push_length, "push_length" },
 {  op_push_one, "push_one" },
@@ -348,7 +348,6 @@ static Marpa_XS_OP_Data marpa_op_data[] = {
 {  op_push_undef, "push_undef" },
 {  op_push_token_literal, "push_token_literal" },
 {  op_push_values, "push_values" },
-{  op_report_rejection, "report_rejection" },
 {  op_result_is_array, "result_is_array" },
 {  op_result_is_constant, "result_is_constant" },
 {  op_result_is_n_of_sequence, "result_is_n_of_sequence" },
@@ -459,12 +458,12 @@ static Unicode_Stream* u_new(SV* g_sv)
   stream->r0_sv = NULL;
   stream->input = newSVpvn ("", 0);
   stream->perl_pos = 0;
+  stream->end_pos = 0;
   stream->pos_db = 0;
   stream->pos_db_logical_size = -1;
   stream->pos_db_physical_size = -1;
   stream->input_symbol_id = -1;
   stream->per_codepoint_ops = newHV ();
-  stream->ignore_rejection = 1;
   stream->minimum_accepted = 1;
   stream->trace_g0 = 0;
   stream->event_queue = newAV ();
@@ -541,7 +540,7 @@ u_r0_new (Unicode_Stream * stream)
 /* Return values:
  * 1 or greater: an event count, as returned by earleme complete.
  * 0: success: a full reading of the input, with nothing to report.
- * -1: a character was rejected, when rejection is not being ignored
+ * -1: a character was rejected
  * -2: an unregistered character was found
  * -3: earleme_complete() reported an exhausted parse.
  * -4: we are tracing, character by character
@@ -553,6 +552,7 @@ u_read(Unicode_Stream *stream)
   U8 *input;
   STRLEN len;
   int input_is_utf8;
+  int input_length;
 
   const IV trace_g0 = stream->trace_g0;
   Marpa_Recognizer r = stream->r0;
@@ -573,10 +573,9 @@ u_read(Unicode_Stream *stream)
       STRLEN op_ix;
       STRLEN op_count;
       IV *ops;
-      IV ignore_rejection = stream->ignore_rejection;
       IV minimum_accepted = stream->minimum_accepted;
       int tokens_accepted = 0;
-      if (stream->perl_pos >= stream->pos_db_logical_size)
+      if (stream->perl_pos >= stream->end_pos)
 	break;
 
       if (input_is_utf8)
@@ -632,16 +631,6 @@ u_read(Unicode_Stream *stream)
 	  IV op_code = ops[op_ix];
 	  switch (op_code)
 	    {
-	    case op_report_rejection:
-	      {
-		ignore_rejection = 0;
-		break;
-	      }
-	    case op_ignore_rejection:
-	      {
-		ignore_rejection = 1;
-		break;
-	      }
 	    case op_alternative:
 	      {
 		int result;
@@ -687,11 +676,6 @@ u_read(Unicode_Stream *stream)
 			event = av_make (Dim (event_data), event_data);
 			av_push (stream->event_queue,
 				 newRV_noinc ((SV *) event));
-		      }
-		    if (!ignore_rejection)
-		      {
-			stream->codepoint = codepoint;
-			return -1;
 		      }
 		    break;
 		  case MARPA_ERR_NONE:
@@ -777,22 +761,29 @@ u_read(Unicode_Stream *stream)
   return 0;
 }
 
+/* Assumes caller has made sure the start_pos and
+ * length are OK */
+/* It is OK to set pos to last codepoint + 1 */
 static STRLEN
-u_pos_set (Unicode_Stream * stream, int new_pos)
+u_pos_set (Unicode_Stream * stream, int start_pos, int length)
 {
   dTHX;
   U8 *input;
-  int input_is_utf8;
+  int input_is_utf8 = SvUTF8 (stream->input);
   STRLEN len;
   const STRLEN old_pos = stream->perl_pos;
+  const STRLEN input_length = stream->pos_db_logical_size;
+  int end_pos;
 
-  /* OK to set pos to last codepoint + 1 */
-  if (new_pos < 0 || new_pos > stream->pos_db_logical_size)
-    {
-      croak ("Problem in stream->pos_set(): new pos = %ld, but length = %ld",
-	     (long) new_pos, (long) stream->pos_db_logical_size);
-    }
-  stream->perl_pos = new_pos;
+  if (start_pos < 0) {
+      start_pos = input_length + start_pos;
+  }
+  stream->perl_pos = start_pos;
+  if (length < 0) {
+      stream->end_pos = input_length + length + 1;
+  } else {
+    stream->end_pos = start_pos + length;
+  }
   return old_pos;
 }
 
@@ -1113,9 +1104,11 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	      case MARPA_STEP_TOKEN:
 		{
 		  SV **p_token_value_sv;
-		  p_token_value_sv =
-		    av_fetch (v_wrapper->token_values,
-			      marpa_v_token_value (v), 0);
+		  int token_value = marpa_v_token_value (v);
+		  p_token_value_sv = hv_fetch (
+		    v_wrapper->token_values,
+		     (char *) &token_value,
+		    (I32) sizeof (token_value), 0);
 		  if (p_token_value_sv)
 		    {
 		      av_push (values_av,
@@ -1375,14 +1368,17 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 	case op_result_is_token_value:
 	  {
 	    SV **p_token_value_sv;
+	    int token_value = marpa_v_token_value (v);
 
 	    if (step_type != MARPA_STEP_TOKEN)
 	      {
 		av_fill (stack, result_ix - 1);
 		return -1;
 	      }
-	    p_token_value_sv =
-	      av_fetch (v_wrapper->token_values, marpa_v_token_value (v), 0);
+		  p_token_value_sv = hv_fetch (
+		    v_wrapper->token_values,
+		     (char *) &token_value,
+		    (I32) sizeof (token_value), 0);
 	    if (p_token_value_sv)
 	      {
 		SV *token_value_sv = newSVsv (*p_token_value_sv);
@@ -1473,26 +1469,6 @@ slr_alternative (Scanless_R * slr, Marpa_Symbol_ID lexeme)
   switch (result)
     {
 
-    case MARPA_ERR_UNEXPECTED_TOKEN_ID:
-      if (trace_level >= 1)
-	{
-	  warn
-	    ("slr->read() R1 Rejected unexpected symbol %d at pos %d",
-	     lexeme, (int) slr->stream->perl_pos);
-	}
-      if (trace_terminals)
-	{
-	  AV *event;
-	  SV *event_data[4];
-	  event_data[0] = newSVpvs ("g1 unexpected lexeme");
-	  event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
-	  event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
-	  event_data[3] = newSViv (lexeme);	/* lexeme */
-	  event = av_make (Dim (event_data), event_data);
-	  av_push (slr->event_queue, newRV_noinc ((SV *) event));
-	}
-      return;
-
     case MARPA_ERR_DUPLICATE_TOKEN:
       if (trace_level >= 1)
 	{
@@ -1552,7 +1528,6 @@ slr_alternatives (Scanless_R * slr, IV * lexemes_found,
 		  IV * lexemes_attempted)
 {
   dTHX;
-  int return_value;
   int lexemes_discarded = 0;
   Marpa_Recce r0;
   Marpa_Earley_Set_ID earley_set;
@@ -1568,6 +1543,8 @@ slr_alternatives (Scanless_R * slr, IV * lexemes_found,
   *lexemes_found = 0;
   while (earley_set > 0)
     {
+      int is_expected;
+      int return_value;
       return_value = marpa_r_progress_report_start (r0, earley_set);
       if (return_value < 0)
 	{
@@ -1639,9 +1616,38 @@ slr_alternatives (Scanless_R * slr, IV * lexemes_found,
 	      goto NEXT_REPORT_ITEM;
 	    }
 
-	  /* trace_terminals done inside slr_alternative */
-	  slr_alternative (slr, g1_lexeme);
 	  (*lexemes_attempted)++;
+	  is_expected = marpa_r_terminal_is_expected (slr->r1, g1_lexeme);
+	  if (is_expected < 0)
+	    {
+	      croak ("Problem in marpa_r_terminal_is_expected(%p, %ld): %s",
+		     (void *) slr->r1, (long) g1_lexeme,
+		     xs_g_error (slr->g0_wrapper));
+	    }
+	  if (!is_expected)
+	    {
+	      if (slr->trace_level >= 1)
+		{
+		  warn
+		    ("slr->read() R1 Rejected unexpected symbol %d at pos %d",
+		     g1_lexeme, (int) slr->stream->perl_pos);
+		}
+	      if (slr->trace_terminals)
+		{
+		  AV *event;
+		  SV *event_data[4];
+		  event_data[0] = newSVpvs ("g1 unexpected lexeme");
+		  event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
+		  event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
+		  event_data[3] = newSViv (g1_lexeme);	/* lexeme */
+		  event = av_make (Dim (event_data), event_data);
+		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		}
+	      goto NEXT_REPORT_ITEM;
+	    }
+
+	  /* trace_terminals also done inside slr_alternative */
+	  slr_alternative (slr, g1_lexeme);
 	NEXT_REPORT_ITEM:;
 	}
     NO_MORE_REPORT_ITEMS:;
@@ -1753,7 +1759,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 151
-#define EXPECTED_LIBMARPA_MICRO 102
+#define EXPECTED_LIBMARPA_MICRO 103
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -2478,16 +2484,6 @@ PPCODE:
 }
 
 void
-ignore_rejection( stream, boolean )
-     Unicode_Stream *stream;
-     IV boolean;
-PPCODE:
-{
-     stream->ignore_rejection = boolean ? 1 : 0;
-     XSRETURN_IV(stream->ignore_rejection);
-}
-
-void
 _per_codepoint_ops( stream )
      Unicode_Stream *stream;
 PPCODE:
@@ -2609,23 +2605,13 @@ PPCODE:
 }
 
 void
-pos_set( stream, new_pos )
-     Unicode_Stream *stream;
-     int new_pos;
-PPCODE:
-{
-  const STRLEN old_pos = u_pos_set(stream, new_pos);
-  u_r0_clear(stream);
-  XSRETURN_IV (old_pos);
-}
-
-void
 read( stream )
      Unicode_Stream *stream;
 PPCODE:
 {
   int return_value;
   av_clear(stream->event_queue);
+  u_pos_set(stream, 0, -1);
   return_value = u_read(stream);
   XSRETURN_IV(return_value);
 }
@@ -2783,7 +2769,7 @@ PPCODE:
   v_wrapper->base = t_wrapper->base;
   v_wrapper->v = v;
   v_wrapper->event_queue = newAV ();
-  v_wrapper->token_values = NULL;
+  v_wrapper->token_values = newHV ();
   v_wrapper->stack = NULL;
   v_wrapper->mode = MARPA_XS_V_MODE_IS_INITIAL;
   v_wrapper->result = 0;
@@ -2821,10 +2807,7 @@ PPCODE:
     {
       SvREFCNT_dec (v_wrapper->stack);
     }
-  if (v_wrapper->token_values)
-    {
-      SvREFCNT_dec (v_wrapper->token_values);
-    }
+  SvREFCNT_dec (v_wrapper->token_values);
   marpa_v_unref (v);
   Safefree (v_wrapper);
 }
@@ -2850,6 +2833,24 @@ PPCODE:
 }
 
 void
+token_value_set( v_wrapper, token_ix, token_value )
+    V_Wrapper *v_wrapper;
+    int token_ix;
+    SV* token_value;
+PPCODE:
+{
+  if (token_ix < 2)
+    {
+      croak
+	("Problem in v->token_value_set(): token_value cannot be set for index %ld",
+	 (long) token_ix);
+    }
+  hv_store (v_wrapper->token_values, (char *) &token_ix,
+	    sizeof (token_ix), token_value, 0);
+  SvREFCNT_inc (token_value);
+}
+
+void
 slr_set( v_wrapper, slr )
     V_Wrapper *v_wrapper;
     Scanless_R *slr;
@@ -2861,6 +2862,11 @@ PPCODE:
     }
   SvREFCNT_inc (slr);
   v_wrapper->slr = slr;
+  # Throw away the current token values hash
+  # and steal ownership of the one in the SLR
+  SvREFCNT_dec (v_wrapper->token_values);
+  v_wrapper->token_values = slr->token_values;
+  slr->token_values = NULL;
 }
 
 void
@@ -2944,9 +2950,8 @@ PPCODE:
 }
 
 void
-stack_mode_set( v_wrapper, token_values )
+stack_mode_set( v_wrapper )
     V_Wrapper *v_wrapper;
-    AV* token_values;
 PPCODE:
 {
   Marpa_Grammar g = v_wrapper->base->g;
@@ -2962,8 +2967,6 @@ PPCODE:
       croak ("Problem in v->stack_mode_set(): Could not create stack");
     }
 
-  v_wrapper->token_values = token_values;
-  SvREFCNT_inc (token_values);
 
   {
     int ix;
@@ -4835,6 +4838,8 @@ PPCODE:
   slr->start_of_lexeme = 0;
   slr->end_of_lexeme = 0;
   slr->event_queue = newAV();
+  slr->token_values = newHV ();
+  slr->next_token_ix = 2;
 
   {
     SV* g0_sv = slg->g0_sv;
@@ -4863,8 +4868,12 @@ PPCODE:
   SvREFCNT_dec (slr->stream_sv);
   SvREFCNT_dec (slr->slg_sv);
   SvREFCNT_dec (slr->r1_sv);
-  SvREFCNT_dec ((SV*)slr->event_queue);
-  Safefree(slr);
+  SvREFCNT_dec ((SV *) slr->event_queue);
+  if (slr->token_values)
+    {
+      SvREFCNT_dec ((SV *) slr->token_values);
+    }
+  Safefree (slr);
 }
 
 void
@@ -4970,7 +4979,7 @@ PPCODE:
 	  STRLEN input_length = SvCUR (stream->input);
 
 	  slr->start_of_lexeme = slr->end_of_lexeme;
-	  u_pos_set (stream, slr->start_of_lexeme);
+	  u_pos_set (stream, slr->start_of_lexeme, -1);
 	  if (stream->perl_pos >= stream->pos_db_logical_size)
 	    {
 	      XSRETURN_PV ("");
@@ -5092,6 +5101,19 @@ PPCODE:
   STRLEN length = slr->end_of_lexeme - slr->start_of_lexeme;
   XPUSHs (sv_2mortal (newSViv ((IV) slr->start_of_lexeme)));
   XPUSHs (sv_2mortal (newSViv ((IV) length)));
+}
+
+void
+g1_alternative (slr, symbol_id, token_value)
+    Scanless_R *slr;
+    Marpa_Symbol_ID symbol_id;
+    SV* token_value;
+PPCODE:
+{
+  int token_ix = slr->next_token_ix++;
+  hv_store (slr->token_values, (char *) &token_ix,
+	    sizeof (token_ix), token_value, 0);
+  SvREFCNT_inc (token_value);
 }
 
 INCLUDE: general_pattern.xsh

@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (22 March 2013) is for Libmarpa 5.151.102.
+This manual (26 March 2013) is for Libmarpa 5.151.103.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (22 March 2013) is for Libmarpa 5.151.102.
+This manual (26 March 2013) is for Libmarpa 5.151.103.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -2169,6 +2169,15 @@ File: api.info,  Node: Other parse status methods,  Prev: Location accessors,  U
      is the ID of an nulling, inaccessible for unproductive symbol; or
      on other failure.
 
+ -- Function: int marpa_r_is_exhausted (Marpa_Recognizer R)
+     A parser is "exhausted" if it cannot accept any more input.  Both
+     successful and failed parses can be exhausted.  In many grammars,
+     the parse is always exhausted as soon as it succeeds.  Good parses
+     may also exist at earlemes prior to the current one.
+
+     Return value: 1 if the parser is exhausted, 0 otherwise.  Always
+     succeeds.
+
  -- Function: int marpa_r_terminals_expected ( Marpa_Recognizer R,
           Marpa_Symbol_ID* BUFFER)
      Returns a list of the ID's of the symbols that are acceptable as
@@ -2181,14 +2190,16 @@ File: api.info,  Node: Other parse status methods,  Prev: Location accessors,  U
      Return value:  On success, the number of `Marpa_Symbol_ID''s in
      BUFFER.  On failure, -2.
 
- -- Function: int marpa_r_is_exhausted (Marpa_Recognizer R)
-     A parser is "exhausted" if it cannot accept any more input.  Both
-     successful and failed parses can be exhausted.  In many grammars,
-     the parse is always exhausted as soon as it succeeds.  Good parses
-     may also exist at earlemes prior to the current one.
+ -- Function: int marpa_r_terminal_is_expected ( Marpa_Recognizer R,
+          Marpa_Symbol_ID SYMBOL_ID)
+     Return values on success: If SYMBOL_ID is the ID of a valid
+     terminal symbol that is expected at the current earleme, a number
+     greater than zero.  If SYMBOL_ID is the ID of a valid terminal
+     symbol that is *not* expected at the current earleme, or if
+     SYMBOL_ID is the ID of a valid symbol that is not a terminal, zero.
 
-     Return value: 1 if the parser is exhausted, 0 otherwise.  Always
-     succeeds.
+     Failure cases: Returns -2 on failure.  It is a failure if
+     SYMBOL_ID is not the ID of a valid symbol.
 
 
 File: api.info,  Node: Progress reports,  Next: Bocage methods,  Prev: Recognizer methods,  Up: Top
@@ -4458,51 +4469,51 @@ Node: Recognizer reference counting75028
 Node: Recognizer life cycle mutators75839
 Node: Location accessors83660
 Node: Other parse status methods88195
-Node: Progress reports91188
-Node: Bocage methods94360
-Node: Bocage overview94581
-Node: Bocage constructor95101
-Node: Bocage reference counting95755
-Node: Ordering methods96632
-Node: Ordering overview96884
-Node: Ordering constructor97488
-Node: Ordering reference counting97955
-Node: Non-default ordering98945
-Node: Tree methods100098
-Node: Tree overview100323
-Node: Tree constructor101150
-Node: Tree reference counting101805
-Node: Tree iteration102774
-Node: Value methods104082
-Node: Value overview104520
-Node: How to use the valuator105951
-Node: Advantages of step-driven valuation107922
-Node: Maintaining the stack111592
-Node: Sizing the stack113603
-Node: Initializing locations in the stack115383
-Node: Valuator constructor117579
-Node: Valuator reference counting118430
-Node: Registering semantics119415
-Node: Stepping through the valuator121349
-Node: Valuator steps by type122115
-Node: Basic step accessors124062
-Node: Other step accessors125928
-Node: Events127474
-Node: Events overview127663
-Node: Event methods128533
-Node: Event codes129718
-Node: Error methods macros and codes131593
-Node: Error methods131862
-Node: Error Macros132689
-Node: External error codes133056
-Node: Internal error codes153461
-Node: Design notes157002
-Node: Why so many time objects157437
-Node: Design of numbered objects159187
-Node: LHS Terminals160426
-Node: Work in Progress161119
-Node: Experimental methods161329
-Node: Untested methods162163
-Node: GNU Free Documentation License164424
+Node: Progress reports91749
+Node: Bocage methods94921
+Node: Bocage overview95142
+Node: Bocage constructor95662
+Node: Bocage reference counting96316
+Node: Ordering methods97193
+Node: Ordering overview97445
+Node: Ordering constructor98049
+Node: Ordering reference counting98516
+Node: Non-default ordering99506
+Node: Tree methods100659
+Node: Tree overview100884
+Node: Tree constructor101711
+Node: Tree reference counting102366
+Node: Tree iteration103335
+Node: Value methods104643
+Node: Value overview105081
+Node: How to use the valuator106512
+Node: Advantages of step-driven valuation108483
+Node: Maintaining the stack112153
+Node: Sizing the stack114164
+Node: Initializing locations in the stack115944
+Node: Valuator constructor118140
+Node: Valuator reference counting118991
+Node: Registering semantics119976
+Node: Stepping through the valuator121910
+Node: Valuator steps by type122676
+Node: Basic step accessors124623
+Node: Other step accessors126489
+Node: Events128035
+Node: Events overview128224
+Node: Event methods129094
+Node: Event codes130279
+Node: Error methods macros and codes132154
+Node: Error methods132423
+Node: Error Macros133250
+Node: External error codes133617
+Node: Internal error codes154022
+Node: Design notes157563
+Node: Why so many time objects157998
+Node: Design of numbered objects159748
+Node: LHS Terminals160987
+Node: Work in Progress161680
+Node: Experimental methods161890
+Node: Untested methods162724
+Node: GNU Free Documentation License164985
 
 End Tag Table

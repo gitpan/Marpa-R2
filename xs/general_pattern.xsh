@@ -621,21 +621,6 @@ PPCODE:
 }
 
 void
-furthest_earleme( r_wrapper )
-    R_Wrapper *r_wrapper;
-PPCODE:
-{
-  Marpa_Recognizer self = r_wrapper->r;
-  int gp_result = marpa_r_furthest_earleme(self);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && r_wrapper->base->throw ) {
-    croak( "Problem in r->furthest_earleme(): %s",
-     xs_g_error( r_wrapper->base ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
 earley_set_value( r_wrapper, ordinal )
     R_Wrapper *r_wrapper;
     Marpa_Earley_Set_ID ordinal;
@@ -647,37 +632,6 @@ PPCODE:
   if ( gp_result < 0 && r_wrapper->base->throw ) {
     croak( "Problem in r->earley_set_value(%d): %s",
      ordinal, xs_g_error( r_wrapper->base ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
-latest_earley_set_value_set( r_wrapper, value )
-    R_Wrapper *r_wrapper;
-    int value;
-PPCODE:
-{
-  Marpa_Recognizer self = r_wrapper->r;
-  int gp_result = marpa_r_latest_earley_set_value_set(self, value);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && r_wrapper->base->throw ) {
-    croak( "Problem in r->latest_earley_set_value_set(%d): %s",
-     value, xs_g_error( r_wrapper->base ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
-is_exhausted( r_wrapper )
-    R_Wrapper *r_wrapper;
-PPCODE:
-{
-  Marpa_Recognizer self = r_wrapper->r;
-  int gp_result = marpa_r_is_exhausted(self);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && r_wrapper->base->throw ) {
-    croak( "Problem in r->is_exhausted(): %s",
-     xs_g_error( r_wrapper->base ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
@@ -700,6 +654,36 @@ PPCODE:
 }
 
 void
+furthest_earleme( r_wrapper )
+    R_Wrapper *r_wrapper;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_furthest_earleme(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->furthest_earleme(): %s",
+     xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+is_exhausted( r_wrapper )
+    R_Wrapper *r_wrapper;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_is_exhausted(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->is_exhausted(): %s",
+     xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
 latest_earley_set( r_wrapper )
     R_Wrapper *r_wrapper;
 PPCODE:
@@ -710,6 +694,22 @@ PPCODE:
   if ( gp_result < 0 && r_wrapper->base->throw ) {
     croak( "Problem in r->latest_earley_set(): %s",
      xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+latest_earley_set_value_set( r_wrapper, value )
+    R_Wrapper *r_wrapper;
+    int value;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_latest_earley_set_value_set(self, value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->latest_earley_set_value_set(%d): %s",
+     value, xs_g_error( r_wrapper->base ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
@@ -756,6 +756,22 @@ PPCODE:
   if ( gp_result < 0 && r_wrapper->base->throw ) {
     croak( "Problem in r->start_input(): %s",
      xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+terminal_is_expected( r_wrapper, xsyid )
+    R_Wrapper *r_wrapper;
+    Marpa_Symbol_ID xsyid;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_terminal_is_expected(self, xsyid);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->terminal_is_expected(%d): %s",
+     xsyid, xs_g_error( r_wrapper->base ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }

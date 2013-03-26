@@ -22,7 +22,7 @@
 
 
 static RULE rule_new(GRAMMAR g,
-const SYMID lhs, const SYMID *rhs, int length);
+const XSYID lhs, const XSYID *rhs, int length);
 static int
 duplicate_rule_cmp (const void *ap, const void *bp, void *param UNUSED);
 static int sym_rule_cmp(
@@ -71,23 +71,23 @@ grammar_unref (GRAMMAR g);
 static inline GRAMMAR
 grammar_ref (GRAMMAR g);
 static inline void grammar_free(GRAMMAR g);
-static inline void symbol_add( GRAMMAR g, SYM symbol);
+static inline void symbol_add( GRAMMAR g, XSY symbol);
 static inline int xsy_id_is_valid(GRAMMAR g, XSYID xsy_id);
 static inline int isy_is_valid(GRAMMAR g, ISYID isyid);
 static inline void
 rule_add (GRAMMAR g, RULE rule);
 static inline void event_new(GRAMMAR g, int type);
 static inline void int_event_new(GRAMMAR g, int type, int value);
-static inline SYM
+static inline XSY
 symbol_new (GRAMMAR g);
-static inline ISY symbol_alias_create(GRAMMAR g, SYM symbol);
+static inline ISY symbol_alias_create(GRAMMAR g, XSY symbol);
 static inline ISY
 isy_start(GRAMMAR g);
 static inline ISY
 isy_new(GRAMMAR g, XSY source);
 static inline ISY
 isy_clone(GRAMMAR g, XSY xsy);
-static inline   XRL xrl_start (GRAMMAR g, const SYMID lhs, const SYMID * rhs, int length);
+static inline   XRL xrl_start (GRAMMAR g, const XSYID lhs, const XSYID * rhs, int length);
 static inline XRL xrl_finish(GRAMMAR g, XRL rule);
 static inline IRL
 irl_start(GRAMMAR g, int length);
