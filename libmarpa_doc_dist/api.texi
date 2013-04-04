@@ -620,7 +620,7 @@ the value of the latest earleme is
 same as the value of the current earleme.
 After every call to the @code{marpa_r_earleme_complete()} method
 that does @strong{not} add a token,
-the value of the lastest earleme is unchanged
+the value of the latest earleme is unchanged
 from its value before the call.
 
 @node The significances of the earleme variables, The initial earleme settings, The earleme variables, Earlemes
@@ -909,20 +909,38 @@ Here are some useful facts about the earleme variables that will always be the c
 no matter which of the input models is in use.
 
 @itemize
-@item The current earleme is greater than
+@item The current earleme is always greater than
 or equal to the latest earleme.
-@item The furthest earleme is greater than
+@item The furthest earleme is always greater than
 or equal to the latest earleme.
-@item If the parser is not exhausted,
-the furthest earleme is always greater than
-or equal to the current earleme.
-@item In an exhausted parser,
-the furthest earleme is always less than
-or equal to the current earleme.
 @item If the furthest earleme is greater than the current earleme,
 the parser is not exhausted.
-@item For the furthest earleme to be less than the current earleme,
-the parser must be exhausted.
+@item If the furthest earleme is less than the current earleme,
+the parser is exhausted.
+@end itemize
+
+If the parser is not exhausted,
+the following will always be true,
+no matter which of the input models is in use.
+
+@itemize
+@item 
+The furthest earleme is greater than
+or equal to the current earleme.
+@end itemize
+
+In an exhausted parser, the following will always be true,
+no matter which of the input models is in use.
+
+@itemize
+@item 
+The furthest earleme is less than
+or equal to the current earleme.
+@item If 
+the furthest earleme is equal to the current earleme,
+the parse was successful at the current earleme.
+@item If the furthest earleme is less than the current earleme,
+the parse failed at the current earleme.
 @end itemize
 
 @node Terminals,  , Earlemes, Input
@@ -2337,9 +2355,6 @@ detailed in the events, applications that fail will often
 be at least as interested in the events as those
 that succeed.
 
-@code{MARPA_EVENT_EXHAUSTED} indicates that the parse is
-exhausted --- that no input will be accepted at later earlemes.
-
 The @code{MARPA_EVENT_EARLEY_ITEM_THRESHOLD} event
 indicates that an application-settable threshold
 on the number of Earley items has been reached or exceeded.
@@ -2349,32 +2364,58 @@ it means that it is very likely
 that the time and space resources consumed by
 the parse will prove excessive.
 
-Note that an exhausted parse may be returned
-as a failure,
-or it may be an event returned on success, depending on the
-circumstances.
-If @code{marpa_r_earleme_complete()} is called
-with the furthest earleme equal to the current
-earleme,
-a failure will result
-whose error code is @code{MARPA_ERR_PARSE_EXHAUSTED}.
-A failure of this sort can happen if the last
-call to 
-@code{marpa_r_earleme_complete()} left the current
-earleme equal to the furthest earleme,
-and no alternatives were added at the current earleme.
-Note that when a parse fails due to
-exhaustion, it may have succeeded at earlier earlemes.
+A parse is ``exhausted'' when it can accept no more
+input.
+This can happen both on success and on failure.
+Note that the failure due to parse exhaustion
+only means failure
+at the current earleme.
+There may be successful parses
+at earlier earlemes.
 
-On the other hand, a parse can be exhausted on success.
-In this case, a new Earley set is created,
-and the earleme advanced,
-but no input will be possible at the new current
-earleme.
-It is quite common for a parse to accept no
-more input when it succeeds.
+If a parse is exhausted, but successful,
+an event with the event code
+@code{MARPA_EVENT_EXHAUSTED} occurs.
+Because the parse is exhausted,
+no input will be accepted at later earlemes.
+It is quite common for a parse to become exhausted
+when it succeeds.
 Many practical grammars are designed so that a
 successful parse cannot be extended.
+
+An exhausted parse may cause a failure,
+in which case
+@code{marpa_r_earleme_complete()} returns an
+error
+whose error code is @code{MARPA_ERR_PARSE_EXHAUSTED}.
+For a parse to fail at an earleme due to exhaustion,
+it must be the case that no alternatives were
+accepted at that earleme.
+In fact,
+in the standard input model,
+a failure due to parse exhaustion
+occurs if and only if
+no alternatives
+were accepted at the current earleme.
+
+The circumstances under which
+failure due to parse exhaustion occurs
+are slightly more complicated
+when variable length tokens are in use.
+Informally,
+a parse will never fail due to exhaustion as long
+as it is possible that a token
+ending at some future
+earleme will continue the parse.
+More precisely,
+a call to 
+@code{marpa_r_earleme_complete()} fails
+due to parse exhaustion
+if and only if, first,
+no alternatives were added at the current earleme
+and, second,
+that call left the current
+earleme equal to the furthest earleme.
 
 Return value:  On success, the number of events generated.
 On failure, @minus{}2.
@@ -2647,6 +2688,21 @@ use the @code{marpa_r_progress_item()} method.
 To destroy a progress report,
 freeing the memory it uses,
 call the @code{marpa_r_progress_report_finish()} method.
+
+@deftypefun int marpa_r_progress_report_reset ( @
+  Marpa_Recognizer @var{r})
+Resets the progress report.
+Assumes a report of the progress has already been initialized
+at some Earley set
+for recognizer @var{r},
+with 
+@code{marpa_r_progress_report_start()}.
+The reset progress report will
+be positioned before its first item.
+
+Return value: On success, a non-negative value.
+On failure, @minus{}2.
+@end deftypefun
 
 @deftypefun int marpa_r_progress_report_start ( @
   Marpa_Recognizer @var{r}, @
@@ -3794,8 +3850,10 @@ Suggested message: "This symbol is a counted nullable".
 @end deftypevr
 
 @deftypevr Macro int MARPA_EVENT_EARLEY_ITEM_THRESHOLD
-The user-settable Earley item threshold was exceeded.
-Event value: Undefined.
+This event indicates the current Earley item count
+exceeded a
+user-settable threshold.
+Event value: The current Earley item count.
 Suggested message: "Too many Earley items".
 @end deftypevr
 

@@ -83,6 +83,7 @@ int marpa_r_expected_symbol_event_set ( Marpa_Recognizer r, Marpa_Symbol_ID symb
 int marpa_r_is_exhausted (Marpa_Recognizer r);
 int marpa_r_terminals_expected ( Marpa_Recognizer r, Marpa_Symbol_ID* buffer);
 int marpa_r_terminal_is_expected ( Marpa_Recognizer r, Marpa_Symbol_ID symbol_id);
+int marpa_r_progress_report_reset ( Marpa_Recognizer r);
 int marpa_r_progress_report_start ( Marpa_Recognizer r, Marpa_Earley_Set_ID set_id);
 int marpa_r_progress_report_finish ( Marpa_Recognizer r );
 Marpa_Rule_ID marpa_r_progress_item ( Marpa_Recognizer r, int* position, Marpa_Earley_Set_ID* origin );

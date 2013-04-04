@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.051_003';
+$VERSION        = '2.051_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -168,7 +168,8 @@ sub Marpa::R2::Internal::Stuifzand::check_ast {
 sub parse_rules {
     my ($p_rules_source) = @_;
     my $self             = {};
-    my $ast              = Marpa::R2::Internal::MetaAST->new($p_rules_source);
+    my $parse = {};
+    my $ast              = Marpa::R2::Internal::MetaAST->new($p_rules_source, $parse);
     {
         local $Marpa::R2::Internal::P_SOURCE = $p_rules_source;
         my $problem = Marpa::R2::Internal::Stuifzand::check_ast($ast);
@@ -180,7 +181,7 @@ sub parse_rules {
             );
         } ## end if ($problem)
     }
-    my $hashed_ast = $ast->ast_to_hash($p_rules_source);
+    my $hashed_ast = $ast->ast_to_hash($parse);
     $self->{rules} = $hashed_ast->{g1_rules};
     return $self;
 } ## end sub parse_rules

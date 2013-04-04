@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (26 March 2013) is for Libmarpa 5.151.103.
+This manual (4 April 2013) is for Libmarpa 5.151.104.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (26 March 2013) is for Libmarpa 5.151.103.
+This manual (4 April 2013) is for Libmarpa 5.151.104.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -694,8 +694,7 @@ current earleme.
 adds a token, the value of the latest earleme is same as the value of
 the current earleme.  After every call to the
 `marpa_r_earleme_complete()' method that does *not* add a token, the
-value of the lastest earleme is unchanged from its value before the
-call.
+value of the latest earleme is unchanged from its value before the call.
 
 
 File: api.info,  Node: The significances of the earleme variables,  Next: The initial earleme settings,  Prev: The earleme variables,  Up: Earlemes
@@ -915,22 +914,34 @@ At this point, the most generalized input model has been introduced.
 Here are some useful facts about the earleme variables that will always
 be the case, no matter which of the input models is in use.
 
-   * The current earleme is greater than or equal to the latest earleme.
-
-   * The furthest earleme is greater than or equal to the latest
+   * The current earleme is always greater than or equal to the latest
      earleme.
 
-   * If the parser is not exhausted, the furthest earleme is always
-     greater than or equal to the current earleme.
-
-   * In an exhausted parser, the furthest earleme is always less than
-     or equal to the current earleme.
+   * The furthest earleme is always greater than or equal to the latest
+     earleme.
 
    * If the furthest earleme is greater than the current earleme, the
      parser is not exhausted.
 
-   * For the furthest earleme to be less than the current earleme, the
-     parser must be exhausted.
+   * If the furthest earleme is less than the current earleme, the
+     parser is exhausted.
+
+   If the parser is not exhausted, the following will always be true,
+no matter which of the input models is in use.
+
+   * The furthest earleme is greater than or equal to the current
+     earleme.
+
+   In an exhausted parser, the following will always be true, no matter
+which of the input models is in use.
+
+   * The furthest earleme is less than or equal to the current earleme.
+
+   * If the furthest earleme is equal to the current earleme, the parse
+     was successful at the current earleme.
+
+   * If the furthest earleme is less than the current earleme, the
+     parse failed at the current earleme.
 
 
 File: api.info,  Node: Terminals,  Prev: Earlemes,  Up: Input
@@ -1994,9 +2005,6 @@ File: api.info,  Node: Recognizer life cycle mutators,  Next: Location accessors
      will often be at least as interested in the events as those that
      succeed.
 
-     `MARPA_EVENT_EXHAUSTED' indicates that the parse is exhausted --
-     that no input will be accepted at later earlemes.
-
      The `MARPA_EVENT_EARLEY_ITEM_THRESHOLD' event indicates that an
      application-settable threshold on the number of Earley items has
      been reached or exceeded.  What this means depends on the
@@ -2004,23 +2012,35 @@ File: api.info,  Node: Recognizer life cycle mutators,  Next: Location accessors
      that it is very likely that the time and space resources consumed
      by the parse will prove excessive.
 
-     Note that an exhausted parse may be returned as a failure, or it
-     may be an event returned on success, depending on the
-     circumstances.  If `marpa_r_earleme_complete()' is called with the
-     furthest earleme equal to the current earleme, a failure will
-     result whose error code is `MARPA_ERR_PARSE_EXHAUSTED'.  A failure
-     of this sort can happen if the last call to
-     `marpa_r_earleme_complete()' left the current earleme equal to the
-     furthest earleme, and no alternatives were added at the current
-     earleme.  Note that when a parse fails due to exhaustion, it may
-     have succeeded at earlier earlemes.
+     A parse is "exhausted" when it can accept no more input.  This can
+     happen both on success and on failure.  Note that the failure due
+     to parse exhaustion only means failure at the current earleme.
+     There may be successful parses at earlier earlemes.
 
-     On the other hand, a parse can be exhausted on success.  In this
-     case, a new Earley set is created, and the earleme advanced, but
-     no input will be possible at the new current earleme.  It is quite
-     common for a parse to accept no more input when it succeeds.  Many
-     practical grammars are designed so that a successful parse cannot
-     be extended.
+     If a parse is exhausted, but successful, an event with the event
+     code `MARPA_EVENT_EXHAUSTED' occurs.  Because the parse is
+     exhausted, no input will be accepted at later earlemes.  It is
+     quite common for a parse to become exhausted when it succeeds.
+     Many practical grammars are designed so that a successful parse
+     cannot be extended.
+
+     An exhausted parse may cause a failure, in which case
+     `marpa_r_earleme_complete()' returns an error whose error code is
+     `MARPA_ERR_PARSE_EXHAUSTED'.  For a parse to fail at an earleme
+     due to exhaustion, it must be the case that no alternatives were
+     accepted at that earleme.  In fact, in the standard input model, a
+     failure due to parse exhaustion occurs if and only if no
+     alternatives were accepted at the current earleme.
+
+     The circumstances under which failure due to parse exhaustion
+     occurs are slightly more complicated when variable length tokens
+     are in use.  Informally, a parse will never fail due to exhaustion
+     as long as it is possible that a token ending at some future
+     earleme will continue the parse.  More precisely, a call to
+     `marpa_r_earleme_complete()' fails due to parse exhaustion if and
+     only if, first, no alternatives were added at the current earleme
+     and, second, that call left the current earleme equal to the
+     furthest earleme.
 
      Return value:  On success, the number of events generated.  On
      failure, -2.
@@ -2221,6 +2241,14 @@ progress report item, and advance to the next one, use the
 
    To destroy a progress report, freeing the memory it uses, call the
 `marpa_r_progress_report_finish()' method.
+
+ -- Function: int marpa_r_progress_report_reset ( Marpa_Recognizer R)
+     Resets the progress report.  Assumes a report of the progress has
+     already been initialized at some Earley set for recognizer R, with
+     `marpa_r_progress_report_start()'.  The reset progress report will
+     be positioned before its first item.
+
+     Return value: On success, a non-negative value.  On failure, -2.
 
  -- Function: int marpa_r_progress_report_start ( Marpa_Recognizer R,
           Marpa_Earley_Set_ID SET_ID)
@@ -3122,8 +3150,9 @@ File: api.info,  Node: Event codes,  Prev: Event methods,  Up: Events
      Suggested message: "This symbol is a counted nullable".
 
  -- Macro: int MARPA_EVENT_EARLEY_ITEM_THRESHOLD
-     The user-settable Earley item threshold was exceeded.  Event
-     value: Undefined.  Suggested message: "Too many Earley items".
+     This event indicates the current Earley item count exceeded a
+     user-settable threshold.  Event value: The current Earley item
+     count.  Suggested message: "Too many Earley items".
 
  -- Macro: int MARPA_EVENT_EXHAUSTED
      The parse is exhausted.  Event value: Undefined.  Suggested
@@ -4417,103 +4446,103 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top483
-Node: Copying3680
-Node: About this document12111
-Node: How to read this document12328
-Node: Prerequisites12795
-Node: Parsing theory13394
-Node: About Libmarpa14082
-Node: Architecture15914
-Node: Major objects16120
-Node: Time objects17459
-Node: Reference counting18913
-Node: Numbered objects20966
-Node: Input21400
-Node: Earlemes21535
-Node: The traditional model21932
-Node: The earleme variables23209
-Node: The significances of the earleme variables25089
-Node: The initial earleme settings26715
-Node: The standard model of input27393
-Node: Ambiguous input29116
-Node: Variable length tokens30081
-Node: The generalized model31797
-Node: General rules for the earleme variables34139
-Node: Terminals35132
-Node: Semantics35982
-Node: How Libmarpa semantics work36157
-Node: Valued and unvalued symbols37304
-Node: Threads39718
-Node: Fatal Errors40976
-Node: Introduction to the external interface41571
-Node: About the overviews41922
-Node: Return values42758
-Node: Naming conventions44547
-Node: Static methods45661
-Node: Configuration methods47293
-Node: Grammar methods48980
-Node: Grammar overview49287
-Node: Grammar constructor50331
-Node: Grammar reference counting51184
-Node: Symbols51788
-Node: Rules57340
-Node: Sequences62364
-Node: Ranks66629
-Node: Grammar precomputation68872
-Ref: marpa_g_precompute69073
-Node: Recognizer methods73411
-Node: Recognizer overview73744
-Node: Recognizer constructor74474
-Node: Recognizer reference counting75028
-Node: Recognizer life cycle mutators75839
-Node: Location accessors83660
-Node: Other parse status methods88195
-Node: Progress reports91749
-Node: Bocage methods94921
-Node: Bocage overview95142
-Node: Bocage constructor95662
-Node: Bocage reference counting96316
-Node: Ordering methods97193
-Node: Ordering overview97445
-Node: Ordering constructor98049
-Node: Ordering reference counting98516
-Node: Non-default ordering99506
-Node: Tree methods100659
-Node: Tree overview100884
-Node: Tree constructor101711
-Node: Tree reference counting102366
-Node: Tree iteration103335
-Node: Value methods104643
-Node: Value overview105081
-Node: How to use the valuator106512
-Node: Advantages of step-driven valuation108483
-Node: Maintaining the stack112153
-Node: Sizing the stack114164
-Node: Initializing locations in the stack115944
-Node: Valuator constructor118140
-Node: Valuator reference counting118991
-Node: Registering semantics119976
-Node: Stepping through the valuator121910
-Node: Valuator steps by type122676
-Node: Basic step accessors124623
-Node: Other step accessors126489
-Node: Events128035
-Node: Events overview128224
-Node: Event methods129094
-Node: Event codes130279
-Node: Error methods macros and codes132154
-Node: Error methods132423
-Node: Error Macros133250
-Node: External error codes133617
-Node: Internal error codes154022
-Node: Design notes157563
-Node: Why so many time objects157998
-Node: Design of numbered objects159748
-Node: LHS Terminals160987
-Node: Work in Progress161680
-Node: Experimental methods161890
-Node: Untested methods162724
-Node: GNU Free Documentation License164985
+Node: Top482
+Node: Copying3678
+Node: About this document12109
+Node: How to read this document12326
+Node: Prerequisites12793
+Node: Parsing theory13392
+Node: About Libmarpa14080
+Node: Architecture15912
+Node: Major objects16118
+Node: Time objects17457
+Node: Reference counting18911
+Node: Numbered objects20964
+Node: Input21398
+Node: Earlemes21533
+Node: The traditional model21930
+Node: The earleme variables23207
+Node: The significances of the earleme variables25086
+Node: The initial earleme settings26712
+Node: The standard model of input27390
+Node: Ambiguous input29113
+Node: Variable length tokens30078
+Node: The generalized model31794
+Node: General rules for the earleme variables34136
+Node: Terminals35519
+Node: Semantics36369
+Node: How Libmarpa semantics work36544
+Node: Valued and unvalued symbols37691
+Node: Threads40105
+Node: Fatal Errors41363
+Node: Introduction to the external interface41958
+Node: About the overviews42309
+Node: Return values43145
+Node: Naming conventions44934
+Node: Static methods46048
+Node: Configuration methods47680
+Node: Grammar methods49367
+Node: Grammar overview49674
+Node: Grammar constructor50718
+Node: Grammar reference counting51571
+Node: Symbols52175
+Node: Rules57727
+Node: Sequences62751
+Node: Ranks67016
+Node: Grammar precomputation69259
+Ref: marpa_g_precompute69460
+Node: Recognizer methods73798
+Node: Recognizer overview74131
+Node: Recognizer constructor74861
+Node: Recognizer reference counting75415
+Node: Recognizer life cycle mutators76226
+Node: Location accessors84571
+Node: Other parse status methods89106
+Node: Progress reports92660
+Node: Bocage methods96231
+Node: Bocage overview96452
+Node: Bocage constructor96972
+Node: Bocage reference counting97626
+Node: Ordering methods98503
+Node: Ordering overview98755
+Node: Ordering constructor99359
+Node: Ordering reference counting99826
+Node: Non-default ordering100816
+Node: Tree methods101969
+Node: Tree overview102194
+Node: Tree constructor103021
+Node: Tree reference counting103676
+Node: Tree iteration104645
+Node: Value methods105953
+Node: Value overview106391
+Node: How to use the valuator107822
+Node: Advantages of step-driven valuation109793
+Node: Maintaining the stack113463
+Node: Sizing the stack115474
+Node: Initializing locations in the stack117254
+Node: Valuator constructor119450
+Node: Valuator reference counting120301
+Node: Registering semantics121286
+Node: Stepping through the valuator123220
+Node: Valuator steps by type123986
+Node: Basic step accessors125933
+Node: Other step accessors127799
+Node: Events129345
+Node: Events overview129534
+Node: Event methods130404
+Node: Event codes131589
+Node: Error methods macros and codes133522
+Node: Error methods133791
+Node: Error Macros134618
+Node: External error codes134985
+Node: Internal error codes155390
+Node: Design notes158931
+Node: Why so many time objects159366
+Node: Design of numbered objects161116
+Node: LHS Terminals162355
+Node: Work in Progress163048
+Node: Experimental methods163258
+Node: Untested methods164092
+Node: GNU Free Documentation License166353
 
 End Tag Table
