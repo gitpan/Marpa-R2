@@ -158,6 +158,7 @@ typedef struct {
      int throw;
      int start_of_pause_lexeme;
      int end_of_pause_lexeme;
+     Marpa_Symbol_ID pause_lexeme;
 } Scanless_R;
 
 #define TOKEN_VALUE_IS_UNDEF (1)
@@ -726,9 +727,9 @@ u_read(Unicode_Stream *stream)
 		    stream->codepoint = codepoint;
 		    stream->input_symbol_id = symbol_id;
 		    croak
-		      ("Problem alternative() failed at char ix %d; symbol id %d; codepoint 0x%lx\n"
-		       "Problem in r->input_string_read(), alternative() failed: %s",
-		       (int) stream->perl_pos, symbol_id,
+		      ("Problem alternative() failed at char ix %ld; symbol id %ld; codepoint 0x%lx\n"
+		       "Problem in u_read(), alternative() failed: %s",
+		       (long) stream->perl_pos, (long)symbol_id,
 		       (unsigned long) codepoint,
 		       xs_g_error (stream->g0_wrapper));
 		  }
@@ -761,7 +762,7 @@ u_read(Unicode_Stream *stream)
 		if (result < 0)
 		  {
 		    croak
-		      ("Problem in r->input_string_read(), earleme_complete() failed: %s",
+		      ("Problem in r->u_read(), earleme_complete() failed: %s",
 		       xs_g_error (stream->g0_wrapper));
 		  }
 	      }
@@ -790,26 +791,41 @@ u_read(Unicode_Stream *stream)
   return 0;
 }
 
-/* Assumes caller has made sure the start_pos and
- * length are OK */
 /* It is OK to set pos to last codepoint + 1 */
 static STRLEN
-u_pos_set (Unicode_Stream * stream, int start_pos, int length)
+u_pos_set (Unicode_Stream * stream, const char* name, int start_pos_arg, int length_arg)
 {
   dTHX;
-  const STRLEN old_pos = stream->perl_pos;
+  const STRLEN old_perl_pos = stream->perl_pos;
   const STRLEN input_length = stream->pos_db_logical_size;
+  int new_perl_pos;
+  int new_end_pos;
 
-  if (start_pos < 0) {
-      start_pos = input_length + start_pos;
-  }
-  stream->perl_pos = start_pos;
-  if (length < 0) {
-      stream->end_pos = input_length + length + 1;
+  if (start_pos_arg < 0) {
+      new_perl_pos = input_length + start_pos_arg;
   } else {
-    stream->end_pos = start_pos + length;
+      new_perl_pos = start_pos_arg;
   }
-  return old_pos;
+  if (new_perl_pos < 0 || new_perl_pos > stream->pos_db_logical_size)
+  {
+      croak ("Bad start position in %s(): %ld", name, (long)start_pos_arg);
+  }
+
+  if (length_arg < 0) {
+      new_end_pos = input_length + length_arg + 1;
+  } else {
+    new_end_pos = new_perl_pos + length_arg;
+  }
+  if (new_end_pos < 0 || new_end_pos > stream->pos_db_logical_size)
+  {
+      croak ("Bad length in %s(): %ld", name, (long)length_arg);
+  }
+
+  new_perl_pos = new_perl_pos;
+  stream->perl_pos = new_perl_pos;
+  new_end_pos = new_end_pos;
+  stream->end_pos = new_end_pos;
+  return old_perl_pos;
 }
 
 static SV *
@@ -1635,9 +1651,9 @@ slr_alternatives (Scanless_R * slr)
        */
       int is_priority_set = 0;
       int priority = 0;
-      int is_before_pause_priority_set = 0;
+      Marpa_Symbol_ID before_pause_lexeme = -1;
       int before_pause_priority = 0;
-      int is_after_pause_priority_set = 0;
+      Marpa_Symbol_ID after_pause_lexeme = -1;
       int after_pause_priority = 0;
       int is_expected;
       int return_value;
@@ -1741,17 +1757,17 @@ slr_alternatives (Scanless_R * slr)
 		  {
 		    if (lexeme_properties->pause_after)
 		      {
-			after_pause_priority = is_after_pause_priority_set ?
+			after_pause_priority = after_pause_lexeme >= 0 ?
 			  MAX (lexeme_properties->priority,
 			       after_pause_priority) : lexeme_priority;
-			is_after_pause_priority_set = 1;
+			after_pause_lexeme = g1_lexeme;
 		      }
 		    else
 		      {
-			before_pause_priority = is_before_pause_priority_set ?
+			before_pause_priority = before_pause_lexeme >= 0 ?
 			  MAX (lexeme_properties->priority,
 			       before_pause_priority) : lexeme_priority;
-			is_before_pause_priority_set = 1;
+			before_pause_lexeme = g1_lexeme;
 		      }
 		  }
 	      }
@@ -1778,12 +1794,13 @@ slr_alternatives (Scanless_R * slr)
 
       /* If here, a lexeme has been accepted and priority is set
        */
-      if (is_before_pause_priority_set && before_pause_priority >= priority)
+      if (before_pause_lexeme >= 0 && before_pause_priority >= priority)
 	{
 	  stream->perl_pos = slr->start_of_lexeme;
 	  slr->start_of_pause_lexeme = slr->start_of_lexeme;
 	  slr->end_of_pause_lexeme = slr->end_of_lexeme;
-	  return 0;
+	  slr->pause_lexeme = before_pause_lexeme;
+	  return "pause";
 	}
 
       return_value = marpa_r_progress_report_reset (r0);
@@ -1920,11 +1937,13 @@ slr_alternatives (Scanless_R * slr)
 						INT2PTR (void *,
 							 (slr->end_of_lexeme -
 							  slr->start_of_lexeme)));
-	  if (is_after_pause_priority_set && after_pause_priority >= priority)
+	  if (after_pause_lexeme >= 0 && after_pause_priority >= priority)
 	    {
 	      stream->perl_pos = slr->end_of_lexeme;
 	      slr->start_of_pause_lexeme = slr->start_of_lexeme;
 	      slr->end_of_pause_lexeme = slr->end_of_lexeme;
+	      slr->pause_lexeme = after_pause_lexeme;
+	      return "pause";
 	    }
 
 	  return 0;
@@ -2017,7 +2036,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 151
-#define EXPECTED_LIBMARPA_MICRO 104
+#define EXPECTED_LIBMARPA_MICRO 105
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -2777,11 +2796,9 @@ PPCODE:
 }
 
 void
-string_set( stream, string, start_pos, length )
+string_set( stream, string )
      Unicode_Stream *stream;
      SVREF string;
-     int start_pos;
-     int length;
 PPCODE:
 {
   U8* p;
@@ -2863,17 +2880,7 @@ PPCODE:
       stream->pos_db_logical_size++;
       previous_codepoint = codepoint;
     }
-
-  /* Set positions */
-  u_pos_set(stream, start_pos, length);
-  if (stream->perl_pos < 0 || stream->perl_pos > stream->pos_db_logical_size)
-  {
-      croak ("Bad start position in stream->string_set(): %ld", (long)start_pos);
-  }
-  if (stream->end_pos < 0 || stream->end_pos > stream->pos_db_logical_size)
-  {
-      croak ("Bad length in stream->string_set(): %ld", (long)length);
-  }
+  XSRETURN_YES;
 }
 
 void
@@ -2918,7 +2925,7 @@ PPCODE:
 {
   int return_value;
   av_clear(stream->event_queue);
-  u_pos_set(stream, 0, -1);
+  u_pos_set(stream, "stream->read", 0, -1);
   return_value = u_read(stream);
   XSRETURN_IV(return_value);
 }
@@ -5136,7 +5143,7 @@ PPCODE:
     }
     if (g1_lexeme < 0) {
       croak
-	("Problem in slg->g0_rule_to_g1_lexeme_set(%ld, %ld): symbol ID was %ld, a disallowed value",
+	("Problem in slg->g1_lexeme_priority(%ld, %ld): symbol ID was %ld, a disallowed value",
 	 (long) g1_lexeme,
 	 (long) priority,
 	 (long) g1_lexeme);
@@ -5163,11 +5170,71 @@ PPCODE:
     }
     if (g1_lexeme < 0) {
       croak
-	("Problem in slg->g0_rule_to_g1_lexeme_set(%ld): symbol ID was %ld, a disallowed value",
+	("Problem in slg->g1_lexeme_priority(%ld): symbol ID was %ld, a disallowed value",
 	 (long) g1_lexeme,
 	 (long) g1_lexeme);
     }
   XSRETURN_IV( slg->g1_lexeme_properties[g1_lexeme].priority);
+}
+
+void
+g1_lexeme_pause_set( slg, g1_lexeme, pause )
+    Scanless_G *slg;
+    Marpa_Symbol_ID g1_lexeme;
+    int pause;
+PPCODE:
+{
+  Marpa_Symbol_ID highest_g1_symbol_id = marpa_g_highest_symbol_id (slg->g1);
+    if (g1_lexeme > highest_g1_symbol_id) 
+    {
+      croak
+	("Problem in slg->g1_lexeme_pause_set(%ld, %ld): symbol ID was %ld, but highest G1 symbol ID = %ld",
+	 (long) g1_lexeme,
+	 (long) pause,
+	 (long) g1_lexeme,
+	 (long) highest_g1_symbol_id
+	 );
+    }
+    if (g1_lexeme < 0) {
+      croak
+	("Problem in slg->lexeme_pause_set(%ld, %ld): symbol ID was %ld, a disallowed value",
+	 (long) g1_lexeme,
+	 (long) pause,
+	 (long) g1_lexeme);
+    }
+    if (pause < -1 || pause > 1) {
+      croak
+	("Problem in slg->lexeme_pause_set(%ld, %ld): value of pause must be -1,0 or 1",
+	 (long) g1_lexeme,
+	 (long) pause);
+    }
+  slg->g1_lexeme_properties[g1_lexeme].pause = pause;
+  XSRETURN_YES;
+}
+
+void
+g1_lexeme_pause( slg, g1_lexeme )
+    Scanless_G *slg;
+    Marpa_Symbol_ID g1_lexeme;
+PPCODE:
+{
+  Marpa_Symbol_ID highest_g1_symbol_id = marpa_g_highest_symbol_id (slg->g1);
+    if (g1_lexeme > highest_g1_symbol_id) 
+    {
+      croak
+	("Problem in slg->g1_lexeme_pause(%ld): symbol ID was %ld, but highest G1 symbol ID = %ld",
+	 (long) g1_lexeme,
+	 (long) g1_lexeme,
+	 (long) highest_g1_symbol_id
+	 );
+    }
+    if (g1_lexeme < 0) {
+      croak
+	("Problem in slg->g1_lexeme_pause(%ld): symbol ID was %ld, a disallowed value",
+	 (long) g1_lexeme,
+	 (long) g1_lexeme);
+    }
+  XSRETURN_IV( slg->g1_lexeme_properties[g1_lexeme].pause);
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::SLR
@@ -5233,6 +5300,7 @@ PPCODE:
   slr->r1_earleme_complete_result = 0;
   slr->start_of_pause_lexeme = -1;
   slr->end_of_pause_lexeme = -1;
+  slr->pause_lexeme = -1;
 
   new_sv = sv_newmortal ();
   sv_setref_pv (new_sv, scanless_r_class_name, (void *) slr);
@@ -5361,6 +5429,29 @@ PPCODE:
 }
 
 void
+pos( slr )
+    Scanless_R *slr;
+PPCODE:
+{
+  Unicode_Stream *stream = slr->stream;
+  XSRETURN_IV(stream->perl_pos);
+}
+
+void
+pos_set( slr, start_pos_sv, length_sv )
+    Scanless_R *slr;
+     SV* start_pos_sv;
+     SV* length_sv;
+PPCODE:
+{
+  Unicode_Stream *stream = slr->stream;
+  int start_pos = SvIOK(start_pos_sv) ? SvIV(start_pos_sv) : stream->perl_pos;
+  int length = SvIOK(length_sv) ? SvIV(length_sv) : -1;
+  u_pos_set(stream, "stream->pos_set", start_pos, length);
+  XSRETURN_YES;
+}
+
+void
 substring(slr, start_pos, length)
     Scanless_R *slr;
     int start_pos;
@@ -5385,6 +5476,7 @@ PPCODE:
   slr->r1_earleme_complete_result = 0;
   slr->start_of_pause_lexeme = -1;
   slr->end_of_pause_lexeme = -1;
+  slr->pause_lexeme = -1;
   av_clear (stream->event_queue);
 
   while (1)
@@ -5393,11 +5485,12 @@ PPCODE:
 	{
 	  STRLEN input_length = SvCUR (stream->input);
 
-	  slr->start_of_lexeme = slr->end_of_lexeme;
 	  if (stream->perl_pos >= stream->end_pos)
-	    {
-	      XSRETURN_PV ("");
-	    }
+	  {
+	    XSRETURN_PV ("");
+	  }
+
+	  slr->start_of_lexeme = slr->end_of_lexeme;
 
 	  slr->please_start_lex_recce = 0;
 	  u_r0_clear (stream);
@@ -5406,7 +5499,7 @@ PPCODE:
 	      AV *event;
 	      SV *event_data[2];
 	      event_data[0] = newSVpv ("g0 restarted recognizer", 0);
-	      event_data[1] = newSViv ((IV) slr->start_of_lexeme);
+	      event_data[1] = newSViv ((IV) stream->perl_pos);
 	      event = av_make (Dim (event_data), event_data);
 	      av_push (stream->event_queue, newRV_noinc ((SV *) event));
 	    }
@@ -5430,6 +5523,7 @@ PPCODE:
       if (marpa_r_is_exhausted (slr->r1))
 	{
 	  int discard_result = slr_discard (slr);
+  slr->please_start_lex_recce = 1;
 	  if (discard_result < 0)
 	    {
 	      XSRETURN_PV ("R0 exhausted before end");
@@ -5438,13 +5532,12 @@ PPCODE:
       else
 	{
 	  const char *result_string = slr_alternatives (slr);
+  slr->please_start_lex_recce = 1;
 	  if (result_string)
 	    {
 	      XSRETURN_PV (result_string);
 	    }
 	}
-
-      slr->please_start_lex_recce = 1;	/* We found a lexeme, so must restart r0 */
 
       if (slr->trace_terminals || stream->trace_g0)
 	{
@@ -5471,6 +5564,36 @@ r1_earleme_complete_result (slr)
 PPCODE:
 {
   XPUSHs (sv_2mortal (newSViv ((IV) slr->r1_earleme_complete_result)));
+}
+
+void
+pause_span (slr)
+     Scanless_R *slr;
+PPCODE:
+{
+  int length;
+  Marpa_Symbol_ID pause_lexeme = slr->pause_lexeme;
+  if (pause_lexeme < 0)
+    {
+      XSRETURN_UNDEF;
+    }
+  XPUSHs (sv_2mortal (newSViv ((IV) slr->start_of_pause_lexeme)));
+  XPUSHs (sv_2mortal
+	  (newSViv
+	   ((IV) slr->end_of_pause_lexeme - slr->start_of_pause_lexeme)));
+}
+
+void
+pause_lexeme (slr)
+     Scanless_R *slr;
+PPCODE:
+{
+  Marpa_Symbol_ID pause_lexeme = slr->pause_lexeme;
+  if (pause_lexeme < 0)
+    {
+      XSRETURN_UNDEF;
+    }
+  XPUSHs (sv_2mortal (newSViv ((IV) pause_lexeme)));
 }
 
 void
