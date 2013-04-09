@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.051_005';
+$VERSION        = '2.051_006';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -175,7 +175,6 @@ sub Marpa::R2::Internal::MetaAST::Parse::bless_hash_rule {
     my ( $parse, $hash_rule, $blessing, $original_lhs ) = @_;
     my $grammar_level = $Marpa::R2::Internal::GRAMMAR_LEVEL;
     return if $grammar_level == 0;
-    $blessing //= $parse->{default_adverbs}->[$grammar_level]->{bless};
     return if not defined $blessing;
     FIND_BLESSING: {
         last FIND_BLESSING if $blessing =~ /\A [\w] /xms;
@@ -392,7 +391,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::adverb_item::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::default_rule::evaluate {
     my ( $values, $parse ) = @_;
-    my ( undef, undef, undef, $op_declare, $raw_adverb_list ) =
+    my ( $start, $length, undef, $op_declare, $raw_adverb_list ) =
         @{$values};
     my $grammar_level = $op_declare->op() eq q{::=} ? 1 : 0;
     my $adverb_list = $raw_adverb_list->evaluate($parse);
@@ -403,15 +402,16 @@ sub Marpa::R2::Internal::MetaAST_Nodes::default_rule::evaluate {
 
     ADVERB: for my $key ( keys %{$adverb_list} ) {
         my $value = $adverb_list->{$key};
-        if ( $key eq 'action' ) {
+        if ( $key eq 'action' and $grammar_level == 1) {
             $default_adverbs{$key} = $adverb_list->{$key};
             next ADVERB;
         }
-        if ( $key eq 'bless' ) {
+        if ( $key eq 'bless' and $grammar_level == 1) {
             $default_adverbs{$key} = $adverb_list->{$key};
             next ADVERB;
         }
-        Marpa::R2::exception(qq{"$key" adverb not allowed in default rule});
+        die qq{Adverb "$key" not allowed in G$grammar_level default rule\n},
+            "  Rule was ", $parse->substring( $start, $length ), "\n";
     } ## end ADVERB: for my $key ( keys %{$adverb_list} )
     return undef;
 } ## end sub evaluate
@@ -496,7 +496,30 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
             my %hash_rule =
                 ( lhs => $lhs, rhs => \@rhs_names, mask => \@mask );
 
-            my $action = $adverb_list->{action} // $default_adverbs->{action};
+    my $action;
+    my $blessing;
+    ADVERB: for my $key ( keys %{$adverb_list} ) {
+        my $value = $adverb_list->{$key};
+        if ( $key eq 'action' ) {
+            $action = $adverb_list->{$key};
+            next ADVERB;
+        }
+        if ( $key eq 'assoc' ) {
+            # OK, but ignored
+            next ADVERB;
+        }
+        if ( $key eq 'bless' ) {
+            $blessing = $adverb_list->{$key};
+            next ADVERB;
+        }
+        my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
+        die qq{Adverb "$key" not allowed in an empty rule\n},
+            "  Rule was ", $parse->substring( $start, $length ), "\n";
+    }
+
+    $action //= $default_adverbs->{action};
+    $blessing //= $default_adverbs->{bless};
+
             if ( defined $action ) {
                 Marpa::R2::exception(
                     'actions not allowed in lexical rules (rules LHS was "',
@@ -505,7 +528,6 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
                 $hash_rule{action} = $action;
             } ## end if ( defined $action )
 
-            my $blessing = $adverb_list->{bless};
             if ( defined $blessing
                 and $grammar_level <= 0 )
             {
@@ -563,7 +585,6 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
         );
     RULE: for my $working_rule (@working_rules) {
         my ( $priority, $rhs, $adverb_list ) = @{$working_rule};
-        my $assoc       = $adverb_list->{assoc} // 'L';
         my @new_rhs     = @{ $rhs->{rhs} };
         my @arity       = grep { $new_rhs[$_] eq $lhs } 0 .. $#new_rhs;
         my $length      = scalar @new_rhs;
@@ -579,7 +600,32 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
         my %new_xs_rule = ( lhs => $current_exp );
         $new_xs_rule{mask} = \@mask;
 
-        my $action = $adverb_list->{action} // $default_adverbs->{action};
+    my $action;
+    my $assoc;
+    my $blessing;
+    ADVERB: for my $key ( keys %{$adverb_list} ) {
+        my $value = $adverb_list->{$key};
+        if ( $key eq 'action' ) {
+            $action = $adverb_list->{$key};
+            next ADVERB;
+        }
+        if ( $key eq 'assoc' ) {
+            $assoc = $adverb_list->{$key};
+            next ADVERB;
+        }
+        if ( $key eq 'bless' ) {
+            $blessing = $adverb_list->{$key};
+            next ADVERB;
+        }
+        my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
+        die qq{Adverb "$key" not allowed in an empty rule\n},
+            "  Rule was ", $parse->substring( $start, $length ), "\n";
+    }
+
+    $action //= $default_adverbs->{action};
+    $assoc       //= 'L';
+    $blessing //= $default_adverbs->{bless};
+
         if ( defined $action ) {
             Marpa::R2::exception(
                 'actions not allowed in lexical rules (rules LHS was "',
@@ -588,7 +634,6 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
             $new_xs_rule{action} = $action;
         } ## end if ( defined $action )
 
-        my $blessing = $adverb_list->{bless};
         if ( defined $blessing
             and $grammar_level <= 0 )
         {
@@ -645,7 +690,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
     my ( $values, $parse ) = @_;
-    my ( undef, undef, $lhs, $op_declare, $raw_adverb_list ) = @{$values};
+    my ( $start, $length, $lhs, $op_declare, $raw_adverb_list ) = @{$values};
     my $grammar_level = $op_declare->op() eq q{::=} ? 1 : 0;
     local $Marpa::R2::Internal::GRAMMAR_LEVEL = $grammar_level;
 
@@ -654,7 +699,24 @@ sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
 
     my $default_adverbs = $parse->{default_adverbs}->[$grammar_level];
 
-    my $action = $adverb_list->{action} // $default_adverbs->{action};
+    my $action;
+    my $blessing;
+    ADVERB: for my $key ( keys %{$adverb_list} ) {
+        my $value = $adverb_list->{$key};
+        if ( $key eq 'action' ) {
+            $action = $adverb_list->{$key};
+            next ADVERB;
+        }
+        if ( $key eq 'bless' ) {
+            $blessing = $adverb_list->{$key};
+            next ADVERB;
+        }
+        my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
+        die qq{Adverb "$key" not allowed in an empty rule\n},
+            "  Rule was ", $parse->substring( $start, $length ), "\n";
+    } ## end ADVERB: for my $key ( keys %{$adverb_list} )
+
+    $action //= $default_adverbs->{action};
     if ( defined $action ) {
         Marpa::R2::exception(
             'actions not allowed in lexical rules (rules LHS was "',
@@ -663,7 +725,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
         $rule{action} = $action;
     } ## end if ( defined $action )
 
-    my $blessing = $adverb_list->{bless};
+    $blessing //= $default_adverbs->{bless};
     if ( defined $blessing
         and $grammar_level <= 0 )
     {
@@ -681,7 +743,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
         push @{ $parse->{g0_rules} }, \%rule;
     }
     return 'consumed empty rule';
-} ## end Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate
+} ## end sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate
 
 sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_rule::evaluate {
     my ( $values, $parse ) = @_;
@@ -770,7 +832,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::discard_rule::evaluate {
 
 sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate {
     my ( $values, $parse ) = @_;
-    my ( undef, undef, $lhs, $op_declare, $rhs, $quantifier, $proto_adverb_list ) =
+    my ( $start, $length, $lhs, $op_declare, $rhs, $quantifier, $proto_adverb_list ) =
         @{$values};
     my $grammar_level = $op_declare->op() eq q{::=} ? 1 : 0;
     local $Marpa::R2::Internal::GRAMMAR_LEVEL = $grammar_level;
@@ -787,17 +849,42 @@ sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate {
 
     my @rules = ( \%sequence_rule );
 
-    my $original_separator = $adverb_list->{separator};
+    my $action;
+    my $blessing;
+    my $separator;
+    my $proper;
+    ADVERB: for my $key ( keys %{$adverb_list} ) {
+        my $value = $adverb_list->{$key};
+        if ( $key eq 'action' ) {
+            $action = $adverb_list->{$key};
+            next ADVERB;
+        }
+        if ( $key eq 'bless' ) {
+            $blessing = $adverb_list->{$key};
+            next ADVERB;
+        }
+        if ( $key eq 'proper' ) {
+            $proper = $adverb_list->{$key};
+            next ADVERB;
+        }
+        if ( $key eq 'separator' ) {
+            $separator = $adverb_list->{$key};
+            next ADVERB;
+        }
+        my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
+        die qq{Adverb "$key" not allowed in quantified rule\n},
+            "  Rule was ", $parse->substring( $start, $length ), "\n";
+    } ## end ADVERB: for my $key ( keys %{$adverb_list} )
 
     # mask not needed
     my $lhs_name       = $lhs->name($parse);
     $sequence_rule{lhs}       = $lhs_name;
-    $sequence_rule{separator} = $original_separator
-        if defined $original_separator;
-    my $proper = $adverb_list->{proper};
+
+    $sequence_rule{separator} = $separator
+        if defined $separator;
     $sequence_rule{proper} = $proper if defined $proper;
 
-    my $action = $adverb_list->{action} // $default_adverbs->{action};
+    $action //= $default_adverbs->{action};
     if ( defined $action ) {
         Marpa::R2::exception(
             'actions not allowed in lexical rules (rules LHS was "',
@@ -806,9 +893,8 @@ sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate {
         $sequence_rule{action} = $action;
     } ## end if ( defined $action )
 
-    my $blessing = $adverb_list->{bless};
-    if ( defined $blessing
-        and $grammar_level <= 0 )
+    $blessing //= $default_adverbs->{bless};
+    if ( defined $blessing and $grammar_level <= 0 )
     {
         Marpa::R2::exception(
             'bless option not allowed in lexical rules (rules LHS was "',

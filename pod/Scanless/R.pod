@@ -67,26 +67,222 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-=for Marpa::R2::Display
-name: Scanless recognizer diagnostics
-partial: 1
-normalize-whitespace: 1
-
-    sub show_last_expression {
-        my ($self) = @_;
-        my $recce = $self->{recce};
-        my ( $start, $length ) = $recce->last_completed('Expression');
-        return 'No expression was successfully parsed' if not defined $start;
-        my $last_expression = $recce->substring( $start, $length );
-        return "Last expression successfully parsed was: $last_expression";
-    } ## end sub show_last_expression
-
-=for Marpa::R2::Display::End
-
 =head1 About this document
 
 This page is the reference document for the recognizer objects
-of Marpa's Scanless interface.
+of Marpa's SLIF (Scanless interface).
+
+=head1 Internal and external scanning
+
+The Scanless interface is so-called because
+it does not require the application to supply a scanner (lexer).
+The SLIF contains its own lexer,
+one whose use is integrated into
+its syntax.
+In this document, use of the SLIF's
+internal scanner is called
+B<internal scanning>.
+
+The SLIF allows applications that find it useful to
+do their own scanning.
+When an application
+bypasses the SLIF's internal scanner
+and does its own scanning,
+this document calls it
+B<external scanning>.
+An application can use
+external scanning to supplement internal 
+scanning,
+or to replace the SLIF's internal scanner entirely.
+
+=head1 Locations
+
+=head2 Input stream locations
+
+In this document, the word "location" refers
+to location in the input stream
+unless otherwise specified.
+
+=head2 Negative locations
+
+Several methods allow locations and lengths to be specified
+as negative numbers.
+A negative location is a location counted
+from the end, so that -1 means location before the
+last character of the string,
+-2 the location before the second to last character of a string, etc.
+A negative length indicates a distance to a location
+counted from the end.
+A length of -1 indicates the distance to the end of the string,
+-2 indicates the distance to the location just before
+the last character
+of the string,
+etc.
+
+For example, suppose that we are dealing with input stream locations.
+The span (C<0, -1>) is the entire input stream.
+The span (C<-1, -1>) is the
+last character of input stream.
+The span (C<-2, -1>) is the
+last two characters of the input stream.
+The span (C<-2, 1>) is the 
+second to last character of the input stream.
+
+=head2 G1 locations
+
+In addition to input stream location,
+the SLIF also tracks G1 location.
+G1 location starts at zero,
+and increases by exactly one as each lexeme is read.
+G1 location is usually not the same
+as input stream location.
+There is also a concept of G1 length,
+which is simply
+length calculated in terms of G1 locations.
+
+G1 location can be ignored most of the time,
+but it does become relevant to a small degree
+when dealing
+with ambiguous terminals,
+and to a greater degree when tracing the G1 grammar.
+(For those more familiar with Marpa's internals,
+the G1 location is the G1 Earley set index.)
+
+=head1 Current location
+
+The SLIF tracks
+the B<current location in the input stream>, more usually simply
+called the B<current location>.
+Locations are zero-based, so that location 0 is the start
+of the input stream.
+A location is said to B<point> to the character after it,
+if there is such a character.
+For example,
+location 0 points to the first character of the input stream,
+unless the stream is of zero length,
+in which case there is no first character.
+
+A current location equal to the length of the input stream
+indicates EOS (end of stream).
+In a zero length stream, location 0 is EOS.
+The EOS location never points to a character.
+
+In the SLIF, when the current input stream location
+moves, it does not necessarily advance -- it
+can skip forward,
+or can be positioned to an earlier location.
+The application can skip sections of the input stream.
+The application is also free to
+revisit spans of the input stream as often as it wants.
+
+Here are the guarantees:
+
+=over 4
+
+=item *
+
+Initially, the current location is 0.
+
+=item *
+
+The current location will never be negative.
+
+=item *
+
+The current location will never be greater than EOS.
+
+=back
+
+=head1 How internal scanning works
+
+The SLIF always starts scanning using the C<read()>
+method.
+Pedantically, this means scanning always begins with a phase
+of internal scanning.
+But that first phase may be of zero length,
+and after that,
+internal scanning does not have to be resumed.
+
+Internal scanning can be resumed with the C<resume()> method.
+Both the C<read()> and C<resume()> methods require the application
+to specify a span in the input stream.
+The C<read()> method sets the input stream,
+and that input stream is the one used by all C<resume()> method calls
+for that recognizer.
+
+In what follows, the term "internal scanning method"
+refers to either the C<read()> or the C<resume()> method.
+After an internal scanning method,
+the current location will indicate how far
+in the input stream the internal scanning method actually read.
+If the internal scanning method was paused, the current
+location will be the one at which it paused.
+If the internal scanning method reaches EOS,
+the current location will be EOS.
+The return value of the C<read()> and the C<resume()> method is
+the current location.
+
+The following is a list of the events which cause
+internal scanning to pause or to end.
+More than one of these events may occur at a location,
+in which case the
+one listed first is the one that applies.
+
+=over 4
+
+=item *
+
+An internal scanning method
+will pause when it encounters certain lexemes,
+as specified in the DSL using the C<pause> adverb.
+The pause lexeme will be the one of those which caused
+the pause.
+(A pause can be caused by more than one lexeme.)
+The pause span will be the span of the input stream
+occupied by the pause lexeme.
+
+=item *
+
+Scanning always ends at EOS.
+Reaching EOS is not considered a pause.
+
+=item *
+
+If its C<$length> argument was non-negative,
+internal scanning
+will pause when the current location is C<$start+$length>.
+The pause lexeme and pause span will be undefined.
+
+=item *
+
+If its C<$length> argument was negative,
+an internal scanning method
+will pause when the current location is
+C<$length + 1 + length $input_string>.
+The pause lexeme and pause span will be undefined.
+
+=back
+
+=head1 The input stream
+
+For error message and other purposes,
+even external lexemes are required to correspond to a span of the input stream.
+An external scanner
+must set up a relationship to the input stream,
+even if that relationship is completely artificial.
+
+One way to do this is to put a artificial preamble in front of
+the input stream.
+For example, the first 7 characters of the input stream could be
+an preamble containing the characters "C<NO TEXT>".
+This preamble could be immediately followed by what is seen as the text
+from a more natural point of view.
+In this case, the initial call to the C<read()> method
+could take the form
+C<< $slr->read($input_string, 7) >>.
+Lexemes corresponding to the artificial preamble would be read
+using a method call similar to
+C<< $slr->lexeme_read($symbol_name, 0, 7, $value) >>.
 
 =head1 Constructor
 
@@ -99,9 +295,11 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-The C<new()> method is the constructor for Scanless recognizers.
-An example of its use is L<above|/"Synopsis">.
+The C<new()> method is the constructor for SLIF recognizers.
 The C<new()> constructor accepts a hash of named arguments.
+The C<grammar> named argument is required.
+All other named arguments are optional.
+
 The following named arguments are allowed:
 
 =head2 grammar
@@ -109,7 +307,7 @@ The following named arguments are allowed:
 The C<new> method is required to have
 a C<grammar> named argument.  Its
 value must be
-a Scanless grammar object.
+an SLIF grammar object.
 
 =head2 too_many_earley_items
 
@@ -124,9 +322,9 @@ and
 a warning is printed to the trace file handle.
 
 Marpa parses from any BNF,
-and can handle grammars and inputs which produce large
+and can handle grammars and inputs which produce very large
 Earley sets.
-But parsing that involves large Earley sets can be slow.
+But parsing that involves very large Earley sets can be slow.
 Large Earley sets
 are something most applications can,
 and will wish to, avoid.
@@ -138,16 +336,22 @@ based on the size of the
 G1 grammar,
 and for each G0 recognizer based on the size
 of the G0 grammar.
+The default thresholds will never be less than 100.
+The default is the result of considerable experience
+and almost all users will be happy with it.
+
 If the
 Earley item warning threshold is changed from its default,
 the change applies to both G0 and G1 -- currently
 there is no way to set them separately.
-
-The default threshold will never be less than 100.
 If the Earley item warning threshold is set to 0,
 no recognizer event is generated,
 and
 warnings about large Earley sets are turned off.
+An Earley item threshold warning almost always
+indicates a serious issue,
+and turning these warnings off will
+rarely be what an application wants.
 
 =head2 trace_terminals
 
@@ -156,7 +360,7 @@ those tokens passed from the G0 parser to
 the G1 parser.
 This named argument is the best way to follow
 what the G0 parser is doing,
-but it is also very helpful for tracing the G1 parser.
+and it is also very helpful for tracing the G1 parser.
 
 =head2 trace_values
 
@@ -171,48 +375,7 @@ Trace output and warning messages
 go to the trace file handle.
 By default the trace file handle is C<STDERR>.
 
-=head1 Methods
-
-=head2 last_completed()
-
-=for Marpa::R2::Display
-name: Scanless recognizer diagnostics
-partial: 1
-normalize-whitespace: 1
-
-    my ( $start, $length ) = $recce->last_completed('Expression');
-
-=for Marpa::R2::Display::End
-
-Given the name of a symbol,
-returns the start location and
-length of the most recent match.
-The length is in parse locations,
-so that the end location will
-always be the start location plus the length.
-
-If there was more than one most recent match, it returns
-the longest.
-If there was no match, returns the empty array in array context
-and a Perl false in scalar context.
-
-=head2 last_completed_range()
-
-Use of this method is discouraged in favor of 
-L</"last_completed()">.
-Given the name of a symbol,
-returns the start and end locations of most recent match.
-If there was more than one most recent match, it returns
-the longest.
-If there was no match, returns the empty array in array context
-and a Perl false in scalar context.
-
-=head2 range_to_string()
-
-Use of this method is discouraged in favor of 
-L</"substring()">.
-Given a start and an end location, returns the substring of the input
-string that is between the two.
+=head1 Basic mutators
 
 =head2 read()
 
@@ -225,46 +388,44 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-Given a pointer to an input string,
-parses it according to the grammar.
-Currently only a single call to C<read()>
+=for Marpa::R2::Display
+name: SLIF external read example
+partial: 1
+normalize-whitespace: 1
+
+    $recce->read( \$string, 0, 0 );
+
+=for Marpa::R2::Display::End
+
+Given a pointer to an input stream,
+C<read()> parses it according to the grammar.
+Only a single call to C<read()>
 is allowed for a scanless
 recognizer.
-On success, returns a non-negative integer.
+
+C<read()> recognizes
+optional second and third arguments.
+The second argument is a location in the input stream
+at which internal scanning will start.
+The third argument is the length of the section
+of the input stream to be scanned before pausing.
+The default start location is zero.
+The default length is -1.
+Negative locations and lengths have the standard
+interpretation, as L<described above|/"Negative locations">.
+
+Start location and length can both be zero.
+This pauses internal scanning immediately and can be
+used to hand complete control of scanning
+over an external scanner.
+
 On failure, throws an exception.
-
-=head2 show_progress()
-
-=for Marpa::R2::Display
-name: Scanless show_progress() synopsis
-partial: 1
-normalize-whitespace: 1
-
-    my $show_progress_output = $recce->show_progress();
-
-=for Marpa::R2::Display::End
-
-Has the same effect as a C<show_progress()> call
-on the G1 recognizer.
-See L<Marpa::R2::Recognizer/"show_progress()">.
-
-=head2 substring()
-
-=for Marpa::R2::Display
-name: Scanless recognizer diagnostics
-partial: 1
-normalize-whitespace: 1
-
-    my $last_expression = $recce->substring( $start, $length );
-
-=for Marpa::R2::Display::End
-
-Given a start location and its length, returns a substring of the input
-string.
-The length is in locations,
-so that the end location is always start location
-plus length.
-A length of zero will produce a zero-length string.
+The call is considered successful
+if it ended because a parse was found,
+or because internal scanning was paused.
+On success, C<read()> returns the location in the input
+stream at which internal scanning ended.
+This value may be zero.
 
 =head2 value()
 
@@ -280,6 +441,432 @@ normalize-whitespace: 1
 Has the same effect as a C<value()> call
 on the G1 recognizer.
 See L<Marpa::R2::Recognizer/"value()">.
+
+=head1 Mutators for external scanning
+
+=head2 lexeme_alternative()
+
+=for Marpa::R2::Display
+name: SLIF lexeme_alternative() example
+partial: 1
+normalize-whitespace: 1
+
+            if ( not defined $recce->lexeme_alternative($token_name) ) {
+                die
+                    qq{Parser rejected token "$long_name" at position $start_of_lexeme, before "},
+                    substr( $string, $start_of_lexeme, 40 ), q{"};
+            }
+
+=for Marpa::R2::Display::End
+
+The C<lexeme_alternative()> method
+allows an external scanner to read
+ambiguous tokens.
+Most applications 
+will prefer the simpler C<lexeme_read()>.
+
+C<lexeme_alternative()> takes one or two argument.
+The first, required, argument is the name of a symbol to be read
+at the current location.
+The second, optional, argument is the value of the symbol.
+The value argument is interpreted as described for C<lexeme_read()>.
+
+Any number of tokens may be read using C<lexeme_alternative()>
+without advancing the current location.
+This allows an application to use ambiguous tokens.
+To complete reading at a G1 location,
+and advance the current G1 location to the next G1 location,
+use the C<lexeme_complete()> method.
+
+On success, returns a non-negative number.
+Returns C<undef> if the token was rejected.
+Failures are thrown as exceptions.
+
+=head2 lexeme_complete()
+
+=for Marpa::R2::Display
+name: SLIF lexeme_alternative() example
+partial: 1
+normalize-whitespace: 1
+
+            next TOKEN
+                if $recce->lexeme_complete( $start_of_lexeme,
+                        ( length $lexeme ) );
+
+=for Marpa::R2::Display::End
+
+The C<lexeme_complete()> method allows an external scanner to read
+ambiguous tokens.
+Most applications will prefer the simpler C<lexeme_read()>.
+
+The C<lexeme_complete()> method
+requires two arguments,
+a input stream start location and a length.
+These are interpreted as described for the
+corresponding second and third
+arguments to C<lexeme_read()>.
+The C<lexeme_complete()>
+method completes the reading of
+alternative tokens at the current G1 location,
+and advances the current G1 location by one.
+
+Current location in the input stream is moved
+to the location after the new lexeme,
+as indicated by the arguments.
+On success, C<lexeme_complete()> returns a number greater
+than 0.
+On unthrown failure, C<lexeme_complete()> returns 0.
+
+=head2 lexeme_read()
+
+=for Marpa::R2::Display
+name: SLIF read/resume example
+partial: 1
+normalize-whitespace: 1
+
+   $re->lexeme_read('lstring', $start, $length, $value) // die;
+
+=for Marpa::R2::Display::End
+
+The C<read()> method performs internal scanning,
+L<as described
+above|/"How internal scanning works">.
+It takes four arguments, only the first of which is required.
+The first argument is the lexeme's symbol name.
+The second and third arguments specify the span in the input
+stream to be associated with the lexeme.
+The last argument indicates its value.
+
+The second and third arguments are, respectively,
+the start and length of a span in the input stream.
+The start defaults to the current location.
+If the pause span is defined,
+and the start of the pause lexeme is
+the same as the current location,
+length defaults to the length of the pause span.
+Otherwise length defaults to -1.
+
+Negative values are allowed and are interpreted
+as L<described above|/"Negative locations">.
+This span will be treated as the section of the input stream
+that corresponds to the tokens read at the current location.
+This correspondence may be artificial, but a span must
+always be specified.
+
+The fourth argument specifies the value of the lexeme.
+If the value argument is omitted,
+the token's value will be a string
+containing the corresponding substring
+of the input stream.
+Omitting the value argument does not have the same
+effect as passing an explicit Perl C<undef>.
+If the value argument is an explicit Perl C<undef>,
+the value of the lexeme will be a Perl C<undef>.
+
+=for Marpa::R2::Display
+ignore: 1
+
+    $slr->lexeme_read($symbol, $start, $length, $value)
+
+=for Marpa::R2::Display::End
+
+is the equivalent of
+
+=for Marpa::R2::Display
+ignore: 1
+
+    $slr->lexeme_alternative($symbol, $value)
+    $slr->lexeme_complete($start, $length)
+
+=for Marpa::R2::Display::End
+
+Current location in the input stream is moved
+to the place where C<read()> paused or,
+if it never pauses,
+to C<$start+$length>.
+Current G1 location is advanced by one.
+
+On success, C<read()> returns the new current location.
+On unthrown failure, it returns a Perl C<undef>.
+
+=head2 resume()
+
+=for Marpa::R2::Display
+name: SLIF read/resume example
+partial: 1
+normalize-whitespace: 1
+
+    my $re = Marpa::R2::Scanless::R->new( { grammar => $self->{grammar} } );
+    my $length = length $string;
+    for ( my $pos = $re->read(\$string); $pos < $length; $pos = $re->resume()) {
+       my ($start, $length) = $re->pause_span();
+       my $value = substr $string, $start+1, $length-2;
+       $value = decode_string($value) if -1 != index $value, '\\';
+       $re->lexeme_read('lstring', $start, $length, $value) // die;
+    }
+    my $value_ref = $re->value();
+    return ${$value_ref};
+
+=for Marpa::R2::Display::End
+
+The C<resume()> method takes two arguments,
+a start location and a length.
+The default start location is the current location.
+The default length is -1.
+Negative arguments are interpreted
+as L<described above|/"Negative locations">.
+
+The C<resume()> method resumes
+the SLIF's internal scanning,
+L<as described
+above|/"How internal scanning works">.
+
+On success, C<resume()> moves
+the current location to where it paused,
+or to the EOS.
+The return value is the new current location.
+On unthrown failure,
+C<resume()> return a Perl C<undef>.
+
+=head1 Accessors
+
+=head2 line_column()
+
+=for Marpa::R2::Display
+name: SLIF trace example
+partial: 1
+normalize-whitespace: 1
+
+       my ($start, $length) = $re->pause_span();
+       my ($line, $column) = $re->line_column($start);
+
+=for Marpa::R2::Display::End
+
+The C<line_column()> method accepts one, optional, argument:
+a location in the input stream.
+The location defaults to the current location.
+It returns the corresponding line and column position,
+as a 2-element array.
+The first element of the array is the line position,
+and the second element is the column position.
+
+Numbering of lines and columns is 1-based,
+following UNIX editor tradition.
+A line is considered to end with any newline sequence
+as defined in the
+Unicode Specification 4.0.0, Section 5.8.
+Specifically, a line ends with one of the following:
+
+=over 4
+
+=item *
+
+a LF (line feed U+000A);
+
+=item * 
+
+a CR (carriage return, U+000D), when it is not followed by a LF;
+
+=item *
+
+a CRLF sequence (U+000D,U+000A);
+
+=item *
+
+a NEL (next line, U+0085);
+
+=item *
+
+a VT (vertical tab, U+000B);
+
+=item *
+
+a FF (form feed, U+000C);
+
+=item *
+
+a LS (line separator, U+2028) or
+
+=item *
+
+a PS (paragraph separator, U+2029).
+
+=back
+
+=head2 literal()
+
+=for Marpa::R2::Display
+name: SLIF trace example
+partial: 1
+normalize-whitespace: 1
+
+   my $literal_string = $re->literal($start, $length);
+
+=for Marpa::R2::Display::End
+
+The C<literal()> method accepts two arguments,
+the start location and length of a span in the
+input stream.
+It returns the substring of the input stream
+corresponding to that span.
+
+=head2 pause_lexeme()
+
+=for Marpa::R2::Display
+name: SLIF trace example
+partial: 1
+normalize-whitespace: 1
+
+   my $lexeme = $re->pause_lexeme();
+
+=for Marpa::R2::Display::End
+
+The C<pause_lexeme()> method accepts no arguments,
+and returns the name of the lexeme which caused the most
+recent pause.
+The pause lexeme is initially undefined
+and it is reset to undefined at the beginning of
+each call to the C<read()> or C<resume()> methods.
+
+
+More than one lexeme may cause a pause.
+When this is the case,
+all the causal lexemes will be
+acceptable to the G1 grammar,
+and all the causal lexemes will have
+the same lexeme priority.
+When more than one lexeme causes a pause,
+the choice of pause
+lexeme is arbitary.
+Applications may not rely on a particular choice,
+or on that choice being repeated,
+even when the choice is made
+in similar or identical circumstances.
+
+Not every pause is caused by a lexeme.
+A pause often occurs because
+of the length argument of an internal scanning method.
+When the most recent pause was not caused by a lexeme,
+the pause lexeme is undefined.
+C<pause_lexeme()> returns a Perl C<undef> when
+the pause lexeme is undefined.
+
+=head2 pause_span()
+
+=for Marpa::R2::Display
+name: SLIF read/resume example
+partial: 1
+normalize-whitespace: 1
+
+   my ($start, $length) = $re->pause_span();
+
+=for Marpa::R2::Display::End
+
+The C<pause_span()> method accepts no arguments,
+and returns the "pause span" as a 2-element array.
+The "pause span" is
+the start location and length of the lexeme which caused
+the most recent pause.
+The pause span is initially undefined
+and it is reset to undefined at the beginning of
+each call to the C<read()> or C<resume()> methods.
+
+A pause is not always caused by a lexeme -- internal
+scanning may be paused
+because of the length argument of an internal scanning method.
+When the most recent pause was not caused by a lexeme,
+no span can be associated with it,
+and the pause span is undefined.
+C<pause_span()> returns a Perl C<undef> if
+the pause span is undefined.
+
+=head1 Trace methods
+
+=for Marpa::R2::Display
+name: Scanless recognizer diagnostics
+partial: 1
+normalize-whitespace: 1
+
+    sub show_last_expression {
+        my ($self) = @_;
+        my $recce = $self->{recce};
+        my ( $g1_start, $g1_length ) = $recce->last_completed('Expression');
+        return 'No expression was successfully parsed' if not defined $g1_start;
+        my $last_expression = $recce->substring( $g1_start, $g1_length );
+        return "Last expression successfully parsed was: $last_expression";
+    } ## end sub show_last_expression
+
+=for Marpa::R2::Display::End
+
+=head2 last_completed()
+
+=for Marpa::R2::Display
+name: Scanless recognizer diagnostics
+partial: 1
+normalize-whitespace: 1
+
+    my ( $g1_start, $g1_length ) = $recce->last_completed('Expression');
+
+=for Marpa::R2::Display::End
+
+Given the name of a symbol,
+returns the start G1 location and
+G1 length of the most recent match.
+If there was more than one most recent match, it returns
+the longest.
+If there was no match, returns the empty array in array context
+and a Perl false in scalar context.
+
+=head2 last_completed_range()
+
+Use of this method is discouraged in favor of 
+L</"last_completed()">.
+Given the name of a symbol,
+returns the G1 start and G1 end locations of most recent match.
+If there was more than one most recent match, it returns
+the longest.
+If there was no match, returns the empty array in array context
+and a Perl false in scalar context.
+
+=head2 range_to_string()
+
+Use of this method is discouraged in favor of 
+L</"substring()">.
+Given a G1 start and a G1 end location, returns the substring of the input
+stream that is between the two.
+
+=head2 show_progress()
+
+=for Marpa::R2::Display
+name: Scanless show_progress() synopsis
+partial: 1
+normalize-whitespace: 1
+
+    my $show_progress_output = $recce->show_progress();
+
+=for Marpa::R2::Display::End
+
+Has the same effect as a C<show_progress()> call
+on the G1 recognizer.
+See L<Marpa::R2::Recognizer/"show_progress()">.
+If locations are specified as arguments to
+C<show_progress()>, they need to be 
+G1 locations.
+
+=head2 substring()
+
+=for Marpa::R2::Display
+name: Scanless recognizer diagnostics
+partial: 1
+normalize-whitespace: 1
+
+    my $last_expression = $recce->substring( $g1_start, $g1_length );
+
+=for Marpa::R2::Display::End
+
+Given a G1 start location and its G1 length, returns a substring of the input
+stream.
+A length of zero will produce a zero-length string.
 
 =head1 Copyright and License
 

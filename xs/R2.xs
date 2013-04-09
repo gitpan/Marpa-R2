@@ -2036,7 +2036,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 151
-#define EXPECTED_LIBMARPA_MICRO 105
+#define EXPECTED_LIBMARPA_MICRO 106
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -5711,35 +5711,39 @@ PPCODE:
 
  # Returns 1 on success, 0 on unthrown failure
 void
-g1_lexeme_complete (slr, start_pos_arg, length_arg)
+g1_lexeme_complete (slr, start_pos_sv, length_sv)
     Scanless_R *slr;
-    int start_pos_arg;
-    int length_arg;
+     SV* start_pos_sv;
+     SV* length_sv;
 PPCODE:
 {
   int result;
   Unicode_Stream *stream = slr->stream;
   const int old_pos = stream->perl_pos;
   const int input_length = stream->pos_db_logical_size;
-  int start_pos;
-  int lexeme_length;
 
-  start_pos =
-    start_pos_arg < 0 ? input_length + start_pos_arg : start_pos_arg;
+  int start_pos = SvIOK (start_pos_sv) ? SvIV (start_pos_sv) : stream->perl_pos;
+
+  int lexeme_length = SvIOK (length_sv) ? SvIV (length_sv)
+    : stream->perl_pos == slr->start_of_pause_lexeme ? (slr->end_of_pause_lexeme - slr->start_of_pause_lexeme) : -1;
+
+  start_pos = start_pos < 0 ? input_length + start_pos : start_pos;
   if (start_pos < 0 || start_pos > input_length)
     {
+      /* Undef start_pos_sv should not cause error */
       croak ("Bad start position in slr->g1_lexeme_complete(): %ld",
-	     (long) start_pos_arg);
+	     (long) (SvIOK (start_pos_sv) ? SvIV (start_pos_sv) : -1));
     }
   stream->perl_pos = start_pos;
 
   {
     const int end_pos =
-      length_arg < 0 ? input_length + length_arg + 1 : start_pos + length_arg;
+      lexeme_length < 0 ? input_length + lexeme_length + 1 : start_pos + lexeme_length;
     if (end_pos < 0 || end_pos > input_length)
       {
+	/* Undef length_sv should not cause error */
 	croak ("Bad length in slr->g1_lexeme_complete(): %ld",
-	       (long) length_arg);
+	       (long) (SvIOK (length_sv) ? SvIV (length_sv) : -1));
       }
     lexeme_length = end_pos - start_pos;
   }
