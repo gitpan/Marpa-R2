@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.051_006';
+$VERSION        = '2.051_007';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -503,6 +503,7 @@ sub Marpa::R2::Scanless::G::show_rules {
 
 my %recce_options = map { ($_, 1) } qw{
     grammar
+    ranking_method
     too_many_earley_items
     trace_terminals
     trace_g0
@@ -576,7 +577,7 @@ sub Marpa::R2::Scanless::R::new {
         $grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
     my %g1_recce_args = ( grammar => $thick_g1_grammar );
     $g1_recce_args{$_} = $args->{$_}
-        for qw( trace_values trace_file_handle too_many_earley_items );
+        for qw( ranking_method trace_values trace_file_handle too_many_earley_items );
     my $thick_g1_recce =
         $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE] =
         Marpa::R2::Recognizer->new( \%g1_recce_args );
@@ -626,7 +627,7 @@ sub Marpa::R2::Scanless::R::read {
     if ( ( my $ref_type = ref $p_string ) ne 'SCALAR' ) {
         my $desc = $ref_type ? "a ref to $ref_type" : 'not a ref';
         Marpa::R2::exception(
-            qq{Arg to scanless_r->read() is $desc\n},
+            qq{Arg to Marpa::R2::Scanless::R::read() is $desc\n},
             '  It should be a ref to scalar'
         );
     } ## end if ( ( my $ref_type = ref $p_string ) ne 'SCALAR' )
