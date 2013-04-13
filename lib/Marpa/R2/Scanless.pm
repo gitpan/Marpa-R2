@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.051_008';
+$VERSION        = '2.051_009';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -666,7 +666,6 @@ sub Marpa::R2::Scanless::R::resume {
         my $problem_code = $thin_slr->read();
 
         last OUTER_READ if not $problem_code;
-        last OUTER_READ if $problem_code eq 'pause';
 
         my $stream = $thin_slr->stream();
 
@@ -801,6 +800,26 @@ sub Marpa::R2::Scanless::R::resume {
                         "$start-$end: ", join " ", @rhs;
                     next EVENT;
                 } ## end if ( $status eq 'discarded lexeme' )
+                if ( $status eq 'g1 pausing before lexeme' ) {
+                    my ( undef, $start, $length, $lexeme_id ) = @{$event};
+                    my $end = $start + $length - 1;
+                    my $lexeme_name =
+                         Marpa::R2::Grammar::original_symbol_name(
+                        $g1_tracer->symbol_name($lexeme_id));
+                    say {$trace_file_handle} 'Paused before lexeme @',
+                        "$start-$end: <$lexeme_name>";
+                    next EVENT;
+                } ## end if ( $status eq 'g1 pausing before lexeme' )
+                if ( $status eq 'g1 pausing after lexeme' ) {
+                    my ( undef, $start, $length, $lexeme_id ) = @{$event};
+                    my $end = $start + $length - 1;
+                    my $lexeme_name =
+                         Marpa::R2::Grammar::original_symbol_name(
+                        $g1_tracer->symbol_name($lexeme_id));
+                    say {$trace_file_handle} 'Paused after lexeme @',
+                        "$start-$end: <$lexeme_name>";
+                    next EVENT;
+                } ## end if ( $status eq 'g1 pausing after lexeme' )
                 if ( $status eq 'ignored lexeme' ) {
                     my ( undef, $g1_symbol_id, $start, $end ) = @{$event};
                     my $lexeme = Marpa::R2::Grammar::original_symbol_name(
@@ -824,6 +843,7 @@ sub Marpa::R2::Scanless::R::resume {
 
         } ## end if ($i_am_tracing)
 
+        last OUTER_READ if $problem_code eq 'pause';
         next OUTER_READ if $problem_code eq 'trace';
 
         if ( $problem_code eq 'unregistered char' ) {

@@ -1800,6 +1800,17 @@ slr_alternatives (Scanless_R * slr)
 	  slr->start_of_pause_lexeme = slr->start_of_lexeme;
 	  slr->end_of_pause_lexeme = slr->end_of_lexeme;
 	  slr->pause_lexeme = before_pause_lexeme;
+	  if (slr->trace_terminals > 2)
+	    {
+	      AV *event;
+	      SV *event_data[4];
+	      event_data[0] = newSVpvs ("g1 pausing before lexeme");
+	      event_data[1] = newSViv (slr->start_of_pause_lexeme);	/* start */
+	      event_data[2] = newSViv (slr->end_of_pause_lexeme);	/* end */
+	      event_data[3] = newSViv (slr->pause_lexeme);	/* lexeme */
+	      event = av_make (Dim (event_data), event_data);
+	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	    }
 	  return "pause";
 	}
 
@@ -1936,13 +1947,25 @@ slr_alternatives (Scanless_R * slr)
 	  marpa_r_latest_earley_set_values_set (r1, slr->start_of_lexeme,
 						INT2PTR (void *,
 							 (slr->end_of_lexeme -
-							  slr->start_of_lexeme)));
+							  slr->
+							  start_of_lexeme)));
 	  if (after_pause_lexeme >= 0 && after_pause_priority >= priority)
 	    {
 	      stream->perl_pos = slr->end_of_lexeme;
 	      slr->start_of_pause_lexeme = slr->start_of_lexeme;
 	      slr->end_of_pause_lexeme = slr->end_of_lexeme;
 	      slr->pause_lexeme = after_pause_lexeme;
+	      if (slr->trace_terminals > 2)
+		{
+		  AV *event;
+		  SV *event_data[4];
+		  event_data[0] = newSVpvs ("g1 pausing after lexeme");
+		  event_data[1] = newSViv (slr->start_of_pause_lexeme);	/* start */
+		  event_data[2] = newSViv (slr->end_of_pause_lexeme);	/* end */
+		  event_data[3] = newSViv (slr->pause_lexeme);	/* lexeme */
+		  event = av_make (Dim (event_data), event_data);
+		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		}
 	      return "pause";
 	    }
 
@@ -2036,7 +2059,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 151
-#define EXPECTED_LIBMARPA_MICRO 108
+#define EXPECTED_LIBMARPA_MICRO 109
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -5193,6 +5216,7 @@ g1_lexeme_pause_set( slg, g1_lexeme, pause )
 PPCODE:
 {
   Marpa_Symbol_ID highest_g1_symbol_id = marpa_g_highest_symbol_id (slg->g1);
+    struct lexeme_properties * properties = slg->g1_lexeme_properties + g1_lexeme;
     if (g1_lexeme > highest_g1_symbol_id) 
     {
       croak
@@ -5210,13 +5234,25 @@ PPCODE:
 	 (long) pause,
 	 (long) g1_lexeme);
     }
-    if (pause < -1 || pause > 1) {
+    switch (pause) {
+    case 0:
+        properties->pause = 0;
+        properties->pause_after = 0;
+	break;
+    case 1:
+        properties->pause = 1;
+        properties->pause_after = 1;
+	break;
+    case -1:
+        properties->pause = 1;
+        properties->pause_after = 0;
+	break;
+    default:
       croak
 	("Problem in slg->lexeme_pause_set(%ld, %ld): value of pause must be -1,0 or 1",
 	 (long) g1_lexeme,
 	 (long) pause);
     }
-  slg->g1_lexeme_properties[g1_lexeme].pause = pause;
   XSRETURN_YES;
 }
 
@@ -5709,10 +5745,13 @@ PPCODE:
     }
 
   result = marpa_r_alternative (slr->r1, symbol_id, token_ix, 1);
-  if (result == MARPA_ERR_NONE || !slr->throw)
-    {
+  switch (result) {
+  case MARPA_ERR_NONE:
+  case MARPA_ERR_DUPLICATE_TOKEN:
+  case MARPA_ERR_UNEXPECTED_TOKEN_ID:
       XSRETURN_IV (result);
-    }
+  }
+  if (!slr->throw) { XSRETURN_IV (result); }
   croak ("Problem in slr->g1_alternative(): %s",
 	 xs_g_error (slr->g1_wrapper));
 }
