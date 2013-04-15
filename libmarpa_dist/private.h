@@ -24,11 +24,11 @@
 static RULE rule_new(GRAMMAR g,
 const XSYID lhs, const XSYID *rhs, int length);
 static int
-duplicate_rule_cmp (const void *ap, const void *bp, void *param UNUSED);
+duplicate_rule_cmp (const void *ap, const void *bp, void *param  UNUSED);
 static int sym_rule_cmp(
     const void* ap,
     const void* bp,
-    void *param UNUSED);
+    void *param  UNUSED);
 static int cmp_by_aimid (const void* ap,
 	const void* bp);
 static int cmp_by_postdot_and_aimid (const void* ap,
@@ -36,7 +36,7 @@ static int cmp_by_postdot_and_aimid (const void* ap,
 static int AHFA_state_cmp(
     const void* ap,
     const void* bp,
-    void *param UNUSED);
+    void *param  UNUSED);
 static int
 cmp_by_irl_sort_key(const void* ap, const void* bp);
 static AHFA
@@ -57,7 +57,7 @@ postdot_items_create (RECCE r,
 static int report_item_cmp (
     const void* ap,
     const void* bp,
-    void *param UNUSED);
+    void *param  UNUSED);
 static int bv_scan(Bit_Vector bv, unsigned int start,
                                     unsigned int* min, unsigned int* max);
 static void transitive_closure(Bit_Matrix matrix);

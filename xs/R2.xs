@@ -2059,7 +2059,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 151
-#define EXPECTED_LIBMARPA_MICRO 109
+#define EXPECTED_LIBMARPA_MICRO 110
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -4444,24 +4444,6 @@ PPCODE:
 	}
       XPUSHs (sv_2mortal (newSViv (leo_base_origin)));
     }
-
-void
-_marpa_r_leo_expansion_ahfa( r_wrapper )
-    R_Wrapper *r_wrapper;
-PPCODE:
-{
-  struct marpa_r *r = r_wrapper->r;
-  int leo_expansion_ahfa = _marpa_r_leo_expansion_ahfa (r);
-  if (leo_expansion_ahfa == -1)
-    {
-      XSRETURN_UNDEF;
-    }
-  if (leo_expansion_ahfa < 0)
-    {
-      croak ("Problem in r->leo_expansion_ahfa(): %s", xs_g_error(r_wrapper->base));
-    }
-  XPUSHs (sv_2mortal (newSViv (leo_expansion_ahfa)));
-}
 
 void
 _marpa_r_trace_earley_set( r_wrapper )
