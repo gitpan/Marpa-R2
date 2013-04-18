@@ -1,7 +1,7 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (15 April 2013) is for the internals of Libmarpa 5.151.110.
+This manual (18 April 2013) is for the internals of Libmarpa 5.152.100.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -17,7 +17,7 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (15 April 2013) is for the internals of Libmarpa 5.151.110.
+This manual (18 April 2013) is for the internals of Libmarpa 5.152.100.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
