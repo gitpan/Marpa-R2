@@ -1087,6 +1087,20 @@ g->t_xrl_obs = my_obstack_begin(0, alignof(struct s_xrl));
 my_obstack_free(g->t_obs);
 my_obstack_free(g->t_xrl_obs);
 
+@*0 The grammar constant integer list arena.
+Keeps constant integer lists with the same lifetime
+as the grammar.
+This arena is one of the grammar objects
+shared by all objects based on this grammar,
+something to be noted if grammars are ever to be shared
+by multiple threads.
+@<Widely aligned grammar elements@> =
+CILAR_Object t_cilar;
+@ @<Initialize grammar elements@> =
+cilar_init(&(g)->t_cilar);
+@ @<Destroy grammar elements@> =
+cilar_destroy(&(g)->t_cilar);
+
 @*0 The "is OK" word.
 The grammar needs a flag for a fatal error.
 This is an |int| for defensive coding reasons.
@@ -2611,6 +2625,12 @@ int _marpa_g_irl_is_virtual_rhs(
     @<Fail if |irl_id| is invalid@>@;
     return IRL_has_Virtual_RHS(IRL_by_ID(irl_id));
 }
+
+@*0 IRL is right recursive?.
+@d IRL_is_Right_Recursive(irl) ((irl)->t_is_right_recursive)
+@<Bit aligned IRL elements@> = unsigned int t_is_right_recursive:1;
+@ @<Initialize IRL elements@> =
+IRL_is_Right_Recursive(irl) = 0;
 
 @*0 Rule real symbol count.
 This is another data element used for the ``internal semantics" --
@@ -4745,12 +4765,10 @@ PRIVATE void AHFA_initialize(AHFA ahfa)
 }
 
 @*0 Complete symbols container.
-@ @d Complete_ISYIDs_of_AHFA(state) ((state)->t_complete_isyids)
-@d Complete_ISY_Count_of_AHFA(state) ((state)->t_complete_isy_count)
-@<Int aligned AHFA state elements@> =
-unsigned int t_complete_isy_count;
+@ @d Complete_ISYID_of_AHFA(state, ix) Item_of_CIL((state)->t_complete_isyids, (ix))
+@d Complete_ISY_Count_of_AHFA(state) Count_of_CIL((state)->t_complete_isyids)
 @ @<Widely aligned AHFA state elements@> =
-ISYID* t_complete_isyids;
+CIL t_complete_isyids;
 
 @*0 AHFA item container.
 @ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
@@ -4914,9 +4932,59 @@ the bit is set if $|isy1| = |isy2|$.
 	matrix_obs_create (obs_precompute, isy_count, isy_count);
     @<Initialize the right derivation matrix@>@/
     transitive_closure(isy_right_derivation_matrix);
+    @<Mark the right recursive IRLs@>@/
 }
 
-@ @<Initialize the right derivation matrix@> = {
+@ @<Initialize the right derivation matrix@> =
+{
+  IRLID irl_id;
+  for (irl_id = 0; irl_id < irl_count; irl_id++)
+    {
+      const IRL irl = IRL_by_ID(irl_id);
+      int rhs_ix;
+      for (rhs_ix = Length_of_IRL(irl) - 1;
+	  rhs_ix >= 0;
+	  rhs_ix-- )
+	{ @/@,
+/* LHS right dervies the last non-nulling symbol.  There is at least
+one non-nulling symbol in each IRL. */
+	  const ISYID rh_isyid = RHSID_of_IRL (irl, rhs_ix);
+	  if (!ISY_is_Nulling (ISY_by_ID (rh_isyid)))
+	    {
+	      matrix_bit_set (isy_right_derivation_matrix,
+			      (unsigned int) LHSID_of_IRL (irl),
+			      (unsigned int) rh_isyid);
+	      break;
+	    }
+	}
+    }
+}
+
+@ @<Mark the right recursive IRLs@> =
+{
+  IRLID irl_id;
+  for (irl_id = 0; irl_id < irl_count; irl_id++)
+    {
+      const IRL irl = IRL_by_ID (irl_id);
+      int rhs_ix;
+      for (rhs_ix = Length_of_IRL (irl) - 1; rhs_ix >= 0; rhs_ix--)
+	{
+	  const ISYID rh_isyid = RHSID_of_IRL (irl, rhs_ix);
+	  if (!ISY_is_Nulling (ISY_by_ID (rh_isyid)))
+	    {
+/* Does the last non-nulling symbol right derive the LHS?
+If so, the rule is right recursive.
+(There is at least one non-nulling symbol in each IRL.) */
+	      if (matrix_bit_test (isy_right_derivation_matrix,
+				   (unsigned int) rh_isyid,
+				   (unsigned int) LHSID_of_IRL (irl)))
+		{
+		  IRL_is_Right_Recursive (irl) = 1;
+		}
+	      break;
+	    }
+	}
+    }
 }
 
 @*0 Leo LHS symbol.
@@ -5076,7 +5144,8 @@ PRIVATE_NOT_INLINE int AHFA_state_cmp(
 NEXT_AHFA_STATE:;
 }
 
-@ @<Resize the transitions@> =
+@ Here is where the final transitions are allocated.
+@<Resize the transitions@> =
 {
      int ahfa_id;
      for (ahfa_id = 0; ahfa_id < ahfa_count_of_g; ahfa_id++) {
@@ -5099,7 +5168,14 @@ NEXT_AHFA_STATE:;
 	}
 }
 
-@ @<Populate the completed symbol data in the transitions@> =
+@ Earlier we counted the number of completions,
+recorded it in |LV_Completion_Count_of_TRANS|,
+allocated the space,
+and then zeroed |LV_Completion_Count_of_TRANS|.
+Here we actually copy the data in,
+incrementing
+|LV_Completion_Count_of_TRANS| as we do.
+@<Populate the completed symbol data in the transitions@> =
 {
      int ahfa_id;
      for (ahfa_id = 0; ahfa_id < ahfa_count_of_g; ahfa_id++) {
@@ -5176,6 +5252,7 @@ _marpa_avl_destroy(duplicates);
   AHFA p_initial_state = DQUEUE_PUSH (states, AHFA_Object);
   const IRL start_irl = g->t_start_irl;
   ISYID *postdot_isyidary;
+  CIL complete_isyids;
   AIM start_item;
   ISYID postdot_isyid;
   AIM *item_list = my_obstack_alloc (g->t_obs, sizeof (AIM));
@@ -5193,7 +5270,8 @@ _marpa_avl_destroy(duplicates);
     my_obstack_alloc (g->t_obs, sizeof (ISYID));
   postdot_isyid = Postdot_ISYID_of_AIM (start_item);
   *postdot_isyidary = postdot_isyid;
-  Complete_ISY_Count_of_AHFA (p_initial_state) = 0;
+  complete_isyids = p_initial_state->t_complete_isyids = my_obstack_alloc(g->t_obs, Sizeof_CIL(0));
+  Count_of_CIL (complete_isyids) = 0;
   p_initial_state->t_empty_transition = create_predicted_AHFA_state (g,
 			       matrix_row (prediction_matrix,
 					   (unsigned int) postdot_isyid),
@@ -5232,12 +5310,12 @@ a start rule completion, and it is a
 @<Create a 1-item discovered AHFA state@> = {
     AHFA p_new_state;
     AIM* new_state_item_list;
-    AIM single_item_p = item_list[first_working_item_ix];
-    Marpa_AHFA_Item_ID single_item_id;
+    AIM working_aim_p = item_list[first_working_item_ix];
+    Marpa_AHFA_Item_ID working_aim_id;
     ISYID postdot_isyid;
-    single_item_p++;		// Transition to next item for this rule
-    single_item_id = single_item_p - AHFA_item_0_p;
-    p_new_state = singleton_duplicates[single_item_id];
+    working_aim_p++;		// Transition to next item for this rule
+    working_aim_id = working_aim_p - AHFA_item_0_p;
+    p_new_state = singleton_duplicates[working_aim_id];
     if (p_new_state)
       {				/* Do not add, this is a duplicate */
 	transition_add (obs_precompute, p_working_state, working_isyid, p_new_state);
@@ -5246,20 +5324,21 @@ a start rule completion, and it is a
     p_new_state = DQUEUE_PUSH (states, AHFA_Object);
     /* Create a new AHFA state */
     AHFA_initialize(p_new_state);
-    singleton_duplicates[single_item_id] = p_new_state;
+    singleton_duplicates[working_aim_id] = p_new_state;
     new_state_item_list = p_new_state->t_items =
 	my_obstack_alloc (g->t_obs, sizeof (AIM));
-    new_state_item_list[0] = single_item_p;
+    new_state_item_list[0] = working_aim_p;
     p_new_state->t_item_count = 1;
     AHFA_is_Predicted(p_new_state) = 0;
     p_new_state->t_key.t_id = p_new_state - DQUEUE_BASE (states, AHFA_Object);
     TRANSs_of_AHFA(p_new_state) = transitions_new(g, isy_count);
     transition_add (obs_precompute, p_working_state, working_isyid, p_new_state);
-    postdot_isyid = Postdot_ISYID_of_AIM(single_item_p);
+    postdot_isyid = Postdot_ISYID_of_AIM(working_aim_p);
     if (postdot_isyid >= 0)
       {
 	ISYID* p_postdot_isyidary = Postdot_ISYIDAry_of_AHFA(p_new_state) =
 	  my_obstack_alloc (g->t_obs, sizeof (ISYID));
+	p_new_state->t_complete_isyids = my_obstack_alloc(g->t_obs, Sizeof_CIL(0));
 	Complete_ISY_Count_of_AHFA(p_new_state) = 0;
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 1;
 	*p_postdot_isyidary = postdot_isyid;
@@ -5274,12 +5353,13 @@ a start rule completion, and it is a
       }
     else
       {
-	ISYID lhs_isyid = LHS_ISYID_of_AIM(single_item_p);
-	ISYID* complete_isyids = my_obstack_alloc (g->t_obs, sizeof (ISYID));
-	*complete_isyids = lhs_isyid;
-	Complete_ISYIDs_of_AHFA(p_new_state) = complete_isyids;
-	completion_count_inc(obs_precompute, p_new_state, lhs_isyid);
+	ISYID lhs_isyid = LHS_ISYID_of_AIM(working_aim_p);
+
+	p_new_state->t_complete_isyids = my_obstack_alloc(g->t_obs, Sizeof_CIL(1));
 	Complete_ISY_Count_of_AHFA(p_new_state) = 1;
+	Complete_ISYID_of_AHFA(p_new_state, 0) = lhs_isyid;
+	completion_count_inc(obs_precompute, p_new_state, lhs_isyid);
+
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 0;
 	p_new_state->t_empty_transition = NULL;
 	@<If this state can be a Leo completion,
@@ -5289,37 +5369,13 @@ a start rule completion, and it is a
 
 @
 Assuming this is a 1-item completion, mark this state as
-a Leo completion if the last non-nulling symbol is on a LHS.
-(This eliminates rules which end in a terminal-only symbol from
-consideration in the Leo logic.)
-We know that there is a non-nulling symbol, because there is
-one is every non-nulling rule, the only non-nulling rule will
-be in AHFA state 0, and AHFA state 0 is
-handled as a special cases.
-\par
-As a note, the current logic makes an item an Leo completion
-if the last non-nulling symbol is on a LHS.
-With a bit more trouble, I could determine
-which rules are right-recursive.
-I would need to compute a transitive closure on the relationship
-``X right-derives Y" and then consider a state to be
-a Leo completion
-only if the LHS of the rule in its only item right-derives its
-last non-nulling symbol.
-
-@ The expression below takes the first (and only) item in
-the current state, and finds its closest previous non-nulling
-symbol.
-This will be the postdot symbol of the AHFA item just prior,
-which can be found by simply decrementing the pointer.
-If the predot symbol of an item is on the LHS of any rule,
-then that state is a Leo completion.
+a Leo completion if the rule is right recursive.
+This is an enhancement from Leo 1991.
 @<If this state can be a Leo completion,
 set the Leo completion symbol to |lhs_id|@> =
 {
-  AIM previous_ahfa_item = single_item_p - 1;
-  ISYID predot_isyid = Postdot_ISYID_of_AIM (previous_ahfa_item);
-  if (ISY_is_LHS(ISY_by_ID (predot_isyid)))
+  const IRL aim_irl = IRL_of_AIM (working_aim_p);
+  if (IRL_is_Right_Recursive(aim_irl))
     {
       Leo_LHS_ISYID_of_AHFA (p_new_state) = lhs_isyid;
     }
@@ -5469,7 +5525,6 @@ of minimum sizes.
 {
   int item_ix;
   int no_of_postdot_isys;
-  int no_of_complete_symbols;
   bv_clear(per_ahfa_complete_v);
   bv_clear(per_ahfa_postdot_v);
   for (item_ix = 0; item_ix < no_of_items_in_new_state; item_ix++)
@@ -5504,15 +5559,13 @@ of minimum sizes.
 	    }
 	}
     }
-  if ((no_of_complete_symbols =
-       Complete_ISY_Count_of_AHFA (p_new_state) = bv_count (per_ahfa_complete_v)))
     {
       unsigned int min, max, start;
-      ISYID *complete_isyids = my_obstack_alloc (g->t_obs,
-						 no_of_complete_symbols *
-						 sizeof (ISYID));
-      ISYID *p_isyid = complete_isyids;
-      Complete_ISYIDs_of_AHFA (p_new_state) = complete_isyids;
+      int isy_ix = 0;
+    const int complete_isyid_count = bv_count (per_ahfa_complete_v);
+      p_new_state->t_complete_isyids =
+	my_obstack_alloc(g->t_obs, Sizeof_CIL(complete_isyid_count));
+     Complete_ISY_Count_of_AHFA (p_new_state) = complete_isyid_count;
       for (start = 0; bv_scan (per_ahfa_complete_v, start, &min, &max);
 	   start = max + 2)
 	{
@@ -5520,7 +5573,8 @@ of minimum sizes.
 	  for (complete_isyid = (ISYID) min;
 	       complete_isyid <= (ISYID) max; complete_isyid++)
 	    {
-	      *p_isyid++ = complete_isyid;
+	      Complete_ISYID_of_AHFA(p_new_state, isy_ix) = complete_isyid;
+	      isy_ix++;
 	    }
 	}
     }
@@ -5762,6 +5816,7 @@ create_predicted_AHFA_state(
      AIM* item_list_working_buffer
      )
 {
+  CIL complete_isyids;
   AHFA p_new_state;
   int item_list_ix = 0;
   int no_of_items_in_new_state = bv_count (prediction_rule_vector);
@@ -5810,6 +5865,8 @@ create_predicted_AHFA_state(
   AHFA_is_Predicted (p_new_state) = 1;
   p_new_state->t_empty_transition = NULL;
   TRANSs_of_AHFA (p_new_state) = transitions_new (g, ISY_Count_of_G(g));
+    complete_isyids =
+	p_new_state->t_complete_isyids = my_obstack_alloc(g->t_obs, Sizeof_CIL(0));
   Complete_ISY_Count_of_AHFA (p_new_state) = 0;
   @<Calculate postdot symbols for predicted state@>@;
   return p_new_state;
@@ -5970,7 +6027,11 @@ void transition_add(struct obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA t
     return;
 }
 
-@ @<Function definitions@> =
+@ The completion data is populated in two stages.
+First a count is kept, so that the array can be properly sized.
+Once all the counts are complete,
+the array is populated.
+@<Function definitions@> =
 PRIVATE
 void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, ISYID isyid)
 {
@@ -6860,8 +6921,8 @@ The only awkwardness takes place
 when the second source is added, and the first one must
 be recopied to make way for pointers to the linked lists.
 @d EIM_FATAL_THRESHOLD (INT_MAX/4)
-@d Complete_ISYIDs_of_EIM(item) 
-    Complete_ISYIDs_of_AHFA(AHFA_of_EIM(item))
+@d Complete_ISYID_of_EIM(item, ix) 
+    Complete_ISYID_of_AHFA(AHFA_of_EIM(item), (ix))
 @d Complete_ISY_Count_of_EIM(item)
     Complete_ISY_Count_of_AHFA(AHFA_of_EIM(item))
 @d Leo_LHS_ISYID_of_EIM(eim) Leo_LHS_ISYID_of_AHFA(AHFA_of_EIM(eim))
@@ -8883,13 +8944,12 @@ The return value means success, with no events.
 add those Earley items it ``causes".
 @<Add new Earley items for |cause|@> =
 {
-  ISYID *complete_isyids = Complete_ISYIDs_of_EIM (cause);
   int count = Complete_ISY_Count_of_EIM (cause);
   ES middle = Origin_of_EIM (cause);
   int isy_ix;
   for (isy_ix = 0; isy_ix < count; isy_ix++)
     {
-      ISYID complete_isyid = complete_isyids[isy_ix];
+      ISYID complete_isyid = Complete_ISYID_of_EIM(cause, isy_ix);
       @<Add new Earley items for |complete_isyid| and |cause|@>@;
     }
 }
@@ -13316,6 +13376,123 @@ for the rule.
 	if ( Token_Type_of_V(v) != DUMMY_OR_NODE ) break;
 	if ( V_is_Trace(v)) break;
     }
+}
+
+@** Counted integer lists (CIL).
+As a structure,
+almost not worth bothering with,
+if it were not for its use in CILAR's.
+The first |int| is a count, and purists might insist
+on a struct instead of an array.
+A struct would reflect the logical structure more
+accurately.
+But would it make the actual code 
+less readable, not more,
+which I believe has to be the object.
+@d Count_of_CIL(cil) (cil[0])
+@d Item_of_CIL(cil, ix) (cil[1+(ix)])
+@d Sizeof_CIL(ix) (sizeof(int) * (1+(ix)))
+@ @<Private typedefs@> =
+typedef int* CIL;
+
+@** Counted integer list arena (CILAR).
+These implement an especially efficient memory allocation scheme.
+Libmarpa needs many copies of integer lists,
+where the integers are symbol ID's, rule ID's, etc.
+The same ones are used again and again.
+The CILAR allows them to be allocated once and reused.
+\par
+The CILAR is a software implementation
+of memory which is both random-access
+and content-addressable.
+Content-addressability saves space -- when the
+contents are identical they can be reused.
+The content-addressability is implemented in software
+(as an AVL).
+While lookup is not slow
+the intention is that the content-addressability will used
+infrequently --
+once created or found the CIL will be memoized
+for random-access through a pointer.
+
+@ An obstack for the actual data, and a tree
+for the lookups.
+@<Private utility structures@> =
+struct s_cil_arena {
+    struct obstack* t_obs;
+    AVL_TREE t_avl;
+};
+typedef struct s_cil_arena CILAR_Object;
+
+@ @<Private incomplete structures@> =
+struct s_cil_arena;
+@ @<Private typedefs@> =
+typedef struct s_cil_arena* CILAR;
+@ @<Function definitions@> =
+PRIVATE void
+cilar_init (const CILAR cilar)
+{
+  cilar->t_obs = my_obstack_init;
+  cilar->t_avl = _marpa_avl_create (cil_cmp, NULL, 0);
+}
+@ @<Function definitions@> =
+PRIVATE void cilar_destroy(const CILAR cilar)
+{
+  _marpa_avl_destroy (cilar->t_avl );
+  my_obstack_free(cilar->t_obs);
+}
+@ Returns a pointer to a CIL that is identical
+to the CIL-in-progress --
+the one being built on the obstack.
+The returned CIL will be in memory that will
+persist for the life of the CILAR.
+If the CIL-in-progress already exists in the CILAR,
+it is rejected and a pointer to the already existing
+CIL is returned.
+If
+the CIL-in-progress does not already exist in the CILAR,
+the CIL-in-progress is added to the CILAR,
+and a pointer to the CIL-in-progress is returned.
+@<Function definitions@> =
+PRIVATE CIL cil_finish(CILAR cilar)
+{
+    CIL cil_in_progress = (CIL)my_obstack_base(cilar->t_obs);
+    CIL found_cil = _marpa_avl_insert (cilar->t_avl, cil_in_progress);
+    if (found_cil) {
+        my_obstack_reject (cilar->t_obs);
+	return found_cil;
+    }
+    return cil_in_progress;
+}
+@ Reserve room for a CIL, and return a pointer to it.
+@<Function definitions@> =
+PRIVATE CIL cil_reserve(CILAR cilar, int length)
+{
+    return (CIL)my_obstack_reserve(cilar->t_obs, length);
+}
+
+@ @<Function definitions@> =
+PRIVATE_NOT_INLINE int
+cil_cmp (const void *ap, const void *bp, void *param @,@, UNUSED)
+{
+  int ix;
+  CIL cil1 = (CIL) ap;
+  CIL cil2 = (CIL) bp;
+  int count1 = Count_of_CIL (cil1);
+  int count2 = Count_of_CIL (cil2);
+  if (count1 != count2)
+    {
+      return count1 > count2 ? 1 : -1;
+    }
+  for (ix = 0; ix < count1; ix++)
+    {
+      const int item1 = Item_of_CIL (cil1, ix);
+      const int item2 = Item_of_CIL (cil2, ix);
+      if (item1 == item2)
+	continue;
+      return item1 > item2 ? 1 : -1;
+    }
+  return 0;
 }
 
 @** Lightweight boolean vectors (LBV).

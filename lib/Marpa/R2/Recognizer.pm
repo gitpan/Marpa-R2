@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.052000';
+$VERSION        = '2.053_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;

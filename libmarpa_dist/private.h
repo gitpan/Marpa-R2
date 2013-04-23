@@ -58,6 +58,8 @@ static int report_item_cmp (
     const void* ap,
     const void* bp,
     void *param  UNUSED);
+static int
+cil_cmp (const void *ap, const void *bp, void *param  UNUSED);
 static int bv_scan(Bit_Vector bv, unsigned int start,
                                     unsigned int* min, unsigned int* max);
 static void transitive_closure(Bit_Matrix matrix);
@@ -200,6 +202,11 @@ value_ref (VALUE v);
 static inline void value_free(VALUE v);
 static inline int symbol_is_valued_set (
     VALUE v, XSYID xsy_id, int value);
+static inline void
+cilar_init (const CILAR cilar);
+static inline void cilar_destroy(const CILAR cilar);
+static inline CIL cil_finish(CILAR cilar);
+static inline CIL cil_reserve(CILAR cilar, int length);
 static inline int lbv_bits_to_size(int bits);
 static inline Bit_Vector
 lbv_obs_new0 (struct obstack *obs, int bits);
