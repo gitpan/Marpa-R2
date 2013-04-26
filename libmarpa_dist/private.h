@@ -206,11 +206,18 @@ static inline void
 cilar_init (const CILAR cilar);
 static inline void cilar_destroy(const CILAR cilar);
 static inline CIL cil_finish(CILAR cilar);
+static inline CIL cil_confirm(CILAR cilar, int length);
 static inline CIL cil_reserve(CILAR cilar, int length);
+static inline CIL cil_empty(CILAR cilar);
+static inline CIL cil_singleton(CILAR cilar, int element);
 static inline int lbv_bits_to_size(int bits);
 static inline Bit_Vector
+lbv_obs_new (struct obstack *obs, int bits);
+static inline Bit_Vector
+lbv_zero (Bit_Vector lbv, int bits);
+static inline Bit_Vector
 lbv_obs_new0 (struct obstack *obs, int bits);
-static inline LBV lbv_copy(
+static inline LBV lbv_clone(
   struct obstack* obs, LBV old_lbv, int bits);
 static inline LBV lbv_fill(
   LBV lbv, int bits);
@@ -243,6 +250,7 @@ bv_count (Bit_Vector v);
 static inline void
 rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym);
 static inline Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns);
+static inline void matrix_clear(Bit_Matrix matrix);
 static inline int matrix_columns(Bit_Matrix matrix);
 static inline Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
 static inline void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column);

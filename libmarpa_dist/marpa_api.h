@@ -83,6 +83,7 @@ int marpa_r_expected_symbol_event_set ( Marpa_Recognizer r, Marpa_Symbol_ID symb
 int marpa_r_is_exhausted (Marpa_Recognizer r);
 int marpa_r_terminals_expected ( Marpa_Recognizer r, Marpa_Symbol_ID* buffer);
 int marpa_r_terminal_is_expected ( Marpa_Recognizer r, Marpa_Symbol_ID symbol_id);
+int marpa_r_completion_symbol_activate ( Marpa_Recognizer r, Marpa_Symbol_ID sym_id, int reactivate );
 int marpa_r_progress_report_reset ( Marpa_Recognizer r);
 int marpa_r_progress_report_start ( Marpa_Recognizer r, Marpa_Earley_Set_ID set_id);
 int marpa_r_progress_report_finish ( Marpa_Recognizer r );
@@ -208,7 +209,7 @@ int _marpa_t_nook_is_cause ( Marpa_Tree t, Marpa_Nook_ID nook_id );
 int _marpa_t_nook_is_predecessor ( Marpa_Tree t, Marpa_Nook_ID nook_id );
 int _marpa_v_trace ( Marpa_Value v, int flag);
 Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
-#define MARPA_ERROR_COUNT 92
+#define MARPA_ERROR_COUNT 93
 #define MARPA_ERR_NONE 0
 #define MARPA_ERR_AHFA_IX_NEGATIVE 1
 #define MARPA_ERR_AHFA_IX_OOB 2
@@ -301,14 +302,16 @@ Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
 #define MARPA_ERR_NO_SUCH_RULE_ID 89
 #define MARPA_ERR_NO_SUCH_SYMBOL_ID 90
 #define MARPA_ERR_BEFORE_FIRST_TREE 91
-#define MARPA_EVENT_COUNT 7
+#define MARPA_ERR_SYMBOL_IS_NOT_COMPLETION_EVENT 92
+#define MARPA_EVENT_COUNT 8
 #define MARPA_EVENT_NONE 0
 #define MARPA_EVENT_COUNTED_NULLABLE 1
 #define MARPA_EVENT_EARLEY_ITEM_THRESHOLD 2
 #define MARPA_EVENT_EXHAUSTED 3
 #define MARPA_EVENT_LOOP_RULES 4
 #define MARPA_EVENT_NULLING_TERMINAL 5
-#define MARPA_EVENT_SYMBOL_EXPECTED 6
+#define MARPA_EVENT_SYMBOL_COMPLETED 6
+#define MARPA_EVENT_SYMBOL_EXPECTED 7
 #define MARPA_STEP_COUNT 8
 #define MARPA_STEP_INTERNAL1 0
 #define MARPA_STEP_RULE 1

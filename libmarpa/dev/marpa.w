@@ -949,6 +949,15 @@ can tell if there is a boolean vector to be freed.
 @<Widely aligned grammar elements@> = Bit_Vector t_bv_isyid_is_terminal;
 @ @<Initialize grammar elements@> = g->t_bv_isyid_is_terminal = NULL;
 
+@*0 Completion event boolean vector.
+A boolean vector, with bits sets if there is an event
+on completion of a rule with that symbol on the LHS.
+At grammar initialization, this vector cannot be sized.
+It is initialized to |NULL| so that the destructor
+can tell if there is a boolean vector to be freed.
+@<Widely aligned grammar elements@> = Bit_Vector t_lbv_xsyid_is_completion_event;
+@ @<Initialize grammar elements@> = g->t_lbv_xsyid_is_completion_event = NULL;
+
 @*0 The event stack.
 Events are designed to be fast,
 but are at the moment
@@ -1077,6 +1086,13 @@ be overwritten by code using the obstack for other objects.
 A side benefit is that the dedicated
 XRL obstack can be specially
 aligned.
+\par
+The method obstack is intended for temporaries that
+are used in external methods.
+Data in this obstack exists for the life of the method
+call.
+This obstack is cleared on exit from a method.
+
 @<Widely aligned grammar elements@> =
 struct obstack* t_obs;
 struct obstack* t_xrl_obs;
@@ -1473,7 +1489,7 @@ Marpa_Grammar g, Marpa_Symbol_ID xsy_id, int value)
     return XSY_is_Terminal (symbol) = value;
 }
 
-@*0 Symbol is productive?.
+@*0 XSY is productive?.
 @d XSY_is_Productive(xsy) ((xsy)->t_is_productive)
 @<Bit aligned symbol elements@> = unsigned int t_is_productive:1;
 @ @<Initialize symbol elements@> =
@@ -1490,6 +1506,13 @@ int marpa_g_symbol_is_productive(
     @<Soft fail if |xsy_id| does not exist@>@;
     return XSY_is_Productive(XSY_by_ID(xsy_id));
 }
+
+@*0 XSY is completion event?.
+@d XSY_is_Completion_Event(xsy) ((xsy)->t_is_completion_event)
+@d XSYID_is_Completion_Event(xsyid) XSY_is_Completion_Event(XSY_by_ID(xsyid))
+@<Bit aligned symbol elements@> = unsigned int t_is_completion_event:1;
+@ @<Initialize symbol elements@> =
+symbol->t_is_completion_event = 0;
 
 @*0 Primary internal equivalent.
 This is the internal
@@ -1622,9 +1645,10 @@ A source symbol must be specified.
 PRIVATE ISY
 isy_new(GRAMMAR g, XSY source)
 {
-  const ISY new_isy = isy_start(g);
-  Source_XSY_of_ISY(new_isy) = source;
-  Rank_of_ISY(new_isy) = ISY_Rank_by_XSY(source);
+  const ISY new_isy = isy_start (g);
+  Source_XSY_of_ISY (new_isy) = source;
+  Rank_of_ISY (new_isy) = ISY_Rank_by_XSY (source);
+  ISY_is_Completion_Event (new_isy) = XSY_is_Completion_Event (source);
   return new_isy;
 }
 
@@ -1634,10 +1658,11 @@ An XSY must be specified.
 PRIVATE ISY
 isy_clone(GRAMMAR g, XSY xsy)
 {
-  const ISY new_isy = isy_start(g);
-  Source_XSY_of_ISY(new_isy) = xsy;
-  Rank_of_ISY(new_isy) = ISY_Rank_by_XSY(xsy);
-  ISY_is_Nulling(new_isy) = XSY_is_Nulling(xsy);
+  const ISY new_isy = isy_start (g);
+  Source_XSY_of_ISY (new_isy) = xsy;
+  Rank_of_ISY (new_isy) = ISY_Rank_by_XSY (xsy);
+  ISY_is_Completion_Event (new_isy) = XSY_is_Completion_Event (xsy);
+  ISY_is_Nulling (new_isy) = XSY_is_Nulling (xsy);
   return new_isy;
 }
 
@@ -1699,6 +1724,21 @@ int _marpa_g_isy_is_nulling(Marpa_Grammar g, Marpa_ISY_ID isy_id)
   @<Fail if |isy_id| is invalid@>@;
   return ISY_is_Nulling(ISY_by_ID(isy_id));
 }
+
+@*0 ISY is completion event?.
+Is completion of this ISY an event?
+Conceptually, events are actually by XSY, so if this
+bit is set, it implies there is
+a source XSY.
+More precisely,
+an ISY is a completion event if and only if there
+is a corresponding XSY,
+and it is a potential event.
+Masking of events will be done at the XSY level.
+@d ISY_is_Completion_Event(isy) ((isy)->t_isy_is_completion_event)
+@d ISYID_is_Completion_Event(isy) ISY_is_Completion_Event(ISY_by_ID(isy))
+@<Bit aligned ISY elements@> = unsigned int t_isy_is_completion_event:1;
+@ @<Initialize ISY elements@> = ISY_is_Completion_Event(isy) = 0;
 
 @*0 Source XSY.
 This is the external
@@ -2626,11 +2666,26 @@ int _marpa_g_irl_is_virtual_rhs(
     return IRL_has_Virtual_RHS(IRL_by_ID(irl_id));
 }
 
-@*0 IRL is right recursive?.
+@*0 IRL right recursion status.
 @d IRL_is_Right_Recursive(irl) ((irl)->t_is_right_recursive)
 @<Bit aligned IRL elements@> = unsigned int t_is_right_recursive:1;
 @ @<Initialize IRL elements@> =
-IRL_is_Right_Recursive(irl) = 0;
+  IRL_is_Right_Recursive(irl) = 0;
+
+@*0 IRL event ISYID list.
+@ The full set of ISYID's for which completion of this IRL
+causes a completion event.
+This set takes into account possible right recursion due
+to Leo items.
+When a rule is not right recursive,
+this set will always contain at most a single element,
+the LHS ISYID's.
+@d Event_ISYID_of_IRL(irl, ix) Item_of_CIL((irl)->t_event_isyids, (ix))
+@d Event_ISY_Count_of_IRL(irl) Count_of_CIL((irl)->t_event_isyids)
+@ @<Widely aligned IRL elements@> =
+CIL t_event_isyids;
+@ @<Initialize IRL elements@> =
+  irl->t_event_isyids = 0;
 
 @*0 Rule real symbol count.
 This is another data element used for the ``internal semantics" --
@@ -2843,6 +2898,7 @@ int marpa_g_precompute(Marpa_Grammar g)
 	@<Create AHFA items@>@;
 	@<Create AHFA states@>@;
 	@<Populate the terminal boolean vector@>@;
+	@<Populate the completion event boolean vector@>@;
     }
     g->t_is_precomputed = 1;
     if (g->t_has_cycle)
@@ -4770,6 +4826,16 @@ PRIVATE void AHFA_initialize(AHFA ahfa)
 @ @<Widely aligned AHFA state elements@> =
 CIL t_complete_isyids;
 
+@*0 Event symbols container.
+Contains the ISYID's of all complete LHS's
+where the LHS is an event ISYID.
+This includes all LHS's of rules that will be reached via expansion
+of a Leo path.
+@ @d Completion_Event_ISYID_of_AHFA(state, ix) Item_of_CIL((state)->t_event_isyids, (ix))
+@d Completion_Event_ISY_Count_of_AHFA(state) Count_of_CIL((state)->t_event_isyids)
+@ @<Widely aligned AHFA state elements@> =
+CIL t_event_isyids;
+
 @*0 AHFA item container.
 @ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
 @d AIM_of_AHFA_by_AEX(ahfa, aex) (AIMs_of_AHFA(ahfa)[aex])
@@ -4928,14 +4994,18 @@ Trivial derivations are included --
 the bit is set if $|isy1| = |isy2|$.
 
 @ @<Construct right derivation matrix@> = {
-    isy_right_derivation_matrix =
+    isy_by_right_isy_matrix =
 	matrix_obs_create (obs_precompute, isy_count, isy_count);
-    @<Initialize the right derivation matrix@>@/
-    transitive_closure(isy_right_derivation_matrix);
+    @<Initialize the |isy_by_right_isy_matrix| for right derivations@>@/
+    transitive_closure(isy_by_right_isy_matrix);
     @<Mark the right recursive IRLs@>@/
+    matrix_clear(isy_by_right_isy_matrix);
+    @<Initialize the |isy_by_right_isy_matrix| for right recursions@>@/
+    transitive_closure(isy_by_right_isy_matrix);
+    @<Set the recursion ISYIDs for each IRL@>@/
 }
 
-@ @<Initialize the right derivation matrix@> =
+@ @<Initialize the |isy_by_right_isy_matrix| for right derivations@> =
 {
   IRLID irl_id;
   for (irl_id = 0; irl_id < irl_count; irl_id++)
@@ -4951,7 +5021,7 @@ one non-nulling symbol in each IRL. */
 	  const ISYID rh_isyid = RHSID_of_IRL (irl, rhs_ix);
 	  if (!ISY_is_Nulling (ISY_by_ID (rh_isyid)))
 	    {
-	      matrix_bit_set (isy_right_derivation_matrix,
+	      matrix_bit_set (isy_by_right_isy_matrix,
 			      (unsigned int) LHSID_of_IRL (irl),
 			      (unsigned int) rh_isyid);
 	      break;
@@ -4975,7 +5045,7 @@ one non-nulling symbol in each IRL. */
 /* Does the last non-nulling symbol right derive the LHS?
 If so, the rule is right recursive.
 (There is at least one non-nulling symbol in each IRL.) */
-	      if (matrix_bit_test (isy_right_derivation_matrix,
+	      if (matrix_bit_test (isy_by_right_isy_matrix,
 				   (unsigned int) rh_isyid,
 				   (unsigned int) LHSID_of_IRL (irl)))
 		{
@@ -4984,6 +5054,72 @@ If so, the rule is right recursive.
 	      break;
 	    }
 	}
+    }
+}
+
+@ @<Initialize the |isy_by_right_isy_matrix| for right recursions@> =
+{
+  IRLID irl_id;
+  for (irl_id = 0; irl_id < irl_count; irl_id++)
+    {
+      int rhs_ix;
+      const IRL irl = IRL_by_ID(irl_id);
+      if (!IRL_is_Right_Recursive(irl)) { continue; }
+      for (rhs_ix = Length_of_IRL(irl) - 1;
+	  rhs_ix >= 0;
+	  rhs_ix-- )
+	{ @/@,
+/* LHS right dervies the last non-nulling symbol.  There is at least
+one non-nulling symbol in each IRL. */
+	  const ISYID rh_isyid = RHSID_of_IRL (irl, rhs_ix);
+	  if (!ISY_is_Nulling (ISY_by_ID (rh_isyid)))
+	    {
+	      matrix_bit_set (isy_by_right_isy_matrix,
+			      (unsigned int) LHSID_of_IRL (irl),
+			      (unsigned int) rh_isyid);
+	      break;
+	    }
+	}
+    }
+}
+
+@ @<Set the recursion ISYIDs for each IRL@> =
+{
+  IRLID irl_id;
+  for (irl_id = 0; irl_id < irl_count; irl_id++)
+    {
+      const IRL irl = IRL_by_ID (irl_id);
+      const ISYID lhs_isyid = LHSID_of_IRL (irl);
+      if (!IRL_is_Right_Recursive (irl))
+	{
+	  irl->t_event_isyids =
+	  ISYID_is_Completion_Event (lhs_isyid) ? cil_singleton (&g->t_cilar,
+								 lhs_isyid) :
+	  cil_empty (&g->t_cilar);
+	  continue;
+	}
+      {
+	/* If here, IRL is right recursive */
+	unsigned int min, max, start;
+	int isy_ix = 0;
+	Bit_Vector bv_recursive_isyids =
+	  matrix_row (isy_by_right_isy_matrix, (unsigned long) lhs_isyid);
+	const int recursion_isyid_count = bv_count (bv_recursive_isyids);
+	CIL new_cil = cil_reserve (&g->t_cilar, recursion_isyid_count);
+	for (start = 0; bv_scan (bv_recursive_isyids, start, &min, &max);
+	     start = max + 2)
+	  {
+	    ISYID recursion_isyid;
+	    for (recursion_isyid = (ISYID) min;
+		 recursion_isyid <= (ISYID) max; recursion_isyid++)
+	      {
+		Item_of_CIL (new_cil, isy_ix) = recursion_isyid;
+		isy_ix++;
+	      }
+	  }
+	cil_confirm (&g->t_cilar, isy_ix);
+	irl->t_event_isyids = cil_finish(&g->t_cilar);
+      }
     }
 }
 
@@ -5077,7 +5213,7 @@ PRIVATE_NOT_INLINE int AHFA_state_cmp(
    const unsigned int initial_no_of_states = 2*AIM_Count_of_G(g);
    AIM AHFA_item_0_p = g->t_AHFA_items;
    Bit_Matrix prediction_matrix;
-   Bit_Matrix isy_right_derivation_matrix;
+   Bit_Matrix isy_by_right_isy_matrix;
    IRL* irl_by_sort_key = my_new(IRL, irl_count);
   Bit_Vector per_ahfa_complete_v = bv_obs_create (obs_precompute, isy_count);
   Bit_Vector per_ahfa_postdot_v = bv_obs_create (obs_precompute, isy_count);
@@ -5252,7 +5388,6 @@ _marpa_avl_destroy(duplicates);
   AHFA p_initial_state = DQUEUE_PUSH (states, AHFA_Object);
   const IRL start_irl = g->t_start_irl;
   ISYID *postdot_isyidary;
-  CIL complete_isyids;
   AIM start_item;
   ISYID postdot_isyid;
   AIM *item_list = my_obstack_alloc (g->t_obs, sizeof (AIM));
@@ -5270,8 +5405,9 @@ _marpa_avl_destroy(duplicates);
     my_obstack_alloc (g->t_obs, sizeof (ISYID));
   postdot_isyid = Postdot_ISYID_of_AIM (start_item);
   *postdot_isyidary = postdot_isyid;
-  complete_isyids = p_initial_state->t_complete_isyids = my_obstack_alloc(g->t_obs, Sizeof_CIL(0));
-  Count_of_CIL (complete_isyids) = 0;
+  p_initial_state->t_event_isyids =
+    p_initial_state->t_complete_isyids =
+    cil_empty (&g->t_cilar);
   p_initial_state->t_empty_transition = create_predicted_AHFA_state (g,
 			       matrix_row (prediction_matrix,
 					   (unsigned int) postdot_isyid),
@@ -5338,8 +5474,8 @@ a start rule completion, and it is a
       {
 	ISYID* p_postdot_isyidary = Postdot_ISYIDAry_of_AHFA(p_new_state) =
 	  my_obstack_alloc (g->t_obs, sizeof (ISYID));
-	p_new_state->t_complete_isyids = my_obstack_alloc(g->t_obs, Sizeof_CIL(0));
-	Complete_ISY_Count_of_AHFA(p_new_state) = 0;
+	p_new_state->t_event_isyids =
+	  p_new_state->t_complete_isyids = cil_empty (&g->t_cilar);
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 1;
 	*p_postdot_isyidary = postdot_isyid;
     /* If the sole item is not a completion
@@ -5354,10 +5490,10 @@ a start rule completion, and it is a
     else
       {
 	ISYID lhs_isyid = LHS_ISYID_of_AIM(working_aim_p);
-
-	p_new_state->t_complete_isyids = my_obstack_alloc(g->t_obs, Sizeof_CIL(1));
-	Complete_ISY_Count_of_AHFA(p_new_state) = 1;
-	Complete_ISYID_of_AHFA(p_new_state, 0) = lhs_isyid;
+	p_new_state->t_complete_isyids = cil_singleton(&g->t_cilar, lhs_isyid);
+	p_new_state->t_event_isyids = ISYID_is_Completion_Event (lhs_isyid)
+	  ? p_new_state->t_complete_isyids 
+	  : cil_empty (&g->t_cilar);
 	completion_count_inc(obs_precompute, p_new_state, lhs_isyid);
 
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 0;
@@ -5513,15 +5649,16 @@ of minimum sizes.
   AHFA_initialize (p_new_state);
   AHFA_is_Predicted (p_new_state) = 0;
   TRANSs_of_AHFA (p_new_state) = transitions_new (g, isy_count);
-  @<Calculate complete and postdot symbols for discovered
-    state@>@;
+  @<Calculate complete and postdot symbols
+    for discovered state with 2+ items@>@;
   transition_add (obs_precompute, p_working_state, working_isyid,
 		  p_new_state);
-  @<Calculate the predicted rule vector for this
-    state and add the predicted AHFA state@>@;
+  @<Calculate the predicted rule vector for
+    state with 2+ items, and add the predicted AHFA state@>@;
 }
 
-@ @<Calculate complete and postdot symbols for discovered state@> =
+@ @<Calculate complete and postdot symbols
+for discovered state with 2+ items@> =
 {
   int item_ix;
   int no_of_postdot_isys;
@@ -5563,9 +5700,7 @@ of minimum sizes.
       unsigned int min, max, start;
       int isy_ix = 0;
     const int complete_isyid_count = bv_count (per_ahfa_complete_v);
-      p_new_state->t_complete_isyids =
-	my_obstack_alloc(g->t_obs, Sizeof_CIL(complete_isyid_count));
-     Complete_ISY_Count_of_AHFA (p_new_state) = complete_isyid_count;
+	CIL new_cil = cil_reserve(&g->t_cilar, complete_isyid_count);
       for (start = 0; bv_scan (per_ahfa_complete_v, start, &min, &max);
 	   start = max + 2)
 	{
@@ -5573,10 +5708,27 @@ of minimum sizes.
 	  for (complete_isyid = (ISYID) min;
 	       complete_isyid <= (ISYID) max; complete_isyid++)
 	    {
-	      Complete_ISYID_of_AHFA(p_new_state, isy_ix) = complete_isyid;
+	      Item_of_CIL(new_cil, isy_ix) = complete_isyid;
 	      isy_ix++;
 	    }
 	}
+	p_new_state->t_complete_isyids = cil_finish (&g->t_cilar);
+    }
+    {
+	int isy_ix;
+	int complete_isyid_count = Complete_ISY_Count_of_AHFA (p_new_state);
+	CIL new_cil = cil_reserve (&g->t_cilar, complete_isyid_count);
+	int new_isy_ix = 0;
+	for (isy_ix = 0; isy_ix < complete_isyid_count; isy_ix++)
+	  {
+	    ISYID complete_isyid = Complete_ISYID_of_AHFA (p_new_state, isy_ix);
+	    if (!ISYID_is_Completion_Event (complete_isyid))
+	      continue;
+	    Item_of_CIL (new_cil, new_isy_ix) = complete_isyid;
+	    new_isy_ix++;
+	  }
+	cil_confirm (&g->t_cilar, new_isy_ix);
+	p_new_state->t_event_isyids = cil_finish (&g->t_cilar);
     }
 }
 
@@ -5594,8 +5746,8 @@ assign_AHFA_state (AHFA sought_state, AVL_TREE duplicates)
   return state_found;
 }
 
-@ @<Calculate the predicted rule vector for this state
-and add the predicted AHFA state@> =
+@ @<Calculate the predicted rule vector for
+    state with 2+ items, and add the predicted AHFA state@> =
 {
   int item_ix;
   ISYID postdot_isyid = -1;	// Initialized to prevent GCC warning
@@ -5663,14 +5815,14 @@ The symbol-by-rule matrix will be used in constructing the prediction
 states.
 
 @ @<Construct prediction matrix@> = {
-    Bit_Matrix isy_by_isy_matrix =
+    Bit_Matrix prediction_isy_by_isy_matrix =
 	matrix_obs_create (obs_precompute, isy_count, isy_count);
-    @<Initialize the isy-by-isy prediction matrix@>@/
-    transitive_closure(isy_by_isy_matrix);
+    @<Initialize the |prediction_isy_by_isy_matrix|@>@/
+    transitive_closure(prediction_isy_by_isy_matrix);
     @<Create the prediction matrix from the symbol-by-symbol matrix@>@/
 }
 
-@ @<Initialize the isy-by-isy prediction matrix@> =
+@ @<Initialize the |prediction_isy_by_isy_matrix|@> =
 {
   IRLID irl_id;
   ISYID isyid;
@@ -5679,7 +5831,7 @@ states.
       /* If a symbol appears on a LHS, it predicts itself. */
       ISY isy = ISY_by_ID (isyid);
       if (!ISY_is_LHS(isy)) continue;
-      matrix_bit_set (isy_by_isy_matrix, (unsigned int) isyid, (unsigned int) isyid);
+      matrix_bit_set (prediction_isy_by_isy_matrix, (unsigned int) isyid, (unsigned int) isyid);
     }
   for (irl_id = 0; irl_id < irl_count; irl_id++)
     {
@@ -5693,7 +5845,9 @@ states.
 	continue;
       /* Set a bit in the matrix */
       from_isyid = LHS_ISYID_of_AIM (item);
-      matrix_bit_set (isy_by_isy_matrix, (unsigned int) from_isyid, (unsigned int) to_isyid);
+      matrix_bit_set (prediction_isy_by_isy_matrix,
+	(unsigned int) from_isyid,
+	(unsigned int) to_isyid);
     }
 }
 
@@ -5781,7 +5935,7 @@ which can be used to index the rules in a boolean vector.
       unsigned int min, max, start;
       for (start = 0;
 	   bv_scan (matrix_row
-		    (isy_by_isy_matrix, (unsigned int) from_isyid),
+		    (prediction_isy_by_isy_matrix, (unsigned int) from_isyid),
 		    start, &min, &max); start = max + 2)
 	{
 	  ISYID to_isyid;
@@ -5816,7 +5970,6 @@ create_predicted_AHFA_state(
      AIM* item_list_working_buffer
      )
 {
-  CIL complete_isyids;
   AHFA p_new_state;
   int item_list_ix = 0;
   int no_of_items_in_new_state = bv_count (prediction_rule_vector);
@@ -5865,9 +6018,7 @@ create_predicted_AHFA_state(
   AHFA_is_Predicted (p_new_state) = 1;
   p_new_state->t_empty_transition = NULL;
   TRANSs_of_AHFA (p_new_state) = transitions_new (g, ISY_Count_of_G(g));
-    complete_isyids =
-	p_new_state->t_complete_isyids = my_obstack_alloc(g->t_obs, Sizeof_CIL(0));
-  Complete_ISY_Count_of_AHFA (p_new_state) = 0;
+  p_new_state->t_event_isyids = p_new_state->t_complete_isyids = cil_empty (&g->t_cilar);
   @<Calculate postdot symbols for predicted state@>@;
   return p_new_state;
 }
@@ -6120,6 +6271,20 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
 	      bv_bit_set (g->t_bv_isyid_is_terminal,
 			  (unsigned int) ID_of_ISY (isy));
 	    }
+	}
+    }
+}
+
+@** Populating the symbol completion event boolean vector.
+@<Populate the completion event boolean vector@> =
+{
+  int xsyid;
+  g->t_lbv_xsyid_is_completion_event = bv_obs_create (g->t_obs, xsy_count);
+  for (xsyid = 0; xsyid < xsy_count; xsyid++)
+    {
+      if (XSYID_is_Completion_Event (xsyid))
+	{
+	  lbv_bit_set (g->t_lbv_xsyid_is_completion_event, xsyid);
 	}
     }
 }
@@ -6384,6 +6549,25 @@ No complete or predicted Earley item will be found after the current earleme.
 unsigned int marpa_r_furthest_earleme(Marpa_Recognizer r)
 { return Furthest_Earleme_of_R(r); }
 
+@*0 Completion event variables.
+The count of unmasked XSY completion events.
+This count is used to protect recognizers that do not
+use completion events from their overhead.
+All these have to do is check the count against zero.
+There is no aggressive
+attempt to optimize on a more fine-grained
+basis --
+for recognizer which actually do use completion events,
+a few instructions per Earley item of overhead is
+considered reasonable.
+@ @<Widely aligned recognizer elements@> =
+Bit_Vector t_lbv_xsyid_completion_event_is_active;
+@ @<Int aligned recognizer elements@> =
+int t_active_completion_event_count;
+@ @<Initialize recognizer elements@> =
+r->t_lbv_xsyid_completion_event_is_active = NULL;
+r->t_active_completion_event_count = 0;
+
 @*0 Expected symbol boolean vector.
 A boolean vector by symbol ID,
 with the bits set if the symbol is expected
@@ -6452,13 +6636,6 @@ an event should be created.
 @ @<Initialize recognizer elements@> = 
   r->t_isy_expected_is_event = lbv_obs_new0(r->t_obs, isy_count);
 @ Returns |-2| if there was a failure.
-The buffer is expected to be large enough to hold
-the result.
-This will be the case if the length of the buffer
-is greater than or equal to the number of symbols
-in the grammar.
-@ For the moment, at least, it is a no-op if there is
-no internal symbol.
 @<Function definitions@> =
 int marpa_r_expected_symbol_event_set(Marpa_Recognizer r, Marpa_Symbol_ID xsy_id, int value)
 {
@@ -6490,6 +6667,51 @@ int marpa_r_expected_symbol_event_set(Marpa_Recognizer r, Marpa_Symbol_ID xsy_id
       lbv_bit_clear(r->t_isy_expected_is_event, isyid);
     }
     return value;
+}
+
+@*0 Deactivate symbol completed events.
+@ Allows a recognizer to deactivate and
+reactivate symbol completed events.
+A |boolean| value of 1 indicates reactivate,
+a boolean value of 0 indicates deactivate.
+To be reactivated, the symbol must have been
+set up for completion events in the grammar.
+Success occurs non-trivially
+if the bit can be set to the new value.
+Success occurs
+trivially if it was already set as specified.
+Any other result is a failure.
+On success, returns the new value.
+Returns |-2| if there was a failure.
+@<Function definitions@> =
+int marpa_r_completion_symbol_activate(Marpa_Recognizer r, Marpa_Symbol_ID xsy_id, int reactivate)
+{
+    @<Return |-2| on failure@>@;
+    @<Unpack recognizer objects@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if |xsy_id| is malformed@>@;
+    @<Soft fail if |xsy_id| does not exist@>@;
+    switch (reactivate) {
+    case 0:
+	if (lbv_bit_test(r->t_lbv_xsyid_completion_event_is_active, xsy_id)) {
+	  lbv_bit_clear(r->t_lbv_xsyid_completion_event_is_active, xsy_id) ;
+	  r->t_active_completion_event_count--;
+	}
+        return 0;
+    case 1:
+	if (!lbv_bit_test(g->t_lbv_xsyid_is_completion_event, xsy_id)) {
+	  /* An attempt to activate a completion event on a symbol which
+	  was not set up for them. */
+	  MARPA_ERROR (MARPA_ERR_SYMBOL_IS_NOT_COMPLETION_EVENT);
+	}
+	if (!lbv_bit_test(r->t_lbv_xsyid_completion_event_is_active, xsy_id)) {
+	  lbv_bit_set(r->t_lbv_xsyid_completion_event_is_active, xsy_id) ;
+	  r->t_active_completion_event_count++;
+	}
+        return 1;
+    }
+    MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+    return failure_indicator;
 }
 
 @*0 Leo-related booleans.
@@ -6925,6 +7147,10 @@ be recopied to make way for pointers to the linked lists.
     Complete_ISYID_of_AHFA(AHFA_of_EIM(item), (ix))
 @d Complete_ISY_Count_of_EIM(item)
     Complete_ISY_Count_of_AHFA(AHFA_of_EIM(item))
+@d Completion_Event_ISYID_of_EIM(item, ix) 
+    Completion_Event_ISYID_of_AHFA(AHFA_of_EIM(item), (ix))
+@d Completion_Event_ISY_Count_of_EIM(item)
+    Completion_Event_ISY_Count_of_AHFA(AHFA_of_EIM(item))
 @d Leo_LHS_ISYID_of_EIM(eim) Leo_LHS_ISYID_of_AHFA(AHFA_of_EIM(eim))
 @ It might be slightly faster if this boolean is memoized in the Earley item
 when the Earley item is initialized.
@@ -8487,6 +8713,10 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
 	@<Set |r| exhausted@>@;
 	goto CLEANUP;
     }
+    r->t_lbv_xsyid_completion_event_is_active =
+      lbv_clone (r->t_obs, g->t_lbv_xsyid_is_completion_event, xsy_count);
+    r->t_active_completion_event_count =
+      bv_count ( g->t_lbv_xsyid_is_completion_event);
     Input_Phase_of_R(r) = R_DURING_INPUT;
     psar_reset(Dot_PSAR_of_R(r));
     @<Allocate recognizer containers@>@;
@@ -8844,7 +9074,10 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
 	   The parse is ``exhausted". */
 	@<Set |r| exhausted@>@;
       }
-      earley_set_update_items(r, current_earley_set);
+    earley_set_update_items(r, current_earley_set);
+    if (r->t_active_completion_event_count > 0) {
+        @<Trigger completion events@>@;
+    }
     return_value = G_EVENT_COUNT(g);
     CLEANUP: ;
     @<Destroy |marpa_r_earleme_complete| locals@>@;
@@ -8852,11 +9085,16 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
   return return_value;
 }
 
-@ @<Declare |marpa_r_earleme_complete| locals@> =
+@ Currently, |earleme_complete_obs| is only used for completion events,
+and so should only be initialized if they in use.
+But I expect to use it for other purposes.
+@<Declare |marpa_r_earleme_complete| locals@> =
     const ISYID isy_count = ISY_Count_of_G(g);
     Bit_Vector bv_ok_for_chain = bv_create(isy_count);
+    struct obstack* const earleme_complete_obs = my_obstack_init;
 @ @<Destroy |marpa_r_earleme_complete| locals@> =
     bv_free(bv_ok_for_chain);
+    my_obstack_free( earleme_complete_obs );
 
 @ @<Initialize |current_earleme|@> = {
   current_earleme = ++(Current_Earleme_of_R(r));
@@ -9022,6 +9260,33 @@ add those Earley items it ``causes".
 	@<Push effect onto completion stack@>@;
       }
     leo_link_add (r, effect, leo_item, cause);
+}
+
+@ @<Trigger completion events@> =
+{
+  int eim_ix, isy_ix;
+  EIM *eims = EIMs_of_ES (current_earley_set);
+  Bit_Vector lbv_is_xsy_event_triggered =
+    lbv_obs_new0 (earleme_complete_obs, XSY_Count_of_G(g));
+  int working_earley_item_count = EIM_Count_of_ES(current_earley_set);
+  for (eim_ix = 0; eim_ix < working_earley_item_count; eim_ix++)
+    {
+      EIM eim = eims[eim_ix];
+      int event_isy_count = Completion_Event_ISY_Count_of_EIM (eim);
+      for (isy_ix = 0; isy_ix < event_isy_count; isy_ix++)
+	{
+	  ISYID event_isyid = Completion_Event_ISYID_of_EIM (eim, isy_ix);
+	  ISY event_isy = ISY_by_ID(event_isyid);
+	  XSY event_xsy = Source_XSY_of_ISY (event_isy);
+	  XSYID event_xsyid = ID_of_XSY (event_xsy);
+	  if (!lbv_bit_test (r->t_lbv_xsyid_completion_event_is_active, event_xsyid))
+	    continue;
+	  @/@, /* If we have already triggered an event for this xsy, continue */
+	  if (lbv_bit_test (lbv_is_xsy_event_triggered, event_xsyid)) continue;
+	  lbv_bit_set (lbv_is_xsy_event_triggered, event_xsyid);
+	  int_event_new (g, MARPA_EVENT_SYMBOL_COMPLETED, event_xsyid);
+	}
+    }
 }
 
 @ @<Function definitions@> =
@@ -11372,9 +11637,9 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     LBV t_valued_locked_bv;
 
 @ @<Initialize bocage elements@> =
-  Valued_BV_of_B (b) = lbv_copy (b->t_obs, r->t_valued, xsy_count);
+  Valued_BV_of_B (b) = lbv_clone (b->t_obs, r->t_valued, xsy_count);
   Valued_Locked_BV_of_B (b) =
-    lbv_copy (b->t_obs, r->t_valued_locked, xsy_count);
+    lbv_clone (b->t_obs, r->t_valued_locked, xsy_count);
 
 @ @<Declare bocage locals@> =
 const GRAMMAR g = G_of_R(r);
@@ -13024,9 +13289,9 @@ Marpa_Nook_ID _marpa_v_nook(Marpa_Value public_v)
 
 @ @<Initialize value elements@> =
 {
-  XSY_is_Valued_BV_of_V (v) = lbv_copy (v->t_obs, Valued_BV_of_B (b), xsy_count);
+  XSY_is_Valued_BV_of_V (v) = lbv_clone (v->t_obs, Valued_BV_of_B (b), xsy_count);
   Valued_Locked_BV_of_V (v) =
-    lbv_copy (v->t_obs, Valued_Locked_BV_of_B (b), xsy_count);
+    lbv_clone (v->t_obs, Valued_Locked_BV_of_B (b), xsy_count);
 }
 
 @
@@ -13462,13 +13727,49 @@ PRIVATE CIL cil_finish(CILAR cilar)
         my_obstack_reject (cilar->t_obs);
 	return found_cil;
     }
-    return cil_in_progress;
+    return (CIL)my_obstack_finish(cilar->t_obs);
 }
+
+@ Confirm the size of an CIL, and return a pointer to it.
+It is up to the caller to ensure that this CIL was the
+subject of a previous |cil_reserve| call, with
+a length greater than or equal to that of the current one.
+@<Function definitions@> =
+PRIVATE CIL cil_confirm(CILAR cilar, int length)
+{
+    CIL cil;
+    my_obstack_confirm_fast(cilar->t_obs, sizeof(int)*(length+1));
+    cil = (CIL)my_obstack_base(cilar->t_obs);
+    Count_of_CIL(cil) = length;
+    return cil;
+}
+
 @ Reserve room for a CIL, and return a pointer to it.
 @<Function definitions@> =
 PRIVATE CIL cil_reserve(CILAR cilar, int length)
 {
-    return (CIL)my_obstack_reserve(cilar->t_obs, length);
+    CIL cil;
+    my_obstack_reserve(cilar->t_obs, sizeof(int)*(length+1));
+    cil = (CIL)my_obstack_base(cilar->t_obs);
+    Count_of_CIL(cil) = length;
+    return cil;
+}
+
+@ Return the empty CIL from a CILAR.
+@<Function definitions@> =
+PRIVATE CIL cil_empty(CILAR cilar)
+{
+    cil_reserve(cilar, 0);
+    return cil_finish (cilar);
+}
+
+@ Return a singleton CIL from a CILAR.
+@<Function definitions@> =
+PRIVATE CIL cil_singleton(CILAR cilar, int element)
+{
+  CIL new_cil = cil_reserve (cilar, 1);
+  Item_of_CIL (new_cil, 0) = element;
+  return cil_finish (cilar);
 }
 
 @ @<Function definitions@> =
@@ -13518,18 +13819,36 @@ PRIVATE int lbv_bits_to_size(int bits)
     return (bits+(lbv_wordbits-1))/lbv_wordbits;
 }
 
-@*0 Create a zeroed LBV on an obstack.
+@*0 Create an unitialized LBV on an obstack.
 @<Function definitions@> =
 PRIVATE Bit_Vector
-lbv_obs_new0 (struct obstack *obs, int bits)
+lbv_obs_new (struct obstack *obs, int bits)
 {
   int size = lbv_bits_to_size (bits);
   LBV lbv = my_obstack_new (obs, LBW, size);
+  return lbv;
+}
+
+@*0 Zero an LBV.
+@<Function definitions@> =
+PRIVATE Bit_Vector
+lbv_zero (Bit_Vector lbv, int bits)
+{
+  int size = lbv_bits_to_size (bits);
   if (size > 0) {
       LBW *addr = lbv;
       while (size--) *addr++ = 0u;
   }
   return lbv;
+}
+
+@*0 Create a zeroed LBV on an obstack.
+@<Function definitions@> =
+PRIVATE Bit_Vector
+lbv_obs_new0 (struct obstack *obs, int bits)
+{
+  LBV lbv = lbv_obs_new(obs, bits);
+  return lbv_zero(lbv, bits);
 }
 
 @*0 Basic LBV operations.
@@ -13542,9 +13861,9 @@ lbv_obs_new0 (struct obstack *obs, int bits)
 @d lbv_bit_test(lbv, bit)
   ((*lbv_w ((lbv), (bit)) & lbv_b (bit)) != 0U)
 
-@*0 Copy an LBV.
+@*0 Clone an LBV onto an obstack.
 @<Function definitions@> =
-PRIVATE LBV lbv_copy(
+PRIVATE LBV lbv_clone(
   struct obstack* obs, LBV old_lbv, int bits)
 {
   int size = lbv_bits_to_size (bits);
@@ -14047,8 +14366,12 @@ and include ``hidden words" before the pointer.
 @ Note that |typedef|'s for |Bit_Matrix|
 and |Bit_Vector| are identical.
 @s Bit_Matrix int
-@<Private typedefs@> =
-typedef Bit_Vector_Word* Bit_Matrix;
+@ @<Private structures@> =
+struct s_bit_matrix {
+    int t_row_count;
+    Bit_Vector_Word t_row_data[1];
+};
+typedef struct s_bit_matrix* Bit_Matrix;
 
 @*0 Create a boolean matrix.
 @ Here the pointer returned is the actual start of the
@@ -14058,15 +14381,16 @@ the ``hidden words".
 @<Function definitions@> =
 PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns)
 {
+    unsigned int row;
     const unsigned int bv_data_words = bv_bits_to_size(columns);
     const unsigned int row_bytes = (bv_data_words + bv_hiddenwords) * sizeof(Bit_Vector_Word);
     const unsigned int bv_mask = bv_bits_to_unused_mask(columns);
-    const size_t allocation_size = row_bytes * rows;
-    Bit_Vector_Word* matrix_addr = my_obstack_alloc(obs, allocation_size);
-    unsigned int row;
+    const int sizeof_matrix = offsetof (struct s_bit_matrix, t_row_data) + (rows) * row_bytes;
+    Bit_Matrix matrix_addr = my_obstack_alloc(obs, sizeof_matrix);
+    matrix_addr->t_row_count = rows;
     for (row = 0; row < rows; row++) {
 	const unsigned int row_start = row*(bv_data_words+bv_hiddenwords);
-	Bit_Vector_Word* p_current_word = matrix_addr + row_start;
+	Bit_Vector_Word* p_current_word = matrix_addr->t_row_data + row_start;
 	int data_word_counter = bv_data_words;
 	*p_current_word++ = columns;
 	*p_current_word++ = bv_data_words;
@@ -14074,6 +14398,23 @@ PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, uns
 	while (data_word_counter--) *p_current_word++ = 0;
     }
     return matrix_addr;
+}
+
+@*0 Clear a boolean matrix.
+@<Function definitions@> =
+PRIVATE void matrix_clear(Bit_Matrix matrix)
+{
+    Bit_Vector row;
+    int row_ix;
+    const int row_count = matrix->t_row_count;
+    Bit_Vector row0 = matrix->t_row_data + bv_hiddenwords;
+    unsigned int words_per_row = BV_SIZE(row0)+bv_hiddenwords;
+    row_ix=0; row = row0;
+    while (row_ix < row_count) {
+	bv_clear(row);
+        row_ix++;
+	row += words_per_row;
+    }
 }
 
 @*0 Find the number of columns in a boolean matrix.
@@ -14085,8 +14426,8 @@ idea internally of how many rows it has.
 @<Function definitions@> =
 PRIVATE int matrix_columns(Bit_Matrix matrix)
 {
-    Bit_Vector row0 = matrix+bv_hiddenwords;
-     return BV_BITS(row0);
+    Bit_Vector row0 = matrix->t_row_data + bv_hiddenwords;
+    return BV_BITS(row0);
 }
 
 @*0 Find a row of a boolean matrix.
@@ -14101,7 +14442,7 @@ hidden words offset.
 @<Function definitions@> =
 PRIVATE Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row)
 {
-    Bit_Vector row0 = matrix+bv_hiddenwords;
+    Bit_Vector row0 = matrix->t_row_data + bv_hiddenwords;
     unsigned int words_per_row = BV_SIZE(row0)+bv_hiddenwords;
     return row0 + row*words_per_row;
 }
