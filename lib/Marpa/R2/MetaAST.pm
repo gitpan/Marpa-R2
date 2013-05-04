@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.053_001';
+$VERSION        = '2.053_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -211,6 +211,10 @@ sub Marpa::R2::Internal::MetaAST_Nodes::action_name::name {
     return $self->[2]->name($parse);
 }
 
+sub Marpa::R2::Internal::MetaAST_Nodes::event_name::name {
+    my ( $self, $parse ) = @_;
+    return $self->[2]->name($parse);
+}
 
 sub Marpa::R2::Internal::MetaAST_Nodes::array_descriptor::name {
     return $_[0]->[2];
@@ -972,6 +976,23 @@ sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate {
     return 'quantified rule consumed';
 
 } ## end sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate
+
+sub Marpa::R2::Internal::MetaAST_Nodes::completion_event_declaration::evaluate {
+    my ( $values, $parse ) = @_;
+    my ( $start, $length, $raw_event_name, $raw_symbol_name) = @{$values};
+    my $event_name = $raw_event_name->name();
+    my $symbol_name = $raw_symbol_name->name();
+    my $completion_events = $parse->{completion_events} //= {};
+    if (defined $completion_events->{$symbol_name}) {
+        my ($line, $column) = $parse->{meta_recce}->line_column($start);
+        die qq{Completion event for symbol "$symbol_name" declared twice\n},
+            qq{  That is not allowed\n},
+            "  Second declaration was ", $parse->substring( $start, $length ), "\n",
+            "  Problem occurred at line $line, column $column\n";
+    }
+    $completion_events->{$symbol_name} = $event_name;
+    return undef;
+} ## end sub evaluate
 
 sub Marpa::R2::Internal::MetaAST_Nodes::alternatives::evaluate {
     my ( $values, $parse ) = @_;

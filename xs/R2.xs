@@ -646,10 +646,11 @@ u_read(Unicode_Stream *stream)
       if (trace_g0 >= 1)
 	{
 	  AV *event;
-	  SV *event_data[3];
-	  event_data[0] = newSVpv ("g0 reading codepoint", 0);
-	  event_data[1] = newSViv ((IV) codepoint);
-	  event_data[2] = newSViv ((IV) stream->perl_pos);
+	  SV *event_data[4];
+	  event_data[0] = newSVpvs (":trace");
+	  event_data[1] = newSVpvs ("g0 reading codepoint");
+	  event_data[2] = newSViv ((IV) codepoint);
+	  event_data[3] = newSViv ((IV) stream->perl_pos);
 	  event = av_make (Dim (event_data), event_data);
 	  av_push (stream->event_queue, newRV_noinc ((SV *) event));
 	}
@@ -698,11 +699,12 @@ u_read(Unicode_Stream *stream)
 		    if (trace_g0 >= 1)
 		      {
 			AV *event;
-			SV *event_data[4];
-			event_data[0] = newSVpv ("g0 rejected codepoint", 0);
-			event_data[1] = newSViv ((IV) codepoint);
-			event_data[2] = newSViv ((IV) stream->perl_pos);
-			event_data[3] = newSViv ((IV) symbol_id);
+			SV *event_data[5];
+			event_data[0] = newSVpvs (":trace");
+			event_data[1] = newSVpvs ("g0 rejected codepoint");
+			event_data[2] = newSViv ((IV) codepoint);
+			event_data[3] = newSViv ((IV) stream->perl_pos);
+			event_data[4] = newSViv ((IV) symbol_id);
 			event = av_make (Dim (event_data), event_data);
 			av_push (stream->event_queue,
 				 newRV_noinc ((SV *) event));
@@ -712,11 +714,12 @@ u_read(Unicode_Stream *stream)
 		    if (trace_g0 >= 1)
 		      {
 			AV *event;
-			SV *event_data[4];
-			event_data[0] = newSVpv ("g0 accepted codepoint", 0);
-			event_data[1] = newSViv ((IV) codepoint);
-			event_data[2] = newSViv ((IV) stream->perl_pos);
-			event_data[3] = newSViv ((IV) symbol_id);
+			SV *event_data[5];
+			event_data[0] = newSVpvs (":trace");
+			event_data[1] = newSVpvs ("g0 accepted codepoint");
+			event_data[2] = newSViv ((IV) codepoint);
+			event_data[3] = newSViv ((IV) stream->perl_pos);
+			event_data[4] = newSViv ((IV) symbol_id);
 			event = av_make (Dim (event_data), event_data);
 			av_push (stream->event_queue,
 				 newRV_noinc ((SV *) event));
@@ -1019,7 +1022,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 		const char *result_string = step_type_to_string (step_type);
 		if (!result_string)
 		  result_string = "valuator unknown step";
-		event_data[0] = newSVpv (result_string, 0);
+		event_data[0] = newSVpvn (result_string, 0);
 		event_data[1] = newSViv (marpa_v_token (v));
 		event_data[2] = newSViv (result_ix);
 		event = av_make (Dim (event_data), event_data);
@@ -1558,15 +1561,16 @@ slr_discard (Scanless_R * slr)
 	      if (slr->trace_terminals)
 		{
 		  AV *event;
-		  SV *event_data[4];
-		  event_data[0] = newSVpvs ("discarded lexeme");
+		  SV *event_data[5];
+		  event_data[0] = newSVpvs (":trace");
+		  event_data[1] = newSVpvs ("discarded lexeme");
 		  /* We do not have the lexeme, but we have the 
 		   * g0 rule.
 		   * The upper level will have to figure things out.
 		   */
-		  event_data[1] = newSViv (rule_id);
-		  event_data[2] = newSViv (slr->start_of_lexeme);
-		  event_data[3] = newSViv (slr->end_of_lexeme);
+		  event_data[2] = newSViv (rule_id);
+		  event_data[3] = newSViv (slr->start_of_lexeme);
+		  event_data[4] = newSViv (slr->end_of_lexeme);
 		  event = av_make (Dim (event_data), event_data);
 		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
 		}
@@ -1584,11 +1588,12 @@ slr_discard (Scanless_R * slr)
 	  if (slr->trace_terminals)
 	    {
 	      AV *event;
-	      SV *event_data[4];
-	      event_data[0] = newSVpvs ("ignored lexeme");
-	      event_data[1] = newSViv (g1_lexeme);
-	      event_data[2] = newSViv (slr->start_of_lexeme);
-	      event_data[3] = newSViv (slr->end_of_lexeme);
+	      SV *event_data[5];
+	      event_data[0] = newSVpvs (":trace");
+	      event_data[1] = newSVpvs ("ignored lexeme");
+	      event_data[2] = newSViv (g1_lexeme);
+	      event_data[3] = newSViv (slr->start_of_lexeme);
+	      event_data[4] = newSViv (slr->end_of_lexeme);
 	      event = av_make (Dim (event_data), event_data);
 	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
 	    }
@@ -1701,15 +1706,16 @@ slr_alternatives (Scanless_R * slr)
 		  if (slr->trace_terminals)
 		    {
 		      AV *event;
-		      SV *event_data[4];
-		      event_data[0] = newSVpvs ("discarded lexeme");
+		      SV *event_data[5];
+		      event_data[0] = newSVpvs (":trace");
+		      event_data[1] = newSVpvs ("discarded lexeme");
 		      /* We do not have the lexeme, but we have the 
 		       * g0 rule.
 		       * The upper level will have to figure things out.
 		       */
-		      event_data[1] = newSViv (rule_id);
-		      event_data[2] = newSViv (slr->start_of_lexeme);
-		      event_data[3] = newSViv (slr->end_of_lexeme);
+		      event_data[2] = newSViv (rule_id);
+		      event_data[3] = newSViv (slr->start_of_lexeme);
+		      event_data[4] = newSViv (slr->end_of_lexeme);
 		      event = av_make (Dim (event_data), event_data);
 		      av_push (slr->event_queue, newRV_noinc ((SV *) event));
 		    }
@@ -1733,11 +1739,12 @@ slr_alternatives (Scanless_R * slr)
 		  if (slr->trace_terminals)
 		    {
 		      AV *event;
-		      SV *event_data[4];
-		      event_data[0] = newSVpvs ("g1 unexpected lexeme");
-		      event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
-		      event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
-		      event_data[3] = newSViv (g1_lexeme);	/* lexeme */
+		      SV *event_data[5];
+		      event_data[0] = newSVpvs (":trace");
+		      event_data[1] = newSVpvs ("g1 unexpected lexeme");
+		      event_data[2] = newSViv (slr->start_of_lexeme);	/* start */
+		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
+		      event_data[4] = newSViv (g1_lexeme);	/* lexeme */
 		      event = av_make (Dim (event_data), event_data);
 		      av_push (slr->event_queue, newRV_noinc ((SV *) event));
 		    }
@@ -1803,11 +1810,12 @@ slr_alternatives (Scanless_R * slr)
 	  if (slr->trace_terminals > 2)
 	    {
 	      AV *event;
-	      SV *event_data[4];
-	      event_data[0] = newSVpvs ("g1 pausing before lexeme");
-	      event_data[1] = newSViv (slr->start_of_pause_lexeme);	/* start */
-	      event_data[2] = newSViv (slr->end_of_pause_lexeme);	/* end */
-	      event_data[3] = newSViv (slr->pause_lexeme);	/* lexeme */
+	      SV *event_data[5];
+	      event_data[0] = newSVpvs (":trace");
+	      event_data[1] = newSVpvs ("g1 pausing before lexeme");
+	      event_data[2] = newSViv (slr->start_of_pause_lexeme);	/* start */
+	      event_data[3] = newSViv (slr->end_of_pause_lexeme);	/* end */
+	      event_data[4] = newSViv (slr->pause_lexeme);	/* lexeme */
 	      event = av_make (Dim (event_data), event_data);
 	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
 	    }
@@ -1864,11 +1872,12 @@ slr_alternatives (Scanless_R * slr)
 	      if (slr->trace_terminals > 2)
 		{
 		  AV *event;
-		  SV *event_data[4];
-		  event_data[0] = newSVpvs ("g1 attempting lexeme");
-		  event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
-		  event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
-		  event_data[3] = newSViv (g1_lexeme);	/* lexeme */
+		  SV *event_data[5];
+		  event_data[0] = newSVpvs (":trace");
+		  event_data[1] = newSVpvs ("g1 attempting lexeme");
+		  event_data[2] = newSViv (slr->start_of_lexeme);	/* start */
+		  event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
+		  event_data[4] = newSViv (g1_lexeme);	/* lexeme */
 		  event = av_make (Dim (event_data), event_data);
 		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
 		}
@@ -1895,11 +1904,12 @@ slr_alternatives (Scanless_R * slr)
 		  if (slr->trace_terminals)
 		    {
 		      AV *event;
-		      SV *event_data[4];
-		      event_data[0] = newSVpvs ("g1 duplicate lexeme");
-		      event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
-		      event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
-		      event_data[3] = newSViv (g1_lexeme);	/* lexeme */
+		      SV *event_data[5];
+		      event_data[0] = newSVpvs (":trace");
+		      event_data[1] = newSVpvs ("g1 duplicate lexeme");
+		      event_data[2] = newSViv (slr->start_of_lexeme);	/* start */
+		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
+		      event_data[4] = newSViv (g1_lexeme);	/* lexeme */
 		      event = av_make (Dim (event_data), event_data);
 		      av_push (slr->event_queue, newRV_noinc ((SV *) event));
 		    }
@@ -1915,11 +1925,12 @@ slr_alternatives (Scanless_R * slr)
 		  if (slr->trace_terminals)
 		    {
 		      AV *event;
-		      SV *event_data[4];
-		      event_data[0] = newSVpvs ("g1 accepted lexeme");
-		      event_data[1] = newSViv (slr->start_of_lexeme);	/* start */
-		      event_data[2] = newSViv (slr->end_of_lexeme);	/* end */
-		      event_data[3] = newSViv (g1_lexeme);	/* lexeme */
+		      SV *event_data[5];
+		      event_data[0] = newSVpvs (":trace");
+		      event_data[1] = newSVpvs ("g1 accepted lexeme");
+		      event_data[2] = newSViv (slr->start_of_lexeme);	/* start */
+		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
+		      event_data[4] = newSViv (g1_lexeme);	/* lexeme */
 		      event = av_make (Dim (event_data), event_data);
 		      av_push (slr->event_queue, newRV_noinc ((SV *) event));
 		    }
@@ -1944,11 +1955,60 @@ slr_alternatives (Scanless_R * slr)
 	      croak ("Problem in marpa_r_earleme_complete(): %s",
 		     xs_g_error (slr->g1_wrapper));
 	    }
+	  if (return_value > 0)
+	    {
+	      int event_ix;
+	      Marpa_Grammar g1 = slr->g1_wrapper->g;
+	      const int event_count = marpa_g_event_count (g1);
+	      for (event_ix = 0; event_ix < event_count; event_ix++)
+		{
+		  Marpa_Event marpa_event;
+		  Marpa_Event_Type event_type = marpa_g_event (g1, &marpa_event, event_ix);
+		  switch (event_type) {
+		    {
+		    case MARPA_EVENT_EXHAUSTED:
+		      /* Do nothing about exhaustion on success */
+		      break;
+		    case MARPA_EVENT_SYMBOL_COMPLETED:
+		      {
+			AV *event;
+			SV *event_data[2];
+			Marpa_Symbol_ID completed_symbol = marpa_g_event_value(&marpa_event);
+			event_data[0] = newSVpvs ("symbol completed");
+			event_data[1] = newSViv (completed_symbol);
+			event = av_make (Dim (event_data), event_data);
+			av_push (slr->event_queue,
+				 newRV_noinc ((SV *) event));
+		      }
+		      break;
+		    default:
+		      {
+			AV *event;
+			const char *result_string =
+			  event_type_to_string (event_type);
+			SV *event_data[2];
+			event_data[0] = newSVpvs ("g1 event");
+			if (!result_string)
+			  {
+			    result_string =
+			      form ("event(%d): unknown event code, %d", event_ix,
+				    event_type);
+			  }
+			event_data[1] = newSVpvn (result_string, 0);
+			event = av_make (Dim (event_data), event_data);
+			av_push (slr->event_queue,
+				 newRV_noinc ((SV *) event));
+		      }
+		      break;
+		    }
+		}
+	    }
+	  }
+
 	  marpa_r_latest_earley_set_values_set (r1, slr->start_of_lexeme,
 						INT2PTR (void *,
 							 (slr->end_of_lexeme -
-							  slr->
-							  start_of_lexeme)));
+							  slr->start_of_lexeme)));
 	  if (after_pause_lexeme >= 0 && after_pause_priority >= priority)
 	    {
 	      stream->perl_pos = slr->end_of_lexeme;
@@ -1958,17 +2018,19 @@ slr_alternatives (Scanless_R * slr)
 	      if (slr->trace_terminals > 2)
 		{
 		  AV *event;
-		  SV *event_data[4];
-		  event_data[0] = newSVpvs ("g1 pausing after lexeme");
-		  event_data[1] = newSViv (slr->start_of_pause_lexeme);	/* start */
-		  event_data[2] = newSViv (slr->end_of_pause_lexeme);	/* end */
-		  event_data[3] = newSViv (slr->pause_lexeme);	/* lexeme */
+		  SV *event_data[5];
+		  event_data[0] = newSVpvs (":trace");
+		  event_data[1] = newSVpvs ("g1 pausing after lexeme");
+		  event_data[2] = newSViv (slr->start_of_pause_lexeme);	/* start */
+		  event_data[3] = newSViv (slr->end_of_pause_lexeme);	/* end */
+		  event_data[4] = newSViv (slr->pause_lexeme);	/* lexeme */
 		  event = av_make (Dim (event_data), event_data);
 		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
 		}
 	      return "pause";
 	    }
 
+	  if (av_len(slr->event_queue) >= 0) return "event";
 	  return 0;
 	}
       while (0);
@@ -2031,8 +2093,8 @@ slr_es_to_literal_span (Scanless_R * slr,
     {
       int last_lexeme_start_position;
       int last_lexeme_length;
-      slr_es_to_span (slr, start_earley_set + 1, &last_lexeme_start_position,
-		      &last_lexeme_length);
+      slr_es_to_span (slr, start_earley_set + length,
+	&last_lexeme_start_position, &last_lexeme_length);
       *p_length = last_lexeme_start_position + last_lexeme_length - *p_start;
     }
 }
@@ -2059,7 +2121,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 153
-#define EXPECTED_LIBMARPA_MICRO 101
+#define EXPECTED_LIBMARPA_MICRO 102
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 

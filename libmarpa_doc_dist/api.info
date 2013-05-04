@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (26 April 2013) is for Libmarpa 5.153.101.
+This manual (3 May 2013) is for Libmarpa 5.153.102.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (26 April 2013) is for Libmarpa 5.153.101.
+This manual (3 May 2013) is for Libmarpa 5.153.102.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -1384,6 +1384,39 @@ File: api.info,  Node: Symbols,  Next: Rules,  Prev: Grammar reference counting,
      Return value: On success, 1 if symbol SYM_ID is accessible, 0 if
      not.  If SYM_ID is well-formed, but there is no such symbol, -1.
      If the grammar is not precomputed, or on other failure, -2.
+
+ -- Function: int marpa_g_symbol_is_completion_event ( Marpa_Grammar G,
+          Marpa_Symbol_ID SYM_ID)
+ -- Function: int marpa_g_symbol_is_completion_event_set (
+          Marpa_Grammar G, Marpa_Symbol_ID SYM_ID, int VALUE)
+     Libmarpa can generate an `MARPA_EVENT_SYMBOL_COMPLETED' event
+     whenever the symbol is completed.  A symbol is said to be
+     *completed* when a non-nulling rule with that symbol on its LHS is
+     completed.
+
+     For completion events to occur, the symbol must be marked as a
+     completion event symbol.  The
+     `marpa_g_symbol_is_completion_event_set()' function marks symbol
+     SYM_ID as a completion event symbol if VALUE is 1, and unmarks it
+     it as a completion event symbol if VALUE is 0.  The
+     `marpa_g_symbol_is_completion_event()' method returns the current
+     value of the completion event marking for symbol SYM_ID.
+
+     Nulled rules and symbols will never cause completion events.
+     Nullable symbols may be marked as completion event symbols, but
+     this will have an effect only when the symbol is not nulled.
+     Nulling symbols may be marked as completion event symbols, but no
+     completion events will ever be generated for a nulling symbol.
+
+     The completion event marking cannot be changed once the grammar is
+     precomputed.  However, if a symbol is marked as a completion event
+     symbol, it can be deactivated and reactivated in the recognizer.
+
+     Success: On success, 1 if symbol SYM_ID is a completion event
+     symbol after the call, 0 otherwise.
+
+     Failures: If SYM_ID is well-formed, but there is no such symbol,
+     -1.  if the grammar G is precomputed; or on other failure, -2.
 
  -- Function: int marpa_g_symbol_is_nullable ( Marpa_Grammar g,
           Marpa_Symbol_ID sym_id)
@@ -4490,104 +4523,104 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top483
-Node: Copying3712
-Node: About this document12143
-Node: How to read this document12360
-Node: Prerequisites12827
-Node: Parsing theory13426
-Node: About Libmarpa14114
-Node: Architecture15946
-Node: Major objects16152
-Node: Time objects17491
-Node: Reference counting18945
-Node: Numbered objects20998
-Node: Input21432
-Node: Earlemes21567
-Node: The traditional model21964
-Node: The earleme variables23241
-Node: The significances of the earleme variables25120
-Node: The initial earleme settings26746
-Node: The standard model of input27424
-Node: Ambiguous input29147
-Node: Variable length tokens30112
-Node: The generalized model31828
-Node: General rules for the earleme variables34170
-Node: Terminals35553
-Node: Semantics36403
-Node: How Libmarpa semantics work36578
-Node: Valued and unvalued symbols37725
-Node: Threads40139
-Node: Fatal Errors41397
-Node: Introduction to the external interface41992
-Node: About the overviews42343
-Node: Return values43179
-Node: Naming conventions44968
-Node: Static methods46082
-Node: Configuration methods47714
-Node: Grammar methods49401
-Node: Grammar overview49708
-Node: Grammar constructor50752
-Node: Grammar reference counting51605
-Node: Symbols52209
-Node: Rules57761
-Node: Sequences62785
-Node: Ranks67050
-Node: Grammar precomputation69293
-Ref: marpa_g_precompute69494
-Node: Recognizer methods73832
-Node: Recognizer overview74197
-Node: Recognizer constructor74927
-Node: Recognizer reference counting75481
-Node: Recognizer life cycle mutators76292
-Node: Location accessors84637
-Node: Other parse status methods89172
-Node: Untested recognizer methods92762
-Node: Progress reports93921
-Node: Bocage methods97492
-Node: Bocage overview97713
-Node: Bocage constructor98233
-Node: Bocage reference counting98887
-Node: Ordering methods99764
-Node: Ordering overview100016
-Node: Ordering constructor100620
-Node: Ordering reference counting101087
-Node: Non-default ordering102077
-Node: Tree methods103230
-Node: Tree overview103455
-Node: Tree constructor104282
-Node: Tree reference counting104937
-Node: Tree iteration105906
-Node: Value methods107214
-Node: Value overview107652
-Node: How to use the valuator109083
-Node: Advantages of step-driven valuation111054
-Node: Maintaining the stack114724
-Node: Sizing the stack116735
-Node: Initializing locations in the stack118515
-Node: Valuator constructor120711
-Node: Valuator reference counting121562
-Node: Registering semantics122547
-Node: Stepping through the valuator124481
-Node: Valuator steps by type125247
-Node: Basic step accessors127194
-Node: Other step accessors129060
-Node: Events130606
-Node: Events overview130795
-Node: Event methods131665
-Node: Event codes132850
-Node: Error methods macros and codes135223
-Node: Error methods135492
-Node: Error Macros136319
-Node: External error codes136686
-Node: Internal error codes157515
-Node: Design notes161056
-Node: Why so many time objects161491
-Node: Design of numbered objects163241
-Node: LHS Terminals164480
-Node: Work in Progress165173
-Node: Experimental methods165383
-Node: Untested methods166217
-Node: GNU Free Documentation License168478
+Node: Top480
+Node: Copying3706
+Node: About this document12137
+Node: How to read this document12354
+Node: Prerequisites12821
+Node: Parsing theory13420
+Node: About Libmarpa14108
+Node: Architecture15940
+Node: Major objects16146
+Node: Time objects17485
+Node: Reference counting18939
+Node: Numbered objects20992
+Node: Input21426
+Node: Earlemes21561
+Node: The traditional model21958
+Node: The earleme variables23235
+Node: The significances of the earleme variables25114
+Node: The initial earleme settings26740
+Node: The standard model of input27418
+Node: Ambiguous input29141
+Node: Variable length tokens30106
+Node: The generalized model31822
+Node: General rules for the earleme variables34164
+Node: Terminals35547
+Node: Semantics36397
+Node: How Libmarpa semantics work36572
+Node: Valued and unvalued symbols37719
+Node: Threads40133
+Node: Fatal Errors41391
+Node: Introduction to the external interface41986
+Node: About the overviews42337
+Node: Return values43173
+Node: Naming conventions44962
+Node: Static methods46076
+Node: Configuration methods47708
+Node: Grammar methods49395
+Node: Grammar overview49702
+Node: Grammar constructor50746
+Node: Grammar reference counting51599
+Node: Symbols52203
+Node: Rules59440
+Node: Sequences64464
+Node: Ranks68729
+Node: Grammar precomputation70972
+Ref: marpa_g_precompute71173
+Node: Recognizer methods75511
+Node: Recognizer overview75876
+Node: Recognizer constructor76606
+Node: Recognizer reference counting77160
+Node: Recognizer life cycle mutators77971
+Node: Location accessors86316
+Node: Other parse status methods90851
+Node: Untested recognizer methods94441
+Node: Progress reports95600
+Node: Bocage methods99171
+Node: Bocage overview99392
+Node: Bocage constructor99912
+Node: Bocage reference counting100566
+Node: Ordering methods101443
+Node: Ordering overview101695
+Node: Ordering constructor102299
+Node: Ordering reference counting102766
+Node: Non-default ordering103756
+Node: Tree methods104909
+Node: Tree overview105134
+Node: Tree constructor105961
+Node: Tree reference counting106616
+Node: Tree iteration107585
+Node: Value methods108893
+Node: Value overview109331
+Node: How to use the valuator110762
+Node: Advantages of step-driven valuation112733
+Node: Maintaining the stack116403
+Node: Sizing the stack118414
+Node: Initializing locations in the stack120194
+Node: Valuator constructor122390
+Node: Valuator reference counting123241
+Node: Registering semantics124226
+Node: Stepping through the valuator126160
+Node: Valuator steps by type126926
+Node: Basic step accessors128873
+Node: Other step accessors130739
+Node: Events132285
+Node: Events overview132474
+Node: Event methods133344
+Node: Event codes134529
+Node: Error methods macros and codes136902
+Node: Error methods137171
+Node: Error Macros137998
+Node: External error codes138365
+Node: Internal error codes159194
+Node: Design notes162735
+Node: Why so many time objects163170
+Node: Design of numbered objects164920
+Node: LHS Terminals166159
+Node: Work in Progress166852
+Node: Experimental methods167062
+Node: Untested methods167896
+Node: GNU Free Documentation License170157
 
 End Tag Table

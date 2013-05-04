@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.053_001';
+$VERSION        = '2.053_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -47,6 +47,7 @@ BEGIN {
     MASK_BY_RULE_ID
 
     G1_ARGS
+    COMPLETION_EVENT_BY_ID
     TRACE_FILE_HANDLE
     BLESS_PACKAGE
 
@@ -69,6 +70,7 @@ BEGIN {
     TRACE_G0
     TRACE_TERMINALS
     READ_STRING_ERROR
+    EVENTS
 
 END_OF_STRUCTURE
     Marpa::R2::offset($structure);
@@ -392,9 +394,24 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     $g1_args->{start} = $g1_target_symbol;
     $g1_args->{'_internal_'} = 1;
     my $thick_g1_grammar = Marpa::R2::Grammar->new( $g1_args );
-    $thick_g1_grammar->precompute();
     my $g1_tracer = $thick_g1_grammar->tracer();
     my $g1_thin   = $g1_tracer->grammar();
+    my $completion_events_by_name = $hashed_source->{completion_events};
+    my $completion_events_by_id =
+        $self->[Marpa::R2::Inner::Scanless::G::COMPLETION_EVENT_BY_ID] = [];
+    for my $symbol_name ( keys %{$completion_events_by_name} ) {
+        my $symbol_id = $g1_tracer->symbol_by_name($symbol_name);
+        if ( not defined $symbol_id ) {
+            Marpa::R2::exception(
+                "Completion event defined for non-existent symbol: $symbol_name\n"
+            );
+        }
+        $g1_thin->symbol_is_completion_event_set( $symbol_id, 1 );
+        $self->[Marpa::R2::Inner::Scanless::G::COMPLETION_EVENT_BY_ID]
+            ->[$symbol_id] = $completion_events_by_name->{$symbol_name};
+    } ## end for my $symbol_name ( keys %{$completion_events_by_name...})
+
+    $thick_g1_grammar->precompute();
     my @g0_lexeme_to_g1_symbol;
     my @g1_symbol_to_g0_lexeme;
     $g0_lexeme_to_g1_symbol[$_] = -1 for 0 .. $g1_thin->highest_symbol_id();
@@ -655,11 +672,11 @@ sub Marpa::R2::Scanless::R::resume {
     my $trace_terminals =
         $self->[Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS] // 0;
     my $trace_g0 = $self->[Marpa::R2::Inner::Scanless::R::TRACE_G0] // 0;
-    my $i_am_tracing = $trace_terminals || $trace_g0;
     $thin_slr->trace_terminals($trace_terminals) if $trace_terminals;
     $thin_slr->trace_g0($trace_g0)               if $trace_g0;
 
     $thin_slr->pos_set( $start_pos, $length );
+    $self->[Marpa::R2::Inner::Scanless::R::EVENTS] = [];
 
     OUTER_READ: while (1) {
 
@@ -667,28 +684,31 @@ sub Marpa::R2::Scanless::R::resume {
 
         last OUTER_READ if not $problem_code;
 
+        my $pause = $problem_code eq 'pause';
+
         my $stream = $thin_slr->stream();
 
-        if ($i_am_tracing) {
+        EVENT: while ( my $event = $thin_slr->event() ) {
+            my ( $event_type, @event_data ) = @{$event};
+            if ( $event_type eq ':trace' ) {
 
-            my $trace_file_handle =
-                $self->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
-            my $thick_g1_recce =
-                $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-            my $thin_g1_recce    = $thick_g1_recce->thin();
-            my $thick_g1_grammar = $thick_g1_recce->grammar();
-            my $g1_tracer        = $thick_g1_grammar->tracer();
-            my $grammar = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
-            my $thick_lex_grammar =
-                $grammar->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR];
-            my $g0_tracer = $thick_lex_grammar->tracer();
+                my $trace_file_handle =
+                    $self->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
+                my $thick_g1_recce =
+                    $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+                my $thin_g1_recce    = $thick_g1_recce->thin();
+                my $thick_g1_grammar = $thick_g1_recce->grammar();
+                my $g1_tracer        = $thick_g1_grammar->tracer();
+                my $grammar = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+                my $thick_lex_grammar = $grammar
+                    ->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR];
+                my $g0_tracer = $thick_lex_grammar->tracer();
 
-            EVENT: while ( my $event = $thin_slr->event() ) {
-                my ($status) = $event->[0] // 'undefined event status';
+                my $status = $event_data[0] // 'undefined event status';
                 if ( $status eq 'g1 accepted lexeme' ) {
                     my ( undef, $lexeme_start_pos, $lexeme_end_pos,
                         $g1_lexeme )
-                        = @{$event};
+                        = @event_data;
                     my $raw_token_value =
                         $stream->substring( $lexeme_start_pos,
                         $lexeme_end_pos - $lexeme_start_pos );
@@ -703,7 +723,7 @@ sub Marpa::R2::Scanless::R::resume {
                 if ( $status eq 'g1 unexpected lexeme' ) {
                     my ( undef, $lexeme_start_pos, $lexeme_end_pos,
                         $g1_lexeme )
-                        = @{$event};
+                        = @event_data;
                     my $raw_token_value =
                         $stream->substring( $lexeme_start_pos,
                         $lexeme_end_pos - $lexeme_start_pos );
@@ -714,15 +734,16 @@ sub Marpa::R2::Scanless::R::resume {
                         $g1_tracer->symbol_name($g1_lexeme),
                         qq{; value="$raw_token_value"};
                     next EVENT;
-                } ## end if ( $status eq 'g1 rejected lexeme' )
+                } ## end if ( $status eq 'g1 unexpected lexeme' )
                 if ( $status eq 'g1 duplicate lexeme' ) {
                     my ( undef, $lexeme_start_pos, $lexeme_end_pos,
                         $g1_lexeme )
-                        = @{$event};
+                        = @event_data;
                     my $raw_token_value =
                         $stream->substring( $lexeme_start_pos,
                         $lexeme_end_pos - $lexeme_start_pos );
-                    say {$trace_file_handle} 'Rejected as duplicate lexeme @',
+                    say {$trace_file_handle}
+                        'Rejected as duplicate lexeme @',
                         $lexeme_start_pos,
                         q{-},
                         $lexeme_end_pos, q{: },
@@ -733,11 +754,12 @@ sub Marpa::R2::Scanless::R::resume {
                 if ( $status eq 'g1 attempting lexeme' ) {
                     my ( undef, $lexeme_start_pos, $lexeme_end_pos,
                         $g1_lexeme )
-                        = @{$event};
+                        = @event_data;
                     my $raw_token_value =
                         $stream->substring( $lexeme_start_pos,
                         $lexeme_end_pos - $lexeme_start_pos );
-                    say {$trace_file_handle} 'Attempting to read lexeme @',
+                    say {$trace_file_handle}
+                        'Attempting to read lexeme @',
                         $lexeme_start_pos,
                         q{-},
                         $lexeme_end_pos, q{: },
@@ -746,7 +768,7 @@ sub Marpa::R2::Scanless::R::resume {
                     next EVENT;
                 } ## end if ( $status eq 'g1 attempting lexeme' )
                 if ( $status eq 'g0 reading codepoint' ) {
-                    my ( undef, $codepoint, $position ) = @{$event};
+                    my ( undef, $codepoint, $position ) = @event_data;
                     my $char      = chr $codepoint;
                     my @char_desc = ();
                     push @char_desc, qq{"$char"}
@@ -759,7 +781,7 @@ sub Marpa::R2::Scanless::R::resume {
                 } ## end if ( $status eq 'g0 reading codepoint' )
                 if ( $status eq 'g0 accepted codepoint' ) {
                     my ( undef, $codepoint, $position, $token_id ) =
-                        @{$event};
+                        @event_data;
                     my $char      = chr $codepoint;
                     my @char_desc = ();
                     push @char_desc, qq{"$char"}
@@ -773,7 +795,7 @@ sub Marpa::R2::Scanless::R::resume {
                 } ## end if ( $status eq 'g0 accepted codepoint' )
                 if ( $status eq 'g0 rejected codepoint' ) {
                     my ( undef, $codepoint, $position, $token_id ) =
-                        @{$event};
+                        @event_data;
                     my $char      = chr $codepoint;
                     my @char_desc = ();
                     push @char_desc, qq{"$char"}
@@ -786,13 +808,13 @@ sub Marpa::R2::Scanless::R::resume {
                     next EVENT;
                 } ## end if ( $status eq 'g0 rejected codepoint' )
                 if ( $status eq 'g0 restarted recognizer' ) {
-                    my ( undef, $position ) = @{$event};
+                    my ( undef, $position ) = @event_data;
                     say {$trace_file_handle}
                         "G0 restarted recognizer at position $position";
                     next EVENT;
                 } ## end if ( $status eq 'g0 restarted recognizer' )
                 if ( $status eq 'discarded lexeme' ) {
-                    my ( undef, $g0_rule_id, $start, $end ) = @{$event};
+                    my ( undef, $g0_rule_id, $start, $end ) = @event_data;
                     my ( undef, @rhs ) =
                         map { Marpa::R2::Grammar::original_symbol_name($_) }
                         $g0_tracer->rule($g0_rule_id);
@@ -801,49 +823,76 @@ sub Marpa::R2::Scanless::R::resume {
                     next EVENT;
                 } ## end if ( $status eq 'discarded lexeme' )
                 if ( $status eq 'g1 pausing before lexeme' ) {
-                    my ( undef, $start, $length, $lexeme_id ) = @{$event};
+                    my ( undef, $start, $length, $lexeme_id ) = @event_data;
                     my $end = $start + $length - 1;
                     my $lexeme_name =
-                         Marpa::R2::Grammar::original_symbol_name(
-                        $g1_tracer->symbol_name($lexeme_id));
+                        Marpa::R2::Grammar::original_symbol_name(
+                        $g1_tracer->symbol_name($lexeme_id) );
                     say {$trace_file_handle} 'Paused before lexeme @',
                         "$start-$end: <$lexeme_name>";
                     next EVENT;
                 } ## end if ( $status eq 'g1 pausing before lexeme' )
                 if ( $status eq 'g1 pausing after lexeme' ) {
-                    my ( undef, $start, $length, $lexeme_id ) = @{$event};
+                    my ( undef, $start, $length, $lexeme_id ) = @event_data;
                     my $end = $start + $length - 1;
                     my $lexeme_name =
-                         Marpa::R2::Grammar::original_symbol_name(
-                        $g1_tracer->symbol_name($lexeme_id));
+                        Marpa::R2::Grammar::original_symbol_name(
+                        $g1_tracer->symbol_name($lexeme_id) );
                     say {$trace_file_handle} 'Paused after lexeme @',
                         "$start-$end: <$lexeme_name>";
                     next EVENT;
                 } ## end if ( $status eq 'g1 pausing after lexeme' )
                 if ( $status eq 'ignored lexeme' ) {
-                    my ( undef, $g1_symbol_id, $start, $end ) = @{$event};
+                    my ( undef, $g1_symbol_id, $start, $end ) = @event_data;
                     my $lexeme = Marpa::R2::Grammar::original_symbol_name(
                         $g1_tracer->symbol_name($g1_symbol_id) );
                     say {$trace_file_handle} 'Ignored lexeme @',
                         "$start-$end: $lexeme";
                     next EVENT;
                 } ## end if ( $status eq 'ignored lexeme' )
-                say {$trace_file_handle} 'Event: ', join " ", @{$event};
+                say {$trace_file_handle} 'Trace event: ', join " ",
+                    @event_data;
                 next EVENT;
-            } ## end EVENT: while ( my $event = $thin_slr->event() )
+            } ## end if ( $event_type eq ':trace' )
 
-            if ( $trace_g0 > 2 ) {
-                my $stream_pos = $stream->pos();
-                my $current_r0 = $stream->recce();
-                print {$trace_file_handle}
-                    qq{\n=== Progress report at position $stream_pos\n},
-                    $g0_tracer->progress_report($current_r0),
-                    qq{=== End of progress report for position $stream_pos\n\n};
-            } ## end if ( $trace_g0 > 2 )
+            if ( $event_type eq 'symbol completed' ) {
+                my ($completed_symbol_id) = @event_data;
+                my $slg = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+                my $completion_event_by_id = $slg
+                    ->[Marpa::R2::Inner::Scanless::G::COMPLETION_EVENT_BY_ID];
+                push @{ $self->[Marpa::R2::Inner::Scanless::R::EVENTS] },
+                    [
+                    $completion_event_by_id->[$completed_symbol_id]
+                    ];
+                $pause = 1;
+                next EVENT;
+            } ## end if ( $event_type eq 'symbol completed' )
 
-        } ## end if ($i_am_tracing)
+            # Unknown event
+            my $trace_file_handle =
+                $self->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
+            say {$trace_file_handle} 'Unknown event: ', join " ", $event_type,
+                @event_data;
 
-        last OUTER_READ if $problem_code eq 'pause';
+        } ## end EVENT: while ( my $event = $thin_slr->event() )
+
+        if ( $trace_g0 > 2 ) {
+            my $stream_pos = $stream->pos();
+            my $current_r0 = $stream->recce();
+            my $trace_file_handle =
+                $self->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
+            my $grammar = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+            my $thick_lex_grammar = $grammar
+                ->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR];
+            my $g0_tracer = $thick_lex_grammar->tracer();
+            print {$trace_file_handle}
+                qq{\n=== Progress report at position $stream_pos\n},
+                $g0_tracer->progress_report($current_r0),
+                qq{=== End of progress report for position $stream_pos\n\n};
+        } ## end if ( $trace_g0 > 2 )
+
+        last OUTER_READ if $pause;
+        next OUTER_READ if $problem_code eq 'event';
         next OUTER_READ if $problem_code eq 'trace';
 
         if ( $problem_code eq 'unregistered char' ) {
@@ -898,6 +947,11 @@ sub Marpa::R2::Scanless::R::resume {
 
     return $thin_slr->pos();
 } ## end sub Marpa::R2::Scanless::R::resume
+
+sub Marpa::R2::Scanless::R::events {
+    my ($self ) = @_;
+    return $self->[Marpa::R2::Inner::Scanless::R::EVENTS];
+}
 
 ## From here, recovery is a matter for the caller,
 ## if it is possible at all

@@ -541,6 +541,39 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
 
+void
+symbol_is_completion_event( g_wrapper, sym_id )
+    G_Wrapper *g_wrapper;
+    Marpa_Symbol_ID sym_id;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_symbol_is_completion_event(self, sym_id);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->symbol_is_completion_event(%d): %s",
+     sym_id, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+symbol_is_completion_event_set( g_wrapper, sym_id, value )
+    G_Wrapper *g_wrapper;
+    Marpa_Symbol_ID sym_id;
+    int value;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_symbol_is_completion_event_set(self, sym_id, value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->symbol_is_completion_event_set(%d, %d): %s",
+     sym_id, value, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::R
 
 void
@@ -694,6 +727,23 @@ PPCODE:
   if ( gp_result < 0 && r_wrapper->base->throw ) {
     croak( "Problem in r->latest_earley_set(): %s",
      xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+completion_symbol_activate( r_wrapper, sym_id, reactivate )
+    R_Wrapper *r_wrapper;
+    Marpa_Symbol_ID sym_id;
+    int reactivate;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_completion_symbol_activate(self, sym_id, reactivate);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->completion_symbol_activate(%d, %d): %s",
+     sym_id, reactivate, xs_g_error( r_wrapper->base ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
