@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.053_002';
+$VERSION        = '2.053_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -948,9 +948,9 @@ sub Marpa::R2::Scanless::R::resume {
     return $thin_slr->pos();
 } ## end sub Marpa::R2::Scanless::R::resume
 
-sub Marpa::R2::Scanless::R::events {
-    my ($self ) = @_;
-    return $self->[Marpa::R2::Inner::Scanless::R::EVENTS];
+sub Marpa::R2::Scanless::R::event {
+    my ($self, $event_ix) = @_;
+    return $self->[Marpa::R2::Inner::Scanless::R::EVENTS]->[$event_ix];
 }
 
 ## From here, recovery is a matter for the caller,
