@@ -2697,19 +2697,45 @@ int _marpa_g_irl_is_virtual_rhs(
   IRL_is_Right_Recursive(irl) = 0;
 
 @*0 IRL event ISYID list.
-@ The full set of ISYID's for which completion of this IRL
-causes a completion event.
-This set takes into account possible right recursion due
+@
+If the completions can be determined from the IRL ID
+alone, completions are said to be simple.
+If the history of the parse also affects the completions,
+completions are said to be complex.
+The |t_has_complex_completions| bit indicates whether
+completions are complex or simple.
+Completions are only complex when the IRL is indirectly right
+recursive.
+But an IRL may be indirectly right recursive,
+and still have simple completions.
+@
+|t_event_isyids| is always
+the set of ISYID's for which completion of this IRL
+causes a completion event,
+taking into account
+possible right recursions due
 to Leo items.
-When a rule is not right recursive,
-this set will always contain at most a single element,
-the LHS ISYID's.
+@ |t_direct_event_isyids| is the list of completions,
+taking into account only the IRL itself,
+and ignoring completions due to right recursion.
+|t_direct_event_isyids| will contain at most a single element,
+the ISYID of the IRL's LHS.
 @d Event_ISYID_of_IRL(irl, ix) Item_of_CIL((irl)->t_event_isyids, (ix))
 @d Event_ISY_Count_of_IRL(irl) Count_of_CIL((irl)->t_event_isyids)
+@d Direct_Event_ISYID_of_IRL(irl, ix) 
+  Item_of_CIL((irl)->t_direct_event_isyids, (ix))
+@d Direct_Event_ISY_Count_of_IRL(irl) 
+  Count_of_CIL((irl)->t_direct_event_isyids)
+@d IRL_has_Complex_Completions(irl) ((irl)->t_has_complex_completions)
+@ @<Bit aligned IRL elements@> =
+   unsigned int t_has_complex_completions:1;
 @ @<Widely aligned IRL elements@> =
 CIL t_event_isyids;
+CIL t_direct_event_isyids;
 @ @<Initialize IRL elements@> =
   irl->t_event_isyids = 0;
+  irl->t_direct_event_isyids = 0;
+  irl->t_has_complex_completions = 0;
 
 @*0 Rule real symbol count.
 This is another data element used for the ``internal semantics" --
@@ -4857,8 +4883,19 @@ This includes all LHS's of rules that will be reached via expansion
 of a Leo path.
 @ @d Completion_Event_ISYID_of_AHFA(state, ix) Item_of_CIL((state)->t_event_isyids, (ix))
 @d Completion_Event_ISY_Count_of_AHFA(state) Count_of_CIL((state)->t_event_isyids)
+@ @d Direct_Completion_Event_ISYID_of_AHFA(state, ix)
+  Item_of_CIL((state)->t_direct_event_isyids, (ix))
+@d Direct_Completion_Event_ISY_Count_of_AHFA(state)
+  Count_of_CIL((state)->t_direct_event_isyids)
 @ @<Widely aligned AHFA state elements@> =
 CIL t_event_isyids;
+CIL t_direct_event_isyids;
+@ If the |t_direct_event_isyids| element is at its initial value of |NULL|,
+that indicates the AHFA has simple completions.
+(Simple completions are those which can be determined directly from the AHFA state ID,
+with knowing the history of the parse.)
+Otherwise, completions are complex.
+@d AHFA_has_Complex_Completions(state) (state)->t_direct_event_isyids)
 
 @*0 AHFA item container.
 @ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
@@ -5114,12 +5151,14 @@ one non-nulling symbol in each IRL. */
     {
       const IRL irl = IRL_by_ID (irl_id);
       const ISYID lhs_isyid = LHSID_of_IRL (irl);
+      irl->t_direct_event_isyids =
+	    ISYID_is_Completion_Event (lhs_isyid) ? cil_singleton (&g->
+								   t_cilar,
+								   lhs_isyid)
+	    : cil_empty (&g->t_cilar);
       if (!IRL_is_Right_Recursive (irl))
 	{
-	  irl->t_event_isyids =
-	  ISYID_is_Completion_Event (lhs_isyid) ? cil_singleton (&g->t_cilar,
-								 lhs_isyid) :
-	  cil_empty (&g->t_cilar);
+	  irl->t_event_isyids = irl->t_direct_event_isyids;
 	  continue;
 	}
       {
@@ -5137,12 +5176,18 @@ one non-nulling symbol in each IRL. */
 	    for (recursion_isyid = (ISYID) min;
 		 recursion_isyid <= (ISYID) max; recursion_isyid++)
 	      {
-		Item_of_CIL (new_cil, isy_ix) = recursion_isyid;
-		isy_ix++;
+		if (ISYID_is_Completion_Event (recursion_isyid))
+		  {
+		    Item_of_CIL (new_cil, isy_ix) = recursion_isyid;
+		    isy_ix++;
+		  }
 	      }
 	  }
 	cil_confirm (&g->t_cilar, isy_ix);
-	irl->t_event_isyids = cil_finish(&g->t_cilar);
+	irl->t_event_isyids = cil_finish (&g->t_cilar);
+	if (cil_cmp(irl->t_direct_event_isyids, irl->t_event_isyids, 0)) {
+	  irl->t_has_complex_completions = 1;
+	}
       }
     }
 }
@@ -5429,6 +5474,7 @@ _marpa_avl_destroy(duplicates);
     my_obstack_alloc (g->t_obs, sizeof (ISYID));
   postdot_isyid = Postdot_ISYID_of_AIM (start_item);
   *postdot_isyidary = postdot_isyid;
+  p_initial_state->t_direct_event_isyids = 0;
   p_initial_state->t_event_isyids =
     p_initial_state->t_complete_isyids =
     cil_empty (&g->t_cilar);
@@ -5498,6 +5544,7 @@ a start rule completion, and it is a
       {
 	ISYID* p_postdot_isyidary = Postdot_ISYIDAry_of_AHFA(p_new_state) =
 	  my_obstack_alloc (g->t_obs, sizeof (ISYID));
+	p_new_state->t_direct_event_isyids = 0;
 	p_new_state->t_event_isyids =
 	  p_new_state->t_complete_isyids = cil_empty (&g->t_cilar);
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 1;
@@ -5513,11 +5560,12 @@ a start rule completion, and it is a
       }
     else
       {
-	ISYID lhs_isyid = LHS_ISYID_of_AIM(working_aim_p);
+	const ISYID lhs_isyid = LHS_ISYID_of_AIM(working_aim_p);
+	const IRL irl = IRL_of_AIM(working_aim_p);
 	p_new_state->t_complete_isyids = cil_singleton(&g->t_cilar, lhs_isyid);
-	p_new_state->t_event_isyids = ISYID_is_Completion_Event (lhs_isyid)
-	  ? p_new_state->t_complete_isyids 
-	  : cil_empty (&g->t_cilar);
+	p_new_state->t_direct_event_isyids = IRL_has_Complex_Completions(irl) ?
+	    irl->t_direct_event_isyids : NULL;
+	p_new_state->t_event_isyids = irl->t_event_isyids;
 	completion_count_inc(obs_precompute, p_new_state, lhs_isyid);
 
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 0;
@@ -5752,6 +5800,7 @@ for discovered state with 2+ items@> =
 	    new_isy_ix++;
 	  }
 	cil_confirm (&g->t_cilar, new_isy_ix);
+	p_new_state->t_direct_event_isyids = 0;
 	p_new_state->t_event_isyids = cil_finish (&g->t_cilar);
     }
 }
@@ -6042,6 +6091,7 @@ create_predicted_AHFA_state(
   AHFA_is_Predicted (p_new_state) = 1;
   p_new_state->t_empty_transition = NULL;
   TRANSs_of_AHFA (p_new_state) = transitions_new (g, ISY_Count_of_G(g));
+  p_new_state->t_direct_event_isyids = 0;
   p_new_state->t_event_isyids = p_new_state->t_complete_isyids = cil_empty (&g->t_cilar);
   @<Calculate postdot symbols for predicted state@>@;
   return p_new_state;
