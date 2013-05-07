@@ -1621,6 +1621,75 @@ slr_discard (Scanless_R * slr)
   return -4;
 }
 
+/* Assumes it is called
+ after a successful marpa_r_earleme_complete() */
+static void
+slr_convert_events (Scanless_R * slr)
+{
+  dTHX;
+  int event_ix;
+  Marpa_Grammar g1 = slr->g1_wrapper->g;
+  const int event_count = marpa_g_event_count (g1);
+  for (event_ix = 0; event_ix < event_count; event_ix++)
+    {
+      Marpa_Event marpa_event;
+      Marpa_Event_Type event_type =
+	marpa_g_event (g1, &marpa_event, event_ix);
+      switch (event_type)
+	{
+	  {
+	case MARPA_EVENT_EXHAUSTED:
+	    /* Do nothing about exhaustion on success */
+	    break;
+	case MARPA_EVENT_SYMBOL_COMPLETED:
+	    {
+	      AV *event;
+	      SV *event_data[2];
+	      Marpa_Symbol_ID completed_symbol =
+		marpa_g_event_value (&marpa_event);
+	      event_data[0] = newSVpvs ("symbol completed");
+	      event_data[1] = newSViv (completed_symbol);
+	      event = av_make (Dim (event_data), event_data);
+	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	    }
+	    break;
+	case MARPA_EVENT_EARLEY_ITEM_THRESHOLD:
+	    /* All events are ignored on faiulre
+	     * On success, all except MARPA_EVENT_EARLEY_ITEM_THRESHOLD
+	     * are ignored.
+	     *
+	     * The warning raised for MARPA_EVENT_EARLEY_ITEM_THRESHOLD 
+	     * can be turned off by raising
+	     * the Earley item warning threshold.
+	     */
+	    {
+	      warn
+		("Marpa: Scanless G1 Earley item count (%ld) exceeds warning threshold",
+		 (long) marpa_g_event_value (&marpa_event));
+	    }
+	    break;
+	default:
+	    {
+	      AV *event;
+	      const char *result_string = event_type_to_string (event_type);
+	      SV *event_data[2];
+	      event_data[0] = newSVpvs ("g1 event");
+	      if (!result_string)
+		{
+		  result_string =
+		    form ("event(%d): unknown event code, %d", event_ix,
+			  event_type);
+		}
+	      event_data[1] = newSVpvn (result_string, 0);
+	      event = av_make (Dim (event_data), event_data);
+	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	    }
+	    break;
+	  }
+	}
+    }
+}
+
 /*
  * Return values:
  * NULL OK.
@@ -1955,55 +2024,7 @@ slr_alternatives (Scanless_R * slr)
 	      croak ("Problem in marpa_r_earleme_complete(): %s",
 		     xs_g_error (slr->g1_wrapper));
 	    }
-	  if (return_value > 0)
-	    {
-	      int event_ix;
-	      Marpa_Grammar g1 = slr->g1_wrapper->g;
-	      const int event_count = marpa_g_event_count (g1);
-	      for (event_ix = 0; event_ix < event_count; event_ix++)
-		{
-		  Marpa_Event marpa_event;
-		  Marpa_Event_Type event_type = marpa_g_event (g1, &marpa_event, event_ix);
-		  switch (event_type) {
-		    {
-		    case MARPA_EVENT_EXHAUSTED:
-		      /* Do nothing about exhaustion on success */
-		      break;
-		    case MARPA_EVENT_SYMBOL_COMPLETED:
-		      {
-			AV *event;
-			SV *event_data[2];
-			Marpa_Symbol_ID completed_symbol = marpa_g_event_value(&marpa_event);
-			event_data[0] = newSVpvs ("symbol completed");
-			event_data[1] = newSViv (completed_symbol);
-			event = av_make (Dim (event_data), event_data);
-			av_push (slr->event_queue,
-				 newRV_noinc ((SV *) event));
-		      }
-		      break;
-		    default:
-		      {
-			AV *event;
-			const char *result_string =
-			  event_type_to_string (event_type);
-			SV *event_data[2];
-			event_data[0] = newSVpvs ("g1 event");
-			if (!result_string)
-			  {
-			    result_string =
-			      form ("event(%d): unknown event code, %d", event_ix,
-				    event_type);
-			  }
-			event_data[1] = newSVpvn (result_string, 0);
-			event = av_make (Dim (event_data), event_data);
-			av_push (slr->event_queue,
-				 newRV_noinc ((SV *) event));
-		      }
-		      break;
-		    }
-		}
-	    }
-	  }
+	  if (return_value > 0) { slr_convert_events(slr); }
 
 	  marpa_r_latest_earley_set_values_set (r1, slr->start_of_lexeme,
 						INT2PTR (void *,
@@ -2121,7 +2142,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 153
-#define EXPECTED_LIBMARPA_MICRO 105
+#define EXPECTED_LIBMARPA_MICRO 106
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -5843,31 +5864,11 @@ PPCODE:
     lexeme_length = end_pos - start_pos;
   }
 
+  av_clear (slr->event_queue);
   result = marpa_r_earleme_complete (slr->r1);
   if (result >= 0)
     {
-      /* All events are ignored on faiulre
-       * On success, all except MARPA_EVENT_EARLEY_ITEM_THRESHOLD
-       * are ignored.
-       *
-       * The warning raised for MARPA_EVENT_EARLEY_ITEM_THRESHOLD 
-       * can be turned off by raising
-       * the Earley item warning threshold.
-       */
-      int event_ix;
-      for (event_ix = 0; event_ix < result; event_ix++)
-	{
-	  Marpa_Event event;
-	  const int event_type = marpa_g_event (slr->g1_wrapper->g, &event,
-						event_ix);
-	  if (event_type == MARPA_EVENT_EARLEY_ITEM_THRESHOLD)
-	    {
-	      warn
-		("Marpa: Scanless G1 Earley item count (%ld) exceeds warning threshold",
-		 (long) marpa_g_event_value (&event));
-	    }
-	  /* Ignore MARPA_EVENT_SYMBOL_COMPLETED event */
-	}
+     slr_convert_events(slr);
       marpa_r_latest_earley_set_values_set (slr->r1, start_pos,
 					    INT2PTR (void *, lexeme_length));
       stream->perl_pos = start_pos + lexeme_length;

@@ -4871,8 +4871,12 @@ PRIVATE void AHFA_initialize(AHFA ahfa)
 }
 
 @*0 Complete symbols container.
-@ @d Complete_ISYID_of_AHFA(state, ix) Item_of_CIL((state)->t_complete_isyids, (ix))
-@d Complete_ISY_Count_of_AHFA(state) Count_of_CIL((state)->t_complete_isyids)
+@
+@d Completion_Event_CIL_of_AHFA(state) ((state)->t_complete_isyids)
+@d Complete_ISYID_of_AHFA(state, ix)
+  Item_of_CIL(Completion_Event_CIL_of_AHFA(state), (ix))
+@d Complete_ISY_Count_of_AHFA(state)
+  Count_of_CIL(Completion_Event_CIL_of_AHFA(state))
 @ @<Widely aligned AHFA state elements@> =
 CIL t_complete_isyids;
 
@@ -4895,7 +4899,8 @@ that indicates the AHFA has simple completions.
 (Simple completions are those which can be determined directly from the AHFA state ID,
 with knowing the history of the parse.)
 Otherwise, completions are complex.
-@d AHFA_has_Complex_Completions(state) (state)->t_direct_event_isyids)
+@d AHFA_has_Complex_Completions(state)
+  ((state)->t_direct_event_isyids)
 
 @*0 AHFA item container.
 @ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
@@ -7221,10 +7226,6 @@ be recopied to make way for pointers to the linked lists.
     Complete_ISYID_of_AHFA(AHFA_of_EIM(item), (ix))
 @d Complete_ISY_Count_of_EIM(item)
     Complete_ISY_Count_of_AHFA(AHFA_of_EIM(item))
-@d Completion_Event_ISYID_of_EIM(item, ix) 
-    Completion_Event_ISYID_of_AHFA(AHFA_of_EIM(item), (ix))
-@d Completion_Event_ISY_Count_of_EIM(item)
-    Completion_Event_ISY_Count_of_AHFA(AHFA_of_EIM(item))
 @d Leo_LHS_ISYID_of_EIM(eim) Leo_LHS_ISYID_of_AHFA(AHFA_of_EIM(eim))
 @ It might be slightly faster if this boolean is memoized in the Earley item
 when the Earley item is initialized.
@@ -7250,8 +7251,16 @@ the Earley set.
 struct s_earley_item;
 typedef struct s_earley_item* EIM;
 typedef const struct s_earley_item* EIM_Const;
+typedef struct s_extended_earley_item* EIMX;
 struct s_earley_item_key;
 typedef struct s_earley_item_key* EIK;
+@ @d EIM_is_Extended(eim) ((eim)->is_extended_eim)
+@ @d EIM_has_Complex_Completions(eim) ((eim)->has_complex_completions)
+@ @d EIM_at_Completion_Event_Closure(eim) ((eim)->at_completion_event_closure)
+@<Bit aligned Earley item elements@> =
+    unsigned int is_extended_eim:1;
+    unsigned int has_complex_completions:1;
+    unsigned int at_completion_event_closure:1;
 
 @ @<Earley item structure@> =
 struct s_earley_item_key {
@@ -7267,6 +7276,16 @@ struct s_earley_item {
      @<Bit aligned Earley item elements@>@/
 };
 typedef struct s_earley_item EIM_Object;
+@ The Earley item, extended for special cases.
+Right now the only such special case is where
+completion events are complex and need to be
+tracked on a per-EIM basis.
+@<Earley item structure@> =
+struct s_extended_earley_item {
+     EIM_Object t_basic_eim;
+     CIL t_completion_event_isyids;
+};
+typedef struct s_earley_item EIMX_Object;
 
 @*0 Constructor.
 Find an Earley item object, creating it if it does not exist.
@@ -7285,7 +7304,20 @@ PRIVATE EIM earley_item_create(const RECCE r,
   const ES set = key.t_set;
   const int count = ++EIM_Count_of_ES(set);
   @<Check count against Earley item thresholds@>@;
-  new_item = my_obstack_alloc (r->t_obs, sizeof (*new_item));
+  if (AHFA_has_Complex_Completions(key.t_state)) {
+    const EIMX new_eimx = my_obstack_new (r->t_obs, struct s_extended_earley_item, 1);
+    new_item = (EIM)new_eimx;
+    /* While developing, start with full set */
+    new_eimx->t_completion_event_isyids = key.t_state->t_event_isyids;
+    EIM_has_Complex_Completions(new_item) = 1;
+    EIM_at_Completion_Event_Closure(new_item) = 0;
+    EIM_is_Extended(new_item) = 1;
+  } else {
+    new_item = my_obstack_new (r->t_obs, struct s_earley_item, 1);
+    EIM_has_Complex_Completions(new_item) = 0;
+    EIM_at_Completion_Event_Closure(new_item) = 1;
+    EIM_is_Extended(new_item) = 0;
+  }
   new_item->t_key = key;
   new_item->t_source_type = NO_SOURCE;
   Ord_of_EIM(new_item) = count - 1;
@@ -9332,11 +9364,20 @@ add those Earley items it ``causes".
   int working_earley_item_count = EIM_Count_of_ES(current_earley_set);
   for (eim_ix = 0; eim_ix < working_earley_item_count; eim_ix++)
     {
-      EIM eim = eims[eim_ix];
-      int event_isy_count = Completion_Event_ISY_Count_of_EIM (eim);
+      int event_isy_count;
+      CIL cil;
+      const EIM eim = eims[eim_ix];
+      if (EIM_has_Complex_Completions(eim)) {
+	const EIMX eimx = (EIMX)eim;
+        cil = eimx->t_completion_event_isyids;
+      } else {
+	const AHFA ahfa = AHFA_of_EIM(eim);
+	cil = Completion_Event_CIL_of_AHFA (ahfa);
+      }
+      event_isy_count = Count_of_CIL (cil);
       for (isy_ix = 0; isy_ix < event_isy_count; isy_ix++)
 	{
-	  ISYID event_isyid = Completion_Event_ISYID_of_EIM (eim, isy_ix);
+	  ISYID event_isyid = Item_of_CIL (cil, isy_ix);
 	  ISY event_isy = ISY_by_ID(event_isyid);
 	  XSY event_xsy = Source_XSY_of_ISY (event_isy);
 	  XSYID event_xsyid = ID_of_XSY (event_xsy);
@@ -9477,19 +9518,6 @@ At this point there are no Leo items.
 	}
     }
 }
-
-@ {\bf To Do}: @^To Do@>
-Right now Leo items are created even where there is no
-right-recursion.  This follows Leo's original algorithm.
-It might be better to restrict the Leo logic to symbols
-which actually right-recurse,
-eliminating the overhead of tracking the others.
-The tradeoff is that the Leo logic may save some space,
-even in the absense of right recursion.
-It may be a good idea to allow it to be configured,
-with a flag determining whether the Leo logic (if enabled
-at all) is used for all LHS symbols,
-or only where there is right recursion.
 
 @ {\bf To Do}: @^To Do@>
 Memoize the |TRANS| pointer in the Leo items?
