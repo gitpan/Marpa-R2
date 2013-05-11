@@ -2696,46 +2696,30 @@ int _marpa_g_irl_is_virtual_rhs(
 @ @<Initialize IRL elements@> =
   IRL_is_Right_Recursive(irl) = 0;
 
-@*0 IRL event ISYID list.
-@
-If the completions can be determined from the IRL ID
-alone, completions are said to be simple.
-If the history of the parse also affects the completions,
-completions are said to be complex.
-The |t_has_complex_completions| bit indicates whether
-completions are complex or simple.
-Completions are only complex when the IRL is indirectly right
-recursive.
-But an IRL may be indirectly right recursive,
-and still have simple completions.
-@
-|t_event_isyids| is always
-the set of ISYID's for which completion of this IRL
-causes a completion event,
-taking into account
-possible right recursions due
-to Leo items.
-@ |t_direct_event_isyids| is the list of completions,
-taking into account only the IRL itself,
-and ignoring completions due to right recursion.
-|t_direct_event_isyids| will contain at most a single element,
+@*0 IRL completion ISYID lists.
+@ Direct completion events take into account only the current IRL,
+and ignore the effects of right recursion.
+There will be at most one direct completion event ISYID,
 the ISYID of the IRL's LHS.
-@d Event_ISYID_of_IRL(irl, ix) Item_of_CIL((irl)->t_event_isyids, (ix))
-@d Event_ISY_Count_of_IRL(irl) Count_of_CIL((irl)->t_event_isyids)
-@d Direct_Event_ISYID_of_IRL(irl, ix) 
-  Item_of_CIL((irl)->t_direct_event_isyids, (ix))
-@d Direct_Event_ISY_Count_of_IRL(irl) 
-  Count_of_CIL((irl)->t_direct_event_isyids)
-@d IRL_has_Complex_Completions(irl) ((irl)->t_has_complex_completions)
-@ @<Bit aligned IRL elements@> =
-   unsigned int t_has_complex_completions:1;
-@ @<Widely aligned IRL elements@> =
-CIL t_event_isyids;
-CIL t_direct_event_isyids;
+@d Direct_Completion_Event_CIL_of_IRL(irl) ((irl)->t_direct_completion_event_isyids)
+@<Widely aligned IRL elements@> =
+CIL t_direct_completion_event_isyids;
+@ Indirect completion events include the direct completion events,
+as well as any completions which may occur due to right recursion.
+@d Indirect_Completion_Event_CIL_of_IRL(irl) ((irl)->t_indirect_completion_event_isyids)
+@<Widely aligned IRL elements@> =
+CIL t_indirect_completion_event_isyids;
 @ @<Initialize IRL elements@> =
-  irl->t_event_isyids = 0;
-  irl->t_direct_event_isyids = 0;
-  irl->t_has_complex_completions = 0;
+  Direct_Completion_Event_CIL_of_IRL(irl) = NULL;
+  Indirect_Completion_Event_CIL_of_IRL(irl) = NULL;
+  IRL_has_Nondirect_Completion(irl) = 0;
+@ Nondirect event completions are indirect event completions which are
+not direct event completions.
+They may be though of as ``proper" indirect event completions.
+Only right recursive IRL's will have nondirect event completions.
+@d IRL_has_Nondirect_Completion(irl) ((irl)->t_has_nondirect_completions)
+@<Bit aligned IRL elements@> =
+   unsigned int t_has_nondirect_completions:1;
 
 @*0 Rule real symbol count.
 This is another data element used for the ``internal semantics" --
@@ -4857,7 +4841,7 @@ struct s_AHFA_state {
     struct s_AHFA_state* t_empty_transition;
     @<Widely aligned AHFA state elements@>@;
     @<Int aligned AHFA state elements@>@;
-    @<Bit aligned AHFA elements@>@;
+    @<Bit aligned AHFA state elements@>@;
 };
 typedef struct s_AHFA_state AHFA_Object;
 
@@ -4872,35 +4856,43 @@ PRIVATE void AHFA_initialize(AHFA ahfa)
 
 @*0 Complete symbols container.
 @
-@d Completion_Event_CIL_of_AHFA(state) ((state)->t_complete_isyids)
+Simple completions are those which can be determined directly from the AHFA state ID,
+with knowing the history of the parse.
+Completion events are completions of symbols which have been set up
+for completion events.
+Direct completion events are the completion events
+that are direct results of the rules contained in the current AHFA state.
+Indirect completion events include all possible completions,
+including indirect ones found through right recursion
+and Leo items.
+Nondirect completion are properly indirect completions --
+indirect completions which are
+not direct completions.
+@d Completion_CIL_of_AHFA(state) ((state)->t_complete_isyids)
 @d Complete_ISYID_of_AHFA(state, ix)
-  Item_of_CIL(Completion_Event_CIL_of_AHFA(state), (ix))
+  Item_of_CIL(Completion_CIL_of_AHFA(state), (ix))
 @d Complete_ISY_Count_of_AHFA(state)
-  Count_of_CIL(Completion_Event_CIL_of_AHFA(state))
-@ @<Widely aligned AHFA state elements@> =
-CIL t_complete_isyids;
-
-@*0 Event symbols container.
-Contains the ISYID's of all complete LHS's
-where the LHS is an event ISYID.
-This includes all LHS's of rules that will be reached via expansion
-of a Leo path.
-@ @d Completion_Event_ISYID_of_AHFA(state, ix) Item_of_CIL((state)->t_event_isyids, (ix))
-@d Completion_Event_ISY_Count_of_AHFA(state) Count_of_CIL((state)->t_event_isyids)
-@ @d Direct_Completion_Event_ISYID_of_AHFA(state, ix)
-  Item_of_CIL((state)->t_direct_event_isyids, (ix))
+  Count_of_CIL(Completion_CIL_of_AHFA(state))
+@d Direct_Completion_Event_CIL_of_AHFA(state)
+  ((state)->t_direct_completion_event_isyids)
+@d Direct_Completion_Event_ISYID_of_AHFA(state, ix)
+  Item_of_CIL(Direct_Completion_Event_CIL_of_AHFA(state), (ix))
 @d Direct_Completion_Event_ISY_Count_of_AHFA(state)
-  Count_of_CIL((state)->t_direct_event_isyids)
+  Count_of_CIL(Direct_Completion_Event_CIL_of_AHFA(state))
+@d Indirect_Completion_Event_CIL_of_AHFA(state)
+  ((state)->t_indirect_completion_event_isyids)
+@d Indirect_Completion_Event_ISYID_of_AHFA(state, ix)
+  Item_of_CIL(Indirect_Completion_Event_CIL_of_AHFA(state), (ix))
+@d Indirect_Completion_Event_ISY_Count_of_AHFA(state)
+  Count_of_CIL(Indirect_Completion_Event_CIL_of_AHFA(state))
+@d AHFA_has_Nondirect_Completion(state)
+  ((state)->t_has_nondirect_completions)
 @ @<Widely aligned AHFA state elements@> =
-CIL t_event_isyids;
-CIL t_direct_event_isyids;
-@ If the |t_direct_event_isyids| element is at its initial value of |NULL|,
-that indicates the AHFA has simple completions.
-(Simple completions are those which can be determined directly from the AHFA state ID,
-with knowing the history of the parse.)
-Otherwise, completions are complex.
-@d AHFA_has_Complex_Completions(state)
-  ((state)->t_direct_event_isyids)
+CIL t_indirect_completion_event_isyids;
+CIL t_direct_completion_event_isyids;
+CIL t_complete_isyids;
+@ @<Bit aligned AHFA state elements@> =
+   unsigned int t_has_nondirect_completions:1;
 
 @*0 AHFA item container.
 @ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
@@ -4950,7 +4942,7 @@ This makes a difference in AHFA state 0.
 AHFA state 0 is {\bf not} a predicted AHFA state.
 @d AHFA_is_Predicted(ahfa) ((ahfa)->t_is_predict)
 @d EIM_is_Predicted(eim) AHFA_is_Predicted(AHFA_of_EIM(eim))
-@<Bit aligned AHFA elements@> =
+@<Bit aligned AHFA state elements@> =
 unsigned int t_is_predict:1;
 
 @*0 Is AHFA a potential Leo base?.
@@ -4958,7 +4950,7 @@ unsigned int t_is_predict:1;
 AHFA state could be a Leo base.
 @d AHFA_is_Potential_Leo_Base(ahfa) ((ahfa)->t_is_potential_leo_base)
 @d EIM_is_Potential_Leo_Base(eim) AHFA_is_Potential_Leo_Base(AHFA_of_EIM(eim))
-@ @<Bit aligned AHFA elements@> =
+@ @<Bit aligned AHFA state elements@> =
 unsigned int t_is_potential_leo_base:1;
 @ @<Initialize AHFA@> = AHFA_is_Potential_Leo_Base(ahfa) = 0;
 
@@ -5156,15 +5148,15 @@ one non-nulling symbol in each IRL. */
     {
       const IRL irl = IRL_by_ID (irl_id);
       const ISYID lhs_isyid = LHSID_of_IRL (irl);
-      irl->t_direct_event_isyids =
-	    ISYID_is_Completion_Event (lhs_isyid) ? cil_singleton (&g->
-								   t_cilar,
-								   lhs_isyid)
-	    : cil_empty (&g->t_cilar);
+      Direct_Completion_Event_CIL_of_IRL (irl) =
+	ISYID_is_Completion_Event (lhs_isyid) ? cil_singleton (&g->t_cilar,
+							       lhs_isyid)
+	: cil_empty (&g->t_cilar);
       if (!IRL_is_Right_Recursive (irl))
 	{
-	  irl->t_event_isyids = irl->t_direct_event_isyids;
-	  continue;
+	  Indirect_Completion_Event_CIL_of_IRL (irl) =
+	    Direct_Completion_Event_CIL_of_IRL (irl);
+	    continue;
 	}
       {
 	/* If here, IRL is right recursive */
@@ -5189,10 +5181,13 @@ one non-nulling symbol in each IRL. */
 	      }
 	  }
 	cil_confirm (&g->t_cilar, isy_ix);
-	irl->t_event_isyids = cil_finish (&g->t_cilar);
-	if (cil_cmp(irl->t_direct_event_isyids, irl->t_event_isyids, 0)) {
-	  irl->t_has_complex_completions = 1;
-	}
+	Indirect_Completion_Event_CIL_of_IRL (irl) = cil_finish(&g->t_cilar);
+	if (cil_cmp
+	    (Indirect_Completion_Event_CIL_of_IRL (irl),
+	     Direct_Completion_Event_CIL_of_IRL (irl), 0))
+	  {
+	    IRL_has_Nondirect_Completion (irl) = 1;
+	  }
       }
     }
 }
@@ -5479,9 +5474,10 @@ _marpa_avl_destroy(duplicates);
     my_obstack_alloc (g->t_obs, sizeof (ISYID));
   postdot_isyid = Postdot_ISYID_of_AIM (start_item);
   *postdot_isyidary = postdot_isyid;
-  p_initial_state->t_direct_event_isyids = 0;
-  p_initial_state->t_event_isyids =
-    p_initial_state->t_complete_isyids =
+  AHFA_has_Nondirect_Completion(p_initial_state) = 0;
+  Direct_Completion_Event_CIL_of_AHFA(p_initial_state) =
+    Indirect_Completion_Event_CIL_of_AHFA(p_initial_state) =
+    Completion_CIL_of_AHFA(p_initial_state) =
     cil_empty (&g->t_cilar);
   p_initial_state->t_empty_transition = create_predicted_AHFA_state (g,
 			       matrix_row (prediction_matrix,
@@ -5549,9 +5545,11 @@ a start rule completion, and it is a
       {
 	ISYID* p_postdot_isyidary = Postdot_ISYIDAry_of_AHFA(p_new_state) =
 	  my_obstack_alloc (g->t_obs, sizeof (ISYID));
-	p_new_state->t_direct_event_isyids = 0;
-	p_new_state->t_event_isyids =
-	  p_new_state->t_complete_isyids = cil_empty (&g->t_cilar);
+	AHFA_has_Nondirect_Completion(p_new_state) = 0;
+	Completion_CIL_of_AHFA(p_new_state)
+	= Direct_Completion_Event_CIL_of_AHFA(p_new_state)
+	= Indirect_Completion_Event_CIL_of_AHFA(p_new_state)
+	  = cil_empty (&g->t_cilar);
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 1;
 	*p_postdot_isyidary = postdot_isyid;
     /* If the sole item is not a completion
@@ -5565,12 +5563,14 @@ a start rule completion, and it is a
       }
     else
       {
-	const ISYID lhs_isyid = LHS_ISYID_of_AIM(working_aim_p);
+	/* The only AIM is a completion */
 	const IRL irl = IRL_of_AIM(working_aim_p);
-	p_new_state->t_complete_isyids = cil_singleton(&g->t_cilar, lhs_isyid);
-	p_new_state->t_direct_event_isyids = IRL_has_Complex_Completions(irl) ?
-	    irl->t_direct_event_isyids : NULL;
-	p_new_state->t_event_isyids = irl->t_event_isyids;
+	const ISYID lhs_isyid = LHSID_of_IRL(irl);
+	Completion_CIL_of_AHFA(p_new_state) = cil_singleton(&g->t_cilar, lhs_isyid);
+	Direct_Completion_Event_CIL_of_AHFA(p_new_state) = 
+	    Direct_Completion_Event_CIL_of_IRL(irl);
+	Indirect_Completion_Event_CIL_of_AHFA(p_new_state) = 
+	    Indirect_Completion_Event_CIL_of_IRL(irl);
 	completion_count_inc(obs_precompute, p_new_state, lhs_isyid);
 
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 0;
@@ -5739,8 +5739,8 @@ for discovered state with 2+ items@> =
 {
   int item_ix;
   int no_of_postdot_isys;
-  bv_clear(per_ahfa_complete_v);
-  bv_clear(per_ahfa_postdot_v);
+  bv_clear (per_ahfa_complete_v);
+  bv_clear (per_ahfa_postdot_v);
   for (item_ix = 0; item_ix < no_of_items_in_new_state; item_ix++)
     {
       AIM item = item_list_working_buffer[item_ix];
@@ -5748,22 +5748,25 @@ for discovered state with 2+ items@> =
       if (postdot_isyid < 0)
 	{
 	  ISYID complete_symbol_isyid = LHS_ISYID_of_AIM (item);
-	  completion_count_inc (obs_precompute, p_new_state, complete_symbol_isyid);
-	  bv_bit_set (per_ahfa_complete_v, (unsigned int) complete_symbol_isyid);
+	  completion_count_inc (obs_precompute, p_new_state,
+				complete_symbol_isyid);
+	  bv_bit_set (per_ahfa_complete_v,
+		      (unsigned int) complete_symbol_isyid);
 	}
       else
 	{
 	  bv_bit_set (per_ahfa_postdot_v, (unsigned int) postdot_isyid);
 	}
     }
-  if ((no_of_postdot_isys = Postdot_ISY_Count_of_AHFA(p_new_state) =
+  if ((no_of_postdot_isys = Postdot_ISY_Count_of_AHFA (p_new_state) =
        bv_count (per_ahfa_postdot_v)))
     {
       unsigned int min, max, start;
-      ISYID *p_isyid = Postdot_ISYIDAry_of_AHFA(p_new_state) =
+      ISYID *p_isyid = Postdot_ISYIDAry_of_AHFA (p_new_state) =
 	my_obstack_alloc (g->t_obs,
 			  no_of_postdot_isys * sizeof (ISYID));
-      for (start = 0; bv_scan (per_ahfa_postdot_v, start, &min, &max); start = max + 2)
+      for (start = 0; bv_scan (per_ahfa_postdot_v, start, &min, &max);
+	   start = max + 2)
 	{
 	  ISYID postdot_isyid;
 	  for (postdot_isyid = (ISYID) min;
@@ -5773,41 +5776,42 @@ for discovered state with 2+ items@> =
 	    }
 	}
     }
-    {
-      unsigned int min, max, start;
-      int isy_ix = 0;
+  {
+    unsigned int min, max, start;
+    int isy_ix = 0;
     const int complete_isyid_count = bv_count (per_ahfa_complete_v);
-	CIL new_cil = cil_reserve(&g->t_cilar, complete_isyid_count);
-      for (start = 0; bv_scan (per_ahfa_complete_v, start, &min, &max);
-	   start = max + 2)
-	{
-	  ISYID complete_isyid;
-	  for (complete_isyid = (ISYID) min;
-	       complete_isyid <= (ISYID) max; complete_isyid++)
-	    {
-	      Item_of_CIL(new_cil, isy_ix) = complete_isyid;
-	      isy_ix++;
-	    }
-	}
-	p_new_state->t_complete_isyids = cil_finish (&g->t_cilar);
-    }
-    {
-	int isy_ix;
-	int complete_isyid_count = Complete_ISY_Count_of_AHFA (p_new_state);
-	CIL new_cil = cil_reserve (&g->t_cilar, complete_isyid_count);
-	int new_isy_ix = 0;
-	for (isy_ix = 0; isy_ix < complete_isyid_count; isy_ix++)
+    CIL new_cil = cil_reserve (&g->t_cilar, complete_isyid_count);
+    for (start = 0; bv_scan (per_ahfa_complete_v, start, &min, &max);
+	 start = max + 2)
+      {
+	ISYID complete_isyid;
+	for (complete_isyid = (ISYID) min;
+	     complete_isyid <= (ISYID) max; complete_isyid++)
 	  {
-	    ISYID complete_isyid = Complete_ISYID_of_AHFA (p_new_state, isy_ix);
-	    if (!ISYID_is_Completion_Event (complete_isyid))
-	      continue;
-	    Item_of_CIL (new_cil, new_isy_ix) = complete_isyid;
-	    new_isy_ix++;
+	    Item_of_CIL (new_cil, isy_ix) = complete_isyid;
+	    isy_ix++;
 	  }
-	cil_confirm (&g->t_cilar, new_isy_ix);
-	p_new_state->t_direct_event_isyids = 0;
-	p_new_state->t_event_isyids = cil_finish (&g->t_cilar);
-    }
+      }
+    Completion_CIL_of_AHFA (p_new_state) = cil_finish (&g->t_cilar);
+  }
+  {
+    int isy_ix;
+    int complete_isyid_count = Complete_ISY_Count_of_AHFA (p_new_state);
+    CIL new_cil = cil_reserve (&g->t_cilar, complete_isyid_count);
+    int new_isy_ix = 0;
+    for (isy_ix = 0; isy_ix < complete_isyid_count; isy_ix++)
+      {
+	ISYID complete_isyid = Complete_ISYID_of_AHFA (p_new_state, isy_ix);
+	if (!ISYID_is_Completion_Event (complete_isyid))
+	  continue;
+	Item_of_CIL (new_cil, new_isy_ix) = complete_isyid;
+	new_isy_ix++;
+      }
+    cil_confirm (&g->t_cilar, new_isy_ix);
+    Direct_Completion_Event_CIL_of_AHFA (p_new_state) =
+      Indirect_Completion_Event_CIL_of_AHFA (p_new_state) =
+      cil_finish (&g->t_cilar);
+  }
 }
 
 @ Find the AHFA state in the argument,
@@ -6096,8 +6100,9 @@ create_predicted_AHFA_state(
   AHFA_is_Predicted (p_new_state) = 1;
   p_new_state->t_empty_transition = NULL;
   TRANSs_of_AHFA (p_new_state) = transitions_new (g, ISY_Count_of_G(g));
-  p_new_state->t_direct_event_isyids = 0;
-  p_new_state->t_event_isyids = p_new_state->t_complete_isyids = cil_empty (&g->t_cilar);
+  Completion_CIL_of_AHFA(p_new_state) = 
+    Direct_Completion_Event_CIL_of_AHFA(p_new_state) = 
+    Indirect_Completion_Event_CIL_of_AHFA(p_new_state) = cil_empty (&g->t_cilar);
   @<Calculate postdot symbols for predicted state@>@;
   return p_new_state;
 }
@@ -7251,16 +7256,8 @@ the Earley set.
 struct s_earley_item;
 typedef struct s_earley_item* EIM;
 typedef const struct s_earley_item* EIM_Const;
-typedef struct s_extended_earley_item* EIMX;
 struct s_earley_item_key;
 typedef struct s_earley_item_key* EIK;
-@ @d EIM_is_Extended(eim) ((eim)->is_extended_eim)
-@ @d EIM_has_Complex_Completions(eim) ((eim)->has_complex_completions)
-@ @d EIM_at_Completion_Event_Closure(eim) ((eim)->at_completion_event_closure)
-@<Bit aligned Earley item elements@> =
-    unsigned int is_extended_eim:1;
-    unsigned int has_complex_completions:1;
-    unsigned int at_completion_event_closure:1;
 
 @ @<Earley item structure@> =
 struct s_earley_item_key {
@@ -7276,16 +7273,6 @@ struct s_earley_item {
      @<Bit aligned Earley item elements@>@/
 };
 typedef struct s_earley_item EIM_Object;
-@ The Earley item, extended for special cases.
-Right now the only such special case is where
-completion events are complex and need to be
-tracked on a per-EIM basis.
-@<Earley item structure@> =
-struct s_extended_earley_item {
-     EIM_Object t_basic_eim;
-     CIL t_completion_event_isyids;
-};
-typedef struct s_earley_item EIMX_Object;
 
 @*0 Constructor.
 Find an Earley item object, creating it if it does not exist.
@@ -7304,20 +7291,7 @@ PRIVATE EIM earley_item_create(const RECCE r,
   const ES set = key.t_set;
   const int count = ++EIM_Count_of_ES(set);
   @<Check count against Earley item thresholds@>@;
-  if (AHFA_has_Complex_Completions(key.t_state)) {
-    const EIMX new_eimx = my_obstack_new (r->t_obs, struct s_extended_earley_item, 1);
-    new_item = (EIM)new_eimx;
-    /* While developing, start with full set */
-    new_eimx->t_completion_event_isyids = key.t_state->t_event_isyids;
-    EIM_has_Complex_Completions(new_item) = 1;
-    EIM_at_Completion_Event_Closure(new_item) = 0;
-    EIM_is_Extended(new_item) = 1;
-  } else {
-    new_item = my_obstack_new (r->t_obs, struct s_earley_item, 1);
-    EIM_has_Complex_Completions(new_item) = 0;
-    EIM_at_Completion_Event_Closure(new_item) = 1;
-    EIM_is_Extended(new_item) = 0;
-  }
+  new_item = my_obstack_new (r->t_obs, struct s_earley_item, 1);
   new_item->t_key = key;
   new_item->t_source_type = NO_SOURCE;
   Ord_of_EIM(new_item) = count - 1;
@@ -7601,7 +7575,6 @@ with a |NULL| Earley item pointer.
 @d Predecessor_LIM_of_LIM(leo) ((leo)->t_predecessor)
 @d Base_EIM_of_LIM(leo) ((leo)->t_base)
 @d ES_of_LIM(leo) ((leo)->t_set)
-@d Chain_Length_of_LIM(leo) ((leo)->t_chain_length)
 @d Earleme_of_LIM(lim) Earleme_of_ES(ES_of_LIM(lim))
 @<Private incomplete structures@> =
 struct s_leo_item;
@@ -7609,14 +7582,21 @@ typedef struct s_leo_item* LIM;
 @ @<Private structures@> =
 struct s_leo_item {
      EIX_Object t_earley_ix;
+    @<Widely aligned LIM elements@>@;
      ES t_origin;
      AHFA t_top_ahfa;
      LIM t_predecessor;
      EIM t_base;
      ES t_set;
-     int t_chain_length;
 };
 typedef struct s_leo_item LIM_Object;
+
+@ The CIL is |NULL| if the LIM is at a completion
+closure (by far the most common case).
+@d CIL_of_LIM(lim) ((lim)->t_cil)
+@d LIM_at_Completion_Event_Closure(lim) (!(lim)->t_cil)
+@<Widely aligned LIM elements@> =
+    CIL t_cil;
 
 @*0 Trace functions.
 The functions in this section are all accessors.
@@ -9360,33 +9340,75 @@ add those Earley items it ``causes".
   int eim_ix, isy_ix;
   EIM *eims = EIMs_of_ES (current_earley_set);
   Bit_Vector lbv_is_xsy_event_triggered =
-    lbv_obs_new0 (earleme_complete_obs, XSY_Count_of_G(g));
-  int working_earley_item_count = EIM_Count_of_ES(current_earley_set);
+    lbv_obs_new0 (earleme_complete_obs, XSY_Count_of_G (g));
+  int working_earley_item_count = EIM_Count_of_ES (current_earley_set);
   for (eim_ix = 0; eim_ix < working_earley_item_count; eim_ix++)
     {
-      int event_isy_count;
-      CIL cil;
+      SRCL source_link = NULL;
+      CIL cil = NULL;
       const EIM eim = eims[eim_ix];
-      if (EIM_has_Complex_Completions(eim)) {
-	const EIMX eimx = (EIMX)eim;
-        cil = eimx->t_completion_event_isyids;
-      } else {
-	const AHFA ahfa = AHFA_of_EIM(eim);
-	cil = Completion_Event_CIL_of_AHFA (ahfa);
-      }
-      event_isy_count = Count_of_CIL (cil);
-      for (isy_ix = 0; isy_ix < event_isy_count; isy_ix++)
+      const AHFA ahfa = AHFA_of_EIM (eim);
+      const SRCL first_leo_source_link = First_Leo_SRCL_of_EIM (eim);
+      if (first_leo_source_link)
 	{
-	  ISYID event_isyid = Item_of_CIL (cil, isy_ix);
-	  ISY event_isy = ISY_by_ID(event_isyid);
-	  XSY event_xsy = Source_XSY_of_ISY (event_isy);
-	  XSYID event_xsyid = ID_of_XSY (event_xsy);
-	  if (!lbv_bit_test (r->t_lbv_xsyid_completion_event_is_active, event_xsyid))
-	    continue;
-	  @/@, /* If we have already triggered an event for this xsy, continue */
-	  if (lbv_bit_test (lbv_is_xsy_event_triggered, event_xsyid)) continue;
-	  lbv_bit_set (lbv_is_xsy_event_triggered, event_xsyid);
-	  int_event_new (g, MARPA_EVENT_SYMBOL_COMPLETED, event_xsyid);
+	  SRCL setup_source_link;
+	  for (setup_source_link = first_leo_source_link; setup_source_link;
+	       setup_source_link = Next_SRCL_of_SRCL (setup_source_link))
+	    {
+	      const LIM lim = LIM_of_SRCL (setup_source_link);
+	      if (LIM_at_Completion_Event_Closure (lim))
+		{
+		  /* One of the Leo links is at completion closure, so unset
+		     |first_leo_source_link| and set |cil| to the full
+		     list of completions, direct and indirect. */
+		  cil = Indirect_Completion_Event_CIL_of_AHFA (ahfa);
+		}
+	    }
+	  if (!cil)
+	    {
+	      source_link = first_leo_source_link;
+	      cil = CIL_of_LIM (LIM_of_SRCL (source_link));
+	    }
+	}
+      else
+	{
+	  /* If there were no Leo source links, just do direct completions
+	     of this AHFA */
+	  cil = Direct_Completion_Event_CIL_of_AHFA (ahfa);
+	}
+      while (1)
+	{			/* Loop ends after first pass if |source_link == NULL| */
+	  const int event_isy_count = Count_of_CIL (cil);
+	  for (isy_ix = 0; isy_ix < event_isy_count; isy_ix++)
+	    {
+	      ISYID event_isyid = Item_of_CIL (cil, isy_ix);
+	      ISY event_isy = ISY_by_ID (event_isyid);
+	      XSY event_xsy = Source_XSY_of_ISY (event_isy);
+	      XSYID event_xsyid = ID_of_XSY (event_xsy);
+	      if (!lbv_bit_test
+		  (r->t_lbv_xsyid_completion_event_is_active, event_xsyid))
+		continue;
+	      /* If we have already triggered an event for this xsy, continue */
+	      if (lbv_bit_test (lbv_is_xsy_event_triggered, event_xsyid))
+		continue;
+	      lbv_bit_set (lbv_is_xsy_event_triggered, event_xsyid);
+	      int_event_new (g, MARPA_EVENT_SYMBOL_COMPLETED, event_xsyid);
+	    }
+	  @/@, @/@,
+	  /* Now try to iterate to another CIL.  This will only work
+				   if we have a source link we are iterating, and if it is not at the
+				   end of the iteration. */
+	    if (!source_link)
+	    break;
+	  source_link = Next_SRCL_of_SRCL (source_link);
+	  if (!source_link)
+	    break;
+	  @/@, @/@,
+	  /* Above, we traversed the source links looking for
+				   null CIL's.
+				   Had there been any, we would have set |source_link| to null.
+				   So we know that the CIL will not be null here. */
+	    cil = CIL_of_LIM (LIM_of_SRCL (source_link));
 	}
     }
 }
@@ -9432,7 +9454,7 @@ PRIVATE void r_update_earley_sets(RECCE r)
 }
 
 @** Create the postdot items.
-@ This function inserts regular (non-Leo) postdot items into
+@ This function inserts regular and Leo postdot items into
 the postdot list.
 Not inlined, because of its size, and because it is used
 twice -- once in initializing the Earley set 0,
@@ -9450,12 +9472,10 @@ But Leo items are always optional,
 and may not be worth it for Earley set 0.
 @ {\bf Further Research}: @^Further Research@>
 Another look at the degree and kind
-of memoization here will be in order
-once the question of when to use Leo items
-(right recursion or per Leo's original paper?)
-is completely settled.
-This will require making the Leo behavior configurable
-and running benchmarks.
+of memoization here is in order
+now that I use Leo items only in cases of
+an actual right recursion.
+This may require running benchmarks.
 @<Widely aligned recognizer elements@> =
   Bit_Vector t_bv_lim_symbols;
   Bit_Vector t_bv_pim_symbols;
@@ -9573,7 +9593,7 @@ once it is populated.
     EIM_of_PIM(new_lim) = NULL;
     Predecessor_LIM_of_LIM(new_lim) = NULL;
     Origin_of_LIM(new_lim) = NULL;
-    Chain_Length_of_LIM(new_lim) = -1;
+    CIL_of_LIM(new_lim) = NULL;
     Top_AHFA_of_LIM(new_lim) = base_to_ahfa;
     Base_EIM_of_LIM(new_lim) = leo_base;
     ES_of_LIM(new_lim) = current_earley_set;
@@ -9812,11 +9832,34 @@ for (lim_chain_ix--; lim_chain_ix >= 0; lim_chain_ix--) {
 
 @ @<Populate |lim_to_process| from |predecessor_lim|@> =
 {
+  const AHFA top_AHFA = Top_AHFA_of_LIM (predecessor_lim);
+  Top_AHFA_of_LIM (lim_to_process) = top_AHFA;
   Predecessor_LIM_of_LIM (lim_to_process) = predecessor_lim;
   Origin_of_LIM (lim_to_process) = Origin_of_LIM (predecessor_lim);
-  Chain_Length_of_LIM (lim_to_process) =
-    Chain_Length_of_LIM (lim_to_process) + 1;
-  Top_AHFA_of_LIM (lim_to_process) = Top_AHFA_of_LIM (predecessor_lim);
+  @/@, /* If the AHFA has non-direct completions ... */
+  if (AHFA_has_Nondirect_Completion (top_AHFA))
+    {
+      const CIL predecessor_cil = CIL_of_LIM (predecessor_lim);
+      @/@, /* and the predecessor LIM was not at completion closure ... */
+      if (predecessor_cil)
+	{
+	  CIL new_cil = cil_merge (&g->t_cilar, predecessor_cil,
+				   Direct_Completion_Event_CIL_of_AHFA
+				   (top_AHFA));
+	  @/@, /* and adding this completion does not bring the new LIM
+	  to completion closure ... */
+	  if (cil_cmp (new_cil,
+	    Indirect_Completion_Event_CIL_of_AHFA (top_AHFA),
+	    0)
+	    )
+	    {
+	  @/@, /* Set the CIL for this LIM to the completion CIL.
+	  Otherwise, leave it at the default of |NULL|, which indicated
+	  the LIM is at completion closure. */
+	      CIL_of_LIM (lim_to_process) = new_cil;
+	    }
+	}
+    }
 }
 
 @ If we have reached this code, either we do not have a predecessor
@@ -9833,9 +9876,14 @@ The predecessor LIM was initialized to |NULL|,
 and the top AHFA to-state was initialized to the AHFA to-state
 of the base EIM.
 @<Populate |lim_to_process| from its base Earley item@> = {
+  const AHFA top_AHFA = Top_AHFA_of_LIM(lim_to_process);
   EIM base_eim = Base_EIM_of_LIM(lim_to_process);
   Origin_of_LIM (lim_to_process) = Origin_of_EIM (base_eim);
-  Chain_Length_of_LIM(lim_to_process) =  0;
+  @/@, /* CIL defaults to |NULL|, meaning LIM is at completion closure */
+  if (AHFA_has_Nondirect_Completion(top_AHFA))
+  {
+       CIL_of_LIM(lim_to_process) = Direct_Completion_Event_CIL_of_AHFA(top_AHFA);
+  }
 }
 
 @ @<Copy PIM workarea to postdot item array@> = {
@@ -13859,6 +13907,59 @@ PRIVATE CIL cil_singleton(CILAR cilar, int element)
   CIL new_cil = cil_reserve (cilar, 1);
   Item_of_CIL (new_cil, 0) = element;
   return cil_finish (cilar);
+}
+
+@ Merge two CIL's into a new one.
+Merging a single int into a CIL is a common
+special-case, but for now we do not think the
+optimization is worth it.
+Also, this method trades unneeded obstack block
+allocations for CPU speed.
+In the usual case,
+the size of the merged CIL
+is a tiny fraction of the size of the obstack's
+memory blocks,
+the extra allocations are rare
+and
+the memory fragmentation minimal,
+while the CPU saving is substantial.
+If larger CIL's are common,
+this routine could be rewritten
+(or the obstack's memory blocks could simply be
+increased in size.)
+@<Function definitions@> =
+PRIVATE CIL cil_merge(CILAR cilar, CIL cil1, CIL cil2)
+{
+  CIL new_cil = cil_reserve (cilar, Count_of_CIL (cil1) + Count_of_CIL (cil2));
+  int new_cil_ix = 0;
+  int cil1_ix = 0;
+  int cil2_ix = 0;
+  const int cil1_count = Count_of_CIL (cil1);
+  const int cil2_count = Count_of_CIL (cil2);
+  while (cil1_ix < cil1_count && cil2_ix < cil2_count)
+    {
+      const int item1 = Item_of_CIL (cil1, cil1_ix);
+      const int item2 = Item_of_CIL (cil2, cil2_ix);
+      if (item1 < item2)
+	{
+	  Item_of_CIL (new_cil, new_cil_ix) = item1;
+	  cil1_ix++;
+	  new_cil_ix++;
+	  continue;
+	}
+      if (item2 < item1)
+	{
+	  Item_of_CIL (new_cil, new_cil_ix) = item2;
+	  cil2_ix++;
+	  new_cil_ix++;
+	  continue;
+	}
+      Item_of_CIL (new_cil, new_cil_ix) = item1;
+      cil1_ix++;
+      cil2_ix++;
+      new_cil_ix++;
+    }
+  return cil_confirm (cilar, new_cil_ix);
 }
 
 @ @<Function definitions@> =

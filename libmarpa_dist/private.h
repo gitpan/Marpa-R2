@@ -210,6 +210,7 @@ static inline CIL cil_confirm(CILAR cilar, int length);
 static inline CIL cil_reserve(CILAR cilar, int length);
 static inline CIL cil_empty(CILAR cilar);
 static inline CIL cil_singleton(CILAR cilar, int element);
+static inline CIL cil_merge(CILAR cilar, CIL cil1, CIL cil2);
 static inline int lbv_bits_to_size(int bits);
 static inline Bit_Vector
 lbv_obs_new (struct obstack *obs, int bits);
