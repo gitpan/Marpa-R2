@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.053_008';
+$VERSION        = '2.053_009';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1183,6 +1183,11 @@ sub Marpa::R2::Scanless::R::progress {
      $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE]->progress(@args);
 }
 
+sub Marpa::R2::Scanless::R::latest_g1_location {
+     my ($self) = @_;
+     $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE]->latest_earley_set();
+}
+
 sub Marpa::R2::Scanless::G::rule {
      my ($self, @args) = @_;
      $self->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR]->rule(@args);
@@ -1251,6 +1256,7 @@ sub Marpa::R2::Scanless::R::pause_lexeme {
         $grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
     my $g1_tracer = $thick_g1_grammar->tracer();
     my $symbol = $thin_slr->pause_lexeme();
+    return if not defined $symbol;
     return $g1_tracer->symbol_name($symbol);
 } ## end sub Marpa::R2::Scanless::R::pause_lexeme
 

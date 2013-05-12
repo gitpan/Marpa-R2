@@ -5567,6 +5567,7 @@ a start rule completion, and it is a
 	const IRL irl = IRL_of_AIM(working_aim_p);
 	const ISYID lhs_isyid = LHSID_of_IRL(irl);
 	Completion_CIL_of_AHFA(p_new_state) = cil_singleton(&g->t_cilar, lhs_isyid);
+	AHFA_has_Nondirect_Completion(p_new_state) = IRL_has_Nondirect_Completion(irl);
 	Direct_Completion_Event_CIL_of_AHFA(p_new_state) = 
 	    Direct_Completion_Event_CIL_of_IRL(irl);
 	Indirect_Completion_Event_CIL_of_AHFA(p_new_state) = 
@@ -9339,8 +9340,8 @@ add those Earley items it ``causes".
 {
   int eim_ix, isy_ix;
   EIM *eims = EIMs_of_ES (current_earley_set);
-  Bit_Vector lbv_is_xsy_event_triggered =
-    lbv_obs_new0 (earleme_complete_obs, XSY_Count_of_G (g));
+  XSYID xsy_count = XSY_Count_of_G (g);
+  Bit_Vector bv_xsy_event_trigger = bv_obs_create (earleme_complete_obs, xsy_count);
   int working_earley_item_count = EIM_Count_of_ES (current_earley_set);
   for (eim_ix = 0; eim_ix < working_earley_item_count; eim_ix++)
     {
@@ -9385,14 +9386,7 @@ add those Earley items it ``causes".
 	      ISY event_isy = ISY_by_ID (event_isyid);
 	      XSY event_xsy = Source_XSY_of_ISY (event_isy);
 	      XSYID event_xsyid = ID_of_XSY (event_xsy);
-	      if (!lbv_bit_test
-		  (r->t_lbv_xsyid_completion_event_is_active, event_xsyid))
-		continue;
-	      /* If we have already triggered an event for this xsy, continue */
-	      if (lbv_bit_test (lbv_is_xsy_event_triggered, event_xsyid))
-		continue;
-	      lbv_bit_set (lbv_is_xsy_event_triggered, event_xsyid);
-	      int_event_new (g, MARPA_EVENT_SYMBOL_COMPLETED, event_xsyid);
+	      bv_bit_set (bv_xsy_event_trigger, event_xsyid);
 	    }
 	  @/@, @/@,
 	  /* Now try to iterate to another CIL.  This will only work
@@ -9409,6 +9403,23 @@ add those Earley items it ``causes".
 				   Had there been any, we would have set |source_link| to null.
 				   So we know that the CIL will not be null here. */
 	    cil = CIL_of_LIM (LIM_of_SRCL (source_link));
+	}
+    }
+    {
+      unsigned int min, max, start;
+      for (start = 0; bv_scan (bv_xsy_event_trigger, start, &min, &max);
+	   start = max + 2)
+	{
+	  XSYID event_xsyid;
+	  for (event_xsyid = (ISYID) min; event_xsyid <= (ISYID) max;
+	       event_xsyid++)
+	    {
+	      if (lbv_bit_test
+		  (r->t_lbv_xsyid_completion_event_is_active, event_xsyid))
+		{
+		  int_event_new (g, MARPA_EVENT_SYMBOL_COMPLETED, event_xsyid);
+		}
+	    }
 	}
     }
 }
@@ -9830,7 +9841,11 @@ for (lim_chain_ix--; lim_chain_ix >= 0; lim_chain_ix--) {
     predecessor_lim = lim_to_process;
 }
 
-@ @<Populate |lim_to_process| from |predecessor_lim|@> =
+@ Instead of |cil_merge|, a new routine which inserted a single
+|int| into a CIL would be faster.
+The logic is only used for indirect right recursions,
+but may be worthwhile even so.
+@<Populate |lim_to_process| from |predecessor_lim|@> =
 {
   const AHFA top_AHFA = Top_AHFA_of_LIM (predecessor_lim);
   Top_AHFA_of_LIM (lim_to_process) = top_AHFA;
@@ -9843,9 +9858,8 @@ for (lim_chain_ix--; lim_chain_ix >= 0; lim_chain_ix--) {
       @/@, /* and the predecessor LIM was not at completion closure ... */
       if (predecessor_cil)
 	{
-	  CIL new_cil = cil_merge (&g->t_cilar, predecessor_cil,
-				   Direct_Completion_Event_CIL_of_AHFA
-				   (top_AHFA));
+	  CIL cil_for_this_completion = cil_singleton(&g->t_cilar, Postdot_ISYID_of_LIM(lim_to_process));
+	  CIL new_cil = cil_merge (&g->t_cilar, predecessor_cil, cil_for_this_completion);
 	  @/@, /* and adding this completion does not bring the new LIM
 	  to completion closure ... */
 	  if (cil_cmp (new_cil,
@@ -13930,12 +13944,12 @@ increased in size.)
 @<Function definitions@> =
 PRIVATE CIL cil_merge(CILAR cilar, CIL cil1, CIL cil2)
 {
-  CIL new_cil = cil_reserve (cilar, Count_of_CIL (cil1) + Count_of_CIL (cil2));
+  const int cil1_count = Count_of_CIL (cil1);
+  const int cil2_count = Count_of_CIL (cil2);
+  CIL new_cil = cil_reserve (cilar, cil1_count+cil2_count);
   int new_cil_ix = 0;
   int cil1_ix = 0;
   int cil2_ix = 0;
-  const int cil1_count = Count_of_CIL (cil1);
-  const int cil2_count = Count_of_CIL (cil2);
   while (cil1_ix < cil1_count && cil2_ix < cil2_count)
     {
       const int item1 = Item_of_CIL (cil1, cil1_ix);
@@ -13959,7 +13973,20 @@ PRIVATE CIL cil_merge(CILAR cilar, CIL cil1, CIL cil2)
       cil2_ix++;
       new_cil_ix++;
     }
-  return cil_confirm (cilar, new_cil_ix);
+  while (cil1_ix < cil1_count ) {
+      const int item1 = Item_of_CIL (cil1, cil1_ix);
+      Item_of_CIL (new_cil, new_cil_ix) = item1;
+      cil1_ix++;
+      new_cil_ix++;
+  }
+  while (cil2_ix < cil2_count ) {
+      const int item2 = Item_of_CIL (cil2, cil2_ix);
+      Item_of_CIL (new_cil, new_cil_ix) = item2;
+      cil2_ix++;
+      new_cil_ix++;
+  }
+  cil_confirm (cilar, new_cil_ix);
+  return cil_finish (cilar);
 }
 
 @ @<Function definitions@> =
