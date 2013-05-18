@@ -19,6 +19,13 @@ use 5.010;
 use strict;
 use warnings;
 
+use vars qw($VERSION $STRING_VERSION);
+$VERSION        = '2.055_001';
+$STRING_VERSION = $VERSION;
+## no critic(BuiltinFunctions::ProhibitStringyEval)
+$VERSION = eval $VERSION;
+## use critic
+
 use English qw( -no_match_vars );
 
 # Generate the default configuration

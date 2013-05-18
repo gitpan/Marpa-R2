@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.054000';
+$VERSION        = '2.055_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -227,9 +227,18 @@ sub Marpa::R2::Scanless::R::substring {
         $thin_self->span( $start_earley_set + $length_in_parse_locations );
     my $length_in_characters =
         ( $last_start_position + $last_length ) - $first_start_position;
+    # Negative lengths are quite possible if the application has jumped around in
+    # the input.
+    return q{} if $length_in_characters <= 0;
     my $p_input = $self->[Marpa::R2::Inner::Scanless::R::P_INPUT_STRING];
     return substr ${$p_input}, $first_start_position, $length_in_characters;
 } ## end sub Marpa::R2::Scanless::R::substring
+
+sub Marpa::R2::Scanless::R::g1_location_to_span {
+    my ( $self, $g1_location ) = @_;
+    my $thin_self = $self->[Marpa::R2::Inner::Scanless::R::C];
+    return $thin_self->span( $g1_location );
+}
 
 # Substring in terms of locations in the input stream
 # This is the one users will be most interested in.
@@ -1183,7 +1192,14 @@ sub Marpa::R2::Scanless::R::progress {
      $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE]->progress(@args);
 }
 
+# Latest and current G1 location are the same
 sub Marpa::R2::Scanless::R::latest_g1_location {
+     my ($self) = @_;
+     $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE]->latest_earley_set();
+}
+
+# Latest and current G1 location are the same
+sub Marpa::R2::Scanless::R::current_g1_location {
      my ($self) = @_;
      $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE]->latest_earley_set();
 }
