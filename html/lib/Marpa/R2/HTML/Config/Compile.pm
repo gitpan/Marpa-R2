@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.055_003';
+$VERSION        = '2.055_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -741,7 +741,7 @@ sub compile {
 
     DESC: for my $rubies_desc ( keys %ruby_config ) {
         my $candidates = $ruby_config{$rubies_desc};
-        next DESC if '</*>' ~~ $candidates;
+        next DESC if grep { '</*>' eq $_ } @{$candidates};
         $ruby_config{$rubies_desc} = [ @{$candidates}, '</*>' ];
     }
 
