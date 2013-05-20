@@ -215,6 +215,7 @@ pod/BNF.pod
 pod/Changes.pod
 pod/Grammar.pod
 pod/Marpa_R2.pod
+pod/NAIF.pod
 pod/Progress.pod
 pod/Recognizer.pod
 pod/Scanless.pod
@@ -284,6 +285,7 @@ t/sl_calc.t
 t/sl_completed.t
 t/sl_diag.t
 t/sl_dsl.t
+t/sl_durand.t
 t/sl_exhaust.t
 t/sl_external1.t
 t/sl_fullsyn.t
@@ -294,6 +296,7 @@ t/sl_leo2.t
 t/sl_prefix.t
 t/sl_rank.t
 t/sl_syn.t
+t/sl_topsyn.t
 t/sl_wall.t
 t/stuifzand.t
 t/syn_engine.t

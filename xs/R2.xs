@@ -2142,7 +2142,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 155
-#define EXPECTED_LIBMARPA_MICRO 102
+#define EXPECTED_LIBMARPA_MICRO 103
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -3293,11 +3293,13 @@ PPCODE:
     }
   SvREFCNT_inc (slr);
   v_wrapper->slr = slr;
+
   # Throw away the current token values hash
-  # and steal ownership of the one in the SLR
   SvREFCNT_dec (v_wrapper->token_values);
+
+  # Take a reference to the one in the SLR
   v_wrapper->token_values = slr->token_values;
-  slr->token_values = NULL;
+  SvREFCNT_inc (v_wrapper->token_values);
 }
 
 void
