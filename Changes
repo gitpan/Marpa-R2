@@ -15,6 +15,10 @@
 
 Revision history for Marpa::R2
 
+2.057_000
+
+   * New series of developer's releases.
+
 2.056000 Wed May 22 17:38:03 PDT 2013
 
    * Rearrange POD to make SLIF primary interface

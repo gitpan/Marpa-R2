@@ -1057,7 +1057,7 @@ sub Marpa::R2::Perl::read_tokens {
 
     my @recce_args = ();
     HASH_ARG: while ( my ( $arg, $value ) = each %{$hash_arg} ) {
-        if ( $arg ~~ \@RECCE_NAMED_ARGUMENTS ) {
+        if ( grep { $_ eq $arg } @RECCE_NAMED_ARGUMENTS ) {
             push @recce_args, $arg, $value;
             next HASH_ARG;
         }
@@ -1108,7 +1108,9 @@ sub Marpa::R2::Perl::earleme_complete {
     my $grammar_c = $grammar->thin();
 
     if ( $parser->{in_prefix} ) {
-        if ( 'target_start_marker' ~~ $parser->{terminals_expected} ) {
+        if ( grep { $_ eq 'target_start_marker' }
+            @{ $parser->{terminals_expected} } )
+        {
             $recce->alternative('target_start_marker');
         }
         $recce->alternative('non_perl_token');
@@ -1238,7 +1240,7 @@ sub read_PPI_token {
             my $expected_tokens = $parser->{terminals_expected};
             my $token_found;
             TYPE: for my $type (@potential_types) {
-                next TYPE if not $type ~~ $expected_tokens;
+                next TYPE if not grep { $_ eq $type } @{$expected_tokens};
                 $token_found = 1;
                 defined $recce->alternative( $type, \$content, 1 )
                     or token_not_accepted( $token, $type, $content, 1 );
@@ -1257,7 +1259,7 @@ sub read_PPI_token {
             my @potential_types = qw(ADDOP UMINUS);
             my $token_found;
             TYPE: for my $type (@potential_types) {
-                next TYPE if not $type ~~ $expected_tokens;
+                next TYPE if not grep { $_ eq $type } @{$expected_tokens};
                 $token_found = 1;
                 defined $recce->alternative( $type, \$content, 1 )
                     or token_not_accepted( $token, $type, $content, 1 );
@@ -1285,7 +1287,7 @@ sub read_PPI_token {
             if ((   not defined $Marpa::R2::Perl::LAST_PERL_TYPE
                     or $Marpa::R2::Perl::LAST_PERL_TYPE ne 'SEMI'
                 )
-                and 'SEMI' ~~ $expected_tokens
+                and ( grep { 'SEMI' eq $_ } @{$expected_tokens} )
                 )
             {
                 defined $recce->alternative( 'SEMI', \q{;} )
@@ -1307,7 +1309,7 @@ sub read_PPI_token {
             }
             my $token_found;
             TYPE: for my $type (@potential_types) {
-                next TYPE if not $type ~~ $expected_tokens;
+                next TYPE if not grep { $type eq $_ } @{$expected_tokens};
                 $token_found = 1;
                 defined $recce->alternative( $type, \$content, 1 )
                     or token_not_accepted( $token, $type, $content, 1 );
@@ -1425,17 +1427,18 @@ sub Marpa::R2::Perl::find_perl {
             last TOKEN;
         }
         my $terminals_expected = $parser->{terminals_expected};
-        if ( 'non_trivial_target_end' ~~ $terminals_expected ) {
-            $in_prefix = $parser->{in_prefix} = 0;
-            $last_end_marker_ix = $PPI_token_ix;
-            $last_end_marker_earleme = $recce->current_earleme();
-        } ## end if ( 'non_trivial_target_end' ~~ $terminals_expected)
-        if ( defined $last_end_marker_earleme
-            && 'target_end_marker' ~~ $terminals_expected )
+        if ( grep { $_ eq 'non_trivial_target_end' } @{$terminals_expected} )
         {
-            $last_end_marker_ix = $PPI_token_ix;
+            $in_prefix = $parser->{in_prefix} = 0;
+            $last_end_marker_ix      = $PPI_token_ix;
             $last_end_marker_earleme = $recce->current_earleme();
-        } ## end if ( defined $last_end_marker && 'target_end_marker' ~~...)
+        } ## end if ( grep { $_ eq 'non_trivial_target_end' } @{...})
+        if ( defined $last_end_marker_earleme
+            && grep { $_ eq 'target_end_marker' } @{$terminals_expected} )
+        {
+            $last_end_marker_ix      = $PPI_token_ix;
+            $last_end_marker_earleme = $recce->current_earleme();
+        } ## end if ( defined $last_end_marker_earleme && grep { $_ eq...})
     } ## end for ( $PPI_token_ix = $first_token_ix // 0; $PPI_token_ix...)
 
     # We are one past the last token successfully parsed
