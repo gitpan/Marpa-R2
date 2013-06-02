@@ -1195,23 +1195,23 @@ typedef const struct s_xsy* XSY_Const;
 
 @ @<Private structures@> =
 struct s_xsy {
-    @<Widely aligned symbol elements@>@;
-    @<Int aligned symbol elements@>@;
-    @<Bit aligned symbol elements@>@;
+    @<Widely aligned XSY elements@>@;
+    @<Int aligned XSY elements@>@;
+    @<Bit aligned XSY elements@>@;
 };
 
 @*0 ID.
 @d ID_of_XSY(xsy) ((xsy)->t_symbol_id)
-@<Int aligned symbol elements@> = XSYID t_symbol_id;
+@<Int aligned XSY elements@> = XSYID t_symbol_id;
 
 @ @<Function definitions@> =
 PRIVATE XSY
 symbol_new (GRAMMAR g)
 {
-  XSY symbol = my_obstack_new (g->t_obs, struct s_xsy, 1);
-  @<Initialize symbol elements @>@;
-  symbol_add (g, symbol);
-  return symbol;
+  XSY xsy = my_obstack_new (g->t_obs, struct s_xsy, 1);
+  @<Initialize XSY elements @>@;
+  symbol_add (g, xsy);
+  return xsy;
 }
 
 @ @<Function definitions@> =
@@ -1223,8 +1223,8 @@ marpa_g_symbol_new (Marpa_Grammar g)
 }
 
 @*0 Symbol is start?.
-@<Bit aligned symbol elements@> = unsigned int t_is_start:1;
-@ @<Initialize symbol elements@> = symbol->t_is_start = 0;
+@<Bit aligned XSY elements@> = unsigned int t_is_start:1;
+@ @<Initialize XSY elements@> = xsy->t_is_start = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID xsy_id) 
 {
@@ -1236,10 +1236,10 @@ int marpa_g_symbol_is_start( Marpa_Grammar g, Marpa_Symbol_ID xsy_id)
 }
 
 @*0 Symbol rank.
-@<Int aligned symbol elements@> = 
+@<Int aligned XSY elements@> = 
   Marpa_Rank t_rank;
-@ @<Initialize symbol elements@> =
-symbol->t_rank = Default_Rank_of_G(g);
+@ @<Initialize XSY elements@> =
+xsy->t_rank = Default_Rank_of_G(g);
 @ @d Rank_of_XSY(symbol) ((symbol)->t_rank)
 @<Function definitions@> =
 int marpa_g_symbol_rank(Marpa_Grammar g,
@@ -1283,24 +1283,24 @@ Marpa_Grammar g, Marpa_Symbol_ID xsy_id, Marpa_Rank rank)
 Is this (external) symbol on the LHS of any rule,
 whether sequence or BNF.
 @d XSY_is_LHS(xsy) ((xsy)->t_is_lhs)
-@<Bit aligned symbol elements@> = unsigned int t_is_lhs:1;
-@ @<Initialize symbol elements@> =
-    XSY_is_LHS(symbol) = 0;
+@<Bit aligned XSY elements@> = unsigned int t_is_lhs:1;
+@ @<Initialize XSY elements@> =
+    XSY_is_LHS(xsy) = 0;
 
 @*0 Symbol is sequence LHS?.
 Is this (external) symbol on the LHS of a sequence rule?
 @d XSY_is_Sequence_LHS(xsy) ((xsy)->t_is_sequence_lhs)
-@<Bit aligned symbol elements@> = unsigned int t_is_sequence_lhs:1;
-@ @<Initialize symbol elements@> =
-    XSY_is_Sequence_LHS(symbol) = 0;
+@<Bit aligned XSY elements@> = unsigned int t_is_sequence_lhs:1;
+@ @<Initialize XSY elements@> =
+    XSY_is_Sequence_LHS(xsy) = 0;
 
 @*0 Symbol has semantics?.
 Can the symbol have a user-specified semantics?
 Symbols are semantic by default.
 @d XSY_is_Semantic(xsy) ((xsy)->t_is_semantic)
-@<Bit aligned symbol elements@> = unsigned int t_is_semantic:1;
-@ @<Initialize symbol elements@> =
-    XSY_is_Semantic(symbol) = 1;
+@<Bit aligned XSY elements@> = unsigned int t_is_semantic:1;
+@ @<Initialize XSY elements@> =
+    XSY_is_Semantic(xsy) = 1;
 @ @<Function definitions@> =
 int _marpa_g_symbol_is_semantic(
     Marpa_Grammar g,
@@ -1322,12 +1322,12 @@ a symbol -- that is, the semantics
 is arbitrary.
 @d XSY_is_Valued(symbol) ((symbol)->t_is_valued)
 @d XSY_is_Valued_Locked(symbol) ((symbol)->t_is_valued_locked)
-@<Bit aligned symbol elements@> =
+@<Bit aligned XSY elements@> =
   unsigned int t_is_valued:1;
   unsigned int t_is_valued_locked:1;
-@ @<Initialize symbol elements@> =
-  XSY_is_Valued(symbol) = 0;
-  XSY_is_Valued_Locked(symbol) = 0;
+@ @<Initialize XSY elements@> =
+  XSY_is_Valued(xsy) = 0;
+  XSY_is_Valued_Locked(xsy) = 0;
 
 @ @<Function definitions@> =
 int marpa_g_symbol_is_valued(
@@ -1366,9 +1366,9 @@ int marpa_g_symbol_is_valued_set(
 
 @*0 Symbol is accessible?.
 @d XSY_is_Accessible(xsy) ((xsy)->t_is_accessible)
-@<Bit aligned symbol elements@> = unsigned int t_is_accessible:1;
-@ @<Initialize symbol elements@> =
-symbol->t_is_accessible = 0;
+@<Bit aligned XSY elements@> = unsigned int t_is_accessible:1;
+@ @<Initialize XSY elements@> =
+xsy->t_is_accessible = 0;
 @ The trace accessor returns the boolean value.
 Right now this function uses a pointer
 to the symbol function.
@@ -1387,9 +1387,9 @@ int marpa_g_symbol_is_accessible(Marpa_Grammar g, Marpa_Symbol_ID xsy_id)
 }
 
 @*0 Symbol is counted?.
-@<Bit aligned symbol elements@> = unsigned int t_is_counted:1;
-@ @<Initialize symbol elements@> =
-symbol->t_is_counted = 0;
+@<Bit aligned XSY elements@> = unsigned int t_is_counted:1;
+@ @<Initialize XSY elements@> =
+xsy->t_is_counted = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_counted(Marpa_Grammar g,
 Marpa_Symbol_ID xsy_id)
@@ -1403,9 +1403,9 @@ Marpa_Symbol_ID xsy_id)
 
 @*0 Symbol is nulling?.
 @d XSY_is_Nulling(sym) ((sym)->t_is_nulling)
-@<Bit aligned symbol elements@> = unsigned int t_is_nulling:1;
-@ @<Initialize symbol elements@> =
-symbol->t_is_nulling = 0;
+@<Bit aligned XSY elements@> = unsigned int t_is_nulling:1;
+@ @<Initialize XSY elements@> =
+xsy->t_is_nulling = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_nulling(Marpa_Grammar g, Marpa_Symbol_ID xsy_id)
 {
@@ -1418,10 +1418,11 @@ int marpa_g_symbol_is_nulling(Marpa_Grammar g, Marpa_Symbol_ID xsy_id)
 }
 
 @*0 Symbol is nullable?.
-@d XSY_is_Nullable(sym) ((sym)->t_is_nullable)
-@<Bit aligned symbol elements@> = unsigned int t_is_nullable:1;
-@ @<Initialize symbol elements@> =
-symbol->t_is_nullable = 0;
+@d XSY_is_Nullable(xsy) ((xsy)->t_is_nullable)
+@d XSYID_is_Nullable(xsyid) XSY_is_Nullable(XSY_by_ID(xsyid))
+@<Bit aligned XSY elements@> = unsigned int t_is_nullable:1;
+@ @<Initialize XSY elements@> =
+xsy->t_is_nullable = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_nullable(Marpa_Grammar g, Marpa_Symbol_ID xsy_id)
 {
@@ -1430,7 +1431,7 @@ int marpa_g_symbol_is_nullable(Marpa_Grammar g, Marpa_Symbol_ID xsy_id)
     @<Fail if not precomputed@>@;
     @<Fail if |xsy_id| is malformed@>@;
     @<Soft fail if |xsy_id| does not exist@>@;
-    return XSY_is_Nullable(XSY_by_ID(xsy_id));
+    return XSYID_is_Nullable(xsy_id);
 }
 
 @*0 Symbol is terminal?.
@@ -1440,12 +1441,12 @@ It distinguishes those
 terminal settings that will
 be overwritten by the default
 from those should not be.
-@<Bit aligned symbol elements@> =
+@<Bit aligned XSY elements@> =
 unsigned int t_is_terminal:1;
 unsigned int t_is_locked_terminal:1;
-@ @<Initialize symbol elements@> =
-symbol->t_is_terminal = 0;
-symbol->t_is_locked_terminal = 0;
+@ @<Initialize XSY elements@> =
+xsy->t_is_terminal = 0;
+xsy->t_is_locked_terminal = 0;
 @ @d XSY_is_Terminal(xsy) ((xsy)->t_is_terminal)
 @ @d XSY_is_Locked_Terminal(xsy) ((xsy)->t_is_locked_terminal)
 @d XSYID_is_Terminal(id) (XSY_is_Terminal(XSY_by_ID(id)))
@@ -1487,9 +1488,9 @@ Marpa_Grammar g, Marpa_Symbol_ID xsy_id, int value)
 
 @*0 XSY is productive?.
 @d XSY_is_Productive(xsy) ((xsy)->t_is_productive)
-@<Bit aligned symbol elements@> = unsigned int t_is_productive:1;
-@ @<Initialize symbol elements@> =
-symbol->t_is_productive = 0;
+@<Bit aligned XSY elements@> = unsigned int t_is_productive:1;
+@ @<Initialize XSY elements@> =
+xsy->t_is_productive = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_productive(
     Marpa_Grammar g,
@@ -1506,9 +1507,9 @@ int marpa_g_symbol_is_productive(
 @*0 XSY is completion event?.
 @d XSY_is_Completion_Event(xsy) ((xsy)->t_is_completion_event)
 @d XSYID_is_Completion_Event(xsyid) XSY_is_Completion_Event(XSY_by_ID(xsyid))
-@<Bit aligned symbol elements@> = unsigned int t_is_completion_event:1;
-@ @<Initialize symbol elements@> =
-symbol->t_is_completion_event = 0;
+@<Bit aligned XSY elements@> = unsigned int t_is_completion_event:1;
+@ @<Initialize XSY elements@> =
+xsy->t_is_completion_event = 0;
 @ @<Function definitions@> =
 int marpa_g_symbol_is_completion_event(Marpa_Grammar g,
 Marpa_Symbol_ID xsy_id)
@@ -1538,6 +1539,26 @@ Marpa_Grammar g, Marpa_Symbol_ID xsy_id, int value)
     return failure_indicator;
 }
 
+@*0 Nulled CIL.
+@d Nulled_CIL_of_XSY(xsy) ((xsy)->t_nulled_event_xsyids)
+@d Nulled_CIL_of_XSYID(xsyid)
+  Nulled_CIL_of_XSY(XSY_by_ID(xsyid))
+@<Widely aligned XSY elements@> =
+  CIL t_nulled_event_xsyids;
+@ The nulled XSYIDs include all the symbols nullified by an XSY.
+A nullable symbol always nullifies itself.
+It may nullify additional XSY's through derivations of nulled rules.
+The issue of ambiguous derivations is dealt with by including all
+nulled derivations.
+If XSY |xsy1| can nullify XSY |xsy2|, then it does.
+For non-nullable XSY's, this will be the empty CIL.
+@ {\bf To Do}: @^To Do@>
+Need to add the logic to not populate these CIL's if there are
+no nulled events.
+Right now the nulled event CIL's are always populated.
+@<Initialize XSY elements@> =
+  Nulled_CIL_of_XSY(xsy) = NULL;
+
 @*0 Primary internal equivalent.
 This is the internal
 equivalent of the external symbol.
@@ -1550,8 +1571,8 @@ it is the non-nullable ISY.
 |ISYID_by_XSYID(xsy_id)| to ensure that
 |ISY_of_XSY(xsy)| exists.
 @d ISYID_by_XSYID(xsy_id) ID_of_ISY(ISY_of_XSY(XSY_by_ID(xsy_id)))
-@<Widely aligned symbol elements@> = ISY t_isy_equivalent;
-@ @<Initialize symbol elements@> = ISY_of_XSY(symbol) = NULL;
+@<Widely aligned XSY elements@> = ISY t_isy_equivalent;
+@ @<Initialize XSY elements@> = ISY_of_XSY(xsy) = NULL;
 @ @<Function definitions@> =
 Marpa_ISY_ID _marpa_g_xsy_isy(
     Marpa_Grammar g,
@@ -1582,8 +1603,8 @@ there is no nulling internal equivalent.
 |Nulling_ISYID_by_XSYID(xsy_id)| to ensure that
 |Nulling_ISY_of_XSY(xsy)| exists.
 @d Nulling_ISYID_by_XSYID(xsy) ID_of_ISY(XSY_by_ID(xsy)->t_nulling_isy)
-@<Widely aligned symbol elements@> = ISY t_nulling_isy;
-@ @<Initialize symbol elements@> = Nulling_ISY_of_XSY(symbol) = NULL;
+@<Widely aligned XSY elements@> = ISY t_nulling_isy;
+@ @<Initialize XSY elements@> = Nulling_ISY_of_XSY(xsy) = NULL;
 @ @<Function definitions@> =
 Marpa_ISY_ID _marpa_g_xsy_nulling_isy(
     Marpa_Grammar g,
@@ -1769,6 +1790,7 @@ This is the external
 ``source'' of the internal symbol --
 the external symbol that it is derived from.
 @d Source_XSY_of_ISY(isy) ((isy)->t_source_xsy)
+@d Source_XSY_of_ISYID(isyid) (Source_XSY_of_ISY(ISY_by_ID(isyid)))
 @<Widely aligned ISY elements@> = XSY t_source_xsy;
 @ @<Initialize ISY elements@> = Source_XSY_of_ISY(isy) = NULL;
 @ @<Function definitions@> =
@@ -1779,7 +1801,7 @@ Marpa_Rule_ID _marpa_g_source_xsy(
     XSY source_xsy;
     @<Return |-2| on failure@>@;
     @<Fail if |isy_id| is invalid@>@;
-    source_xsy = Source_XSY_of_ISY(ISY_by_ID(isy_id));
+    source_xsy = Source_XSY_of_ISYID(isy_id);
     return source_xsy ? ID_of_XSY(source_xsy) : -1;
 }
 
@@ -2933,6 +2955,8 @@ int marpa_g_precompute(Marpa_Grammar g)
 	@<Create AHFA states@>@;
 	@<Populate the terminal boolean vector@>@;
 	@<Populate the completion event boolean vector@>@;
+	@<Populate the prediction
+	  and nulled symbol CILs@>@;
     }
     g->t_is_precomputed = 1;
     if (g->t_has_cycle)
@@ -2940,6 +2964,7 @@ int marpa_g_precompute(Marpa_Grammar g)
 	MARPA_ERROR (MARPA_ERR_GRAMMAR_HAS_CYCLE);
 	goto FAILURE;
       }
+    @<Reinitialize the CILAR@>@;
     return_value = 0;
     goto CLEANUP;
     FAILURE:;
@@ -2981,7 +3006,9 @@ more than a single pass of the diagnostics.
 (As of this writing, I personally have yet to encounter such a case.)
 The upside is that in the more frequent cases, the user is spared
 a lot of useless diagnostics.
-
+@ {\bf To Do}: @^To Do@>
+Change so that nullification CIls are
+populated only if there are prediction events.
 @<Perform census of grammar |g|@> =
 {
     @<Census symbols@>@;
@@ -2994,6 +3021,9 @@ a lot of useless diagnostics.
     @<Census nulling symbols@>@;
     @<Classify rules@>@;
     @<Mark valued symbols@>@;
+    if (1) {
+      @<Populate nullification CILs@>@;
+    }
 }
 
 @ @<Declare precompute variables@> =
@@ -3451,6 +3481,61 @@ if (0)
       }
   }
 
+@ An XSY $A$ nullifies XSY $B$ if the fact
+that |A| is nulled implies that |B| is nulled as well.
+This may happen trivially -- a nullable symbol
+nullifies itself.
+And it may happen through a nullable derivation.
+The derivation may be ambiguous -- in other words,
+|A| nullfies |B| if a nulled |B| can be derived from a nulled |A|.
+Change so that this runs only if there are prediction events.
+@<Populate nullification CILs@> = 
+{
+  XSYID xsyid;
+  XRLID xrlid;
+  int nullable_xsy_count = 0;	/* Use this to make sure we
+				   have enough CILAR buffer space */
+  void* matrix_buffer = my_malloc(matrix_sizeof(
+     (unsigned int) pre_census_xsy_count,
+		       (unsigned int) pre_census_xsy_count)); /* This
+  matrix is large and very temporary, so it does not go on the obstack */
+  Bit_Matrix nullification_matrix =
+    matrix_buffer_create (matrix_buffer, (unsigned int) pre_census_xsy_count,
+		       (unsigned int) pre_census_xsy_count);
+  for (xsyid = 0; xsyid < pre_census_xsy_count; xsyid++)
+    {				/* Every nullable symbol symbol nullifies itself */
+      if (!XSYID_is_Nullable (xsyid))
+	continue;
+      nullable_xsy_count++;
+      matrix_bit_set (nullification_matrix, (unsigned int) xsyid,
+		      (unsigned int) xsyid);
+    }
+  for (xrlid = 0; xrlid < xrl_count; xrlid++)
+    {
+      int rh_ix;
+      XRL xrl = XRL_by_ID (xrlid);
+      const XSYID lhs_id = LHS_ID_of_XRL (xrl);
+      if (XRL_is_Nullable (xrl))
+	{
+	  for (rh_ix = 0; rh_ix < Length_of_XRL (xrl); rh_ix++)
+	    {
+	      const XSYID rhs_id = RHS_ID_of_XRL (xrl, rh_ix);
+	      matrix_bit_set (nullification_matrix, (unsigned int) lhs_id,
+			      (unsigned int) rhs_id);
+	    }
+	}
+    }
+  transitive_closure (nullification_matrix);
+  for (xsyid = 0; xsyid < pre_census_xsy_count; xsyid++)
+    {
+      Bit_Vector bv_nullifications_by_to_xsy =
+	matrix_row (nullification_matrix, (unsigned long) xsyid);
+      Nulled_CIL_of_XSYID (xsyid) = 
+	cil_bv_add(&g->t_cilar, bv_nullifications_by_to_xsy);
+    }
+    my_free(matrix_buffer);
+}
+
 @** The sequence rewrite.
 @<Rewrite sequence |rule| into BNF@> =
 {
@@ -3641,20 +3726,20 @@ is not already aliased, alias it.
   XSYID xsy_id;
   for (xsy_id = 0; xsy_id < pre_census_xsy_count; xsy_id++)
     {
-      const XSY xsy = XSY_by_ID (xsy_id);
-      if (UNLIKELY (!xsy->t_is_accessible))
+      const XSY xsy_to_clone = XSY_by_ID (xsy_id);
+      if (UNLIKELY (!xsy_to_clone->t_is_accessible))
 	continue;
-      if (UNLIKELY (!xsy->t_is_productive))
+      if (UNLIKELY (!xsy_to_clone->t_is_productive))
 	continue;
-      ISY_of_XSY(xsy) = isy_clone (g, xsy);
-      if (XSY_is_Nulling (xsy))
+      ISY_of_XSY(xsy_to_clone) = isy_clone (g, xsy_to_clone);
+      if (XSY_is_Nulling (xsy_to_clone))
 	{
-	  Nulling_ISY_of_XSY(xsy) = ISY_of_XSY(xsy);
+	  Nulling_ISY_of_XSY(xsy_to_clone) = ISY_of_XSY(xsy_to_clone);
 	  continue;
 	}
-      if (XSY_is_Nullable (xsy))
+      if (XSY_is_Nullable (xsy_to_clone))
 	{
-	  Nulling_ISY_of_XSY(xsy) = symbol_alias_create (g, xsy);
+	  Nulling_ISY_of_XSY(xsy_to_clone) = symbol_alias_create (g, xsy_to_clone);
 	}
     }
 }
@@ -4854,6 +4939,22 @@ PRIVATE void AHFA_initialize(AHFA ahfa)
     @<Initialize AHFA@>@;
 }
 
+@*0 Nulled and prediction events containers.
+@
+@d Nulled_CIL_of_AHFA(state) ((state)->t_nulled_isyids)
+@d Nulled_ISYID_of_AHFA(state, ix)
+  Item_of_CIL(Nulled_CIL_of_AHFA(state), (ix))
+@d Nulled_ISY_Count_of_AHFA(state)
+  Count_of_CIL(Nulled_CIL_of_AHFA(state))
+@d Prediction_CIL_of_AHFA(state) ((state)->t_prediction_isyids)
+@d Prediction_ISYID_of_AHFA(state, ix)
+  Item_of_CIL(Prediction_CIL_of_AHFA(state), (ix))
+@d Prediction_ISY_Count_of_AHFA(state)
+  Count_of_CIL(Prediction_CIL_of_AHFA(state))
+@ @<Widely aligned AHFA state elements@> =
+  CIL t_nulled_isyids;
+  CIL t_prediction_isyids;
+
 @*0 Complete symbols container.
 @
 Simple completions are those which can be determined directly from the AHFA state ID,
@@ -5161,11 +5262,10 @@ one non-nulling symbol in each IRL. */
       {
 	/* If here, IRL is right recursive */
 	unsigned int min, max, start;
-	int isy_ix = 0;
+	const CILAR cilar = &g->t_cilar;
 	Bit_Vector bv_recursive_isyids =
 	  matrix_row (isy_by_right_isy_matrix, (unsigned long) lhs_isyid);
-	const int recursion_isyid_count = bv_count (bv_recursive_isyids);
-	CIL new_cil = cil_reserve (&g->t_cilar, recursion_isyid_count);
+	cil_buffer_clear(cilar);
 	for (start = 0; bv_scan (bv_recursive_isyids, start, &min, &max);
 	     start = max + 2)
 	  {
@@ -5173,15 +5273,11 @@ one non-nulling symbol in each IRL. */
 	    for (recursion_isyid = (ISYID) min;
 		 recursion_isyid <= (ISYID) max; recursion_isyid++)
 	      {
-		if (ISYID_is_Completion_Event (recursion_isyid))
-		  {
-		    Item_of_CIL (new_cil, isy_ix) = recursion_isyid;
-		    isy_ix++;
-		  }
+		if (!ISYID_is_Completion_Event (recursion_isyid)) continue;
+		cil_buffer_push(cilar, recursion_isyid);
 	      }
 	  }
-	cil_confirm (&g->t_cilar, isy_ix);
-	Indirect_Completion_Event_CIL_of_IRL (irl) = cil_finish(&g->t_cilar);
+	Indirect_Completion_Event_CIL_of_IRL (irl) = cil_buffer_add (&g->t_cilar);
 	if (cil_cmp
 	    (Indirect_Completion_Event_CIL_of_IRL (irl),
 	     Direct_Completion_Event_CIL_of_IRL (irl), 0))
@@ -5192,17 +5288,25 @@ one non-nulling symbol in each IRL. */
     }
 }
 
-@*0 Leo LHS symbol.
-The Leo LHS symbol is the LHS of the AHFA state's rule,
+@*0 Leo IRL and LHS.
+The Leo IRL of an AHFA is its rule,
 if that state can be a Leo completion.
 Otherwise it is |-1|.
+(There will be only one if it is a Leo completion.)
+The Leo LHS symbol is the LHS of the Leo IRL,
+-1 if there is no Leo IRL.
 The value of the Leo completion symbol is used to
 determine if an Earley item
 with this AHFA state is eligible to be a Leo completion.
 @d Leo_LHS_ISYID_of_AHFA(state) ((state)->t_leo_lhs_isyid)
-@d AHFA_is_Leo_Completion(state) (Leo_LHS_ISYID_of_AHFA(state) >= 0)
-@ @<Int aligned AHFA state elements@> = ISYID t_leo_lhs_isyid;
-@ @<Initialize AHFA@> = Leo_LHS_ISYID_of_AHFA(ahfa) = -1;
+@d Leo_IRLID_of_AHFA(state) ((state)->t_leo_irlid)
+@d AHFA_is_Leo_Completion(state) (Leo_IRLID_of_AHFA(state) >= 0)
+@ @<Int aligned AHFA state elements@> =
+  ISYID t_leo_lhs_isyid;
+  IRLID t_leo_irlid;
+@ @<Initialize AHFA@> =
+  Leo_LHS_ISYID_of_AHFA(ahfa) = -1;
+  Leo_IRLID_of_AHFA(ahfa) = -1;
 @ @<Function definitions@> =
 Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol(Marpa_Grammar g,
 	Marpa_AHFA_State_ID AHFA_state_id) {
@@ -5592,6 +5696,7 @@ set the Leo completion symbol to |lhs_id|@> =
   if (IRL_is_Right_Recursive(aim_irl))
     {
       Leo_LHS_ISYID_of_AHFA (p_new_state) = lhs_isyid;
+      Leo_IRLID_of_AHFA (p_new_state) = ID_of_IRL(aim_irl);
     }
 }
 
@@ -5777,41 +5882,22 @@ for discovered state with 2+ items@> =
 	    }
 	}
     }
-  {
-    unsigned int min, max, start;
-    int isy_ix = 0;
-    const int complete_isyid_count = bv_count (per_ahfa_complete_v);
-    CIL new_cil = cil_reserve (&g->t_cilar, complete_isyid_count);
-    for (start = 0; bv_scan (per_ahfa_complete_v, start, &min, &max);
-	 start = max + 2)
-      {
-	ISYID complete_isyid;
-	for (complete_isyid = (ISYID) min;
-	     complete_isyid <= (ISYID) max; complete_isyid++)
-	  {
-	    Item_of_CIL (new_cil, isy_ix) = complete_isyid;
-	    isy_ix++;
-	  }
-      }
-    Completion_CIL_of_AHFA (p_new_state) = cil_finish (&g->t_cilar);
-  }
+  Completion_CIL_of_AHFA (p_new_state) = cil_bv_add (&g->t_cilar, per_ahfa_complete_v);
   {
     int isy_ix;
     int complete_isyid_count = Complete_ISY_Count_of_AHFA (p_new_state);
-    CIL new_cil = cil_reserve (&g->t_cilar, complete_isyid_count);
-    int new_isy_ix = 0;
+    CILAR cilar = &g->t_cilar;
+    cil_buffer_clear (cilar);
     for (isy_ix = 0; isy_ix < complete_isyid_count; isy_ix++)
       {
 	ISYID complete_isyid = Complete_ISYID_of_AHFA (p_new_state, isy_ix);
 	if (!ISYID_is_Completion_Event (complete_isyid))
 	  continue;
-	Item_of_CIL (new_cil, new_isy_ix) = complete_isyid;
-	new_isy_ix++;
+	cil_buffer_push (cilar, complete_isyid);
       }
-    cil_confirm (&g->t_cilar, new_isy_ix);
     Direct_Completion_Event_CIL_of_AHFA (p_new_state) =
       Indirect_Completion_Event_CIL_of_AHFA (p_new_state) =
-      cil_finish (&g->t_cilar);
+      cil_buffer_add (&g->t_cilar);
   }
 }
 
@@ -6374,6 +6460,74 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
     }
 }
 
+@ @<Populate the prediction and nulled symbol CILs@> =
+{
+  AHFAID ahfaid;
+  const AHFAID ahfa_count_of_g = AHFA_Count_of_G (g);
+  const LBV bv_prediction_xsyid = bv_create (xsy_count);
+  const LBV bv_nulled_xsyid = bv_create (xsy_count);
+  const CILAR cilar = &g->t_cilar;
+  for (ahfaid = 0; ahfaid < ahfa_count_of_g; ahfaid++)
+    {
+      AIMID aimid;
+      const AHFA ahfa = AHFA_of_G_by_ID (g, ahfaid);
+      const int ahfa_item_count = AIM_Count_of_AHFA (ahfa);
+      for (aimid = 0; aimid < (AIMID) ahfa_item_count; aimid++)
+	{
+	  int rhs_ix;
+	  int raw_position;
+	  const AIM aim = AIM_by_ID (aimid);
+	  const ISYID postdot_isyid = Postdot_ISYID_of_AIM (aim);
+	  const IRL irl = IRL_of_AIM (aim);
+	  raw_position = Position_of_AIM (aim);
+	  if (raw_position < 0)
+	    {
+	      raw_position = Length_of_IRL (irl);
+	    }
+	  if (postdot_isyid >= 0)
+	    {
+	      const XSY xsy = Source_XSY_of_ISYID (postdot_isyid);
+	      if (xsy)
+		{
+		  const XSYID xsyid = ID_of_XSY (xsy);
+		  bv_bit_set (bv_prediction_xsyid, xsyid);
+		}
+	    }
+	  for (rhs_ix = raw_position - Null_Count_of_AIM (aim);
+	       rhs_ix < raw_position; rhs_ix++)
+	    {
+	      int cil_ix;
+	      const ISYID rhs_isyid = RHSID_of_IRL (irl, rhs_ix);
+	      const XSY xsy = Source_XSY_of_ISYID (rhs_isyid);
+	      const CIL nulled_xsyids = Nulled_CIL_of_XSY (xsy);
+	      const int cil_count = Count_of_CIL (nulled_xsyids);
+	      for (cil_ix = 0; cil_ix < cil_count; cil_ix++)
+		{
+		  const XSYID nulled_xsyid =
+		    Item_of_CIL (nulled_xsyids, cil_ix);
+		  bv_bit_set (bv_nulled_xsyid, nulled_xsyid);
+		}
+	    }
+	}
+      Nulled_CIL_of_AHFA (ahfa) = cil_bv_add (cilar, bv_nulled_xsyid);
+      Prediction_CIL_of_AHFA (ahfa) = cil_bv_add (cilar, bv_prediction_xsyid);
+    }
+  bv_free (bv_prediction_xsyid);
+  bv_free (bv_nulled_xsyid);
+}
+
+@ Reinitialize the CILAR, because its size requirement may vary wildly
+bewteen a base grammar and its recognizers.
+A large allocation may be required in the grammar, which
+thereafter would be wasted space.
+@<Reinitialize the CILAR@> =
+{ cilar_reinit(&g->t_cilar); }
+@ {\bf To Do}: @^To Do@>
+Perhaps someday there should be a CILAR for each recognizer.
+This probably is an issue to be dealt with,
+when adding the ability
+to clone grammars.
+
 @** Input (I, INPUT) code.
 |INPUT| is a "hidden" class.
 It is manipulated
@@ -6648,10 +6802,10 @@ considered reasonable.
 @ @<Widely aligned recognizer elements@> =
 Bit_Vector t_lbv_xsyid_completion_event_is_active;
 @ @<Int aligned recognizer elements@> =
-int t_active_completion_event_count;
+int t_active_event_count;
 @ @<Initialize recognizer elements@> =
 r->t_lbv_xsyid_completion_event_is_active = NULL;
-r->t_active_completion_event_count = 0;
+r->t_active_event_count = 0;
 
 @*0 Expected symbol boolean vector.
 A boolean vector by symbol ID,
@@ -6685,8 +6839,7 @@ int marpa_r_terminals_expected(Marpa_Recognizer r, Marpa_Symbol_ID* buffer)
 	ISYID isyid;
 	for (isyid = (ISYID) min; isyid <= (ISYID) max; isyid++)
 	  {
-	    const ISY isy = ISY_by_ID(isyid);
-	    const XSY xsy = Source_XSY_of_ISY(isy);
+	    const XSY xsy = Source_XSY_of_ISYID(isyid);
 	    buffer[ix++] = ID_of_XSY(xsy);
 	  }
       }
@@ -6780,7 +6933,7 @@ int marpa_r_completion_symbol_activate(Marpa_Recognizer r, Marpa_Symbol_ID xsy_i
     case 0:
 	if (lbv_bit_test(r->t_lbv_xsyid_completion_event_is_active, xsy_id)) {
 	  lbv_bit_clear(r->t_lbv_xsyid_completion_event_is_active, xsy_id) ;
-	  r->t_active_completion_event_count--;
+	  r->t_active_event_count--;
 	}
         return 0;
     case 1:
@@ -6791,7 +6944,7 @@ int marpa_r_completion_symbol_activate(Marpa_Recognizer r, Marpa_Symbol_ID xsy_i
 	}
 	if (!lbv_bit_test(r->t_lbv_xsyid_completion_event_is_active, xsy_id)) {
 	  lbv_bit_set(r->t_lbv_xsyid_completion_event_is_active, xsy_id) ;
-	  r->t_active_completion_event_count++;
+	  r->t_active_event_count++;
 	}
         return 1;
     }
@@ -7232,7 +7385,7 @@ be recopied to make way for pointers to the linked lists.
     Complete_ISYID_of_AHFA(AHFA_of_EIM(item), (ix))
 @d Complete_ISY_Count_of_EIM(item)
     Complete_ISY_Count_of_AHFA(AHFA_of_EIM(item))
-@d Leo_LHS_ISYID_of_EIM(eim) Leo_LHS_ISYID_of_AHFA(AHFA_of_EIM(eim))
+@d Leo_IRLID_of_EIM(eim) Leo_IRLID_of_AHFA(AHFA_of_EIM(eim))
 @ It might be slightly faster if this boolean is memoized in the Earley item
 when the Earley item is initialized.
 @d Earley_Item_is_Completion(item)
@@ -8789,7 +8942,7 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     }
     r->t_lbv_xsyid_completion_event_is_active =
       lbv_clone (r->t_obs, g->t_lbv_xsyid_is_completion_event, xsy_count);
-    r->t_active_completion_event_count =
+    r->t_active_event_count =
       bv_count ( g->t_lbv_xsyid_is_completion_event);
     Input_Phase_of_R(r) = R_DURING_INPUT;
     psar_reset(Dot_PSAR_of_R(r));
@@ -9149,8 +9302,8 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
 	@<Set |r| exhausted@>@;
       }
     earley_set_update_items(r, current_earley_set);
-    if (r->t_active_completion_event_count > 0) {
-        @<Trigger completion events@>@;
+    if (r->t_active_event_count > 0) {
+        @<Trigger events@>@;
     }
     return_value = G_EVENT_COUNT(g);
     CLEANUP: ;
@@ -9336,7 +9489,7 @@ add those Earley items it ``causes".
     leo_link_add (r, effect, leo_item, cause);
 }
 
-@ @<Trigger completion events@> =
+@ @<Trigger events@> =
 {
   int eim_ix, isy_ix;
   EIM *eims = EIMs_of_ES (current_earley_set);
@@ -9383,8 +9536,7 @@ add those Earley items it ``causes".
 	  for (isy_ix = 0; isy_ix < event_isy_count; isy_ix++)
 	    {
 	      ISYID event_isyid = Item_of_CIL (cil, isy_ix);
-	      ISY event_isy = ISY_by_ID (event_isyid);
-	      XSY event_xsy = Source_XSY_of_ISY (event_isy);
+	      XSY event_xsy = Source_XSY_of_ISYID (event_isyid);
 	      XSYID event_xsyid = ID_of_XSY (event_xsy);
 	      bv_bit_set (bv_xsy_event_trigger, event_xsyid);
 	    }
@@ -9841,35 +9993,36 @@ for (lim_chain_ix--; lim_chain_ix >= 0; lim_chain_ix--) {
     predecessor_lim = lim_to_process;
 }
 
-@ Instead of |cil_merge|, a new routine which inserted a single
-|int| into a CIL would be faster.
-The logic is only used for indirect right recursions,
-but may be worthwhile even so.
-@<Populate |lim_to_process| from |predecessor_lim|@> =
+@ @<Populate |lim_to_process| from |predecessor_lim|@> =
 {
   const AHFA top_AHFA = Top_AHFA_of_LIM (predecessor_lim);
   Top_AHFA_of_LIM (lim_to_process) = top_AHFA;
   Predecessor_LIM_of_LIM (lim_to_process) = predecessor_lim;
   Origin_of_LIM (lim_to_process) = Origin_of_LIM (predecessor_lim);
-  @/@, /* If the AHFA has non-direct completions ... */
   if (AHFA_has_Nondirect_Completion (top_AHFA))
     {
+      /* If the AHFA has non-direct completions ... */
       const CIL predecessor_cil = CIL_of_LIM (predecessor_lim);
-      @/@, /* and the predecessor LIM was not at completion closure ... */
       if (predecessor_cil)
 	{
-	  CIL cil_for_this_completion = cil_singleton(&g->t_cilar, Postdot_ISYID_of_LIM(lim_to_process));
-	  CIL new_cil = cil_merge (&g->t_cilar, predecessor_cil, cil_for_this_completion);
-	  @/@, /* and adding this completion does not bring the new LIM
-	  to completion closure ... */
-	  if (cil_cmp (new_cil,
-	    Indirect_Completion_Event_CIL_of_AHFA (top_AHFA),
-	    0)
-	    )
+	  /* and if the predecessor LIM was not at completion closure ... */
+	  ISYID isyid_to_merge = Postdot_ISYID_of_LIM (lim_to_process);
+	  CIL new_cil =
+	    cil_merge_one (&g->t_cilar, predecessor_cil, isyid_to_merge);
+	  /* and adding this completion does not bring the new LIM
+	     to completion closure ... */
+	  if (!new_cil)
+	    {			/* The postdot ISYID was already in the predecessor CIL,
+				   so just copy that CIL to the LIM we are processing. */
+	      CIL_of_LIM (lim_to_process) = predecessor_cil;
+	    }
+	  else if (cil_cmp (new_cil,
+			    Indirect_Completion_Event_CIL_of_AHFA (top_AHFA),
+			    0))
 	    {
-	  @/@, /* Set the CIL for this LIM to the completion CIL.
-	  Otherwise, leave it at the default of |NULL|, which indicated
-	  the LIM is at completion closure. */
+	      /* Set the CIL for this LIM to the completion CIL.
+	         Otherwise, leave it at the default of |NULL|, which indicated
+	         the LIM is at completion closure. */
 	      CIL_of_LIM (lim_to_process) = new_cil;
 	    }
 	}
@@ -9912,8 +10065,7 @@ of the base EIM.
 	for (isyid = (ISYID)min; isyid <= (ISYID) max; isyid++) {
             PIM this_pim = r->t_pim_workarea[isyid];
 	    if (lbv_bit_test(r->t_isy_expected_is_event, isyid)) {
-	      ISY isy = ISY_by_ID(isyid);
-	      XSY xsy = Source_XSY_of_ISY(isy);
+	      XSY xsy = Source_XSY_of_ISYID(isyid);
 	      int_event_new (g, MARPA_EVENT_SYMBOL_EXPECTED, ID_of_XSY(xsy));
 	    }
 	    if (this_pim) postdot_array[postdot_array_ix++] = this_pim;
@@ -12822,7 +12974,7 @@ set the bit) and return 1.
 @<Function definitions@> =
 PRIVATE int tree_or_node_try(TREE tree, ORID or_node_id)
 {
-    return !bv_bit_test_and_set(tree->t_or_node_in_use, (unsigned int)or_node_id);
+    return !bv_bit_test_then_set(tree->t_or_node_in_use, (unsigned int)or_node_id);
 }
 @ Release the and-node by unsetting its bit.
 @<Function definitions@> =
@@ -13720,17 +13872,15 @@ for the rule.
 	    Arg_0_of_V (v) = ++Arg_N_of_V (v);
 	    if (token_type == VALUED_TOKEN_OR_NODE)
 	      {
-		const ISY token_isy = ISY_by_ID (token_isyid);
 		const OR predecessor = Predecessor_OR_of_AND (and_node);
-		XSYID_of_V (v) = ID_of_XSY (Source_XSY_of_ISY (token_isy));
+		XSYID_of_V (v) = ID_of_XSY (Source_XSY_of_ISYID (token_isyid));
 		Token_Start_of_V (v) =
 		  predecessor ? ES_Ord_of_OR (predecessor) : Origin_Ord_of_OR (or);
 		Token_Value_of_V (v) = Value_of_TOK (token);
 	      }
 	    else if (token_type == NULLING_TOKEN_OR_NODE)
 	      {
-		const ISY token_isy = ISY_by_ID (token_isyid);
-		const XSY source_xsy = Source_XSY_of_ISY(token_isy);
+		const XSY source_xsy = Source_XSY_of_ISYID(token_isyid);
 		const XSYID source_xsy_id = ID_of_XSY(source_xsy);
 		if (bv_bit_test (XSY_is_Valued_BV_of_V (v), source_xsy_id))
 		  {
@@ -13792,225 +13942,6 @@ for the rule.
 	if ( Token_Type_of_V(v) != DUMMY_OR_NODE ) break;
 	if ( V_is_Trace(v)) break;
     }
-}
-
-@** Counted integer lists (CIL).
-As a structure,
-almost not worth bothering with,
-if it were not for its use in CILAR's.
-The first |int| is a count, and purists might insist
-on a struct instead of an array.
-A struct would reflect the logical structure more
-accurately.
-But would it make the actual code 
-less readable, not more,
-which I believe has to be the object.
-@d Count_of_CIL(cil) (cil[0])
-@d Item_of_CIL(cil, ix) (cil[1+(ix)])
-@d Sizeof_CIL(ix) (sizeof(int) * (1+(ix)))
-@ @<Private typedefs@> =
-typedef int* CIL;
-
-@** Counted integer list arena (CILAR).
-These implement an especially efficient memory allocation scheme.
-Libmarpa needs many copies of integer lists,
-where the integers are symbol ID's, rule ID's, etc.
-The same ones are used again and again.
-The CILAR allows them to be allocated once and reused.
-\par
-The CILAR is a software implementation
-of memory which is both random-access
-and content-addressable.
-Content-addressability saves space -- when the
-contents are identical they can be reused.
-The content-addressability is implemented in software
-(as an AVL).
-While lookup is not slow
-the intention is that the content-addressability will used
-infrequently --
-once created or found the CIL will be memoized
-for random-access through a pointer.
-
-@ An obstack for the actual data, and a tree
-for the lookups.
-@<Private utility structures@> =
-struct s_cil_arena {
-    struct obstack* t_obs;
-    AVL_TREE t_avl;
-};
-typedef struct s_cil_arena CILAR_Object;
-
-@ @<Private incomplete structures@> =
-struct s_cil_arena;
-@ @<Private typedefs@> =
-typedef struct s_cil_arena* CILAR;
-@ @<Function definitions@> =
-PRIVATE void
-cilar_init (const CILAR cilar)
-{
-  cilar->t_obs = my_obstack_init;
-  cilar->t_avl = _marpa_avl_create (cil_cmp, NULL, 0);
-}
-@ @<Function definitions@> =
-PRIVATE void cilar_destroy(const CILAR cilar)
-{
-  _marpa_avl_destroy (cilar->t_avl );
-  my_obstack_free(cilar->t_obs);
-}
-@ Returns a pointer to a CIL that is identical
-to the CIL-in-progress --
-the one being built on the obstack.
-The returned CIL will be in memory that will
-persist for the life of the CILAR.
-If the CIL-in-progress already exists in the CILAR,
-it is rejected and a pointer to the already existing
-CIL is returned.
-If
-the CIL-in-progress does not already exist in the CILAR,
-the CIL-in-progress is added to the CILAR,
-and a pointer to the CIL-in-progress is returned.
-@<Function definitions@> =
-PRIVATE CIL cil_finish(CILAR cilar)
-{
-    CIL cil_in_progress = (CIL)my_obstack_base(cilar->t_obs);
-    CIL found_cil = _marpa_avl_insert (cilar->t_avl, cil_in_progress);
-    if (found_cil) {
-        my_obstack_reject (cilar->t_obs);
-	return found_cil;
-    }
-    return (CIL)my_obstack_finish(cilar->t_obs);
-}
-
-@ Confirm the size of an CIL, and return a pointer to it.
-It is up to the caller to ensure that this CIL was the
-subject of a previous |cil_reserve| call, with
-a length greater than or equal to that of the current one.
-@<Function definitions@> =
-PRIVATE CIL cil_confirm(CILAR cilar, int length)
-{
-    CIL cil;
-    my_obstack_confirm_fast(cilar->t_obs, sizeof(int)*(length+1));
-    cil = (CIL)my_obstack_base(cilar->t_obs);
-    Count_of_CIL(cil) = length;
-    return cil;
-}
-
-@ Reserve room for a CIL, and return a pointer to it.
-@<Function definitions@> =
-PRIVATE CIL cil_reserve(CILAR cilar, int length)
-{
-    CIL cil;
-    my_obstack_reserve(cilar->t_obs, sizeof(int)*(length+1));
-    cil = (CIL)my_obstack_base(cilar->t_obs);
-    Count_of_CIL(cil) = length;
-    return cil;
-}
-
-@ Return the empty CIL from a CILAR.
-@<Function definitions@> =
-PRIVATE CIL cil_empty(CILAR cilar)
-{
-    cil_reserve(cilar, 0);
-    return cil_finish (cilar);
-}
-
-@ Return a singleton CIL from a CILAR.
-@<Function definitions@> =
-PRIVATE CIL cil_singleton(CILAR cilar, int element)
-{
-  CIL new_cil = cil_reserve (cilar, 1);
-  Item_of_CIL (new_cil, 0) = element;
-  return cil_finish (cilar);
-}
-
-@ Merge two CIL's into a new one.
-Merging a single int into a CIL is a common
-special-case, but for now we do not think the
-optimization is worth it.
-Also, this method trades unneeded obstack block
-allocations for CPU speed.
-In the usual case,
-the size of the merged CIL
-is a tiny fraction of the size of the obstack's
-memory blocks,
-the extra allocations are rare
-and
-the memory fragmentation minimal,
-while the CPU saving is substantial.
-If larger CIL's are common,
-this routine could be rewritten
-(or the obstack's memory blocks could simply be
-increased in size.)
-@<Function definitions@> =
-PRIVATE CIL cil_merge(CILAR cilar, CIL cil1, CIL cil2)
-{
-  const int cil1_count = Count_of_CIL (cil1);
-  const int cil2_count = Count_of_CIL (cil2);
-  CIL new_cil = cil_reserve (cilar, cil1_count+cil2_count);
-  int new_cil_ix = 0;
-  int cil1_ix = 0;
-  int cil2_ix = 0;
-  while (cil1_ix < cil1_count && cil2_ix < cil2_count)
-    {
-      const int item1 = Item_of_CIL (cil1, cil1_ix);
-      const int item2 = Item_of_CIL (cil2, cil2_ix);
-      if (item1 < item2)
-	{
-	  Item_of_CIL (new_cil, new_cil_ix) = item1;
-	  cil1_ix++;
-	  new_cil_ix++;
-	  continue;
-	}
-      if (item2 < item1)
-	{
-	  Item_of_CIL (new_cil, new_cil_ix) = item2;
-	  cil2_ix++;
-	  new_cil_ix++;
-	  continue;
-	}
-      Item_of_CIL (new_cil, new_cil_ix) = item1;
-      cil1_ix++;
-      cil2_ix++;
-      new_cil_ix++;
-    }
-  while (cil1_ix < cil1_count ) {
-      const int item1 = Item_of_CIL (cil1, cil1_ix);
-      Item_of_CIL (new_cil, new_cil_ix) = item1;
-      cil1_ix++;
-      new_cil_ix++;
-  }
-  while (cil2_ix < cil2_count ) {
-      const int item2 = Item_of_CIL (cil2, cil2_ix);
-      Item_of_CIL (new_cil, new_cil_ix) = item2;
-      cil2_ix++;
-      new_cil_ix++;
-  }
-  cil_confirm (cilar, new_cil_ix);
-  return cil_finish (cilar);
-}
-
-@ @<Function definitions@> =
-PRIVATE_NOT_INLINE int
-cil_cmp (const void *ap, const void *bp, void *param @,@, UNUSED)
-{
-  int ix;
-  CIL cil1 = (CIL) ap;
-  CIL cil2 = (CIL) bp;
-  int count1 = Count_of_CIL (cil1);
-  int count2 = Count_of_CIL (cil2);
-  if (count1 != count2)
-    {
-      return count1 > count2 ? 1 : -1;
-    }
-  for (ix = 0; ix < count1; ix++)
-    {
-      const int item1 = Item_of_CIL (cil1, ix);
-      const int item2 = Item_of_CIL (cil2, ix);
-      if (item1 == item2)
-	continue;
-      return item1 > item2 ? 1 : -1;
-    }
-  return 0;
 }
 
 @** Lightweight boolean vectors (LBV).
@@ -14301,10 +14232,13 @@ PRIVATE int bv_bit_test(Bit_Vector vector, unsigned int bit)
 }
 
 @*0 Test and set a boolean vector bit.
-Ensure that a bit is set and returning its value to the call.
+Ensure that a bit is set.
+Return its previous value to the call,
+so that the return value is 1 if the call had no effect,
+zero otherwise.
 @<Function definitions@> =
 PRIVATE int
-bv_bit_test_and_set (Bit_Vector vector, unsigned int bit)
+bv_bit_test_then_set (Bit_Vector vector, unsigned int bit)
 {
   Bit_Vector addr = vector + (bit / bv_wordbits);
   unsigned int mask = bv_lsb << (bit % bv_wordbits);
@@ -14596,14 +14530,13 @@ typedef struct s_bit_matrix* Bit_Matrix;
 This is {\bf not} the case with vectors, whose pointer is offset for
 the ``hidden words".
 @<Function definitions@> =
-PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns)
+PRIVATE Bit_Matrix matrix_buffer_create(void *buffer, unsigned int rows, unsigned int columns)
 {
     unsigned int row;
     const unsigned int bv_data_words = bv_bits_to_size(columns);
-    const unsigned int row_bytes = (bv_data_words + bv_hiddenwords) * sizeof(Bit_Vector_Word);
     const unsigned int bv_mask = bv_bits_to_unused_mask(columns);
-    const int sizeof_matrix = offsetof (struct s_bit_matrix, t_row_data) + (rows) * row_bytes;
-    Bit_Matrix matrix_addr = my_obstack_alloc(obs, sizeof_matrix);
+
+    Bit_Matrix matrix_addr = buffer;
     matrix_addr->t_row_count = rows;
     for (row = 0; row < rows; row++) {
 	const unsigned int row_start = row*(bv_data_words+bv_hiddenwords);
@@ -14615,6 +14548,24 @@ PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, uns
 	while (data_word_counter--) *p_current_word++ = 0;
     }
     return matrix_addr;
+}
+
+@*0 Size a boolean matrix in bytes.
+@ @<Function definitions@> =
+PRIVATE size_t matrix_sizeof(unsigned int rows, unsigned int columns)
+{
+    const unsigned int bv_data_words = bv_bits_to_size(columns);
+    const unsigned int row_bytes = (bv_data_words + bv_hiddenwords) * sizeof(Bit_Vector_Word);
+    return offsetof (struct s_bit_matrix, t_row_data) + (rows) * row_bytes;
+}
+
+@*0 Create a boolean matrix on an obstack.
+@ @<Function definitions@> =
+PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns)
+{
+  Bit_Matrix matrix_addr =
+    my_obstack_alloc (obs, matrix_sizeof (rows, columns));
+  return matrix_buffer_create (matrix_addr, rows, columns);
 }
 
 @*0 Clear a boolean matrix.
@@ -14772,20 +14723,13 @@ to a size convenient for the memory allocator.
 Right now this is hard-wired to 1024, but I should
 use the better calculation made by the obstack code.
 @d DSTACK_DECLARE(this) struct s_dstack this
-@d DSTACK_INIT2(this, type)
-(
-    ((this).t_count = 0),
-    ((sizeof(this)/1024 <= 0)
-         ? (((this).t_capacity = 1), ((this).t_base = my_malloc(sizeof(this))))
-         : (((this).t_capacity = sizeof(this)/1024),
-	     ((this).t_base = my_malloc(1024)))
-     )
-)
 @d DSTACK_INIT(this, type, initial_size)
 (
     ((this).t_count = 0),
     ((this).t_base = my_new(type, ((this).t_capacity = (initial_size))))
 )
+@d DSTACK_INIT2(this, type)
+    DSTACK_INIT((this), type, MAX(4, 1024/sizeof(this)))
 
 @ |DSTACK_SAFE| is for cases where the dstack is not
 immediately initialized to a useful value,
@@ -14808,7 +14752,7 @@ resizings unnecessary.
 @d DSTACK_CLEAR(this) ((this).t_count = 0)
 @d DSTACK_PUSH(this, type) (
       (UNLIKELY((this).t_count >= (this).t_capacity)
-      ? dstack_resize(&(this), sizeof(type))
+      ? dstack_resize2(&(this), sizeof(type))
       : 0),
      ((type *)(this).t_base+(this).t_count++)
    )
@@ -14838,11 +14782,24 @@ struct s_dstack { int t_count; int t_capacity; void * t_base; };
 @ Not inline because |DSTACK|'s should be initialized so that
 resizings are uncommon or even exceptional events.
 @<Function definitions@> =
-PRIVATE_NOT_INLINE void * dstack_resize(struct s_dstack* this, size_t type_bytes)
+PRIVATE_NOT_INLINE void * dstack_resize2(struct s_dstack* this, size_t type_bytes)
 {
-    this->t_capacity *= 2;
-    this->t_base = my_realloc(this->t_base, this->t_capacity*type_bytes);
-    return this->t_base;
+    return dstack_resize(this, type_bytes, this->t_capacity*2);
+}
+
+@ Not inline because |DSTACK|'s should be initialized so that
+resizings are uncommon or even exceptional events.
+@d DSTACK_RESIZE(this, type, new_size) (dstack_resize((this), sizeof(type), (new_size)))
+@<Function definitions@> =
+PRIVATE void * dstack_resize(struct s_dstack* this, size_t type_bytes, int new_size)
+{
+  if (new_size > this->t_capacity)
+    {				/* We do not shrink the stack
+				   in this method */
+      this->t_capacity = new_size;
+      this->t_base = my_realloc (this->t_base, new_size * type_bytes);
+    }
+  return this->t_base;
 }
 
 @*0 Dynamic queues.
@@ -14871,6 +14828,324 @@ struct s_dqueue;
 typedef struct s_dqueue* DQUEUE;
 @ @<Private structures@> =
 struct s_dqueue { int t_current; struct s_dstack t_stack; };
+
+@** Counted integer lists (CIL).
+As a structure,
+almost not worth bothering with,
+if it were not for its use in CILAR's.
+The first |int| is a count, and purists might insist
+on a struct instead of an array.
+A struct would reflect the logical structure more
+accurately.
+But would it make the actual code 
+less readable, not more,
+which I believe has to be the object.
+@d Count_of_CIL(cil) (cil[0])
+@d Item_of_CIL(cil, ix) (cil[1+(ix)])
+@d Sizeof_CIL(ix) (sizeof(int) * (1+(ix)))
+@ @s CIL int
+@<Private typedefs@> =
+typedef int* CIL;
+
+@** Counted integer list arena (CILAR).
+These implement an especially efficient memory allocation scheme.
+Libmarpa needs many copies of integer lists,
+where the integers are symbol ID's, rule ID's, etc.
+The same ones are used again and again.
+The CILAR allows them to be allocated once and reused.
+\par
+The CILAR is a software implementation
+of memory which is both random-access
+and content-addressable.
+Content-addressability saves space -- when the
+contents are identical they can be reused.
+The content-addressability is implemented in software
+(as an AVL).
+While lookup is not slow
+the intention is that the content-addressability will used
+infrequently --
+once created or found the CIL will be memoized
+for random-access through a pointer.
+
+@ An obstack for the actual data, and a tree
+for the lookups.
+@<Private utility structures@> =
+struct s_cil_arena {
+    struct obstack* t_obs;
+    AVL_TREE t_avl;
+    DSTACK_DECLARE(t_buffer);
+};
+typedef struct s_cil_arena CILAR_Object;
+
+@ @<Private incomplete structures@> =
+struct s_cil_arena;
+@ @s CILAR int
+@<Private typedefs@> =
+typedef struct s_cil_arena* CILAR;
+@
+{\bf To Do}: @^To Do@> The initial capacity of the CILAR dstack
+is absurdly small, in order to test the logic during development.
+Once things settle, |DSTACK_INIT| should be changed to
+|DSTACK_INIT2|.
+@d CAPACITY_OF_CILAR(cilar) (CAPACITY_OF_DSTACK(cilar->t_buffer)-1)
+@<Function definitions@> =
+PRIVATE void
+cilar_init (const CILAR cilar)
+{
+  cilar->t_obs = my_obstack_init;
+  cilar->t_avl = _marpa_avl_create (cil_cmp, NULL, 0);
+  DSTACK_INIT(cilar->t_buffer, int, 2);
+  *DSTACK_INDEX(cilar->t_buffer, int, 0) = 0;
+}
+@
+{\bf To Do}: @^To Do@> The initial capacity of the CILAR dstack
+is absurdly small, in order to test the logic during development.
+Once things settle, |DSTACK_INIT| should be changed to
+|DSTACK_INIT2|.
+@<Function definitions@> =
+PRIVATE void
+cilar_reinit (const CILAR cilar)
+{
+  DSTACK_DESTROY(cilar->t_buffer);
+  DSTACK_INIT(cilar->t_buffer, int, 2);
+  *DSTACK_INDEX(cilar->t_buffer, int, 0) = 0;
+}
+
+@ @<Function definitions@> =
+PRIVATE void cilar_destroy(const CILAR cilar)
+{
+  _marpa_avl_destroy (cilar->t_avl );
+  my_obstack_free(cilar->t_obs);
+  DSTACK_DESTROY((cilar->t_buffer));
+}
+
+@ Return the empty CIL from a CILAR.
+@<Function definitions@> =
+PRIVATE CIL cil_empty(CILAR cilar)
+{
+  CIL cil = DSTACK_BASE (cilar->t_buffer, int);	/* We assume there is enough room */
+  Count_of_CIL(cil) = 0;
+  return cil_buffer_add (cilar);
+}
+
+@ Return a singleton CIL from a CILAR.
+@<Function definitions@> =
+PRIVATE CIL cil_singleton(CILAR cilar, int element)
+{
+  CIL cil = DSTACK_BASE (cilar->t_buffer, int);
+  Count_of_CIL(cil) = 1;
+  Item_of_CIL(cil, 0) = element;
+  /* We assume there is enough room in the CIL buffer for a singleton */
+  return cil_buffer_add (cilar);
+}
+
+@ Add the CIL in the buffer to the
+CILAR.
+This method
+is optimized for the case where the CIL
+is alread in the CIL,
+in which case this method finds the current entry.
+@<Function definitions@> =
+PRIVATE CIL cil_buffer_add(CILAR cilar)
+{
+
+  CIL cil_in_buffer = DSTACK_BASE (cilar->t_buffer, int);
+  CIL found_cil = _marpa_avl_find (cilar->t_avl, cil_in_buffer);
+  if (!found_cil)
+    {
+      int i;
+      const int cil_size_in_ints = Count_of_CIL (cil_in_buffer) + 1;
+      found_cil = my_obstack_new (cilar->t_obs, int, cil_size_in_ints);
+      for (i = 0; i < cil_size_in_ints; i++)
+	{			/* Assumes that the CIL's are |int*| */
+	  found_cil[i] = cil_in_buffer[i];
+	}
+      _marpa_avl_insert (cilar->t_avl, found_cil);
+    }
+  return found_cil;
+}
+
+@ Add a CIL taken from a bit vector
+to the CILAR.
+This method
+is optimized for the case where the CIL
+is already in the CIL,
+in which case this method finds the current entry.
+The CILAR buffer is used,
+so its current contents will be destroyed.
+@<Function definitions@> =
+PRIVATE CIL cil_bv_add(CILAR cilar, Bit_Vector bv)
+{
+  unsigned int min, max, start = 0;
+  cil_buffer_clear (cilar);
+  for (start = 0; bv_scan (bv, start, &min, &max); start = max + 2)
+    {
+      int new_item;
+      for (new_item = (int) min; new_item <= (int) max; new_item++)
+	{
+	  cil_buffer_push (cilar, new_item);
+	}
+    }
+  return cil_buffer_add (cilar);
+}
+
+@ Clear the CILAR buffer.
+@<Function definitions@> =
+PRIVATE void cil_buffer_clear(CILAR cilar)
+{
+  const DSTACK dstack = &cilar->t_buffer;
+  DSTACK_CLEAR(*dstack);
+  *DSTACK_PUSH(*dstack, int) = 0; /* Has same effect as 
+  |Count_of_CIL (cil_in_buffer) = 0|, except that it sets
+  the DSTACK up properly */
+}
+
+@ Push an |int| onto the end of the CILAR buffer.
+It is up to the caller to ensure the buffer is sorted
+when and if added to the CILAR.
+@<Function definitions@> =
+PRIVATE CIL cil_buffer_push(CILAR cilar, int new_item)
+{
+  CIL cil_in_buffer;
+  DSTACK dstack = &cilar->t_buffer;
+  *DSTACK_PUSH (*dstack, int) = new_item;
+  cil_in_buffer = DSTACK_BASE (*dstack, int);	/* Note that the buffer CIL might have been moved
+						   by the |DSTACK_PUSH| */
+  Count_of_CIL (cil_in_buffer)++;
+  return cil_in_buffer;
+}
+
+@ Make sure that the CIL buffer is large enough
+to hold |element_count| elements.
+@<Function definitions@> =
+PRIVATE CIL cil_buffer_reserve(CILAR cilar, int element_count)
+{
+  const int desired_dstack_capacity = element_count + 1;	/* One extra for the count word */
+  const int old_dstack_capacity = DSTACK_CAPACITY (cilar->t_buffer);
+  if (old_dstack_capacity < desired_dstack_capacity)
+    {
+      const int target_capacity =
+	MAX (old_dstack_capacity * 2, desired_dstack_capacity);
+      DSTACK_RESIZE (&(cilar->t_buffer), int, target_capacity);
+    }
+  return DSTACK_BASE (cilar->t_buffer, int);
+}
+
+@ Merge two CIL's into a new one.
+Not used at this point.
+This method trades unneeded obstack block
+allocations for CPU speed.
+@<Function definitions@> =
+PRIVATE CIL cil_merge(CILAR cilar, CIL cil1, CIL cil2)
+{
+  const int cil1_count = Count_of_CIL (cil1);
+  const int cil2_count = Count_of_CIL (cil2);
+  CIL new_cil = cil_buffer_reserve (cilar, cil1_count+cil2_count);
+  int new_cil_ix = 0;
+  int cil1_ix = 0;
+  int cil2_ix = 0;
+  while (cil1_ix < cil1_count && cil2_ix < cil2_count)
+    {
+      const int item1 = Item_of_CIL (cil1, cil1_ix);
+      const int item2 = Item_of_CIL (cil2, cil2_ix);
+      if (item1 < item2)
+	{
+	  Item_of_CIL (new_cil, new_cil_ix) = item1;
+	  cil1_ix++;
+	  new_cil_ix++;
+	  continue;
+	}
+      if (item2 < item1)
+	{
+	  Item_of_CIL (new_cil, new_cil_ix) = item2;
+	  cil2_ix++;
+	  new_cil_ix++;
+	  continue;
+	}
+      Item_of_CIL (new_cil, new_cil_ix) = item1;
+      cil1_ix++;
+      cil2_ix++;
+      new_cil_ix++;
+    }
+  while (cil1_ix < cil1_count ) {
+      const int item1 = Item_of_CIL (cil1, cil1_ix);
+      Item_of_CIL (new_cil, new_cil_ix) = item1;
+      cil1_ix++;
+      new_cil_ix++;
+  }
+  while (cil2_ix < cil2_count ) {
+      const int item2 = Item_of_CIL (cil2, cil2_ix);
+      Item_of_CIL (new_cil, new_cil_ix) = item2;
+      cil2_ix++;
+      new_cil_ix++;
+  }
+  Count_of_CIL(new_cil) = new_cil_ix;
+  return cil_buffer_add (cilar);
+}
+
+@ Merge |int new_element| into an
+a CIL already in the CILAR.
+Optimized for the case where the CIL already includes
+|new_element|,
+in which case it returns |NULL|.
+@<Function definitions@> =
+PRIVATE CIL cil_merge_one(CILAR cilar, CIL cil, int new_element)
+{
+  const int cil_count = Count_of_CIL (cil);
+  CIL new_cil = cil_buffer_reserve (cilar, cil_count + 1);
+  int new_cil_ix = 0;
+  int cil_ix = 0;
+  while (cil_ix < cil_count)
+    {
+      const int cil_item = Item_of_CIL (cil, cil_ix);
+      if (cil_item == new_element)
+	{
+	  /* |new_element| is already in |cil|, so we just return |cil|.
+	     It is OK to abandon the CIL in progress */
+	  return NULL;
+	}
+      if (cil_item > new_element)
+	break;
+      Item_of_CIL (new_cil, new_cil_ix) = cil_item;
+      cil_ix++;
+      new_cil_ix++;
+    }
+  Item_of_CIL (new_cil, new_cil_ix) = new_element;
+  new_cil_ix++;
+  while (cil_ix < cil_count)
+    {
+      const int cil_item = Item_of_CIL (cil, cil_ix);
+      Item_of_CIL (new_cil, new_cil_ix) = cil_item;
+      cil_ix++;
+      new_cil_ix++;
+    }
+  Count_of_CIL (new_cil) = new_cil_ix;
+  return cil_buffer_add (cilar);
+}
+
+@ @<Function definitions@> =
+PRIVATE_NOT_INLINE int
+cil_cmp (const void *ap, const void *bp, void *param @,@, UNUSED)
+{
+  int ix;
+  CIL cil1 = (CIL) ap;
+  CIL cil2 = (CIL) bp;
+  int count1 = Count_of_CIL (cil1);
+  int count2 = Count_of_CIL (cil2);
+  if (count1 != count2)
+    {
+      return count1 > count2 ? 1 : -1;
+    }
+  for (ix = 0; ix < count1; ix++)
+    {
+      const int item1 = Item_of_CIL (cil1, ix);
+      const int item2 = Item_of_CIL (cil2, ix);
+      if (item1 == item2)
+	continue;
+      return item1 > item2 ? 1 : -1;
+    }
+  return 0;
+}
 
 @** Per-Earley-set list (PSL) code.
 There are several cases where Marpa needs to

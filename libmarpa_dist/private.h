@@ -58,12 +58,12 @@ static int report_item_cmp (
     const void* ap,
     const void* bp,
     void *param  UNUSED);
-static int
-cil_cmp (const void *ap, const void *bp, void *param  UNUSED);
 static int bv_scan(Bit_Vector bv, unsigned int start,
                                     unsigned int* min, unsigned int* max);
 static void transitive_closure(Bit_Matrix matrix);
-static void * dstack_resize(struct s_dstack* this, size_t type_bytes);
+static void * dstack_resize2(struct s_dstack* this, size_t type_bytes);
+static int
+cil_cmp (const void *ap, const void *bp, void *param  UNUSED);
 static void*
 _marpa_default_out_of_memory(void);
 static void
@@ -202,15 +202,6 @@ value_ref (VALUE v);
 static inline void value_free(VALUE v);
 static inline int symbol_is_valued_set (
     VALUE v, XSYID xsy_id, int value);
-static inline void
-cilar_init (const CILAR cilar);
-static inline void cilar_destroy(const CILAR cilar);
-static inline CIL cil_finish(CILAR cilar);
-static inline CIL cil_confirm(CILAR cilar, int length);
-static inline CIL cil_reserve(CILAR cilar, int length);
-static inline CIL cil_empty(CILAR cilar);
-static inline CIL cil_singleton(CILAR cilar, int element);
-static inline CIL cil_merge(CILAR cilar, CIL cil1, CIL cil2);
 static inline int lbv_bits_to_size(int bits);
 static inline Bit_Vector
 lbv_obs_new (struct obstack *obs, int bits);
@@ -240,7 +231,7 @@ static inline void bv_bit_set(Bit_Vector vector, unsigned int bit);
 static inline void bv_bit_clear(Bit_Vector vector, unsigned int bit);
 static inline int bv_bit_test(Bit_Vector vector, unsigned int bit);
 static inline int
-bv_bit_test_and_set (Bit_Vector vector, unsigned int bit);
+bv_bit_test_then_set (Bit_Vector vector, unsigned int bit);
 static inline int bv_is_empty(Bit_Vector addr);
 static inline void bv_not(Bit_Vector X, Bit_Vector Y);
 static inline void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z);
@@ -250,6 +241,8 @@ static inline unsigned int
 bv_count (Bit_Vector v);
 static inline void
 rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym);
+static inline Bit_Matrix matrix_buffer_create(void *buffer, unsigned int rows, unsigned int columns);
+static inline size_t matrix_sizeof(unsigned int rows, unsigned int columns);
 static inline Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns);
 static inline void matrix_clear(Bit_Matrix matrix);
 static inline int matrix_columns(Bit_Matrix matrix);
@@ -257,6 +250,21 @@ static inline Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
 static inline void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int column);
+static inline void * dstack_resize(struct s_dstack* this, size_t type_bytes, int new_size);
+static inline void
+cilar_init (const CILAR cilar);
+static inline void
+cilar_reinit (const CILAR cilar);
+static inline void cilar_destroy(const CILAR cilar);
+static inline CIL cil_empty(CILAR cilar);
+static inline CIL cil_singleton(CILAR cilar, int element);
+static inline CIL cil_buffer_add(CILAR cilar);
+static inline CIL cil_bv_add(CILAR cilar, Bit_Vector bv);
+static inline void cil_buffer_clear(CILAR cilar);
+static inline CIL cil_buffer_push(CILAR cilar, int new_item);
+static inline CIL cil_buffer_reserve(CILAR cilar, int element_count);
+static inline CIL cil_merge(CILAR cilar, CIL cil1, CIL cil2);
+static inline CIL cil_merge_one(CILAR cilar, CIL cil, int new_element);
 static inline void
 psar_init (const PSAR psar, int length);
 static inline void psar_destroy(const PSAR psar);
