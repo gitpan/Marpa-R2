@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.057_001';
+$VERSION        = '2.057_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1284,6 +1284,13 @@ sub Marpa::R2::Scanless::R::line_column {
         $pos = $stream->pos();
     }
     return $thin_slr->line_column($pos);
+}
+
+# Internal methods, not to be documented
+
+sub Marpa::R2::Scanless::G::thick_g1_grammar {
+    my ($slg) = @_;
+    return $slg->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
 }
 
 1;
