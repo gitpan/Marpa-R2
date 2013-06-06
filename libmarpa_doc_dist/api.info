@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (4 June 2013) is for Libmarpa 5.157.102.
+This manual (6 June 2013) is for Libmarpa 5.157.103.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (4 June 2013) is for Libmarpa 5.157.102.
+This manual (6 June 2013) is for Libmarpa 5.157.103.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -1418,6 +1418,42 @@ File: api.info,  Node: Symbols,  Next: Rules,  Prev: Grammar reference counting,
      Failures: If SYM_ID is well-formed, but there is no such symbol,
      -1.  if the grammar G is precomputed; or on other failure, -2.
 
+ -- Function: int marpa_g_symbol_is_nulled_event ( Marpa_Grammar G,
+          Marpa_Symbol_ID SYM_ID)
+ -- Function: int marpa_g_symbol_is_nulled_event_set ( Marpa_Grammar G,
+          Marpa_Symbol_ID SYM_ID, int VALUE)
+     Libmarpa can generate an `MARPA_EVENT_SYMBOL_NULLED' event
+     whenever the symbol is nulled.  A symbol is said to be *nulled*
+     when a zero length instance of that symbol is recognized.
+
+     For nulled events to occur, the symbol must be marked as a nulled
+     event symbol.  The `marpa_g_symbol_is_nulled_event_set()' function
+     marks symbol SYM_ID as a nulled event symbol if VALUE is 1, and
+     unmarks it it as a nulled event symbol if VALUE is 0.  The
+     `marpa_g_symbol_is_nulled_event()' method returns the current
+     value of the nulled event marking for symbol SYM_ID.
+
+     When a symbol is recognized, it can generate a nulled event or a
+     completion event, but recognition of a single instance of a symbol
+     will generate at most one or the other event - never both.
+     Symbols recognized as zero length can only generate nulled events.
+     Symbols recognized as non-zero in length can only generate
+     completed events.
+
+     Zero length derivations can be ambiguous.  When a zero length
+     symbol is recognized, all of its zero-length derviations are also
+     considered to be recognized.
+
+     The nulled event marking cannot be changed once the grammar is
+     precomputed.  However, if a symbol is marked as a nulled event
+     symbol, it can be deactivated and reactivated in the recognizer.
+
+     Success: On success, 1 if symbol SYM_ID is a nulled event symbol
+     after the call, 0 otherwise.
+
+     Failures: If SYM_ID is well-formed, but there is no such symbol,
+     -1.  if the grammar G is precomputed; or on other failure, -2.
+
  -- Function: int marpa_g_symbol_is_nullable ( Marpa_Grammar g,
           Marpa_Symbol_ID sym_id)
      A symbol is "nullable" if it sometimes produces the empty string.
@@ -2281,6 +2317,25 @@ File: api.info,  Node: Untested recognizer methods,  Prev: Other parse status me
      Failure cases: If the active status of the completion event for
      SYM_ID cannot be set as indicated by REACTIVATE, the method fails.
      On failure, -2 is returned.
+
+ -- Function: int marpa_r_nulled_symbol_activate ( Marpa_Recognizer R,
+          Marpa_Symbol_ID SYM_ID, int BOOLEAN )
+     Allows the user to deactivate and reactivate symbol nulled events
+     in the recognizer.  If BOOLEAN is zero, the event is deactivated.
+     If BOOLEAN is one, the event is activated.
+
+     Symbol nulled events are active by default if the symbol was set
+     up for nulled events in the grammar.  If a symbol was not set up
+     for nulled events in the grammar, symbol nulled events are inactive
+     by default and any attempt to change that is a fatal error.
+
+     Success cases: On success, the method returns the value of BOOLEAN.
+     The method succeeds trivially if the symbol is already set as
+     indicated by BOOLEAN.
+
+     Failure cases: If the active status of the nulled event for SYM_ID
+     cannot be set as indicated by BOOLEAN, the method fails.  On
+     failure, -2 is returned.
 
 
 File: api.info,  Node: Progress reports,  Next: Bocage methods,  Prev: Recognizer methods,  Up: Top
@@ -3247,6 +3302,14 @@ File: api.info,  Node: Event codes,  Prev: Event methods,  Up: Events
      Event value: The ID of the expected symbol.  Suggested message:
      "Expecting symbol".
 
+ -- Macro: int MARPA_EVENT_SYMBOL_NULLED
+     The recognizer can be set to generate an event when a symbol is
+     nulled - that is, recognized as a zero-length symbol.  To set an
+     nulled symbol event, use the recognizer's
+     `marpa_r_nulled_symbol_event_set()' method.  This event code
+     indicates that a nulled symbol event occurred.  Event value: The
+     ID of the nulled symbol.  Suggested message: "Symbol was nulled".
+
 
 File: api.info,  Node: Error methods macros and codes,  Next: Design notes,  Prev: Events,  Up: Top
 
@@ -3653,10 +3716,20 @@ codes::.
  -- Macro: int MARPA_ERR_SYMBOL_IS_NOT_COMPLETION_EVENT
      An attempt was made to use a symbol in a way that requires it to be
      set up for completion events, but the symbol was not set set up
-     for completion events.  The archtypal case is an attempt to active
-     completion events for the symbol in the recognizer.  Numeric
-     value: 92.  Suggested message: "Symbol is not set up for
+     for completion events.  The archtypal case is an attempt to
+     activate completion events for the symbol in the recognizer.  The
+     archtypal case is an attempt to activate a completion event in the
+     recognizer for a symbol that is not set up as a completion event.
+     Numeric value: 92.  Suggested message: "Symbol is not set up for
      completion events".
+
+ -- Macro: int MARPA_ERR_SYMBOL_IS_NOT_NULLED_EVENT
+     An attempt was made to use a symbol in a way that requires it to be
+     set up for nulled events, but the symbol was not set set up for
+     nulled events.  The archtypal case is an attempt to activate a
+     nulled events in the recognizer for a symbol that is not set up as
+     a nulled event.  Numeric value: 93.  Suggested message: "Symbol is
+     not set up for nulled events".
 
  -- Macro: int MARPA_ERR_SYMBOL_VALUED_CONFLICT
      An unvalued symbol may take on any value, and therefore a symbol
@@ -4563,64 +4636,64 @@ Node: Grammar overview49704
 Node: Grammar constructor50748
 Node: Grammar reference counting51601
 Node: Symbols52205
-Node: Rules59442
-Node: Sequences64466
-Node: Ranks68731
-Node: Grammar precomputation70974
-Ref: marpa_g_precompute71175
-Node: Recognizer methods75513
-Node: Recognizer overview75878
-Node: Recognizer constructor76608
-Node: Recognizer reference counting77162
-Node: Recognizer life cycle mutators77973
-Node: Location accessors86318
-Node: Other parse status methods90853
-Node: Untested recognizer methods94443
-Node: Progress reports95602
-Node: Bocage methods99173
-Node: Bocage overview99394
-Node: Bocage constructor99914
-Node: Bocage reference counting100568
-Node: Ordering methods101445
-Node: Ordering overview101697
-Node: Ordering constructor102301
-Node: Ordering reference counting102768
-Node: Non-default ordering103758
-Node: Tree methods104911
-Node: Tree overview105136
-Node: Tree constructor105963
-Node: Tree reference counting106618
-Node: Tree iteration107587
-Node: Value methods108895
-Node: Value overview109333
-Node: How to use the valuator110764
-Node: Advantages of step-driven valuation112735
-Node: Maintaining the stack116405
-Node: Sizing the stack118416
-Node: Initializing locations in the stack120196
-Node: Valuator constructor122392
-Node: Valuator reference counting123243
-Node: Registering semantics124228
-Node: Stepping through the valuator126162
-Node: Valuator steps by type126928
-Node: Basic step accessors128875
-Node: Other step accessors130741
-Node: Events132287
-Node: Events overview132476
-Node: Event methods133346
-Node: Event codes134531
-Node: Error methods macros and codes136904
-Node: Error methods137173
-Node: Error Macros138000
-Node: External error codes138367
-Node: Internal error codes159196
-Node: Design notes162737
-Node: Why so many time objects163172
-Node: Design of numbered objects164922
-Node: LHS Terminals166161
-Node: Work in Progress166854
-Node: Experimental methods167064
-Node: Untested methods167898
-Node: GNU Free Documentation License170159
+Node: Rules61250
+Node: Sequences66274
+Node: Ranks70539
+Node: Grammar precomputation72782
+Ref: marpa_g_precompute72983
+Node: Recognizer methods77321
+Node: Recognizer overview77686
+Node: Recognizer constructor78416
+Node: Recognizer reference counting78970
+Node: Recognizer life cycle mutators79781
+Node: Location accessors88126
+Node: Other parse status methods92661
+Node: Untested recognizer methods96251
+Node: Progress reports98336
+Node: Bocage methods101907
+Node: Bocage overview102128
+Node: Bocage constructor102648
+Node: Bocage reference counting103302
+Node: Ordering methods104179
+Node: Ordering overview104431
+Node: Ordering constructor105035
+Node: Ordering reference counting105502
+Node: Non-default ordering106492
+Node: Tree methods107645
+Node: Tree overview107870
+Node: Tree constructor108697
+Node: Tree reference counting109352
+Node: Tree iteration110321
+Node: Value methods111629
+Node: Value overview112067
+Node: How to use the valuator113498
+Node: Advantages of step-driven valuation115469
+Node: Maintaining the stack119139
+Node: Sizing the stack121150
+Node: Initializing locations in the stack122930
+Node: Valuator constructor125126
+Node: Valuator reference counting125977
+Node: Registering semantics126962
+Node: Stepping through the valuator128896
+Node: Valuator steps by type129662
+Node: Basic step accessors131609
+Node: Other step accessors133475
+Node: Events135021
+Node: Events overview135210
+Node: Event methods136080
+Node: Event codes137265
+Node: Error methods macros and codes140073
+Node: Error methods140342
+Node: Error Macros141169
+Node: External error codes141536
+Node: Internal error codes162957
+Node: Design notes166498
+Node: Why so many time objects166933
+Node: Design of numbered objects168683
+Node: LHS Terminals169922
+Node: Work in Progress170615
+Node: Experimental methods170825
+Node: Untested methods171659
+Node: GNU Free Documentation License173920
 
 End Tag Table

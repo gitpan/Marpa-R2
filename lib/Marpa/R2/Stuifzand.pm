@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.057_002';
+$VERSION        = '2.057_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -116,6 +116,7 @@ $node_status{single_quoted_string} = "Quoted strings are not allowed";
 $node_status{lexeme_default_statement} = "The lexeme default statement is not allowed";
 $node_status{lexeme_rule} = "Lexeme statements are not allowed";
 $node_status{completion_event_declaration} = "Completion events are not allowed";
+$node_status{nulled_event_declaration} = "Nulled events are not allowed";
 $node_status{array_descriptor} = "Actions in the form of array descriptors are not allowed";
 $node_status{op_declare_match} = "G0 rules are not allowed";
 $node_status{priority_specification} = "The priority adverb is not allowed";
