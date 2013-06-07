@@ -706,7 +706,7 @@ u_read(Unicode_Stream *stream)
 	{
 	  AV *event;
 	  SV *event_data[4];
-	  event_data[0] = newSVpvs (":trace");
+	  event_data[0] = newSVpvs ("'trace");
 	  event_data[1] = newSVpvs ("g0 reading codepoint");
 	  event_data[2] = newSViv ((IV) codepoint);
 	  event_data[3] = newSViv ((IV) stream->perl_pos);
@@ -759,7 +759,7 @@ u_read(Unicode_Stream *stream)
 		      {
 			AV *event;
 			SV *event_data[5];
-			event_data[0] = newSVpvs (":trace");
+			event_data[0] = newSVpvs ("'trace");
 			event_data[1] = newSVpvs ("g0 rejected codepoint");
 			event_data[2] = newSViv ((IV) codepoint);
 			event_data[3] = newSViv ((IV) stream->perl_pos);
@@ -774,7 +774,7 @@ u_read(Unicode_Stream *stream)
 		      {
 			AV *event;
 			SV *event_data[5];
-			event_data[0] = newSVpvs (":trace");
+			event_data[0] = newSVpvs ("'trace");
 			event_data[1] = newSVpvs ("g0 accepted codepoint");
 			event_data[2] = newSViv ((IV) codepoint);
 			event_data[3] = newSViv ((IV) stream->perl_pos);
@@ -1621,7 +1621,7 @@ slr_discard (Scanless_R * slr)
 		{
 		  AV *event;
 		  SV *event_data[5];
-		  event_data[0] = newSVpvs (":trace");
+		  event_data[0] = newSVpvs ("'trace");
 		  event_data[1] = newSVpvs ("discarded lexeme");
 		  /* We do not have the lexeme, but we have the 
 		   * g0 rule.
@@ -1648,7 +1648,7 @@ slr_discard (Scanless_R * slr)
 	    {
 	      AV *event;
 	      SV *event_data[5];
-	      event_data[0] = newSVpvs (":trace");
+	      event_data[0] = newSVpvs ("'trace");
 	      event_data[1] = newSVpvs ("ignored lexeme");
 	      event_data[2] = newSViv (g1_lexeme);
 	      event_data[3] = newSViv (slr->start_of_lexeme);
@@ -1720,6 +1720,18 @@ slr_convert_events (Scanless_R * slr)
 		marpa_g_event_value (&marpa_event);
 	      event_data[0] = newSVpvs ("symbol nulled");
 	      event_data[1] = newSViv (nulled_symbol);
+	      event = av_make (Dim (event_data), event_data);
+	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	    }
+	    break;
+	case MARPA_EVENT_SYMBOL_PREDICTED:
+	    {
+	      AV *event;
+	      SV *event_data[2];
+	      Marpa_Symbol_ID predicted_symbol =
+		marpa_g_event_value (&marpa_event);
+	      event_data[0] = newSVpvs ("symbol predicted");
+	      event_data[1] = newSViv (predicted_symbol);
 	      event = av_make (Dim (event_data), event_data);
 	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
 	    }
@@ -1847,7 +1859,7 @@ slr_alternatives (Scanless_R * slr)
 		    {
 		      AV *event;
 		      SV *event_data[5];
-		      event_data[0] = newSVpvs (":trace");
+		      event_data[0] = newSVpvs ("'trace");
 		      event_data[1] = newSVpvs ("discarded lexeme");
 		      /* We do not have the lexeme, but we have the 
 		       * g0 rule.
@@ -1880,7 +1892,7 @@ slr_alternatives (Scanless_R * slr)
 		    {
 		      AV *event;
 		      SV *event_data[5];
-		      event_data[0] = newSVpvs (":trace");
+		      event_data[0] = newSVpvs ("'trace");
 		      event_data[1] = newSVpvs ("g1 unexpected lexeme");
 		      event_data[2] = newSViv (slr->start_of_lexeme);	/* start */
 		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
@@ -1951,7 +1963,7 @@ slr_alternatives (Scanless_R * slr)
 	    {
 	      AV *event;
 	      SV *event_data[5];
-	      event_data[0] = newSVpvs (":trace");
+	      event_data[0] = newSVpvs ("'trace");
 	      event_data[1] = newSVpvs ("g1 pausing before lexeme");
 	      event_data[2] = newSViv (slr->start_of_pause_lexeme);	/* start */
 	      event_data[3] = newSViv (slr->end_of_pause_lexeme);	/* end */
@@ -2013,7 +2025,7 @@ slr_alternatives (Scanless_R * slr)
 		{
 		  AV *event;
 		  SV *event_data[5];
-		  event_data[0] = newSVpvs (":trace");
+		  event_data[0] = newSVpvs ("'trace");
 		  event_data[1] = newSVpvs ("g1 attempting lexeme");
 		  event_data[2] = newSViv (slr->start_of_lexeme);	/* start */
 		  event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
@@ -2045,7 +2057,7 @@ slr_alternatives (Scanless_R * slr)
 		    {
 		      AV *event;
 		      SV *event_data[5];
-		      event_data[0] = newSVpvs (":trace");
+		      event_data[0] = newSVpvs ("'trace");
 		      event_data[1] = newSVpvs ("g1 duplicate lexeme");
 		      event_data[2] = newSViv (slr->start_of_lexeme);	/* start */
 		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
@@ -2066,7 +2078,7 @@ slr_alternatives (Scanless_R * slr)
 		    {
 		      AV *event;
 		      SV *event_data[5];
-		      event_data[0] = newSVpvs (":trace");
+		      event_data[0] = newSVpvs ("'trace");
 		      event_data[1] = newSVpvs ("g1 accepted lexeme");
 		      event_data[2] = newSViv (slr->start_of_lexeme);	/* start */
 		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
@@ -2111,7 +2123,7 @@ slr_alternatives (Scanless_R * slr)
 		{
 		  AV *event;
 		  SV *event_data[5];
-		  event_data[0] = newSVpvs (":trace");
+		  event_data[0] = newSVpvs ("'trace");
 		  event_data[1] = newSVpvs ("g1 pausing after lexeme");
 		  event_data[2] = newSViv (slr->start_of_pause_lexeme);	/* start */
 		  event_data[3] = newSViv (slr->end_of_pause_lexeme);	/* end */
@@ -2213,7 +2225,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 157
-#define EXPECTED_LIBMARPA_MICRO 103
+#define EXPECTED_LIBMARPA_MICRO 104
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 

@@ -129,6 +129,7 @@ const struct s_marpa_error_description marpa_error_description[] = {
   { 91, "MARPA_ERR_BEFORE_FIRST_TREE", "Tree iterator is before first tree" },
   { 92, "MARPA_ERR_SYMBOL_IS_NOT_COMPLETION_EVENT", "Symbol is not set up for completion events" },
   { 93, "MARPA_ERR_SYMBOL_IS_NOT_NULLED_EVENT", "Symbol is not set up for nulled events" },
+  { 94, "MARPA_ERR_SYMBOL_IS_NOT_PREDICTION_EVENT", "Symbol is not set up for prediction events" },
 };
 const struct s_marpa_event_description marpa_event_description[] = {
   { 0, "MARPA_EVENT_NONE", "No event" },
@@ -140,6 +141,7 @@ const struct s_marpa_event_description marpa_event_description[] = {
   { 6, "MARPA_EVENT_SYMBOL_COMPLETED", "Completed symbol" },
   { 7, "MARPA_EVENT_SYMBOL_EXPECTED", "Expecting symbol" },
   { 8, "MARPA_EVENT_SYMBOL_NULLED", "Symbol was nulled" },
+  { 9, "MARPA_EVENT_SYMBOL_PREDICTED", "Symbol was predicted" },
 };
 const struct s_marpa_step_type_description marpa_step_type_description[] = {
   { 0, "MARPA_STEP_INTERNAL1" },

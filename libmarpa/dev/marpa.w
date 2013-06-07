@@ -958,9 +958,11 @@ can tell if there is a boolean vector to be freed.
 @<Widely aligned grammar elements@> =
   Bit_Vector t_lbv_xsyid_is_completion_event;
   Bit_Vector t_lbv_xsyid_is_nulled_event;
+  Bit_Vector t_lbv_xsyid_is_prediction_event;
 @ @<Initialize grammar elements@> =
   g->t_lbv_xsyid_is_completion_event = NULL;
   g->t_lbv_xsyid_is_nulled_event = NULL;
+  g->t_lbv_xsyid_is_prediction_event = NULL;
 
 @*0 The event stack.
 Events are designed to be fast,
@@ -1578,6 +1580,40 @@ Marpa_Grammar g, Marpa_Symbol_ID xsy_id, int value)
     return failure_indicator;
 }
 
+@*0 XSY is prediction event?.
+@d XSY_is_Prediction_Event(xsy) ((xsy)->t_is_prediction_event)
+@d XSYID_is_Prediction_Event(xsyid) XSY_is_Prediction_Event(XSY_by_ID(xsyid))
+@<Bit aligned XSY elements@> = unsigned int t_is_prediction_event:1;
+@ @<Initialize XSY elements@> =
+xsy->t_is_prediction_event = 0;
+@ @<Function definitions@> =
+int marpa_g_symbol_is_prediction_event(Marpa_Grammar g,
+Marpa_Symbol_ID xsy_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if |xsy_id| is malformed@>@;
+    @<Soft fail if |xsy_id| does not exist@>@;
+    return XSYID_is_Prediction_Event(xsy_id);
+}
+@ @<Function definitions@> =
+int marpa_g_symbol_is_prediction_event_set(
+Marpa_Grammar g, Marpa_Symbol_ID xsy_id, int value)
+{
+    XSY xsy;
+    @<Return |-2| on failure@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if precomputed@>@;
+    @<Fail if |xsy_id| is malformed@>@;
+    @<Soft fail if |xsy_id| does not exist@>@;
+    xsy = XSY_by_ID (xsy_id);
+    switch (value) {
+    case 0: case 1:
+      return XSY_is_Prediction_Event (xsy) = value;
+    }
+    MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+    return failure_indicator;
+}
 
 @ @<Function definitions@> =
 @*0 Nulled XSYIDs.
@@ -6377,6 +6413,7 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
   int xsyid;
   g->t_lbv_xsyid_is_completion_event = bv_obs_create (g->t_obs, xsy_count);
   g->t_lbv_xsyid_is_nulled_event = bv_obs_create (g->t_obs, xsy_count);
+  g->t_lbv_xsyid_is_prediction_event = bv_obs_create (g->t_obs, xsy_count);
   for (xsyid = 0; xsyid < xsy_count; xsyid++)
     {
       if (XSYID_is_Completion_Event (xsyid))
@@ -6386,6 +6423,10 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
       if (XSYID_is_Nulled_Event (xsyid))
 	{
 	  lbv_bit_set (g->t_lbv_xsyid_is_nulled_event, xsyid);
+	}
+      if (XSYID_is_Prediction_Event (xsyid))
+	{
+	  lbv_bit_set (g->t_lbv_xsyid_is_prediction_event, xsyid);
 	}
     }
 }
@@ -6472,7 +6513,8 @@ if (raw_position < 0)
       const AHFA ahfa = AHFA_by_ID (ahfa_id);
       const int ahfa_is_event =
 	Count_of_CIL (Completion_XSYIDs_of_AHFA (ahfa))
-	|| Count_of_CIL (Nulled_XSYIDs_of_AHFA (ahfa));
+	|| Count_of_CIL (Nulled_XSYIDs_of_AHFA (ahfa))
+	|| Count_of_CIL (Prediction_XSYIDs_of_AHFA (ahfa));
       Event_AHFAIDs_of_AHFA (ahfa) =
 	ahfa_is_event ? cil_singleton (cilar, ahfa_id) : cil_empty (cilar);
     }
@@ -6807,11 +6849,13 @@ considered reasonable.
 @ @<Widely aligned recognizer elements@> =
 Bit_Vector t_lbv_xsyid_completion_event_is_active;
 Bit_Vector t_lbv_xsyid_nulled_event_is_active;
+Bit_Vector t_lbv_xsyid_prediction_event_is_active;
 @ @<Int aligned recognizer elements@> =
 int t_active_event_count;
 @ @<Initialize recognizer elements@> =
 r->t_lbv_xsyid_completion_event_is_active = NULL;
 r->t_lbv_xsyid_nulled_event_is_active = NULL;
+r->t_lbv_xsyid_prediction_event_is_active = NULL;
 r->t_active_event_count = 0;
 
 @*0 Expected symbol boolean vector.
@@ -6996,6 +7040,51 @@ int marpa_r_nulled_symbol_activate(Marpa_Recognizer r, Marpa_Symbol_ID xsy_id, i
 	}
 	if (!lbv_bit_test(r->t_lbv_xsyid_nulled_event_is_active, xsy_id)) {
 	  lbv_bit_set(r->t_lbv_xsyid_nulled_event_is_active, xsy_id) ;
+	  r->t_active_event_count++;
+	}
+        return 1;
+    }
+    MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+    return failure_indicator;
+}
+
+@*0 Deactivate and reactivate symbol prediction events.
+@ Allows a recognizer to deactivate and
+reactivate symbol prediction events.
+A |boolean| value of 1 indicates reactivate,
+a boolean value of 0 indicates deactivate.
+To be reactivated, the symbol must have been
+set up for prediction events in the grammar.
+Success occurs non-trivially
+if the bit can be set to the new value.
+Success occurs
+trivially if it was already set as specified.
+Any other result is a failure.
+On success, returns the new value.
+Returns |-2| if there was a failure.
+@<Function definitions@> =
+int marpa_r_prediction_symbol_activate(Marpa_Recognizer r, Marpa_Symbol_ID xsy_id, int reactivate)
+{
+    @<Return |-2| on failure@>@;
+    @<Unpack recognizer objects@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if |xsy_id| is malformed@>@;
+    @<Soft fail if |xsy_id| does not exist@>@;
+    switch (reactivate) {
+    case 0:
+	if (lbv_bit_test(r->t_lbv_xsyid_prediction_event_is_active, xsy_id)) {
+	  lbv_bit_clear(r->t_lbv_xsyid_prediction_event_is_active, xsy_id) ;
+	  r->t_active_event_count--;
+	}
+        return 0;
+    case 1:
+	if (!lbv_bit_test(g->t_lbv_xsyid_is_prediction_event, xsy_id)) {
+	  /* An attempt to activate a prediction event on a symbol which
+	  was not set up for them. */
+	  MARPA_ERROR (MARPA_ERR_SYMBOL_IS_NOT_PREDICTION_EVENT);
+	}
+	if (!lbv_bit_test(r->t_lbv_xsyid_prediction_event_is_active, xsy_id)) {
+	  lbv_bit_set(r->t_lbv_xsyid_prediction_event_is_active, xsy_id) ;
 	  r->t_active_event_count++;
 	}
         return 1;
@@ -8988,9 +9077,12 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
       lbv_clone (r->t_obs, g->t_lbv_xsyid_is_completion_event, xsy_count);
     r->t_lbv_xsyid_nulled_event_is_active =
       lbv_clone (r->t_obs, g->t_lbv_xsyid_is_nulled_event, xsy_count);
+    r->t_lbv_xsyid_prediction_event_is_active =
+      lbv_clone (r->t_obs, g->t_lbv_xsyid_is_prediction_event, xsy_count);
     r->t_active_event_count =
       bv_count ( g->t_lbv_xsyid_is_completion_event)
-      + bv_count ( g->t_lbv_xsyid_is_nulled_event) ;
+      + bv_count ( g->t_lbv_xsyid_is_nulled_event) 
+      + bv_count ( g->t_lbv_xsyid_is_prediction_event) ;
     Input_Phase_of_R(r) = R_DURING_INPUT;
     psar_reset(Dot_PSAR_of_R(r));
     @<Allocate recognizer containers@>@;
@@ -9547,6 +9639,8 @@ add those Earley items it ``causes".
     bv_obs_create (earleme_complete_obs, xsy_count);
   Bit_Vector bv_nulled_event_trigger =
     bv_obs_create (earleme_complete_obs, xsy_count);
+  Bit_Vector bv_prediction_event_trigger =
+    bv_obs_create (earleme_complete_obs, xsy_count);
   Bit_Vector bv_ahfa_event_trigger =
     bv_obs_create (earleme_complete_obs, ahfa_count);
   const int working_earley_item_count = EIM_Count_of_ES (current_earley_set);
@@ -9610,6 +9704,15 @@ add those Earley items it ``causes".
 	    bv_bit_set (bv_nulled_event_trigger, event_xsyid);
 	  }
       }
+      {
+	const CIL prediction_xsyids = Prediction_XSYIDs_of_AHFA (event_ahfa);
+	const int event_xsy_count = Count_of_CIL (prediction_xsyids);
+	for (cil_ix = 0; cil_ix < event_xsy_count; cil_ix++)
+	  {
+	    XSYID event_xsyid = Item_of_CIL (prediction_xsyids, cil_ix);
+	    bv_bit_set (bv_prediction_event_trigger, event_xsyid);
+	  }
+      }
     }
 }
 
@@ -9638,6 +9741,20 @@ add those Earley items it ``causes".
 	      (r->t_lbv_xsyid_nulled_event_is_active, event_xsyid))
 	    {
 	      int_event_new (g, MARPA_EVENT_SYMBOL_NULLED, event_xsyid);
+	    }
+	}
+    }
+  for (start = 0; bv_scan (bv_prediction_event_trigger, start, &min, &max);
+       start = max + 2)
+    {
+      XSYID event_xsyid;
+      for (event_xsyid = (ISYID) min; event_xsyid <= (ISYID) max;
+	   event_xsyid++)
+	{
+	  if (lbv_bit_test
+	      (r->t_lbv_xsyid_prediction_event_is_active, event_xsyid))
+	    {
+	      int_event_new (g, MARPA_EVENT_SYMBOL_PREDICTED, event_xsyid);
 	    }
 	}
     }
