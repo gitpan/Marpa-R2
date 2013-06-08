@@ -14,13 +14,14 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-# Test of scannerless parsing -- events
+# Test of scannerless parsing -- predicted, nulled and completed events with 
+# deactivation and reactivation
 
 use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 2;
+use Test::More tests => 44;
 use English qw( -no_match_vars );
 use lib 'inc';
 use Marpa::R2::Test;
@@ -86,35 +87,43 @@ event 'k[]' = nulled K
 event 'l[]' = nulled L
 END_OF_GRAMMAR
 
-my $all_events = <<'END_OF_EVENTS';
-1 a
-1 ^b
-2 b
-2 ^c
-3 c
-3 ^d
-4 d
-4 e[]
-4 ^f
-5 f
-5 g[]
-5 ^h
-6 h
-6 ^i
-7 i
-7 ^j
-8 j
-8 k[]
-8 ^l
+my $all_events_expected = <<'END_OF_EVENTS';
+1 ^b a
+2 ^c b
+3 ^d c
+4 ^f d e[]
+5 ^h f g[]
+6 ^i h
+7 ^j i
+8 ^l j k[]
 9 l
 END_OF_EVENTS
+
+my %pos_by_event = ();
+my @events;
+for my $pos_events  (split /\n/xms, $all_events_expected)
+{
+    my ($pos, @pos_events) = split " ", $pos_events;
+    $pos_by_event{$_} = $pos for @pos_events;
+    push @events, @pos_events;
+}
 
 my $grammar = Marpa::R2::Scanless::G->new(
     {   action_object => 'My_Actions', source          => \$rules }
 );
 
 
-do_test( $grammar, q{abcdfhijl}, $all_events );
+# Test of all events
+do_test( "all events", $grammar, q{abcdfhijl}, $all_events_expected );
+
+# Now deactivate all events
+do_test( "all events deactivated", $grammar, q{abcdfhijl}, '', [] );
+
+# Now deactivate all events, and turn them back on, one at a time
+for my $event (@events) {
+    my $expected_events = $pos_by_event{$event} . " $event\n";
+    do_test( qq{event "$event" reactivated}, $grammar, q{abcdfhijl}, $expected_events, [$event] );
+}
 
 sub show_last_subtext {
     my ($slr) = @_;
@@ -124,13 +133,26 @@ sub show_last_subtext {
 }
 
 sub do_test {
-    my ( $slg, $string, $expected_events ) = @_;
+    my ( $test, $slg, $string, $expected_events, $reactivate_events ) = @_;
     my $actual_events = q{};
     my $slr    = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
+    if (defined $reactivate_events) {
+
+# Marpa::R2::Display
+# name: SLIF activate() method synopsis
+
+        $slr->activate($_, 0) for @events;
+
+# Marpa::R2::Display::End
+
+        $slr->activate($_) for @{$reactivate_events};
+
+    }
     my $length = length $string;
     my $pos    = $slr->read( \$string );
     READ: while (1) {
 
+        my @actual_events = ();
         EVENT:
         for (
             my $event_ix = 0;
@@ -139,9 +161,12 @@ sub do_test {
             )
         {
             my ($name) = @{$event};
-            $actual_events .= "$pos $name\n";
+            push @actual_events, $name;
         } ## end EVENT: for ( my $event_ix = 0; my $event = $slr->event(...))
-
+        if (@actual_events) {
+            $actual_events .= join q{ }, $pos, sort @actual_events;
+            $actual_events .= "\n";
+        }
         last READ if $pos >= $length;
         $pos = $slr->resume($pos);
     } ## end READ: while (1)
@@ -150,9 +175,9 @@ sub do_test {
         die "No parse\n";
     }
     my $actual_value = ${$value_ref};
-    Test::More::is( $actual_value, q{1792}, qq{Value for "$string"} );
+    Test::More::is( $actual_value, q{1792}, qq{Value for $test} );
     Marpa::R2::Test::is( $actual_events, $expected_events,
-        qq{Events for "$string"} );
+        qq{Events for $test} );
 } ## end sub do_test
 
 package My_Actions;
