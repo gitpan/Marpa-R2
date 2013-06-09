@@ -25,8 +25,8 @@
 #include "marpa.h"
 
 /* This kind of pointer comparison is not portable per C89,
- * but but the Perl source depends
- * on it throughout, and there seems to be no other way to do it.
+ * but the Perl source depends on it throughout,
+ * and there seems to be no other way to do it.
  */
 #undef IS_PERL_UNDEF
 #define IS_PERL_UNDEF(x) ((x) == &PL_sv_undef)
@@ -67,6 +67,7 @@ typedef struct {
      Marpa_Recce r;
      Marpa_Symbol_ID* terminals_buffer;
      SV* base_sv;
+     AV* event_queue;
      G_Wrapper* base;
      unsigned int ruby_slippers:1;
 } R_Wrapper;
@@ -146,7 +147,6 @@ typedef struct {
      Marpa_Recce r1;
      G_Wrapper* g0_wrapper;
      G_Wrapper* g1_wrapper;
-     AV* event_queue;
      AV* token_values;
      int trace_level;
      int trace_terminals;
@@ -444,6 +444,7 @@ r_wrap( Marpa_Recce r, SV* g_sv)
   SvREFCNT_inc (g_sv);
   r_wrapper->base_sv = g_sv;
   r_wrapper->base = g_wrapper;
+  r_wrapper->event_queue = newAV();
   return r_wrapper;
 }
 
@@ -457,6 +458,7 @@ r_unwrap (R_Wrapper * r_wrapper)
   Marpa_Recce r = r_wrapper->r;
   /* The wrapper should always have had a ref to its base grammar's SV */
   SvREFCNT_dec (r_wrapper->base_sv);
+  SvREFCNT_dec ((SV *) r_wrapper->event_queue);
   Safefree (r_wrapper->terminals_buffer);
   Safefree (r_wrapper);
   /* The wrapper should always have had a ref to the Libmarpa recce */
@@ -1631,7 +1633,7 @@ slr_discard (Scanless_R * slr)
 		  event_data[3] = newSViv (slr->start_of_lexeme);
 		  event_data[4] = newSViv (slr->end_of_lexeme);
 		  event = av_make (Dim (event_data), event_data);
-		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		  av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 		}
 	      /* If there is discarded item, we are fine,
 	       * and can return success.
@@ -1654,7 +1656,7 @@ slr_discard (Scanless_R * slr)
 	      event_data[3] = newSViv (slr->start_of_lexeme);
 	      event_data[4] = newSViv (slr->end_of_lexeme);
 	      event = av_make (Dim (event_data), event_data);
-	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	      av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 	    }
 	NEXT_REPORT_ITEM:;
 	}
@@ -1681,19 +1683,22 @@ slr_discard (Scanless_R * slr)
 }
 
 /* Assumes it is called
- after a successful marpa_r_earleme_complete() */
+ after a successful marpa_r_earleme_complete().
+ At some point it may need optional SLR information,
+ at which point I will add a parameter
+ */
 static void
-slr_convert_events (Scanless_R * slr)
+r_convert_events (R_Wrapper * r_wrapper)
 {
   dTHX;
   int event_ix;
-  Marpa_Grammar g1 = slr->g1_wrapper->g;
-  const int event_count = marpa_g_event_count (g1);
+  Marpa_Grammar g = r_wrapper->base->g;
+  const int event_count = marpa_g_event_count (g);
   for (event_ix = 0; event_ix < event_count; event_ix++)
     {
       Marpa_Event marpa_event;
       Marpa_Event_Type event_type =
-	marpa_g_event (g1, &marpa_event, event_ix);
+	marpa_g_event (g, &marpa_event, event_ix);
       switch (event_type)
 	{
 	  {
@@ -1709,7 +1714,7 @@ slr_convert_events (Scanless_R * slr)
 	      event_data[0] = newSVpvs ("symbol completed");
 	      event_data[1] = newSViv (completed_symbol);
 	      event = av_make (Dim (event_data), event_data);
-	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	      av_push (r_wrapper->event_queue, newRV_noinc ((SV *) event));
 	    }
 	    break;
 	case MARPA_EVENT_SYMBOL_NULLED:
@@ -1721,7 +1726,7 @@ slr_convert_events (Scanless_R * slr)
 	      event_data[0] = newSVpvs ("symbol nulled");
 	      event_data[1] = newSViv (nulled_symbol);
 	      event = av_make (Dim (event_data), event_data);
-	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	      av_push (r_wrapper->event_queue, newRV_noinc ((SV *) event));
 	    }
 	    break;
 	case MARPA_EVENT_SYMBOL_PREDICTED:
@@ -1733,7 +1738,7 @@ slr_convert_events (Scanless_R * slr)
 	      event_data[0] = newSVpvs ("symbol predicted");
 	      event_data[1] = newSViv (predicted_symbol);
 	      event = av_make (Dim (event_data), event_data);
-	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	      av_push (r_wrapper->event_queue, newRV_noinc ((SV *) event));
 	    }
 	    break;
 	case MARPA_EVENT_EARLEY_ITEM_THRESHOLD:
@@ -1756,7 +1761,7 @@ slr_convert_events (Scanless_R * slr)
 	      AV *event;
 	      const char *result_string = event_type_to_string (event_type);
 	      SV *event_data[2];
-	      event_data[0] = newSVpvs ("unknown g1 event");
+	      event_data[0] = newSVpvs ("unknown event");
 	      if (!result_string)
 		{
 		  result_string =
@@ -1765,7 +1770,7 @@ slr_convert_events (Scanless_R * slr)
 		}
 	      event_data[1] = newSVpv (result_string, 0);
 	      event = av_make (Dim (event_data), event_data);
-	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	      av_push (r_wrapper->event_queue, newRV_noinc ((SV *) event));
 	    }
 	    break;
 	  }
@@ -1869,7 +1874,7 @@ slr_alternatives (Scanless_R * slr)
 		      event_data[3] = newSViv (slr->start_of_lexeme);
 		      event_data[4] = newSViv (slr->end_of_lexeme);
 		      event = av_make (Dim (event_data), event_data);
-		      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		      av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 		    }
 		  goto NEXT_PASS1_REPORT_ITEM;
 		}
@@ -1898,7 +1903,7 @@ slr_alternatives (Scanless_R * slr)
 		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
 		      event_data[4] = newSViv (g1_lexeme);	/* lexeme */
 		      event = av_make (Dim (event_data), event_data);
-		      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		      av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 		    }
 		  goto NEXT_PASS1_REPORT_ITEM;
 		}
@@ -1969,7 +1974,7 @@ slr_alternatives (Scanless_R * slr)
 	      event_data[3] = newSViv (slr->end_of_pause_lexeme);	/* end */
 	      event_data[4] = newSViv (slr->pause_lexeme);	/* lexeme */
 	      event = av_make (Dim (event_data), event_data);
-	      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+	      av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 	    }
 	  return "pause";
 	}
@@ -2031,7 +2036,7 @@ slr_alternatives (Scanless_R * slr)
 		  event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
 		  event_data[4] = newSViv (g1_lexeme);	/* lexeme */
 		  event = av_make (Dim (event_data), event_data);
-		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		  av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 		}
 	      return_value =
 		marpa_r_alternative (r1, g1_lexeme, TOKEN_VALUE_IS_LITERAL,
@@ -2063,7 +2068,7 @@ slr_alternatives (Scanless_R * slr)
 		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
 		      event_data[4] = newSViv (g1_lexeme);	/* lexeme */
 		      event = av_make (Dim (event_data), event_data);
-		      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		      av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 		    }
 		  break;
 
@@ -2084,7 +2089,7 @@ slr_alternatives (Scanless_R * slr)
 		      event_data[3] = newSViv (slr->end_of_lexeme);	/* end */
 		      event_data[4] = newSViv (g1_lexeme);	/* lexeme */
 		      event = av_make (Dim (event_data), event_data);
-		      av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		      av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 		    }
 		  break;
 
@@ -2107,7 +2112,7 @@ slr_alternatives (Scanless_R * slr)
 	      croak ("Problem in marpa_r_earleme_complete(): %s",
 		     xs_g_error (slr->g1_wrapper));
 	    }
-	  if (return_value > 0) { slr_convert_events(slr); }
+	  if (return_value > 0) { r_convert_events(slr->r1_wrapper); }
 
 	  marpa_r_latest_earley_set_values_set (r1, slr->start_of_lexeme,
 						INT2PTR (void *,
@@ -2129,12 +2134,12 @@ slr_alternatives (Scanless_R * slr)
 		  event_data[3] = newSViv (slr->end_of_pause_lexeme);	/* end */
 		  event_data[4] = newSViv (slr->pause_lexeme);	/* lexeme */
 		  event = av_make (Dim (event_data), event_data);
-		  av_push (slr->event_queue, newRV_noinc ((SV *) event));
+		  av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 		}
 	      return "pause";
 	    }
 
-	  if (av_len(slr->event_queue) >= 0) return "event";
+	  if (av_len(slr->r1_wrapper->event_queue) >= 0) return "event";
 	  return 0;
 	}
       while (0);
@@ -2225,7 +2230,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 157
-#define EXPECTED_LIBMARPA_MICRO 105
+#define EXPECTED_LIBMARPA_MICRO 106
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -2818,6 +2823,22 @@ PPCODE:
     }
   r_wrapper->ruby_slippers = boolean;
   XPUSHs (sv_2mortal (newSViv (boolean)));
+}
+
+void
+start_input( r_wrapper )
+    R_Wrapper *r_wrapper;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_start_input(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->start_input(): %s",
+     xs_g_error( r_wrapper->base ));
+  }
+  r_convert_events(r_wrapper);
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
 
 void
@@ -5488,7 +5509,6 @@ PPCODE:
 
   slr->start_of_lexeme = 0;
   slr->end_of_lexeme = 0;
-  slr->event_queue = newAV();
   slr->token_values = newAV ();
   av_fill(slr->token_values , TOKEN_VALUE_IS_LITERAL);
 
@@ -5522,7 +5542,6 @@ PPCODE:
   SvREFCNT_dec (slr->stream_sv);
   SvREFCNT_dec (slr->slg_sv);
   SvREFCNT_dec (slr->r1_sv);
-  SvREFCNT_dec ((SV *) slr->event_queue);
   if (slr->token_values)
     {
       SvREFCNT_dec ((SV *) slr->token_values);
@@ -5712,7 +5731,7 @@ PPCODE:
 	    }
 	}
 
-      av_clear (slr->event_queue);
+      av_clear (slr->r1_wrapper->event_queue);
 
       result = slr->stream_read_result = u_read (stream);
       if (result == -4)
@@ -5811,7 +5830,7 @@ PPCODE:
   Unicode_Stream *stream = slr->stream;
   SV *event =
     (av_len (stream->event_queue) >=
-     0) ? av_shift (stream->event_queue) : av_shift (slr->event_queue);
+     0) ? av_shift (stream->event_queue) : av_shift (slr->r1_wrapper->event_queue);
   XPUSHs (sv_2mortal (event));
 }
 
@@ -5968,11 +5987,11 @@ PPCODE:
     lexeme_length = end_pos - start_pos;
   }
 
-  av_clear (slr->event_queue);
+  av_clear (slr->r1_wrapper->event_queue);
   result = marpa_r_earleme_complete (slr->r1);
   if (result >= 0)
     {
-     slr_convert_events(slr);
+     r_convert_events(slr->r1_wrapper);
       marpa_r_latest_earley_set_values_set (slr->r1, start_pos,
 					    INT2PTR (void *, lexeme_length));
       stream->perl_pos = start_pos + lexeme_length;

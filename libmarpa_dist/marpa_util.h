@@ -1,8 +1,8 @@
 /*1375:*/
-#line 16273 "./marpa.w"
+#line 16282 "./marpa.w"
 
 /*1370:*/
-#line 16231 "./marpa.w"
+#line 16240 "./marpa.w"
 
 /*
  * Copyright 2013 Jeffrey Kegler
@@ -27,21 +27,21 @@
  */
 
 /*:1370*/
-#line 16274 "./marpa.w"
+#line 16283 "./marpa.w"
 
 
 #ifndef __MARPA_UTIL_H__
 #define __MARPA_UTIL_H__
 
 /*1319:*/
-#line 15712 "./marpa.w"
+#line 15721 "./marpa.w"
 
 #define my_new(type, count) ((type *)my_malloc((sizeof(type)*(count))))
 #define my_renew(type, p, count) \
     ((type *)my_realloc((p), (sizeof(type)*(count))))
 
 /*:1319*//*1346:*/
-#line 15942 "./marpa.w"
+#line 15951 "./marpa.w"
 
 #define MARPA_OFF_DEBUG1(a)
 #define MARPA_OFF_DEBUG2(a, b)
@@ -50,7 +50,7 @@
 #define MARPA_OFF_DEBUG5(a, b, c, d, e)
 #define MARPA_OFF_ASSERT(expr)
 /*:1346*//*1376:*/
-#line 16290 "./marpa.w"
+#line 16299 "./marpa.w"
 
 
 #if     __GNUC__ >  2 || (__GNUC__ == 2 && __GNUC_MINOR__ >  4)
@@ -106,10 +106,10 @@
 #endif
 
 /*:1376*/
-#line 16279 "./marpa.w"
+#line 16288 "./marpa.w"
 
 /*1355:*/
-#line 15999 "./marpa.w"
+#line 16008 "./marpa.w"
 
 
 #ifndef MARPA_DEBUG
@@ -154,20 +154,20 @@
 #endif
 
 /*:1355*/
-#line 16280 "./marpa.w"
+#line 16289 "./marpa.w"
 
 /*1309:*/
-#line 15583 "./marpa.w"
+#line 15592 "./marpa.w"
 
 extern void*(*_marpa_out_of_memory)(void);
 
 /*:1309*//*1348:*/
-#line 15963 "./marpa.w"
+#line 15972 "./marpa.w"
 
 extern int(*_marpa_debug_handler)(const char*,...);
 extern int _marpa_debug_level;
 /*:1348*//*1349:*/
-#line 15970 "./marpa.w"
+#line 15979 "./marpa.w"
 
 #if MARPA_DEBUG >  0
 extern int _marpa_default_debug_handler(const char*format,...);
@@ -177,10 +177,10 @@ extern int _marpa_default_debug_handler(const char*format,...);
 #endif
 
 /*:1349*/
-#line 16281 "./marpa.w"
+#line 16290 "./marpa.w"
 
 /*1317:*/
-#line 15670 "./marpa.w"
+#line 15679 "./marpa.w"
 
 static inline
 void my_free(void*p)
@@ -189,7 +189,7 @@ free(p);
 }
 
 /*:1317*//*1318:*/
-#line 15679 "./marpa.w"
+#line 15688 "./marpa.w"
 
 #define MALLOC_VIA_TEMP(size, temp) \
   (UNLIKELY(!((temp) =  malloc(size))) ? (*_marpa_out_of_memory)() : (temp))
@@ -222,7 +222,7 @@ return my_malloc(size);
 }
 
 /*:1318*/
-#line 16282 "./marpa.w"
+#line 16291 "./marpa.w"
 
 
 #endif 

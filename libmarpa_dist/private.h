@@ -150,6 +150,7 @@ alternative_insertion_point (RECCE r, ALT new_alternative);
 static inline int alternative_cmp(const ALT_Const a, const ALT_Const b);
 static inline ALT alternative_pop(RECCE r, EARLEME earleme);
 static inline int alternative_insert(RECCE r, ALT new_alternative);
+static inline void trigger_events(RECCE r);
 static inline void earley_set_update_items(RECCE r, ES set);
 static inline void r_update_earley_sets(RECCE r);
 static inline void ur_node_stack_init(URS stack);

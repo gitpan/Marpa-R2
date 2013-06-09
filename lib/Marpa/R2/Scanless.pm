@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.057_005';
+$VERSION        = '2.057_006';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -664,6 +664,7 @@ sub Marpa::R2::Scanless::R::new {
     my $thick_g1_grammar =
         $grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
     $g1_recce_args->{grammar} = $thick_g1_grammar;
+    $g1_recce_args->{'_slr'} = $self;
     my $thick_g1_recce =
         $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE] =
         Marpa::R2::Recognizer->new( $g1_recce_args );
@@ -677,10 +678,15 @@ sub Marpa::R2::Scanless::R::new {
     $thin_self->earley_item_warning_threshold_set($too_many_earley_items)
        if $too_many_earley_items >= 0;
     $self->[Marpa::R2::Inner::Scanless::R::C] = $thin_self;
-    $thick_g1_recce->slr_set($thin_self);
+    $self->[Marpa::R2::Inner::Scanless::R::EVENTS] = [];
+    Marpa::R2::Inner::Scanless::convert_libmarpa_events($self);
 
     return $self;
 } ## end sub Marpa::R2::Scanless::R::new
+
+sub Marpa::R2::Scanless::R::thin {
+    return $_[0]->[Marpa::R2::Inner::Scanless::R::C];
+}
 
 sub Marpa::R2::Scanless::R::trace {
     my ($self, $level) = @_;
@@ -730,6 +736,9 @@ sub Marpa::R2::Scanless::R::read {
     my $stream  = $thin_slr->stream();
 
     $stream->string_set($p_string);
+
+    return 0 if @{ $self->[Marpa::R2::Inner::Scanless::R::EVENTS]  };
+
     return $self->resume($start_pos, $length);
 
 } ## end sub Marpa::R2::Scanless::R::read

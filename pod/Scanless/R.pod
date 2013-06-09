@@ -516,11 +516,18 @@ The first is the name of an event, and the second (optional) argument is
 0 or 1.
 If the argument is 0, the event is deactivated.
 If the argument is 1, the event is reactivated.
-An argument of 1 is the default but,
+An argument of 1 is the default.
+but,
 since an SLIF recognizer always starts with all defined events
 activated,
 0 will probably be more common as the second argument to
 C<activate()>
+
+Location 0 events are triggered in the SLIF recognizer's 
+constructor,
+before the C<activate()> method can be called.
+This means that currently there is no way to deactivate
+location zero events.
 
 The overhead imposed by events
 can be reduced by using the C<activate()> method.
@@ -809,6 +816,13 @@ an application interested in events
 will call
 the C<event()> method almost as soon as
 control is returned to it.
+
+Named events are returned in order by type.
+Completion events are first.
+They are followed by the nulled events.
+These are in turn followed by prediction events.
+Within each type,
+the order of events is arbitrary.
 
 Applications may find it convenient to
 turn specific events off,

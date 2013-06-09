@@ -896,21 +896,6 @@ PPCODE:
 }
 
 void
-start_input( r_wrapper )
-    R_Wrapper *r_wrapper;
-PPCODE:
-{
-  Marpa_Recognizer self = r_wrapper->r;
-  int gp_result = marpa_r_start_input(self);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && r_wrapper->base->throw ) {
-    croak( "Problem in r->start_input(): %s",
-     xs_g_error( r_wrapper->base ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
 terminal_is_expected( r_wrapper, xsyid )
     R_Wrapper *r_wrapper;
     Marpa_Symbol_ID xsyid;
