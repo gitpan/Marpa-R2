@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.060000';
+$VERSION        = '2.061_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -48,6 +48,7 @@ BEGIN {
     COMPLETION_EVENT_BY_ID
     NULLED_EVENT_BY_ID
     PREDICTION_EVENT_BY_ID
+    LEXEME_EVENT_BY_ID
     TRACE_FILE_HANDLE
     BLESS_PACKAGE
     SYMBOL_IDS_BY_EVENT_NAME_AND_TYPE
@@ -470,6 +471,10 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
                 ->{prediction} }, $symbol_id;
     } ## end for my $symbol_name ( keys %{$prediction_events_by_name...})
 
+    my $lexeme_events_by_id =
+        $self->[Marpa::R2::Inner::Scanless::G::LEXEME_EVENT_BY_ID] =
+        [];
+
     $thick_g1_grammar->precompute();
     my @g0_lexeme_to_g1_symbol;
     my @g1_symbol_to_g0_lexeme;
@@ -518,22 +523,24 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
         Marpa::R2::exception(
             "Symbol <$lexeme_name> is declared as a lexeme, but it is not used as one.\n"
         ) if not $g0_lexeme_by_name->{$lexeme_name};
+
         my $declarations = $lexeme_declarations->{$lexeme_name};
-        my $g1_lexeme    = $g1_tracer->symbol_by_name($lexeme_name);
-        ADVERB: for my $key ( keys %{$declarations} ) {
-            my $value = $declarations->{$key};
-            if ( $key eq 'priority' ) {
-                $thin_slg->g1_lexeme_priority_set( $g1_lexeme, $value );
-                next ADVERB;
-            }
-            if ( $key eq 'pause' ) {
-                $thin_slg->g1_lexeme_pause_set( $g1_lexeme, $value );
-                next ADVERB;
-            }
-            if ( $key eq 'forgiving' ) {
-                next ADVERB;
-            }
-        } ## end ADVERB: for my $key ( keys %{$declarations} )
+        my $g1_lexeme_id = $g1_tracer->symbol_by_name($lexeme_name);
+
+        if ( defined( my $value = $declarations->{priority} ) ) {
+            $thin_slg->g1_lexeme_priority_set( $g1_lexeme_id, $value );
+        }
+        my $pause_value = $declarations->{pause};
+        if ( defined $pause_value ) {
+            $thin_slg->g1_lexeme_pause_set( $g1_lexeme_id, $pause_value );
+
+            if ( defined( my $event_name = $declarations->{'event'} ) ) {
+                $lexeme_events_by_id->[$g1_lexeme_id] = $event_name;
+                push @{ $symbol_ids_by_event_name_and_type->{$event_name}
+                        ->{lexeme} }, $g1_lexeme_id;
+            } ## end if ( defined( my $event_name = $declarations->{'event'...}))
+        } ## end if ( defined $pause_value )
+
     } ## end for my $lexeme_name ( keys %{$lexeme_declarations} )
 
     # Now that we know the lexemes, check attempts to defined a
@@ -562,6 +569,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
         $thin_slg->g0_rule_to_g1_lexeme_set( $rule_id, $lexeme_id );
     } ## end RULE_ID: for my $rule_id ( 0 .. $g0_thin->highest_rule_id() )
 
+    $thin_slg->precompute();
     $self->[Marpa::R2::Inner::Scanless::G::G0_RULE_TO_G1_LEXEME] =
         \@g0_rule_to_g1_lexeme;
     $self->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR] =
@@ -749,7 +757,7 @@ sub Marpa::R2::Inner::Scanless::convert_libmarpa_events {
     my $pause    = 0;
     my $thin_slr = $self->[Marpa::R2::Inner::Scanless::R::C];
     my $stream   = $thin_slr->stream();
-    EVENT: while ( my $event = $thin_slr->event() ) {
+    EVENT: for my $event ( $thin_slr->events() ) {
         my ( $event_type, @event_data ) = @{$event};
         if ( $event_type eq q{'trace} ) {
 
@@ -940,6 +948,18 @@ sub Marpa::R2::Inner::Scanless::convert_libmarpa_events {
             next EVENT;
         } ## end if ( $event_type eq 'symbol predicted' )
 
+        if ( $event_type eq 'before lexeme' or $event_type eq 'after lexeme' )
+        {
+            my ( $lexeme_id ) = @event_data;
+            my $slg = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+            my $lexeme_event_by_id =
+                $slg->[Marpa::R2::Inner::Scanless::G::LEXEME_EVENT_BY_ID];
+            push @{ $self->[Marpa::R2::Inner::Scanless::R::EVENTS] },
+                [ $lexeme_event_by_id->[$lexeme_id] ];
+            $pause = 1;
+            next EVENT;
+        } ## end if ( $event_type eq 'lexeme before' or $event_type eq...)
+
         if ( $event_type eq 'unknown g1 event' ) {
             Marpa::R2::exception(
              (join " ", 'Unknown event:', @event_data)
@@ -977,9 +997,8 @@ sub Marpa::R2::Scanless::R::resume {
 
         my $problem_code = $thin_slr->read();
         last OUTER_READ if not $problem_code;
-        my $pause = $problem_code eq 'pause';
         my $stream = $thin_slr->stream();
-        $pause = 1 if Marpa::R2::Inner::Scanless::convert_libmarpa_events($self);
+        my $pause = Marpa::R2::Inner::Scanless::convert_libmarpa_events($self);
 
         if ( $trace_g0 > 2 ) {
             my $stream_pos = $stream->pos();
@@ -1056,6 +1075,11 @@ sub Marpa::R2::Scanless::R::resume {
 sub Marpa::R2::Scanless::R::event {
     my ($self, $event_ix) = @_;
     return $self->[Marpa::R2::Inner::Scanless::R::EVENTS]->[$event_ix];
+}
+
+sub Marpa::R2::Scanless::R::events {
+    my ($self) = @_;
+    return $self->[Marpa::R2::Inner::Scanless::R::EVENTS];
 }
 
 ## From here, recovery is a matter for the caller,
@@ -1281,6 +1305,11 @@ sub Marpa::R2::Scanless::R::progress {
      $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE]->progress(@args);
 }
 
+sub Marpa::R2::Scanless::R::terminals_expected {
+     my ($self) = @_;
+     $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE]->terminals_expected();
+}
+
 # Latest and current G1 location are the same
 sub Marpa::R2::Scanless::R::latest_g1_location {
      my ($self) = @_;
@@ -1378,6 +1407,7 @@ sub Marpa::R2::Scanless::R::line_column {
 sub Marpa::R2::Scanless::R::activate {
     my ($slr, $event_name, $activate) = @_;
     my $slg = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+    my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
     $activate //= 1;
     my $thick_g1_recce =
         $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
@@ -1386,6 +1416,7 @@ sub Marpa::R2::Scanless::R::activate {
     $thin_g1_recce->completion_symbol_activate($_, $activate) for @{$event_symbol_ids_by_type->{completion}};
     $thin_g1_recce->nulled_symbol_activate($_, $activate) for @{$event_symbol_ids_by_type->{nulled}};
     $thin_g1_recce->prediction_symbol_activate($_, $activate) for @{$event_symbol_ids_by_type->{prediction}};
+    $thin_slr->lexeme_event_activate($_, $activate) for @{$event_symbol_ids_by_type->{lexeme}};
 }
 
 # Internal methods, not to be documented

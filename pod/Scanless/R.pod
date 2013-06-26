@@ -219,62 +219,82 @@ refers to either the C<read()> or the C<resume()> method.
 After an internal scanning method,
 the current location will indicate how far
 in the input stream the internal scanning method actually read.
-If the internal scanning method was paused, the current
+If the internal scanning method paused before EOS,
+the current
 location will be the one at which it paused.
-If the internal scanning method reaches EOS,
+If the internal scanning method pauses at EOS,
 the current location will be EOS.
 The return value of the C<read()> and the C<resume()> method is
 the current location.
 
-The following is a list of the events which cause
-internal scanning to pause or to end.
-More than one of these events may occur at a location,
-in which case the
-one listed first is the one that applies.
+=head2 EOS
+
+The location of EOS depends on the
+C<$start> and C<$length> arguments
+to the last
+internal scanning method,
+and on the length of the input string.
 
 =over 4
 
 =item *
 
-An internal scanning method
-will pause when it encounters certain lexemes,
-as specified in the DSL using the C<pause> adverb.
-The pause lexeme will be the one of those which caused
-the pause.
-(A pause can be caused by more than one lexeme.)
-The pause span will be the span of the input stream
-occupied by the pause lexeme.
+If the C<$length> argument of the last internal scanning method was
+non-negative,
+EOS will be at C<$start+$length>.
 
 =item *
 
-Scanning always ends at EOS.
-Reaching EOS is not considered a pause.
-
-=item *
-
-If its C<$length> argument was non-negative,
-internal scanning
-will pause when the current location is C<$start+$length>.
-The pause lexeme and pause span will be undefined.
-
-=item *
-
-If its C<$length> argument was negative,
-an internal scanning method
-will pause when the current location is
+If the C<$length> argument was negative,
+EOS will be at
 C<$length + 1 + length $input_string>.
-The pause lexeme and pause span will be undefined.
 
 =item *
 
-Named events pause internal scanning.
+The default length for the internal scanning methods is always -1,
+so that the default EOS is always at
+C<length $input_string>,
+the end of the input string.
+
+=back
+
+=head2 Pauses in internal scanning
+
+When a C<read()> and the C<resume()> method pauses,
+one of more of the following occurred.
+
+=over 4
+
+=item * A named event
+
+One or more named events may have triggered.
 Named events are
-L<described in the SLIF
-DSL|Marpa::R2::Scanless::DSL/"Named event statement">.
-Named events will always have an event name,
-and may be queried using the
-L<the Scanless recognizer's event()
-method|/"event()">.
+created by
+L<named event statements|Marpa::R2::Scanless::DSL/"Named event statement">.
+They can also be created by
+L<lexeme pseudo-rules|Marpa::R2::Scanless::DSL/"Lexeme pseudo-rules">.
+Named events may be queried using
+L<the events() method()|/"events()">.
+
+=item * A unnamed lexeme pause event
+
+A lexeme pause that is not a named event may have triggered.
+Lexeme pauses are created by
+L<lexeme pseudo-rules|Marpa::R2::Scanless::DSL/"Lexeme pseudo-rules">.
+Applications can always name lexeme pause events, using the
+L<event adverb|Marpa::R2::Scanless::DSL/"event">,
+and are strongly encouraged to do so.
+If all lexeme pauses are named,
+the check for unnamed events can be omitted.
+The presence or absence of an unnamed lexeme pause event
+may be checked for using
+L<the lexeme_pause() method|/"lexeme_pause()">.
+
+=item * EOS
+
+EOS may have been reached.
+This may be checked for by comparing the current location
+with the expected EOS.
 
 =back
 
@@ -758,7 +778,7 @@ C<resume()> return a Perl C<undef>.
 =for Marpa::R2::Display
 name: Scanless current_g1_location() synopsis
 
-    my $current_g1_location = $recce->current_g1_location();
+    my $current_g1_location = $slr->current_g1_location();
 
 =for Marpa::R2::Display::End
 
@@ -769,34 +789,50 @@ Returns the current G1 location.
 =for Marpa::R2::Display
 name: SLR event() method synopsis
 normalize-whitespace: 1
+partial: 1
 
-        EVENT: for (
-            my $event_ix = 0;
             my $event    = $slr->event($event_ix);
-            $event_ix++
-            )
-        {
-            my ($name) = @{$event};
-            if ( $name eq 'subtext' ) {
-                push @actual_events, show_last_subtext($slr);
-                next EVENT;
-            }
-        } ## end for ( my $event_ix = 0; my $event = $slr->event($event_ix...))
 
 =for Marpa::R2::Display::End
 
+Use of this method is discouraged in favor of the more efficient
+L<events() method|/"events()">.
 The C<event()> method requires one argument,
 an event index.
 It returns a descriptor of
 the named event with that index, or a Perl C<undef>
 if there is no such event.
+For more details on events, see the 
+L<description of the events() method|/"events()">.
 
-The named event descriptor is a reference to an array of one
-or more elements.
+=head2 events()
+
+=for Marpa::R2::Display
+name: SLIF events() method synopsis
+normalize-whitespace: 1
+
+
+        EVENT:
+        for my $event ( @{ $slr->events() } ) {
+            my ($name) = @{$event};
+            push @actual_events, $name;
+        }
+
+=for Marpa::R2::Display::End
+
+The C<events()> method takes no arguments,
+and returns an array of event descriptors.
+It returns the empty array
+if there were no event.
+
+Each named event descriptor is a reference to an array of one,
+and potentially more, elements.
 The first element of every named event descriptor is a string
-containing the name of the event.
-There may be
+containing the name of the event,
+and this is typically the only element.
+In certain cases, there could be
 other elements of a named event descriptor,
+which will be
 as described for the type of named event.
 Named events are
 L<described in the SLIF
@@ -814,7 +850,7 @@ of triggered events,
 The assumption is that
 an application interested in events
 will call
-the C<event()> method almost as soon as
+the C<events()> method almost as soon as
 control is returned to it.
 
 Named events are returned in order by type.
@@ -837,7 +873,7 @@ L<activate() method|/"activate()">.
 name: Scanless g1_location_to_span() synopsis
 
         my ( $span_start, $span_length ) =
-            $recce->g1_location_to_span($g1_location);
+            $slr->g1_location_to_span($g1_location);
 
 =for Marpa::R2::Display::End
 
@@ -1050,7 +1086,7 @@ the pause span is undefined.
 =for Marpa::R2::Display
 name: Scanless progress() synopsis
 
-    my $progress_output = $recce->progress();
+    my $progress_output = $slr->progress();
 
 =for Marpa::R2::Display::End
 
@@ -1091,7 +1127,7 @@ name: Scanless show_progress() synopsis
 partial: 1
 normalize-whitespace: 1
 
-    my $show_progress_output = $recce->show_progress();
+    my $show_progress_output = $slr->show_progress();
 
 =for Marpa::R2::Display::End
 
@@ -1152,6 +1188,25 @@ but which also
 wants to associate spans of G1 locations with the input stream,
 will need to reassemble the input based on their own ideas.
 The L</"literal()"> method can assist in this process.
+
+=head2 terminals_expected()
+
+=for Marpa::R2::Display
+name: Scanless terminals_expected() synopsis
+normalize-whitespace: 1
+
+    my @terminals_expected = @{$slr->terminals_expected()};
+
+=for Marpa::R2::Display::End
+
+Returns a reference to a list of strings, where the strings are the
+names of the lexemes acceptable at the current location.
+The presence of a lexeme in this list means
+that lexeme will be acceptable in the next call of the C<resume()> method.
+
+This is highly useful for Ruby Slippers parsing.
+A more fine-tuned approach is to identify the lexemes of interest
+and create "predicted symbol" events for them.
 
 =head1 Deprecated methods
 

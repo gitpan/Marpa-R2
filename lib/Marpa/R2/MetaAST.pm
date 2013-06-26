@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.060000';
+$VERSION        = '2.061_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -360,6 +360,12 @@ sub Marpa::R2::Internal::MetaAST_Nodes::left_association::evaluate {
 sub Marpa::R2::Internal::MetaAST_Nodes::group_association::evaluate {
     my ($values) = @_;
     return bless { assoc => 'G' }, $PROTO_ALTERNATIVE;
+}
+
+sub Marpa::R2::Internal::MetaAST_Nodes::event_specification::evaluate {
+    my ($values) = @_;
+    my $child = $values->[2];
+    return bless { event => $child->name() }, $PROTO_ALTERNATIVE;
 }
 
 sub Marpa::R2::Internal::MetaAST_Nodes::proper_specification::evaluate {
@@ -845,8 +851,8 @@ sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_rule::evaluate {
                 "  Location was line $line, column $column\n",
                 "  Rule was ", $parse->substring( $start, $length ), "\n";
         } ## end if ( $key eq 'pause' )
-        if ( $key eq 'forgiving' ) {
-            $declarations{$key} = $raw_value->evaluate();
+        if ( $key eq 'event' ) {
+            $declarations{$key} = $raw_value;
             next ADVERB;
         }
         my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
@@ -854,6 +860,14 @@ sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_rule::evaluate {
             "  Location was line $line, column $column\n",
             "  Rule was ", $parse->substring( $start, $length ), "\n";
     } ## end ADVERB: for my $key ( keys %{$adverb_list} )
+    if ( exists $declarations{'event'} and not exists $declarations{'pause'} )
+    {
+        my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
+        die
+            qq{"event" adverb not allowed without "pause" adverb in lexeme rule"\n},
+            "  Location was line $line, column $column\n",
+            "  Rule was ", $parse->substring( $start, $length ), "\n";
+    } ## end if ( exists $declarations{'event'} and not exists $declarations...)
     $parse->{lexeme_declarations}->{$symbol_name} = \%declarations;
     return undef;
 } ## end sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_rule::evaluate
