@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION @ISA $DEBUG);
-$VERSION        = '2.062000';
+$VERSION        = '2.063_000';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -108,5 +108,9 @@ require Marpa::R2::MetaAST;
 require Marpa::R2::Stuifzand;
 ( $version_result = version_ok($Marpa::R2::Stuifzand::VERSION) )
     and die 'Marpa::R2::Stuifzand::VERSION ', $version_result;
+
+require Marpa::R2::ASF;
+( $version_result = version_ok($Marpa::R2::ASF::VERSION) )
+    and die 'Marpa::R2::ASF::VERSION ', $version_result;
 
 1;

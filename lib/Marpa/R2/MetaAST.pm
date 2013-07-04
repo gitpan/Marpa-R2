@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.062000';
+$VERSION        = '2.063_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1136,6 +1136,11 @@ sub Marpa::R2::Internal::MetaAST_Nodes::character_class::name {
     my ( $self, $parse ) = @_;
     return $self->evaluate($parse)->name($parse);
 }
+sub Marpa::R2::Internal::MetaAST_Nodes::character_class::names {
+    my ($self, $parse) = @_;
+   return [$self->name($parse)];
+}
+
 
 sub Marpa::R2::Internal::MetaAST_Nodes::character_class::evaluate {
     my ( $values, $parse ) = @_;

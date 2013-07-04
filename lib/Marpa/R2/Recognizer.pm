@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.062000';
+$VERSION        = '2.063_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -41,7 +41,9 @@ BEGIN {
     GRAMMAR { the grammar used }
     FINISHED
     TOKEN_VALUES
+
     SLR { the associated SLR, if there is one }
+    ASF_OR_NODES { memoized or-nodes }
 
     TRACE_FILE_HANDLE
 
@@ -210,12 +212,13 @@ sub Marpa::R2::Recognizer::thin {
 
 sub Marpa::R2::Recognizer::reset_evaluation {
     my ($recce) = @_;
-    $recce->[Marpa::R2::Internal::Recognizer::B_C]              = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::O_C]              = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::T_C]              = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::RULE_RESOLUTIONS] = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES]      = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::EVENTS]           = [];
+    $recce->[Marpa::R2::Internal::Recognizer::B_C]                 = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::O_C]                 = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::T_C]                 = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::RULE_RESOLUTIONS]    = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES]         = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::EVENTS]              = [];
+    $recce->[Marpa::R2::Internal::Recognizer::ASF_OR_NODES] = [];
     return;
 } ## end sub Marpa::R2::Recognizer::reset_evaluation
 
