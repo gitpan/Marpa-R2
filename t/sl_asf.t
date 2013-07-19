@@ -41,7 +41,7 @@ END_OF_SOURCE
 
 our $EXPECTED_ASF = [
     -2, 11,
-    [ [ 9, [ 8, [ 1, [ 0, [ -1, 0 ] ] ], [ 6, [ 5, [ -1, 5 ] ] ] ] ] ],
+    [ [ 9, [ 8, [ 1, [ 0, -43 ] ], [ 6, [ 5, -48 ] ] ] ] ],
     [ [ 2, [] ], [] ]
 ];
 $EXPECTED_ASF->[3][0][1] = $EXPECTED_ASF->[2][0][1][1];
@@ -65,7 +65,7 @@ my $expected_blessed_asf = bless(
                                                 'Rule 4: singleton -> [Lex-0]',
                                                 bless(
                                                     [   -1, 'Token: [Lex-0]',
-                                                        0
+                                                        0, 'a'
                                                     ],
                                                     'My_ASF::_Lex_0_'
                                                 )
@@ -83,7 +83,7 @@ my $expected_blessed_asf = bless(
                                                 'Rule 4: singleton -> [Lex-0]',
                                                 bless(
                                                     [   -1, 'Token: [Lex-0]',
-                                                        5
+                                                        5, 'a'
                                                     ],
                                                     'My_ASF::_Lex_0_'
                                                 )
@@ -113,7 +113,7 @@ my $expected_blessed_asf = bless(
                                     [   0,
                                         'Rule 4: singleton -> [Lex-0]',
                                         bless(
-                                            [ -1, 'Token: [Lex-0]', 0 ],
+                                            [ -1, 'Token: [Lex-0]', 0, 'a' ],
                                             'My_ASF::_Lex_0_'
                                         )
                                     ],
@@ -129,7 +129,7 @@ my $expected_blessed_asf = bless(
                     [   5,
                         'Rule 4: singleton -> [Lex-0]',
                         bless(
-                            [ -1, 'Token: [Lex-0]', 5 ],
+                            [ -1, 'Token: [Lex-0]', 5, 'a' ],
                             'My_ASF::_Lex_0_'
                         )
                     ],
@@ -140,7 +140,7 @@ my $expected_blessed_asf = bless(
         )
     ],
     'MyASF::choix'
-    );
+);
 
 my $slr = Marpa::R2::Scanless::R->new( { grammar => $slg } );
 my ( $parse_value, $parse_status );
@@ -152,19 +152,16 @@ if ( not defined eval { $slr->read( \'aa' ); 1 } ) {
     $abbreviated_error =~ s/^Error \s+ in \s+ string_read: \s+ //xms;
     return 'No parse', $abbreviated_error;
 } ## end if ( not defined eval { $slr->read( \'aa' ); 1 } )
-my $asf_ref = $slr->raw_asf();
-if ( not defined $asf_ref ) {
+my $asf = Marpa::R2::Scanless::ASF->new(
+    { slr => $slr, choice => 'My_ASF::choix', force => 'My_ASF' } );
+if ( not defined $asf ) {
     return 'No parse', 'Input read to end but no parse';
 }
-my $actual_asf = ${$asf_ref};
+say Data::Dumper::Dumper($asf);
+say __LINE__;
+my $actual_asf = $asf->raw();
 
-my $actual_blessed_asf =
-    $slr->bless_asf( $actual_asf, { choice => 'My_ASF::choix', force => 'My_ASF' } );
-
-# $Data::Dumper::Purity = 1;
-# $Data::Dumper::Terse = 1;
-# $Data::Dumper::Deepcopy = 1;
-# say STDERR Data::Dumper::Dumper( $actual_blessed_asf );
+my $actual_blessed_asf = $asf->bless($actual_asf);
 
 Test::More::is_deeply( $actual_asf, $EXPECTED_ASF, 'ASF' );
 Test::More::is_deeply( $actual_blessed_asf, $expected_blessed_asf,

@@ -144,7 +144,7 @@ typedef struct {
     struct lexeme_g_properties * g1_lexeme_properties;
 } Scanless_G;
 
-typedef struct {
+typedef struct{
      SV* slg_sv;
      SV* r1_sv;
      SV* stream_sv;
@@ -2233,7 +2233,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 }
 
 #define EXPECTED_LIBMARPA_MAJOR 5
-#define EXPECTED_LIBMARPA_MINOR 164
+#define EXPECTED_LIBMARPA_MINOR 165
 #define EXPECTED_LIBMARPA_MICRO 100
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
@@ -5947,6 +5947,8 @@ PPCODE:
  # easy, forward-compatible way
  # to determine whether the de-referenced value will cause
  # a "bizarre copy" error.
+ # 
+ # All errors are returned, not thrown
 void
 g1_alternative (slr, symbol_id, ...)
     Scanless_R *slr;
@@ -5984,15 +5986,7 @@ PPCODE:
     }
 
   result = marpa_r_alternative (slr->r1, symbol_id, token_ix, 1);
-  switch (result) {
-  case MARPA_ERR_NONE:
-  case MARPA_ERR_DUPLICATE_TOKEN:
-  case MARPA_ERR_UNEXPECTED_TOKEN_ID:
-      XSRETURN_IV (result);
-  }
-  if (!slr->throw) { XSRETURN_IV (result); }
-  croak ("Problem in slr->g1_alternative(): %s",
-	 xs_g_error (slr->g1_wrapper));
+  XSRETURN_IV (result);
 }
 
  # Returns current position on success, 0 on unthrown failure
@@ -6042,11 +6036,25 @@ PPCODE:
   result = marpa_r_earleme_complete (slr->r1);
   if (result >= 0)
     {
-     r_convert_events(slr->r1_wrapper);
+      r_convert_events (slr->r1_wrapper);
       marpa_r_latest_earley_set_values_set (slr->r1, start_pos,
 					    INT2PTR (void *, lexeme_length));
       stream->perl_pos = start_pos + lexeme_length;
       XSRETURN_IV (stream->perl_pos);
+    }
+  if (result == -2)
+    {
+      const Marpa_Error_Code error =
+	marpa_g_error (slr->g1_wrapper->g, NULL);
+      if (error == MARPA_ERR_PARSE_EXHAUSTED)
+	{
+	  AV *event;
+	  SV *event_data[1];
+	  event_data[0] = newSVpvs ("no acceptable input");
+	  event = av_make (Dim (event_data), event_data);
+	  av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
+	}
+      XSRETURN_IV (0);
     }
   if (slr->throw)
     {

@@ -15,6 +15,10 @@
 
 Revision history for Marpa::R2
 
+2.065_000
+
+   * New series of developer's releases.
+
 2.064000 Thu Jul 11 09:10:54 PDT 2013
 
    * Fix bug in return value of lexeme_read();
