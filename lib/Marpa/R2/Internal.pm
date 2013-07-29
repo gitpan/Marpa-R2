@@ -21,7 +21,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.065_002';
+$VERSION        = '2.065_003';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -84,8 +84,12 @@ sub Marpa::R2::offset {
 
         Marpa::R2::exception("Unacceptable field name: $field")
             if $field =~ /[^A-Z0-9_]/xms;
-        my $field_name = $prefix . $field;
-        *{$field_name} = sub () {$offset};
+        local *Marpa::R2::Internal::_temp:: = $prefix;
+
+        package Marpa::R2::Internal::_temp;
+        no warnings;
+        constant->import( $field => $offset );
+
     } ## end for my $field (@fields)
     return 1;
 } ## end sub Marpa::R2::offset
