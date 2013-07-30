@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.065_003';
+$VERSION        = '2.065_004';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1358,7 +1358,7 @@ sub Marpa::R2::Recognizer::value
     my $recce_c   = $recce->[Marpa::R2::Internal::Recognizer::C];
     my $order     = $recce->[Marpa::R2::Internal::Recognizer::O_C];
 
-    my $parse_set_arg = $recce->[Marpa::R2::Internal::Recognizer::END];
+    my $parse_set_arg = $recce->[Marpa::R2::Internal::Recognizer::END_OF_PARSE];
 
     local $Marpa::R2::Internal::TRACE_FH =
         $recce->[Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE];
