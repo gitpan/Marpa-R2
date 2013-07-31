@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.065_005';
+$VERSION        = '2.065_006';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -179,7 +179,6 @@ __DATA__
     FINISHED
     TOKEN_VALUES
 
-    SLR { the associated SLR, if there is one }
     ASF_OR_NODES { memoized or-nodes }
 
     TRACE_FILE_HANDLE

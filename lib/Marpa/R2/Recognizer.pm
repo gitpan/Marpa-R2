@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.065_005';
+$VERSION        = '2.065_006';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -89,10 +89,6 @@ sub Marpa::R2::Recognizer::new {
             my $boolean = $value ? 1 : 0;
             $recce->use_leo_set($boolean);
             delete $arg_hash->{leo};
-        }
-        if ( defined( my $value = $arg_hash->{'_slr'} ) ) {
-            $recce->[Marpa::R2::Internal::Recognizer::SLR] = $value;
-            delete $arg_hash->{_slr};
         }
     } ## end ARG_HASH: for my $arg_hash (@arg_hashes)
 
