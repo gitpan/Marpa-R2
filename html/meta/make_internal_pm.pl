@@ -55,7 +55,7 @@ sub offset {
 	}
 	die "Unacceptable field name: $field"
 	      if $field =~ /[^A-Z0-9_]/xms;
-	say "constant->import( '$field' => $offset );"
+	say "use constant $field => $offset;"
 
     } ## end for my $field (@fields)
     return 1;
@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.065_004';
+$VERSION        = '2.065_005';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER

@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.065_004';
+$VERSION        = '2.065_005';
 $STRING_VERSION = $VERSION;
 $VERSION        = eval $VERSION;
 
@@ -132,6 +132,23 @@ sub progress_report {
             . $self->dotted_rule( $rule_id, $dot_position ) . "\n";
     } ## end ITEM: while (1)
     $recce->progress_report_finish();
+    return $result;
+} ## end sub progress_report
+
+sub stream_progress_report {
+    my ( $self, $stream, $ordinal ) = @_;
+    my $result = q{};
+    $ordinal //= $stream->latest_earley_set();
+    $stream->progress_report_start($ordinal);
+    ITEM: while (1) {
+        my ( $rule_id, $dot_position, $origin ) = $stream->progress_item();
+        last ITEM if not defined $rule_id;
+        $result
+            .= q{@}
+            . $origin . q{: }
+            . $self->dotted_rule( $rule_id, $dot_position ) . "\n";
+    } ## end ITEM: while (1)
+    $stream->progress_report_finish();
     return $result;
 } ## end sub progress_report
 
