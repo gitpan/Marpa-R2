@@ -15,7 +15,7 @@
 
 =head1 NAME
 
-Marpa::R2::Recognizer - Marpa recognizers
+Marpa::R2::NAIF::Recognizer - NAIF recognizers
 
 =head1 Synopsis
 
@@ -34,6 +34,15 @@ normalize-whitespace: 1
 =for Marpa::R2::Display::End
 
 =head1 Description
+
+This document describes recognizers for Marpa's
+named argument interface (NAIF).
+If you are a beginner,
+or are not sure which interface you are interested in,
+or do not know what the NAIF interfaces is,
+you probably are looking for
+L<the document on recognizers for the SLIF
+interface|Marpa::R2::Scanless::R>.
 
 To create a recognizer object, use L<the C<new> method|/new()>.
 
@@ -168,7 +177,7 @@ Given the location (Earley set ID) as its argument,
 returns an array that describes the parse progress
 at that location.
 Details on progress reports can be found in
-L<their own document|Marpa::R2::Progress>.
+L<their own document|Marpa::R2::NAIF::Progress>.
 
 =head2 terminals_expected()
 
@@ -242,7 +251,7 @@ It must be the name of a valid terminal symbol.
 The token value is optional.
 It defaults to a Perl C<undef>.
 For details about terminal symbols,
-see L<Marpa::R2::Grammar/"Terminals">.
+see L<Marpa::R2::NAIF::Grammar/"Terminals">.
 
 The parser may accept or reject the token.
 If the parser accepted the token,
@@ -405,7 +414,7 @@ A much fuller description,
 with an example,
 is in
 L<the document on debugging Marpa
-grammars|Marpa::R2::Progress>.
+grammars|Marpa::R2::NAIF::Progress>.
 
 =head1 Named arguments
 

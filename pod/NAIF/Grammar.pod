@@ -15,7 +15,7 @@
 
 =head1 NAME
 
-Marpa::R2::Grammar - Marpa grammars
+Marpa::R2::NAIF::Grammar - NAIF grammars
 
 =head1 Synopsis
 
@@ -46,6 +46,15 @@ normalize-whitespace: 1
 =for Marpa::R2::Display::End
 
 =head1 Description
+
+This document describes grammars for Marpa's
+named argument interface (NAIF).
+If you are a beginner,
+or are not sure which interface you are interested in,
+or do not know what the NAIF interfaces is,
+you probably are looking for
+L<the document on grammars for the SLIF
+interface|Marpa::R2::Scanless::G>.
 
 To create a Marpa grammar object,
 use the C<new> method.
@@ -225,10 +234,10 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-C<Marpa::R2::Grammar::new>
+C<Marpa::R2::NAIF::Grammar::new>
 returns a new Marpa grammar object or throws an exception.
 The arguments to
-C<Marpa::R2::Grammar::new> are
+C<Marpa::R2::NAIF::Grammar::new> are
 references to hashes of named arguments.
 In each key/value pair of this hash,
 the hash key is the argument name
@@ -304,7 +313,7 @@ RHS symbols in order.
 Situations where
 Rule ID's are encountered include
 callbacks and
-use of L<the progress method|Marpa::R2::Progress/progress()>.
+use of L<the progress method|Marpa::R2::NAIF/Progress/progress()>.
 
 =head2 rule_ids()
 
@@ -320,7 +329,7 @@ Returns an array containing the valid rule IDs.
 Situations where
 Rule ID's are encountered include
 callbacks and
-use of L<the progress method|Marpa::R2::Progress/progress()>.
+use of L<the progress method|Marpa::R2::NAIF/Progress/progress()>.
 
 =head1 Trace accessors
 

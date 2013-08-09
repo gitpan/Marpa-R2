@@ -78,6 +78,17 @@ a parent node is ready to be evaluated.
 The value of a parse is the value of the top node
 of the parse tree.
 
+This document is written on the assumption that the low-level NAIF interface
+is in use.
+The more high-level SLIF is similar,
+except that it hides even more of these details from the user.
+SLIF methods work in the same way,
+and use much of the same code,
+as the equivalently named methods of the NAIF recognizer.
+Certain methods and named arguments exist in the NAIF for which there are
+not corresponding methods or arguments in the SLIF, and this is the source
+of the differences.
+
 When a Marpa grammar is created,
 its semantics
 is
@@ -154,7 +165,7 @@ the value of the rule node is a Perl C<undef>.
 
 =head2 Sequence rule nodes
 
-Some rules are L<sequence rules|Marpa::R2::Grammar/"Sequence Rules">.
+Some rules are L<sequence rules|Marpa::R2::NAIF::Grammar/"Sequence rules">.
 Sequence rule nodes are also rule nodes.
 Everything said above about rule nodes
 applies to sequence rule nodes.
@@ -188,6 +199,8 @@ an alternative.
 By default, if a sequence rule has separators,
 the separators are thrown away before
 the value action is called.
+(Separators are described in
+L<the section introducing sequence rules|Marpa::R2::NAIF::Grammar/"Sequence rules">.)
 This means that separators do not appear in the C<@_> array
 of the rule evaluation closure which is the value action.
 If the value of the C<keep> rule property
@@ -261,7 +274,7 @@ the grammar being parsed.
 current rule.
 Given the rule ID, an application can find
 its LHS and RHS symbols using
-L<the grammar's C<rule()> method|Marpa::R2::Grammar/"rule">.
+L<the SLIF grammar's C<rule()> method|Marpa::R2::Scanless::G/"rule">.
 
 =item * C<Marpa::R2::Context::location()> returns the start
 and end locations of the current rule.
@@ -310,19 +323,19 @@ a series of zero or more parse trees,
 each with its own parse result.
 The first call to the
 L<the recognizer's C<value>
-method|Marpa::R2::Recognizer/"value">
+method|Marpa::R2::NAIF::Recognizer/"value">
 after the recognizer is created is the
 start of the first parse series.
 The first parse series continues until there is
 a call to the
 L<the C<reset_evaluation>
-method|Marpa::R2::Recognizer/"reset_evaluation">
+method|Marpa::R2::NAIF::Recognizer/"reset_evaluation">
 or until the recognizer is destroyed.
 Usually, an application is only interested in a single
 parse series.
 
 When the
-L<C<reset_evaluation>|Marpa::R2::Recognizer/"reset_evaluation">
+L<C<reset_evaluation>|Marpa::R2::NAIF::Recognizer/"reset_evaluation">
 method
 is called
 for a recognizer, it begins a new parse series.
@@ -330,7 +343,7 @@ The new parse series continues until
 there is another
 call to the
 L<the C<reset_evaluation>
-method|Marpa::R2::Recognizer/"reset_evaluation">,
+method|Marpa::R2::NAIF::Recognizer/"reset_evaluation">,
 or until the recognizer is destroyed.
 
 Most applications will find that the order in which
@@ -662,9 +675,9 @@ B<resolved>.
 The action names are usually B<specified> with the grammar,
 but action B<resolution> takes place
 in the recognizer's
-L<C<value>|Marpa::R2::Recognizer/"value">
+L<C<value>|Marpa::R2::NAIF::Recognizer/"value">
 and
-L<C<reset_evaluation>|Marpa::R2::Recognizer/"reset_evaluation">
+L<C<reset_evaluation>|Marpa::R2::NAIF::Recognizer/"reset_evaluation">
 methods.
 This can sometimes be a source of confusion,
 because if a Perl closure is visible when the

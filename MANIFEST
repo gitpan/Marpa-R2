@@ -219,11 +219,13 @@ pod/Advanced/Models.pod
 pod/Advanced/Thin.pod
 pod/BNF.pod
 pod/Changes.pod
-pod/Grammar.pod
 pod/Marpa_R2.pod
 pod/NAIF.pod
+pod/NAIF/Grammar.pod
+pod/NAIF/Progress.pod
+pod/NAIF/Recognizer.pod
+pod/NAIF/Tracing.pod
 pod/Progress.pod
-pod/Recognizer.pod
 pod/Scanless.pod
 pod/Scanless/DSL.pod
 pod/Scanless/G.pod
@@ -307,6 +309,7 @@ t/sl_lexevent.t
 t/sl_prefix.t
 t/sl_rank.t
 t/sl_syn.t
+t/sl_taint.t
 t/sl_topsyn.t
 t/sl_wall.t
 t/stuifzand.t
