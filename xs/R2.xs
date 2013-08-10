@@ -94,6 +94,8 @@ typedef struct {
 	 One past last actual position indicates past-end-of-string
      */
      int perl_pos;
+     /* Position of problem -- unspecifed if not returning a problem */
+     int problem_pos;
      /* Location (exclusive) at which to stop reading */
      int end_pos;
      SV* input;
@@ -492,6 +494,7 @@ static Unicode_Stream* u_new(SV* g_sv)
   stream->g0_sv = g_sv;
   stream->input = newSVpvn ("", 0);
   stream->perl_pos = 0;
+  stream->problem_pos = -1;
   stream->end_pos = 0;
   stream->pos_db = 0;
   stream->pos_db_logical_size = -1;
@@ -1815,7 +1818,6 @@ slr_alternatives (Scanless_R * slr)
       int current_lexeme_priority = 0;
       int lexemes_in_buffer = 0;
 
-      int is_expected;
       int return_value;
       return_value = marpa_r_progress_report_start (r0, earley_set);
       if (return_value < 0)
@@ -1938,13 +1940,14 @@ slr_alternatives (Scanless_R * slr)
 
 	  if (!is_priority_set)
 	    {
-	      if (unforgiven)
-		{
-		  return "no lexemes accepted";
-		}
 	      if (discarded)
 		{
 		  return 0;
+		}
+	      if (unforgiven)
+		{
+		  stream->problem_pos = slr->start_of_lexeme;
+		  return "no lexemes accepted";
 		}
 	      goto LOOK_AT_PREVIOUS_EARLEME;
 	    }
@@ -2225,7 +2228,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 167
-#define EXPECTED_LIBMARPA_MICRO 101
+#define EXPECTED_LIBMARPA_MICRO 102
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -3165,6 +3168,30 @@ pos( stream )
 PPCODE:
 {
   XSRETURN_IV(stream->perl_pos);
+}
+
+void
+problem_pos( stream )
+     Unicode_Stream *stream;
+PPCODE:
+{
+  if (stream->problem_pos < 0) {
+     XSRETURN_UNDEF;
+  }
+  XSRETURN_IV(stream->problem_pos);
+}
+
+void
+latest_earley_set( stream )
+     Unicode_Stream *stream;
+PPCODE:
+{
+  const Marpa_Recce r0 = stream->r0;
+  if (!stream->r0)
+    {
+      XSRETURN_UNDEF;
+    }
+  XSRETURN_IV (marpa_r_latest_earley_set (stream->r0));
 }
 
 void
