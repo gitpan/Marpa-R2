@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.067_002';
+$VERSION        = '2.067_003';
 $STRING_VERSION = $VERSION;
 $VERSION        = eval $VERSION;
 
@@ -87,6 +87,17 @@ sub rule {
         ( 0 .. $rule_length - 1 );
     return ($lhs, @rhs);
 }
+
+# Expand a rule into a list of symbol IDs
+sub rule_expand {
+    my ( $self, $rule_id ) = @_;
+    my $grammar     = $self->{g};
+    my $rule_length = $grammar->rule_length($rule_id);
+    my $lhs         = ( $grammar->rule_lhs($rule_id) );
+    return ( $lhs,
+        map { $grammar->rule_rhs( $rule_id, $_ ) }
+            ( 0 .. $rule_length - 1 ) );
+} ## end sub rule_expand
 
 sub dotted_rule {
     my ( $self, $rule_id, $dot_position ) = @_;

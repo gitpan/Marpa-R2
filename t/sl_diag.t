@@ -99,7 +99,7 @@ my $g1_rules_description;
     my @g1_rule_ids = $slg->g1_rule_ids();
     for my $g1_rule_id (@g1_rule_ids) {
         $g1_rules_description .= "$g1_rule_id "
-            . ( join q{ }, map { "<$_>" } $slg->rule($g1_rule_id) ) . "\n";
+            . ( join q{ }, map {"<$_>"} $slg->rule($g1_rule_id) ) . "\n";
     }
 
 # Marpa::R2::Display::End
@@ -150,7 +150,7 @@ sub my_parser {
     open my $trace_fh, q{>}, \$trace_output;
     my $recce = Marpa::R2::Scanless::R->new(
         {   grammar               => $grammar,
-            trace_terminals       => 1,
+            trace_terminals       => 2,
             trace_file_handle     => $trace_fh,
             too_many_earley_items => 100,         # test this
         }
@@ -197,8 +197,8 @@ for my $test_data (@tests_data) {
 # Marpa::R2::Display::End
 
     Marpa::R2::Test::is(
-        ( join q{ }, @terminals_expected ),
-        '[Lex-0] Number [Lex-1]',
+        ( join q{ }, sort @terminals_expected ),
+        'Number [Lex-0] [Lex-1]',
         qq{SLIF terminals_expected()}
     );
 
@@ -211,53 +211,53 @@ for my $test_data (@tests_data) {
 
     Marpa::R2::Test::is( $show_progress_output,
         <<'END_OF_EXPECTED_OUTPUT', qq{Scanless show_progess()} );
-F0 @0-11 [:start] -> Script .
-P1 @0-11 Script -> . Calculation*
-F1 @0-11 Script -> Calculation* .
-P2 @11-11 Calculation -> . Expression
-F2 @0-11 Calculation -> Expression .
-P3 @11-11 Calculation -> . [Lex-0] Expression
-P4 @11-11 Expression -> . Number
-F4 @10-11 Expression -> Number .
-P5 @11-11 Expression -> . [Lex-1] Expression Expression
-F5 x3 @0,6,10-11 Expression -> [Lex-1] Expression Expression .
+F0 @0-11 L1c1-19 :start -> <Script> .
+P1 @0-11 L1c1-19 <Script> -> . <Calculation> *
+F1 @0-11 L1c1-19 <Script> -> <Calculation> * .
+P2 @11-11 L1c19 <Calculation> -> . <Expression>
+F2 @0-11 L1c1-19 <Calculation> -> <Expression> .
+P3 @11-11 L1c19 <Calculation> -> . 'say' <Expression>
+P4 @11-11 L1c19 <Expression> -> . <Number>
+F4 @10-11 L1c17-19 <Expression> -> <Number> .
+P5 @11-11 L1c19 <Expression> -> . '+' <Expression> <Expression>
+F5 x3 @0,6,10-11 L1c1-19 <Expression> -> '+' <Expression> <Expression> .
 END_OF_EXPECTED_OUTPUT
 
     Marpa::R2::Test::is( $actual_value, $expected_value,
         qq{Value of "$test_string"} );
     Marpa::R2::Test::is( $trace_output,
         <<'END_OF_OUTPUT', qq{Trace output for "$test_string"} );
-Registering character U+002b as symbol 5: [[\+]]
-Registering character U+002b as symbol 19: [[^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]]
-Accepted lexeme @0-1: [Lex-1]; value="+"
-Accepted lexeme @1-2: [Lex-1]; value="+"
-Accepted lexeme @2-3: [Lex-1]; value="+"
-Registering character U+0020 as symbol 10: [[\s]]
-Registering character U+0020 as symbol 19: [[^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]]
-Registering character U+0031 as symbol 7: [[\d]]
-Registering character U+0031 as symbol 19: [[^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]]
-Discarded lexeme @3-4: whitespace
-Accepted lexeme @4-5: Number; value="1"
-Registering character U+0032 as symbol 7: [[\d]]
-Registering character U+0032 as symbol 19: [[^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]]
-Discarded lexeme @5-6: whitespace
-Accepted lexeme @6-7: Number; value="2"
-Registering character U+0033 as symbol 7: [[\d]]
-Registering character U+0033 as symbol 19: [[^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]]
-Discarded lexeme @7-8: whitespace
-Accepted lexeme @8-9: Number; value="3"
-Discarded lexeme @9-10: whitespace
-Accepted lexeme @10-11: [Lex-1]; value="+"
-Discarded lexeme @11-12: whitespace
-Accepted lexeme @12-13: [Lex-1]; value="+"
-Discarded lexeme @13-14: whitespace
-Accepted lexeme @14-15: Number; value="1"
-Discarded lexeme @15-16: whitespace
-Accepted lexeme @16-17: Number; value="2"
-Registering character U+0034 as symbol 7: [[\d]]
-Registering character U+0034 as symbol 19: [[^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]]
-Discarded lexeme @17-18: whitespace
-Accepted lexeme @18-19: Number; value="4"
+Registering character U+002b '+' as symbol 5: [\+]
+Registering character U+002b '+' as symbol 9: [^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]
+Accepted lexeme L1c1: '+'; value="+"
+Accepted lexeme L1c2: '+'; value="+"
+Accepted lexeme L1c3: '+'; value="+"
+Registering character U+0020 as symbol 7: [\s]
+Registering character U+0020 as symbol 9: [^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]
+Registering character U+0031 '1' as symbol 6: [\d]
+Registering character U+0031 '1' as symbol 9: [^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]
+Discarded lexeme L1c4: <whitespace>
+Accepted lexeme L1c5: <Number>; value="1"
+Registering character U+0032 '2' as symbol 6: [\d]
+Registering character U+0032 '2' as symbol 9: [^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]
+Discarded lexeme L1c6: <whitespace>
+Accepted lexeme L1c7: <Number>; value="2"
+Registering character U+0033 '3' as symbol 6: [\d]
+Registering character U+0033 '3' as symbol 9: [^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]
+Discarded lexeme L1c8: <whitespace>
+Accepted lexeme L1c9: <Number>; value="3"
+Discarded lexeme L1c10: <whitespace>
+Accepted lexeme L1c11: '+'; value="+"
+Discarded lexeme L1c12: <whitespace>
+Accepted lexeme L1c13: '+'; value="+"
+Discarded lexeme L1c14: <whitespace>
+Accepted lexeme L1c15: <Number>; value="1"
+Discarded lexeme L1c16: <whitespace>
+Accepted lexeme L1c17: <Number>; value="2"
+Registering character U+0034 '4' as symbol 6: [\d]
+Registering character U+0034 '4' as symbol 9: [^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]
+Discarded lexeme L1c18: <whitespace>
+Accepted lexeme L1c19: <Number>; value="4"
 END_OF_OUTPUT
 
     my $expected_progress_output = [

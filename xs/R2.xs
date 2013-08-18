@@ -77,7 +77,7 @@ typedef struct {
     int linecol;
     /* Lines are 1-based, columns are zero-based and negated.
      * In the first column (column 0), linecol is the 1-based line number.
-     * In subsequenct columns, linecol is -n, where n i the 0-based column
+     * In subsequenct columns, linecol is -n, where n is the 0-based column
      * number.
      */
 } Pos_Entry;
@@ -1033,7 +1033,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
     {
       IV op_code = ops[op_ix++];
 
-      if (v_wrapper->trace_values >= 2)
+      if (v_wrapper->trace_values >= 3)
 	{
 	  AV *event;
 	  SV *event_data[3];
@@ -2228,7 +2228,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 167
-#define EXPECTED_LIBMARPA_MICRO 102
+#define EXPECTED_LIBMARPA_MICRO 103
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -3160,6 +3160,14 @@ PPCODE:
       previous_codepoint = codepoint;
     }
   XSRETURN_YES;
+}
+
+void
+input_length( stream )
+     Unicode_Stream *stream;
+PPCODE:
+{
+  XSRETURN_IV(stream->pos_db_logical_size);
 }
 
 void
@@ -5996,7 +6004,7 @@ PPCODE:
     {
       pos = stream->perl_pos;
     }
-  if (pos > stream->pos_db_logical_size)
+  if (pos >= stream->pos_db_logical_size)
     {
       croak ("Problem in slr->line_column(%ld): position out of range",
 	     (long) pos);

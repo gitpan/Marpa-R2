@@ -36,6 +36,32 @@ even experts (actually, especially experts)
 will sometimes overlook the obvious
 in a rush to use more advanced techniques.
 
+=head2 Dump the parse value
+
+Sometimes, even when there is a parse error, you can still evaluate the parse
+using the L<SLIF recognizer's C<value()>
+method|Marpa::R2::Scanless::R/"value()">.
+If you are fortunate enough to have a parse value at the point of failure,
+it can be an excellent way
+to determine what the parser thinks it has seen so far.
+It is more likely that there will be a parse value if you are
+using incremental development,
+and the parse values will be especially helpful
+if your parse values are AST's.
+
+If you are trying to run diagnostics on a failed parse,
+it is useful to catch the exception using C<eval>:
+
+=for Marpa::R2::Display:
+name: SLIF debug example, part 2
+partial: 1
+normalize-whitespace: 1
+
+    my $eval_error = $EVAL_ERROR if not eval { $slr->read( \$test_input ); 1 };
+    $progress_report = $slr->show_progress( 0, -1 );
+
+=for Marpa::R2::Display::End
+
 =head2 Trace terminals
 
 Set the L<C<trace_terminals> recognizer named
@@ -66,9 +92,13 @@ to debug an error in a grammar.
 =head2 Double check rules and symbols
 
 It sometimes helps to look carefully at the output of
+L<C<show_symbols>|Marpa::R2::Scanless::G/"show_symbols()">
+and
 L<C<show_rules>|Marpa::R2::Scanless::G/"show_rules()">.
 Check if anything there is
 not what you expected.
+For thorough checking, it can be helpful to use a
+verbosity level higher than 1.
 
 =head2 Other traces
 
@@ -84,13 +114,31 @@ includes the following:
 
 =over 4
 
-=item * Turn on the C<trace_terminals> recognizer named argument.
+=item * Of course, the error message.
 
-=item * Run C<show_rules> on the precomputed grammar.
+=item * If the failed parse returns a value, a dump of that value.
 
-=item * Run C<show_progress> on the recognizer.
+=item * Set the 
+L<SLIF recognizer's C<trace_terminals> named
+argument|Marpa::R2::Scanless::R/"trace_terminals">
+to level 1.
 
-=item * Set the C<trace_values> evaluator named argument to level 1.
+=item * Run 
+L<C<show_rules>|Marpa::R2::Scanless::G/"show_rules()">
+on the SLIF grammar.
+
+=item * Run 
+L<C<show_symbols>|Marpa::R2::Scanless::G/"show_symbols()">
+on the SLIF grammar.
+
+=item * Run
+L<C<show_progress()>|Marpa::R2::Progress>
+on the SLIF recognizer.
+
+=item * Set the
+L<SLIF recognizer's C<trace_terminals> named
+argument|Marpa::R2::Scanless::R/"trace_terminals">
+to level 1.
 
 =back
 
@@ -99,8 +147,9 @@ remember that if the input text to the grammar is large,
 the outputs from
 C<trace_terminals>,
 C<show_progress>,
-and C<trace_values>
-will be very lengthy.
+and C<trace_values>,
+and the dump of the parse value,
+can be very lengthy.
 You want to work with short inputs when possible.
 
 =head1 Copyright and License
