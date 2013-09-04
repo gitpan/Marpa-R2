@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.068000';
+$VERSION        = '2.069_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -32,28 +32,13 @@ use English qw( -no_match_vars );
 
 sub new {
     my ( $class, $p_rules_source ) = @_;
-
-    my $meta_recce   = Marpa::R2::Internal::Scanless::meta_recce();
-    my $meta_grammar = $meta_recce->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
-    state $mask_by_rule_id =
-        $meta_grammar->[Marpa::R2::Inner::Scanless::G::MASK_BY_RULE_ID];
+    my $meta_recce = Marpa::R2::Internal::Scanless::meta_recce();
     $meta_recce->read($p_rules_source);
-
-    my $thick_meta_g1_grammar =
-        $meta_grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
-    my $meta_g1_tracer       = $thick_meta_g1_grammar->tracer();
-    my $thin_meta_g1_grammar = $thick_meta_g1_grammar->thin();
-    my $thick_meta_g1_recce =
-        $meta_recce->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $thick_g1_recce =
-        $meta_recce->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-
     my $value_ref = $meta_recce->value();
     Marpa::R2::exception('Parse of BNF/Scanless source failed')
         if not defined $value_ref;
     my $ast = { meta_recce => $meta_recce, top_node => ${$value_ref} };
     return bless $ast, $class;
-
 } ## end sub new
 
 sub Marpa::R2::Internal::MetaAST::Parse::substring {
@@ -97,13 +82,21 @@ sub ast_to_hash {
     my $g0_rules = $hashed_ast->{rules}->{G0};
     my %lex_lhs  = ();
     my %lex_rhs  = ();
+    my %lex_separator = ();
     for my $lex_rule ( @{$g0_rules} ) {
         $lex_lhs{ $lex_rule->{lhs} } = 1;
         $lex_rhs{$_} = 1 for @{ $lex_rule->{rhs} };
+        if (defined(my $separator = $lex_rule->{separator})) {
+            $lex_separator{$separator} = 1;
+        }
     }
 
-    my %is_lexeme =
-        map { ( $_, 1 ); } grep { not $lex_rhs{$_} } keys %lex_lhs;
+    my %is_lexeme = ();
+    LEX_LHS: for my $lex_lhs (keys %lex_lhs) {
+        next LEX_LHS if $lex_rhs{$lex_lhs};
+        next LEX_LHS if $lex_separator{$lex_lhs};
+        $is_lexeme{$lex_lhs} = 1;
+    }
     if ( my $lexeme_default_adverbs = $hashed_ast->{lexeme_default_adverbs} ) {
         my $blessing = $lexeme_default_adverbs->{bless};
         my $action   = $lexeme_default_adverbs->{action};
@@ -138,7 +131,9 @@ sub ast_to_hash {
     $hashed_ast->{is_lexeme}  = \%is_lexeme;
 
     my @unproductive =
-        grep { not $lex_lhs{$_} and not $_ =~ /\A \[\[ /xms } keys %lex_rhs;
+        grep { not $lex_lhs{$_} and not $_ =~ /\A \[\[ /xms } (keys %lex_rhs,
+        keys %lex_separator)
+        ;
     if (@unproductive) {
         Marpa::R2::exception( 'Unproductive lexical symbols: ',
             join q{ }, @unproductive );
@@ -241,6 +236,10 @@ sub Marpa::R2::Internal::MetaAST_Nodes::blessing_name::name {
 }
 
 sub Marpa::R2::Internal::MetaAST_Nodes::standard_name::name {
+    return $_[0]->[2];
+}
+
+sub Marpa::R2::Internal::MetaAST_Nodes::Perl_name::name {
     return $_[0]->[2];
 }
 
@@ -405,6 +404,17 @@ sub Marpa::R2::Internal::MetaAST_Nodes::rank_specification::evaluate {
     return bless { rank => $child->value() }, $PROTO_ALTERNATIVE;
 }
 
+sub Marpa::R2::Internal::MetaAST_Nodes::null_ranking_specification::evaluate {
+    my ($values) = @_;
+    my $child = $values->[2];
+    return bless { null_ranking => $child->value() }, $PROTO_ALTERNATIVE;
+}
+
+
+sub Marpa::R2::Internal::MetaAST_Nodes::null_ranking_constant::value {
+    return $_[0]->[2];
+}
+
 sub Marpa::R2::Internal::MetaAST_Nodes::before_or_after::value {
     return $_[0]->[2];
 }
@@ -541,6 +551,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
 
             my $action;
             my $blessing;
+            my $null_ranking;
             my $rank;
             ADVERB: for my $key ( keys %{$adverb_list} ) {
                 my $value = $adverb_list->{$key};
@@ -555,6 +566,10 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
                 }
                 if ( $key eq 'bless' ) {
                     $blessing = $adverb_list->{$key};
+                    next ADVERB;
+                }
+                if ( $key eq 'null_ranking' ) {
+                    $null_ranking = $adverb_list->{$key};
                     next ADVERB;
                 }
                 if ( $key eq 'rank' ) {
@@ -583,6 +598,15 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
                     $lhs, '")' )
                     if $subgrammar eq 'G0';
                 $hash_rule{rank} = $rank;
+            } ## end if ( defined $rank )
+
+            $null_ranking //= $default_adverbs->{null_ranking};
+            if ( defined $null_ranking ) {
+                Marpa::R2::exception(
+                    'null-ranking allowed in lexical rules (rules LHS was "',
+                    $lhs, '")' )
+                    if $subgrammar eq 'G0';
+                $hash_rule{null_ranking} = $null_ranking;
             } ## end if ( defined $rank )
 
             $blessing //= $default_adverbs->{bless};
@@ -675,6 +699,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
         my $assoc;
         my $blessing;
         my $rank;
+        my $null_ranking;
         ADVERB: for my $key ( keys %{$adverb_list} ) {
             my $value = $adverb_list->{$key};
             if ( $key eq 'action' ) {
@@ -687,6 +712,10 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
             }
             if ( $key eq 'bless' ) {
                 $blessing = $adverb_list->{$key};
+                next ADVERB;
+            }
+            if ( $key eq 'null_ranking' ) {
+                $null_ranking = $adverb_list->{$key};
                 next ADVERB;
             }
             if ( $key eq 'rank' ) {
@@ -708,6 +737,15 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
                 if $subgrammar eq 'G0';
             $new_xs_rule{action} = $action;
         } ## end if ( defined $action )
+
+        $null_ranking //= $default_adverbs->{null_ranking};
+        if ( defined $null_ranking ) {
+            Marpa::R2::exception(
+                'null-ranking not allowed in lexical rules (rules LHS was "',
+                $lhs, '")' )
+                if $subgrammar eq 'G0';
+            $new_xs_rule{null_ranking} = $null_ranking;
+        } ## end if ( defined $rank )
 
         $rank //= $default_adverbs->{rank};
         if ( defined $rank ) {
@@ -793,6 +831,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
     my $action;
     my $blessing;
     my $rank;
+    my $null_ranking;
     ADVERB: for my $key ( keys %{$adverb_list} ) {
         my $value = $adverb_list->{$key};
         if ( $key eq 'action' ) {
@@ -803,8 +842,12 @@ sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
             $blessing = $adverb_list->{$key};
             next ADVERB;
         }
+        if ( $key eq 'null_ranking' ) {
+            $null_ranking = $adverb_list->{$key};
+            next ADVERB;
+        }
         if ( $key eq 'rank' ) {
-            $action = $adverb_list->{$key};
+            $rank = $adverb_list->{$key};
             next ADVERB;
         }
         my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
@@ -820,6 +863,15 @@ sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
             if $subgrammar eq 'G0';
         $rule{action} = $action;
     } ## end if ( defined $action )
+
+    $null_ranking //= $default_adverbs->{null_ranking};
+    if ( defined $null_ranking ) {
+        Marpa::R2::exception(
+            'null-ranking not allowed in lexical rules (rules LHS was "',
+            $lhs, '")' )
+            if $subgrammar eq 'G0';
+        $rule{null_ranking} = $null_ranking;
+    } ## end if ( defined $null_ranking )
 
     $rank //= $default_adverbs->{rank};
     if ( defined $rank ) {
@@ -923,6 +975,8 @@ sub Marpa::R2::Internal::MetaAST_Nodes::start_rule::evaluate {
     my ( $values, $parse ) = @_;
     my ( $start, $length, $symbol ) = @{$values};
     my $start_lhs = '[:start]';
+    $parse->{'default_g1_start_action'} =
+        $parse->{'default_adverbs'}->{'G1'}->{'action'};
     $parse->symbol_names_set(
         $start_lhs,
         'G1',
@@ -990,6 +1044,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate {
     my $separator;
     my $proper;
     my $rank;
+    my $null_ranking;
     ADVERB: for my $key ( keys %{$adverb_list} ) {
         my $value = $adverb_list->{$key};
         if ( $key eq 'action' ) {
@@ -1005,7 +1060,11 @@ sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate {
             next ADVERB;
         }
         if ( $key eq 'rank' ) {
-            $action = $adverb_list->{$key};
+            $rank = $adverb_list->{$key};
+            next ADVERB;
+        }
+        if ( $key eq 'null_ranking' ) {
+            $null_ranking = $adverb_list->{$key};
             next ADVERB;
         }
         if ( $key eq 'separator' ) {
@@ -1033,6 +1092,15 @@ sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate {
             if $subgrammar eq 'G0';
         $sequence_rule{action} = $action;
     } ## end if ( defined $action )
+
+    $null_ranking //= $default_adverbs->{null_ranking};
+    if ( defined $null_ranking ) {
+        Marpa::R2::exception(
+            'null-ranking not allowed in lexical rules (rules LHS was "',
+            $lhs, '")' )
+            if $subgrammar eq 'G0';
+        $sequence_rule{null_ranking} = $null_ranking;
+    } ## end if ( defined $null_ranking )
 
     $rank //= $default_adverbs->{rank};
     if ( defined $rank ) {
@@ -1299,7 +1367,7 @@ sub char_class_to_symbol {
         $parse->symbol_names_set(
             $symbol_name,
             $Marpa::R2::Internal::SUBGRAMMAR,
-            {   dsl_name     => $char_class,
+            {   dsl_form     => $char_class,
                 display_form => $char_class,
                 description  => "Character class: $char_class"
             }
@@ -1330,7 +1398,7 @@ sub Marpa::R2::Internal::MetaAST::Parse::prioritized_symbol {
         $symbol_name,
         $Marpa::R2::Internal::SUBGRAMMAR,
         {   legacy_name  => $base_symbol,
-            dsl_name     => $base_symbol,
+            dsl_form     => $base_symbol,
             display_form => "<$base_symbol>",
             description  => "<$base_symbol> at priority $priority"
         }
@@ -1347,7 +1415,7 @@ sub Marpa::R2::Internal::MetaAST::Parse::internal_lexeme {
     my $lexical_lhs_index = $parse->{lexical_lhs_index}++;
     my $lexical_symbol       = "[Lex-$lexical_lhs_index]";
     my %names = (
-        dsl_name     => $dsl_form,
+        dsl_form     => $dsl_form,
         display_form => $dsl_form,
         description  => qq{Internal lexical symbol for "$dsl_form"}
     );

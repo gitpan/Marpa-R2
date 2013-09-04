@@ -15,9 +15,17 @@
 
 =head1 NAME
 
-Marpa::R2::Semantics::Null - How the SLIF evaluates null rules and symbols
+Marpa::R2::NAIF::Semantics::Null - How the NAIF evaluates null rules and symbols
 
 =head1 Overview
+
+This document deals with Marpa's low-level NAIF interface.
+If you are new to Marpa,
+or are not sure which interface you are interested in,
+or do not know what the Named Argment InterFace (NAIF) is,
+you probably want to look instead at
+L<the document on semantics for the SLIF
+interface|Marpa::R2::Semantics>.
 
 In Marpa parses, rules and  symbols can be nulled --
 in other words they can derive the zero-length, or null, string.
@@ -33,7 +41,7 @@ called a B<null parse>.
 
 When evaluating a parse, nulled rules and symbols are
 assigned values as described
-L<in the semantics document|Marpa::R2::Semantics>.
+L<in the semantics document|Marpa::R2::NAIF::Semantics>.
 This document provides additional detail on the assignment
 of values to nulled symbols.
 
@@ -41,39 +49,35 @@ of values to nulled symbols.
 
 =head2 Null values come from rules
 
-Nulled subtrees are pruned back to their topmost symbol.
-Lexemes are never nulled, so a nulled symbol is always the LHS of a rule instance,
-and the action is determined from the rule alternative.
+All null values for symbols come from rules with that symbol
+on their LHS.
+For a symbol to be nulled, it must be on the LHS of at least one
+nullable rule.
+The action of one of these nullable rules will be the action for
+the nulled symbol.
 
-A complication arises if the symbol appears on the LHS of more than one
-nullable rule alternative.  Because the symbol is nulled, the input is no help in determining
-which rule alternative to use.  The rule alternative whose semantics are used for a nulled symbol
-is determined as follows:
+If the action is a constant, then that constant is the value
+of the nulled symbol.
+If the action is a rule evaluation closure,
+then that closure is called with no child arguments,
+and the closure's result is the value of the nulled symbol.
 
-=over 4
+It may be that more than one nullable rule has that symbol on
+its LHS, and and that
+these rules have different action names.
+In that case, the action for the empty rule with that LHS
+is the one which
+applies.
+It is a fatal error if the nullable rules for a LHS symbol
+have different action names, and there is no empty rule for that LHS
+symbol.
+A simple way to fix this problem is create such an empty rule.
 
-=item * If all nullable rule alternatives have the same semantics, that semantics is used.
+=head2 Null subtrees
 
-=item * If one of the nullable rule alternatives
-is empty (that is, has a zero-length RHS),
-then the empty alternative's semantics are used.
-
-=item * 
-In the remaining case,
-two or more of the rule alternatives have different action names,
-but none of the alternatives has a zero-length RHS.
-When this happens, Marpa throws an exception.
-One easy way
-to fix the issue,
-to add an empty rule with the intended semantics.
-
-=back
-
-In determining whether the semantics of two nullable rule alternatives
-is "the same",
-the blessing is taken into account.
-Two rule alternatives are considered to have different semantics if
-they are blessed differently.
+A null subtree is a subtree all of whose symbols and rules are nulled.
+Marpa prunes
+all null subtrees back to their topmost nulled symbol.
 
 The "lost" semantics of the non-topmost symbols and rules
 of null subtrees is usually not missed.
@@ -98,8 +102,8 @@ null symbol.
 Here is an example:
 
 =for Marpa::R2::Display
-name: SLIF Null Value Example
-normalize-whitespace: 1
+name: Null Value Example
+perltidy: '-dcsc -sil=0'
 
     sub do_L {
         shift;
@@ -127,31 +131,30 @@ normalize-whitespace: 1
     our $null_Y = 'null Y';
     ## use critic
 
-    my $slg = Marpa::R2::Scanless::G->new(
-        {   source => \<<'END_OF_DSL',
-    :start ::= S
-    S ::= L R     action => do_S
-    L ::= A B X   action => do_L
-    L ::=         action => null_L
-    R ::= A B Y   action => do_R
-    R ::=         action => null_R
-    A ::=         action => null_A
-    B ::=         action => null_B
-    X ::=         action => null_X
-    X ::= 'x'     action => do_X
-    Y ::=         action => null_Y
-    Y ::= 'y'     action => do_Y
-    END_OF_DSL
+    my $grammar = Marpa::R2::Grammar->new(
+        {   start   => 'S',
+            actions => 'main',
+            rules   => [
+                [ 'S', [qw/L R/],   'do_S' ],
+                [ 'L', [qw/A B X/], 'do_L' ],
+                [ 'L', [], 'null_L' ],
+                [ 'R', [qw/A B Y/], 'do_R' ],
+                [ 'R', [], 'null_R' ],
+                [ 'A', [], 'null_A' ],
+                [ 'B', [], 'null_B' ],
+                [ 'X', [], 'null_X' ],
+                [ 'X', [qw/x/], 'do_X' ],
+                [ 'Y', [], 'null_Y' ],
+                [ 'Y', [qw/y/], 'do_Y' ],
+            ],
         }
     );
 
-    my $slr = Marpa::R2::Scanless::R->new(
-        {   grammar           => $slg,
-            semantics_package => 'main',
-        }
-    );
+    $grammar->precompute();
 
-    $slr->read( \'x' );
+    my $recce = Marpa::R2::Recognizer->new( { grammar => $grammar } );
+
+    $recce->read( 'x', 'x' );
 
 =for Marpa::R2::Display::End
 
@@ -197,7 +200,7 @@ ignore: 1
 Here is the output:
 
 =for Marpa::R2::Display
-name: SLIF Null Value Example Output
+name: Null Value Example Output
 normalize-whitespace: 1
 
     S(L(null A;null B;X(x));null R)
@@ -216,13 +219,13 @@ This comes from the empty rule for C<B>.
 
 =item * The token value for symbol 1.3: "C<x>".
 
-=item * An application of the rule evaluation closure for the rule
+=item * An application of the semantic Perl closure for the rule
 C<L := A B X>.
 
 =item * The null value for rule 2: "C<null R>".
 This comes from the empty rule for C<R>.
 
-=item * An application of the rule evaluation closure for the rule
+=item * An application of the semantic Perl closure for the rule
 C<S := L R>
 
 =back

@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.068000';
+$VERSION        = '2.069_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -81,6 +81,7 @@ lhs
 op_declare
 op_declare_bnf
 parenthesized_rhs_primary_list
+Perl_name
 priorities
 priority_rule
 proper_specification

@@ -224,7 +224,6 @@ sub new {
 
     $self->{grammar} = Marpa::R2::Scanless::G->new(
         {
-            action_object  => 'MarpaX::JSON::Actions',
             source         => \(<<'END_OF_SOURCE'),
 :default ::= action => ::first
 
@@ -296,25 +295,35 @@ END_OF_SOURCE
 }
 
 sub parse {
-    my ($self, $string) = @_;
+    my ( $self, $string ) = @_;
 
 # Marpa::R2::Display
 # name: SLIF read/resume example
 
-    my $re = Marpa::R2::Scanless::R->new( { grammar => $self->{grammar} } );
+    my $re = Marpa::R2::Scanless::R->new(
+        {   grammar           => $self->{grammar},
+            semantics_package => 'MarpaX::JSON::Actions'
+        }
+    );
     my $length = length $string;
-    for ( my $pos = $re->read(\$string); $pos < $length; $pos = $re->resume()) {
-       my ($start, $length) = $re->pause_span();
-       my $value = substr $string, $start+1, $length-2;
-       $value = decode_string($value) if -1 != index $value, '\\';
-       $re->lexeme_read('lstring', $start, $length, $value) // die;
-    }
-    my $value_ref = $re->value();
+    for (
+        my $pos = $re->read( \$string );
+        $pos < $length;
+        $pos = $re->resume()
+        )
+    {
+        my ( $start, $length ) = $re->pause_span();
+        my $value = substr $string, $start + 1, $length - 2;
+        $value = decode_string($value) if -1 != index $value, '\\';
+        $re->lexeme_read( 'lstring', $start, $length, $value ) // die;
+    } ## end for ( my $pos = $re->read( \$string ); $pos < $length...)
+    my $per_parse_arg = bless {}, 'MarpaX::JSON::Actions';
+    my $value_ref = $re->value($per_parse_arg);
     return ${$value_ref};
 
 # Marpa::R2::Display::End
 
-}
+} ## end sub parse
 
 sub parse_json {
     my ($string) = @_;
@@ -332,16 +341,22 @@ sub trace_json {
 
     my $re = Marpa::R2::Scanless::R->new( { grammar => $parser->{grammar} } );
     my $length = length $string;
-    for ( my $pos = $re->read(\$string); $pos < $length; $pos = $re->resume()) {
-       my ($start, $span_length) = $re->pause_span();
-       my ($line, $column) = $re->line_column($start);
-       my $lexeme = $re->pause_lexeme();
-       my $literal_string = $re->literal($start, $span_length);
-       $trace_desc .= qq{Line $line, column $column, lexeme <$lexeme>, literal "$literal_string"\n};
-       my $value = substr $string, $start+1, $span_length-2;
-       $value = decode_string($value) if -1 != index $value, q{\\};
-       $re->lexeme_read('lstring', $start, $span_length, $value) // die;
-    }
+    for (
+        my $pos = $re->read( \$string );
+        $pos < $length;
+        $pos = $re->resume()
+        )
+    {
+        my ( $start, $span_length ) = $re->pause_span();
+        my ( $line,  $column )      = $re->line_column($start);
+        my $lexeme = $re->pause_lexeme();
+        my $literal_string = $re->literal( $start, $span_length );
+        $trace_desc
+            .= qq{Line $line, column $column, lexeme <$lexeme>, literal "$literal_string"\n};
+        my $value = substr $string, $start + 1, $span_length - 2;
+        $value = decode_string($value) if -1 != index $value, q{\\};
+        $re->lexeme_read( 'lstring', $start, $span_length, $value ) // die;
+    } ## end for ( my $pos = $re->read( \$string ); $pos < $length...)
     return $trace_desc;
 
 # Marpa::R2::Display::End
@@ -364,21 +379,15 @@ sub decode_string {
     return $s;
 } ## end sub decode_string
 
-package MarpaX::JSON::Actions;
 use strict;
 
-sub new {
-    my ($class) = @_;
-    return bless {}, $class;
-}
-
-sub do_object {
+sub MarpaX::JSON::Actions::do_object {
     my (undef, $members) = @_;
     use Data::Dumper;
     return { map { @{$_} } @{$members} };
 }
 
-sub do_true {
+sub MarpaX::JSON::Actions::do_true {
     shift;
     return $_[0] eq 'true';
 }

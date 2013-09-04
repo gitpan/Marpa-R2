@@ -41,8 +41,6 @@ use Marpa::R2;
 
 ## no critic (Subroutines::RequireArgUnpacking)
 
-sub My_Actions::new { return {} }
-
 sub My_Actions::minus {
     shift;
     my ( $right_string, $right_value ) = ( $_[2] =~ /^(.*)==(.*)$/xms );
@@ -85,9 +83,7 @@ sub My_Actions::default_action {
 ## use critic
 
 my $g = Marpa::R2::Scanless::G->new(
-    {   
-        action_object => 'My_Actions',
-        source    => \(<<'END_OF_SOURCE'),
+    {   source => \(<<'END_OF_SOURCE'),
 :start ::= E
 :default ::= action => default_action
 E ::= 
@@ -108,8 +104,12 @@ for my $n ( 1 .. 12 ) {
 
     # Set max_parses just in case there's an infinite loop.
     # This is for debugging, after all
-    my $recce =
-        Marpa::R2::Scanless::R->new( { grammar => $g, max_parses => 300 } );
+    my $recce = Marpa::R2::Scanless::R->new(
+        {   grammar           => $g,
+            semantics_package => 'My_Actions',
+            max_parses        => 300
+        }
+    );
     $recce->read( \'6-', 0, 1 );
     $recce->resume( 1, 1 ) for 1 .. $n;
     $recce->resume( 0, 1 );

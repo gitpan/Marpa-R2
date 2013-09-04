@@ -15,45 +15,66 @@
 
 =head1 NAME
 
-Marpa::R2::Semantics::Phases - Phases of SLIF parse evaluation
+Marpa::R2::NAIF::Semantics::Phases - Details of NAIF parse evaluation
 
 =head1 Overview of the semantic phases
 
-Most users will not need to read this document.
+This document deals with Marpa's low-level NAIF interface.
+If you are new to Marpa,
+or are not sure which interface you are interested in,
+or do not know what the Named Argment InterFace (NAIF) is,
+you probably want to look instead at
+L<the document on semantics for the SLIF
+interface|Marpa::R2::Semantics>.
+
 Most applications will find that the order in which
-the SLIF executes its semantics "just works".
+Marpa's NAIF executes its semantics "just works".
 This document describes that order in detail.
 These details can matter in some applications,
 for example, those which exploit side effects.
 And some readers may also find this background material
 to be helpful.
 
-=head1  Parse trees and parse series
+An advanced document,
+this is written on the assumption that the more low-level NAIF interface
+is in use.
+The SLIF uses the same code as the NAIF for evaluation
+and works in the same way,
+except that it hides even more of these details from the user.
 
+=head1 Parse trees, parse results and parse series
+
+As a reminder,
+when the semantics are applied to a parse tree,
+they produce a value called a B<parse result>.
 Because Marpa allows ambiguous parsing,
 each parse can produce a B<parse series> --
 a series of zero or more parse trees,
 each with its own parse result.
 The first call to the
-L<the SLIF recognizer's C<value()>
-method|Marpa::R2::Scanless::Recognizer/"value()">
+L<the recognizer's C<value>
+method|Marpa::R2::NAIF::Recognizer/"value">
 after the recognizer is created is the
-start of the first parse series,
-and Parse Series Setup Phase takes place
-at this point.
-
+start of the first parse series.
 The first parse series continues until there is
 a call to the
-L<the C<series_restart()>
-method|Marpa::R2::Scanless::R/"series_restart()">
+L<the C<reset_evaluation>
+method|Marpa::R2::NAIF::Recognizer/"reset_evaluation">
 or until the recognizer is destroyed.
-An application is usually interested in only one
+Usually, an application is only interested in a single
 parse series.
 
-The C<series_restart()> method starts a new parse series.
-The Parse Series Setup Phase for that parse series will take
-place during
-the next call of the SLIF recognizer's C<value()> method.
+When the
+L<C<reset_evaluation>|Marpa::R2::NAIF::Recognizer/"reset_evaluation">
+method
+is called
+for a recognizer, it begins a new parse series.
+The new parse series continues until
+there is another
+call to the
+L<the C<reset_evaluation>
+method|Marpa::R2::NAIF::Recognizer/"reset_evaluation">,
+or until the recognizer is destroyed.
 
 =head1 Summary of the phases
 
@@ -61,8 +82,8 @@ While processing a parse series, we have:
 
 =over
 
-=item * A Parse Series Setup Phase, which occurs during
-the first call of the SLIF recognizer's C<value()> method
+=item * A Series Setup Phase, which occurs during
+the first call of the recognizer's C<value> method
 for that series.
 It is followed by
 
@@ -74,12 +95,12 @@ While processing a parse tree, we have:
 
 =over
 
-=item * A Parse Tree Setup Phase, which occurs during
-the call of the recognizer's C<value()> method
+=item * A Tree Setup Phase, which occurs during
+the call of the recognizer's C<value> method
 for that parse tree.
 It is followed by
 
-=item * a Parse Tree Traveral Phase.
+=item * a Tree Traveral Phase.
 
 =back
 
@@ -87,35 +108,35 @@ B<Node Evaluation Time>
 is the Tree Traversal Phase, as seen from the point of view of
 each rule node.  It is not a separate phase.
 
-=head1 Parse Series Setup Phase
+=head1 Series Setup Phase
 
-During the Parse Series Setup Phase
-all action names are resolved to
-actions --
-Perl scalars
+During the Series Setup Phase
+all value action names are resolved to
+value actions --
+constants
 or rule evaluation closures.
-The rule evaluation closures are not called in the Parse Series Setup Phase.
+The rule evaluation closures are never called in the Series Setup Phase.
 They will be called later,
-in the Parse Tree Traversal Phase.
-Also, during the Parse Series Setup Phase,
+in the Tree Traversal Phase.
+Also, during the Series Setup Phase,
 the logic which
 ranks parse trees is executed.
 
-=head1 Parse Tree Setup Phase
+=head1 Tree Setup Phase
 
-In the Parse Tree Setup Phase,
-the per-parse argument is created.
-If a per-parse constructor was found,
-it is run at this point, and the per-parse argument is
+In the Tree Setup Phase,
+the per-parse-tree variable is created.
+If a constructor was found for the C<action_object>,
+it is run at this point, and the per-parse-tree variable is
 its return value.
-Exactly one Parse Tree Setup Phase occurs
+Exactly one Tree Setup Phase occurs
 for each parse tree.
 
-=head1 Parse Tree Traversal Phase
+=head1 Tree Traversal Phase
 
-During the Parse Tree Traversal Phase,
+During the Tree Traversal Phase,
 the rule evaluation closures are called.
-Node Evaluation Time is the Parse Tree Traversal Phase,
+Node Evaluation Time is the Tree Traversal Phase,
 as seen from the point of view of the individual nodes of the parse tree.
 
 =head1 Copyright and License

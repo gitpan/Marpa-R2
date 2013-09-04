@@ -20,7 +20,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 16;
+use Test::More tests => 24;
 
 use English qw( -no_match_vars );
 use Fatal qw( open close );
@@ -790,6 +790,477 @@ G0 S33 <whitespace>
 END_OF_SHOW_SYMBOLS_OUTPUT
 
 # Marpa::R2::Display::End
+
+our @TEST_ARRAY; 
+sub do_something { push @TEST_ARRAY, $_[0] }
+
+@TEST_ARRAY = ();
+
+# Marpa::R2::Display
+# name: SLG symbol_ids() 2 arg synopsis
+
+do_something($_) for $slg->symbol_ids('G0');
+
+# Marpa::R2::Display::End
+
+Marpa::R2::Test::is(
+    ( join "\n", @TEST_ARRAY ),
+    ( join "\n", 0 .. 33 ),
+    'G0 symbol ids'
+);
+
+@TEST_ARRAY = ();
+
+# Marpa::R2::Display
+# name: SLG symbol_ids() synopsis
+
+do_something($_) for $slg->symbol_ids();
+
+# Marpa::R2::Display::End
+
+Marpa::R2::Test::is(
+    ( join "\n", @TEST_ARRAY ),
+    ( join "\n", 0 .. 24 ),
+    'G1 symbol ids'
+);
+
+@TEST_ARRAY = ();
+
+# Marpa::R2::Display
+# name: SLG rule_ids() synopsis
+
+do_something($_) for $slg->rule_ids();
+
+# Marpa::R2::Display::End
+
+Marpa::R2::Test::is(
+    ( join "\n", @TEST_ARRAY, '' ),
+    ( join "\n", 0 .. 19, '' ),
+    'G1 rule ids'
+);
+
+@TEST_ARRAY = ();
+
+# Marpa::R2::Display
+# name: SLG rule_ids() 2 arg synopsis
+
+do_something($_) for $slg->rule_ids('G0');
+
+# Marpa::R2::Display::End
+
+Marpa::R2::Test::is(
+    ( join "\n", @TEST_ARRAY, ''),
+    ( join "\n", 0 .. 27, '' ),
+    'G0 rule ids'
+);
+
+my $text;
+
+$text = q{};
+
+for my $rule_id ( $slg->rule_ids() ) {
+
+# Marpa::R2::Display
+# name: SLG rule_expand() synopsis
+
+    my ($lhs_id, @rhs_ids) = $slg->rule_expand($rule_id);
+    $text .= "Rule #$rule_id: $lhs_id ::= " . (join q{ }, @rhs_ids) . "\n";
+
+# Marpa::R2::Display::End
+
+}
+
+Marpa::R2::Test::is( $text, <<'END_OF_TEXT', 'G1 symbol ids by rule id');
+Rule #0: 0 ::= 16
+Rule #1: 16 ::= 17
+Rule #2: 17 ::= 18
+Rule #3: 17 ::= 19
+Rule #4: 18 ::= 1 20 2 21
+Rule #5: 19 ::= 20 3 22
+Rule #6: 21 ::= 10
+Rule #7: 10 ::= 11
+Rule #8: 11 ::= 12
+Rule #9: 12 ::= 20
+Rule #10: 12 ::= 23
+Rule #11: 11 ::= 4 5 22 6
+Rule #12: 10 ::= 10 7 11
+Rule #13: 22 ::= 13
+Rule #14: 13 ::= 14
+Rule #15: 14 ::= 15
+Rule #16: 15 ::= 20
+Rule #17: 15 ::= 24
+Rule #18: 14 ::= 14 8 15
+Rule #19: 13 ::= 13 9 14
+END_OF_TEXT
+
+$text = q{};
+
+for my $rule_id ( $slg->rule_ids('G0') ) {
+
+# Marpa::R2::Display
+# name: SLG rule_expand() 2 args synopsis
+
+    my ($lhs_id, @rhs_ids) = $slg->rule_expand($rule_id, 'G0');
+    $text .= "G0 Rule #$rule_id: $lhs_id ::= " . (join q{ }, @rhs_ids) . "\n";
+
+# Marpa::R2::Display::End
+
+}
+
+Marpa::R2::Test::is( $text, <<'END_OF_TEXT', 'G0 symbol ids by rule id');
+G0 Rule #0: 2 ::= 27 21 28
+G0 Rule #1: 3 ::= 28 25
+G0 Rule #2: 4 ::= 16
+G0 Rule #3: 5 ::= 27 28 26 23 24 22
+G0 Rule #4: 6 ::= 12
+G0 Rule #5: 7 ::= 13
+G0 Rule #6: 8 ::= 15
+G0 Rule #7: 9 ::= 15
+G0 Rule #8: 10 ::= 14
+G0 Rule #9: 29 ::= 19
+G0 Rule #10: 30 ::= 17
+G0 Rule #11: 31 ::= 11 32 11
+G0 Rule #12: 32 ::= 20
+G0 Rule #13: 0 ::= 33
+G0 Rule #14: 33 ::= 18
+G0 Rule #15: 1 ::= 0
+G0 Rule #16: 1 ::= 2
+G0 Rule #17: 1 ::= 3
+G0 Rule #18: 1 ::= 4
+G0 Rule #19: 1 ::= 5
+G0 Rule #20: 1 ::= 6
+G0 Rule #21: 1 ::= 7
+G0 Rule #22: 1 ::= 8
+G0 Rule #23: 1 ::= 9
+G0 Rule #24: 1 ::= 10
+G0 Rule #25: 1 ::= 30
+G0 Rule #26: 1 ::= 31
+G0 Rule #27: 1 ::= 29
+END_OF_TEXT
+
+$text = q{};
+
+for my $symbol_id ( $slg->symbol_ids() ) {
+
+# Marpa::R2::Display
+# name: SLG symbol_name() synopsis
+
+    my $name = $slg->symbol_name($symbol_id);
+    $text .= "symbol number: $symbol_id  name: $name\n";
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: SLG symbol_description() synopsis
+
+    my $description = $slg->symbol_description($symbol_id)
+        // '[No description]';
+    $text .= "symbol number: $symbol_id  description $description\n";
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: SLG symbol_display_form() synopsis
+
+    my $display_form = $slg->symbol_display_form($symbol_id);
+    $text
+        .= "symbol number: $symbol_id  name in display form: $display_form\n";
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: SLG symbol_dsl_form() synopsis
+
+    my $dsl_form = $slg->symbol_dsl_form($symbol_id)
+        // '[No name in DSL form]';
+    $text .= "symbol number: $symbol_id  DSL form: $dsl_form\n";
+
+# Marpa::R2::Display::End
+
+} ## end for my $symbol_id ( $slg->symbol_ids() )
+
+Marpa::R2::Test::is( $text, <<'END_OF_TEXT', 'G1 symbol names and description');
+symbol number: 0  name: [:start]
+symbol number: 0  description Internal G1 start symbol
+symbol number: 0  name in display form: :start
+symbol number: 0  DSL form: [No name in DSL form]
+symbol number: 1  name: [Lex-0]
+symbol number: 1  description Internal lexical symbol for "'set'"
+symbol number: 1  name in display form: 'set'
+symbol number: 1  DSL form: 'set'
+symbol number: 2  name: [Lex-1]
+symbol number: 2  description Internal lexical symbol for "'to'"
+symbol number: 2  name in display form: 'to'
+symbol number: 2  DSL form: 'to'
+symbol number: 3  name: [Lex-2]
+symbol number: 3  description Internal lexical symbol for "'='"
+symbol number: 3  name in display form: '='
+symbol number: 3  DSL form: '='
+symbol number: 4  name: [Lex-3]
+symbol number: 4  description Internal lexical symbol for "'string'"
+symbol number: 4  name in display form: 'string'
+symbol number: 4  DSL form: 'string'
+symbol number: 5  name: [Lex-4]
+symbol number: 5  description Internal lexical symbol for "'('"
+symbol number: 5  name in display form: '('
+symbol number: 5  DSL form: '('
+symbol number: 6  name: [Lex-5]
+symbol number: 6  description Internal lexical symbol for "')'"
+symbol number: 6  name in display form: ')'
+symbol number: 6  DSL form: ')'
+symbol number: 7  name: [Lex-6]
+symbol number: 7  description Internal lexical symbol for "'+'"
+symbol number: 7  name in display form: '+'
+symbol number: 7  DSL form: '+'
+symbol number: 8  name: [Lex-7]
+symbol number: 8  description Internal lexical symbol for "'+'"
+symbol number: 8  name in display form: '+'
+symbol number: 8  DSL form: '+'
+symbol number: 9  name: [Lex-8]
+symbol number: 9  description Internal lexical symbol for "'*'"
+symbol number: 9  name in display form: '*'
+symbol number: 9  DSL form: '*'
+symbol number: 10  name: expression[0]
+symbol number: 10  description <expression> at priority 0
+symbol number: 10  name in display form: <expression>
+symbol number: 10  DSL form: expression
+symbol number: 11  name: expression[1]
+symbol number: 11  description <expression> at priority 1
+symbol number: 11  name in display form: <expression>
+symbol number: 11  DSL form: expression
+symbol number: 12  name: expression[2]
+symbol number: 12  description <expression> at priority 2
+symbol number: 12  name in display form: <expression>
+symbol number: 12  DSL form: expression
+symbol number: 13  name: numeric expression[0]
+symbol number: 13  description <numeric expression> at priority 0
+symbol number: 13  name in display form: <numeric expression>
+symbol number: 13  DSL form: numeric expression
+symbol number: 14  name: numeric expression[1]
+symbol number: 14  description <numeric expression> at priority 1
+symbol number: 14  name in display form: <numeric expression>
+symbol number: 14  DSL form: numeric expression
+symbol number: 15  name: numeric expression[2]
+symbol number: 15  description <numeric expression> at priority 2
+symbol number: 15  name in display form: <numeric expression>
+symbol number: 15  DSL form: numeric expression
+symbol number: 16  name: statements
+symbol number: 16  description [No description]
+symbol number: 16  name in display form: <statements>
+symbol number: 16  DSL form: [No name in DSL form]
+symbol number: 17  name: statement
+symbol number: 17  description [No description]
+symbol number: 17  name in display form: <statement>
+symbol number: 17  DSL form: [No name in DSL form]
+symbol number: 18  name: assignment
+symbol number: 18  description [No description]
+symbol number: 18  name in display form: <assignment>
+symbol number: 18  DSL form: [No name in DSL form]
+symbol number: 19  name: numeric assignment
+symbol number: 19  description [No description]
+symbol number: 19  name in display form: <numeric assignment>
+symbol number: 19  DSL form: [No name in DSL form]
+symbol number: 20  name: variable
+symbol number: 20  description [No description]
+symbol number: 20  name in display form: <variable>
+symbol number: 20  DSL form: [No name in DSL form]
+symbol number: 21  name: expression
+symbol number: 21  description [No description]
+symbol number: 21  name in display form: <expression>
+symbol number: 21  DSL form: [No name in DSL form]
+symbol number: 22  name: numeric expression
+symbol number: 22  description [No description]
+symbol number: 22  name in display form: <numeric expression>
+symbol number: 22  DSL form: [No name in DSL form]
+symbol number: 23  name: string
+symbol number: 23  description [No description]
+symbol number: 23  name in display form: <string>
+symbol number: 23  DSL form: [No name in DSL form]
+symbol number: 24  name: number
+symbol number: 24  description [No description]
+symbol number: 24  name in display form: <number>
+symbol number: 24  DSL form: [No name in DSL form]
+END_OF_TEXT
+
+$text = '';
+
+for my $symbol_id ( $slg->symbol_ids('G0') ) {
+
+# Marpa::R2::Display
+# name: SLG symbol_name() 2 arg synopsis
+
+    my $name = $slg->symbol_name( $symbol_id, 'G0' );
+    $text .= "G0 symbol number: $symbol_id  name: $name\n";
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: SLG symbol_description() 2 arg synopsis
+
+    my $description = $slg->symbol_description( $symbol_id, 'G0' )
+        // '[No description]';
+    $text .= "G0 symbol number: $symbol_id  description $description\n";
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: SLG symbol_display_form() 2 arg synopsis
+
+    my $display_form = $slg->symbol_display_form( $symbol_id, 'G0' );
+    $text
+        .= "G0 symbol number: $symbol_id  name in display form: $display_form\n";
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: SLG symbol_dsl_form() 2 arg synopsis
+
+    my $dsl_form = $slg->symbol_dsl_form( $symbol_id, 'G0' )
+        // '[No name in DSL form]';
+    $text .= "G0 symbol number: $symbol_id  DSL form: $dsl_form\n";
+
+# Marpa::R2::Display::End
+
+} ## end for my $symbol_id ( $slg->symbol_ids('G0') )
+
+Marpa::R2::Test::is( $text, <<'END_OF_TEXT', 'G0 symbol names and description');
+G0 symbol number: 0  name: [:discard]
+G0 symbol number: 0  description Internal LHS for G0 discard
+G0 symbol number: 0  name in display form: :discard
+G0 symbol number: 0  DSL form: [No name in DSL form]
+G0 symbol number: 1  name: [:start_lex]
+G0 symbol number: 1  description Internal G0 (lexical) start symbol
+G0 symbol number: 1  name in display form: :start_lex
+G0 symbol number: 1  DSL form: [No name in DSL form]
+G0 symbol number: 2  name: [Lex-0]
+G0 symbol number: 2  description Internal lexical symbol for "'set'"
+G0 symbol number: 2  name in display form: 'set'
+G0 symbol number: 2  DSL form: 'set'
+G0 symbol number: 3  name: [Lex-1]
+G0 symbol number: 3  description Internal lexical symbol for "'to'"
+G0 symbol number: 3  name in display form: 'to'
+G0 symbol number: 3  DSL form: 'to'
+G0 symbol number: 4  name: [Lex-2]
+G0 symbol number: 4  description Internal lexical symbol for "'='"
+G0 symbol number: 4  name in display form: '='
+G0 symbol number: 4  DSL form: '='
+G0 symbol number: 5  name: [Lex-3]
+G0 symbol number: 5  description Internal lexical symbol for "'string'"
+G0 symbol number: 5  name in display form: 'string'
+G0 symbol number: 5  DSL form: 'string'
+G0 symbol number: 6  name: [Lex-4]
+G0 symbol number: 6  description Internal lexical symbol for "'('"
+G0 symbol number: 6  name in display form: '('
+G0 symbol number: 6  DSL form: '('
+G0 symbol number: 7  name: [Lex-5]
+G0 symbol number: 7  description Internal lexical symbol for "')'"
+G0 symbol number: 7  name in display form: ')'
+G0 symbol number: 7  DSL form: ')'
+G0 symbol number: 8  name: [Lex-6]
+G0 symbol number: 8  description Internal lexical symbol for "'+'"
+G0 symbol number: 8  name in display form: '+'
+G0 symbol number: 8  DSL form: '+'
+G0 symbol number: 9  name: [Lex-7]
+G0 symbol number: 9  description Internal lexical symbol for "'+'"
+G0 symbol number: 9  name in display form: '+'
+G0 symbol number: 9  DSL form: '+'
+G0 symbol number: 10  name: [Lex-8]
+G0 symbol number: 10  description Internal lexical symbol for "'*'"
+G0 symbol number: 10  name in display form: '*'
+G0 symbol number: 10  DSL form: '*'
+G0 symbol number: 11  name: [[']]
+G0 symbol number: 11  description Character class: [']
+G0 symbol number: 11  name in display form: [']
+G0 symbol number: 11  DSL form: [']
+G0 symbol number: 12  name: [[\(]]
+G0 symbol number: 12  description Character class: [\(]
+G0 symbol number: 12  name in display form: [\(]
+G0 symbol number: 12  DSL form: [\(]
+G0 symbol number: 13  name: [[\)]]
+G0 symbol number: 13  description Character class: [\)]
+G0 symbol number: 13  name in display form: [\)]
+G0 symbol number: 13  DSL form: [\)]
+G0 symbol number: 14  name: [[\*]]
+G0 symbol number: 14  description Character class: [\*]
+G0 symbol number: 14  name in display form: [\*]
+G0 symbol number: 14  DSL form: [\*]
+G0 symbol number: 15  name: [[\+]]
+G0 symbol number: 15  description Character class: [\+]
+G0 symbol number: 15  name in display form: [\+]
+G0 symbol number: 15  DSL form: [\+]
+G0 symbol number: 16  name: [[\=]]
+G0 symbol number: 16  description Character class: [\=]
+G0 symbol number: 16  name in display form: [\=]
+G0 symbol number: 16  DSL form: [\=]
+G0 symbol number: 17  name: [[\d]]
+G0 symbol number: 17  description Character class: [\d]
+G0 symbol number: 17  name in display form: [\d]
+G0 symbol number: 17  DSL form: [\d]
+G0 symbol number: 18  name: [[\s]]
+G0 symbol number: 18  description Character class: [\s]
+G0 symbol number: 18  name in display form: [\s]
+G0 symbol number: 18  DSL form: [\s]
+G0 symbol number: 19  name: [[\w]]
+G0 symbol number: 19  description Character class: [\w]
+G0 symbol number: 19  name in display form: [\w]
+G0 symbol number: 19  DSL form: [\w]
+G0 symbol number: 20  name: [[^'\x{0A}\x{0B}\x{0C}\x{0D}\x{0085}\x{2028}\x{2029}]]
+G0 symbol number: 20  description Character class: [^'\x{0A}\x{0B}\x{0C}\x{0D}\x{0085}\x{2028}\x{2029}]
+G0 symbol number: 20  name in display form: [^'\x{0A}\x{0B}\x{0C}\x{0D}\x{0085}\x{2028}\x{2029}]
+G0 symbol number: 20  DSL form: [^'\x{0A}\x{0B}\x{0C}\x{0D}\x{0085}\x{2028}\x{2029}]
+G0 symbol number: 21  name: [[e]]
+G0 symbol number: 21  description Character class: [e]
+G0 symbol number: 21  name in display form: [e]
+G0 symbol number: 21  DSL form: [e]
+G0 symbol number: 22  name: [[g]]
+G0 symbol number: 22  description Character class: [g]
+G0 symbol number: 22  name in display form: [g]
+G0 symbol number: 22  DSL form: [g]
+G0 symbol number: 23  name: [[i]]
+G0 symbol number: 23  description Character class: [i]
+G0 symbol number: 23  name in display form: [i]
+G0 symbol number: 23  DSL form: [i]
+G0 symbol number: 24  name: [[n]]
+G0 symbol number: 24  description Character class: [n]
+G0 symbol number: 24  name in display form: [n]
+G0 symbol number: 24  DSL form: [n]
+G0 symbol number: 25  name: [[o]]
+G0 symbol number: 25  description Character class: [o]
+G0 symbol number: 25  name in display form: [o]
+G0 symbol number: 25  DSL form: [o]
+G0 symbol number: 26  name: [[r]]
+G0 symbol number: 26  description Character class: [r]
+G0 symbol number: 26  name in display form: [r]
+G0 symbol number: 26  DSL form: [r]
+G0 symbol number: 27  name: [[s]]
+G0 symbol number: 27  description Character class: [s]
+G0 symbol number: 27  name in display form: [s]
+G0 symbol number: 27  DSL form: [s]
+G0 symbol number: 28  name: [[t]]
+G0 symbol number: 28  description Character class: [t]
+G0 symbol number: 28  name in display form: [t]
+G0 symbol number: 28  DSL form: [t]
+G0 symbol number: 29  name: variable
+G0 symbol number: 29  description [No description]
+G0 symbol number: 29  name in display form: <variable>
+G0 symbol number: 29  DSL form: [No name in DSL form]
+G0 symbol number: 30  name: number
+G0 symbol number: 30  description [No description]
+G0 symbol number: 30  name in display form: <number>
+G0 symbol number: 30  DSL form: [No name in DSL form]
+G0 symbol number: 31  name: string
+G0 symbol number: 31  description [No description]
+G0 symbol number: 31  name in display form: <string>
+G0 symbol number: 31  DSL form: [No name in DSL form]
+G0 symbol number: 32  name: string contents
+G0 symbol number: 32  description [No description]
+G0 symbol number: 32  name in display form: <string contents>
+G0 symbol number: 32  DSL form: [No name in DSL form]
+G0 symbol number: 33  name: whitespace
+G0 symbol number: 33  description [No description]
+G0 symbol number: 33  name in display form: <whitespace>
+G0 symbol number: 33  DSL form: [No name in DSL form]
+END_OF_TEXT
 
 1;    # In case used as "do" file
 

@@ -1,7 +1,8 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (22 August 2013) is for the internals of Libmarpa 5.168.100.
+This manual (3 September 2013) is for the internals of Libmarpa
+5.169.101.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -17,7 +18,8 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (22 August 2013) is for the internals of Libmarpa 5.168.100.
+This manual (3 September 2013) is for the internals of Libmarpa
+5.169.101.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -1125,18 +1127,18 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top511
-Node: Copying1401
-Node: About this document9837
-Node: Internal Interface10145
-Node: Symbol internal methods10913
-Node: Rule internals12592
-Node: Grammar internals15232
-Node: Recognizer internals16936
-Node: Bocage internals19810
-Node: Ordering internals22009
-Node: Tree internals22299
-Node: Valuator internals24307
-Node: GNU Free Documentation License24573
+Node: Top513
+Node: Copying1405
+Node: About this document9841
+Node: Internal Interface10149
+Node: Symbol internal methods10917
+Node: Rule internals12596
+Node: Grammar internals15236
+Node: Recognizer internals16940
+Node: Bocage internals19814
+Node: Ordering internals22013
+Node: Tree internals22303
+Node: Valuator internals24311
+Node: GNU Free Documentation License24577
 
 End Tag Table

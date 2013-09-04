@@ -115,9 +115,11 @@ as described below.
 Symbol names can be either "bare" or enclosed in angle brackets.
 Bare symbol names must consist entirely of Perl word characters
 (alphanumerics, plus the underscore).
+Symbol names are case-sensitive.
+
 The angle brackets, if used, serve to "quote"
 the symbol name,
-and will not be part of the symbol name.
+and will not be part of the explicit symbol name.
 
 If angle brackets are used, symbol names may also contain whitespace,
 as in
@@ -138,7 +140,7 @@ if necessary.
 Unlike the angle brackets,
 the whitespace in a bracketed symbol token
 B<does> become part of
-of the symbol name,
+of the explicit symbol name,
 but it does so in a "normalized" form.
 Leading and trailing whitespace in the name is discarded,
 and all other whitespace sequences are converted to a single ASCII
@@ -166,15 +168,20 @@ ignore: 1
 =for Marpa::R2::Display::End
 
 will all be regarded as the same symbol name.
-The normalized form of that symbol name
-is C<< <op comma> >>.
-The actual name of every symbol
-is its
-normalized form.
-Symbol names are often
+The explicit form of that symbol name
+is C<< <op comma> >>, except that, again, the
+angle brackets are for clarity,
+and are not part of the explicity name.
+
+Explicit, reserved and internal symbol names are often
 displayed between angle brackets,
 regardless of whether the symbol was originally
 specified in bracketed form.
+
+There are cases in which a SLIF symbol needs to be 
+referred to by name in Perl code.
+In this cases, it is the symbols explicit name
+that is used.
 
 =head2 Single quoted strings
 
@@ -234,7 +241,7 @@ normalize-whitespace: 1
 
 A character class in square brackets ("C<[]>")
 can be used in a RHS alternative of a prioritized rule,
-or on the RHS of a quantified rule or a discard rule.
+a quantified rule or a discard rule.
 Marpa character classes may contain anything acceptable to Perl,
 and follow the same escaping conventions as Perl's character classes.
 
@@ -257,24 +264,47 @@ Each character class is
 passed to Perl to interpret exactly once and the result is
 memoized in a C language structure for future use.
 
-=head1 Rules and statements
+=head1 Statements
 
-The BNF operator ("C<::=>")
+The SLIF DSL consists of a series of statements.
+The statements are of three kinds, as indicated by their declarator:
+
+=over 4
+
+=item * G1 rules
+
+The BNF operator ("C<::=>"),
+coming between the LHS and the first RHS alternative of a rule,
 indicates that the rule is
 a G1 rule.
-The match operator ("C<~>")
-can be used between the LHS and RHS of a rule,
-instead of the BNF operator.
-Rules which use the match operator are G0 rules.
-The effect of a rule is sometimes lexical --
-that is, the effect may vary depending
-on the position of the rule in the DSL source.
 
-Statements
+=item * G0 rules
+
+The match operator ("C<~>"),
+coming between the LHS and the first RHS alternative
+of a rule,
+indicates a G0 rule.
+
+=item * Global statements
+
+Global statements
 are signified by the assignment operator ("C<=>").
-Their effect is global, never lexical.
 The location of a statement in the DSL source
 will never affect the result.
+
+=back
+
+Rules differ from statements in that
+the effect of a rule
+is sometimes lexical --
+that is, the effect may vary depending
+on the position of the rule in the DSL source.
+Some rules are called pseudo-rules.
+Pseudo-rules do not correspond to BNF rules,
+but instead use the rule format as a convenient
+way to express other information.
+
+=head1 The structure of rules
 
 Every rule declaration consists of, in order:
 
@@ -286,66 +316,105 @@ symbol or a pseudo-symbol.
 
 =item * A declaration operator ("C<::=>" or "C<~>").
 
-=item * A right side declaration.
+=item * A right side declaration, which contains one or more RHS
+alternatives.
+Details of the right side declaration vary by the type of rule.
+For each type of rule,
+the right side declaration is described in detail below.
 
 =back
 
-For each type of rule,
-the right side declaration is described in detail below.
-Among the things a right side declaration may contain are:
+=head1 RHS alternatives
 
-=over 4
-
-=item * Zero or more RHS alernatives.
+The right side declaration of a rule will often contain one or
+more RHS alternatives.
 A RHS alternative is a series of RHS primaries,
 where a RHS primary may be a symbol name,
 a character class,
 or a single quoted string.
-
-=item * An list of zero or more adverbs.
+Associated with each RHS is often
+list of zero or more adverbs.
 Each adverb consists of a keyword,
 the adverb operator ("C<< => >>"),
 and the adverb's value.
 
-=back
+Within an alternative, symbols may be enclosed in parentheses.
+A symbol enclosed in parentheses is hidden from
+L<Marpa's semantics|Marpa::R2::Semantics>.
+A set of parentheses may contain more than one symbol,
+in which case the entire sequence of symbols is hidden,
+as if they had been enclosed in parentheses individually.
+"Hiding" symbols in this way can be convenient for symbols whose values
+the semantics will ignore, perhaps because the value is constant.
 
-Note that most rules are classified as "prioritized rules",
-although the prioritization may be trivial.
 For example,
-a rule like the following,
+in the following rule
 
 =for Marpa::R2::Display
 ignore: 1
 
-    a ::= b c d
+    a ::= b (',' c) d action => ::first
 
 =for Marpa::R2::Display::End
 
-whose RHS consists only of a sequence of symbols,
-is a prioritized rule.
-The prioritization is trivial --
-there is only one priority,
-and in fact only one alternative within
-that priority.
-In typical grammars,
-most rules will be prioritized rules,
-and many of them will be trivially prioritized.
+there is
+
+=over 4
+
+=item *
+
+A LHS, in this case the symbol "C<a>".
+
+=item *
+
+A declarator, "C<::=>", which indicates this is
+a G1 rule.
+
+=item *
+
+A RHS alternative consisting of four RHS primaries.
+The first RHS primary is the symbol "C<b>".
+The second RHS primary is a short single-quoted string C<','>.
+The third and fourth RHS primaries are symbols: "C<c>" and "C<d>".
+The parentheses around the second and third RHS primaries "hide"
+them from the semantics.
+Marpa's semantics will see this as a rule with only two RHS values.
+
+=item *
+
+The adverb list associated with the RHS alternative,
+consisting of a single adverb.
+The adverb consists of its keyword "C<action>",
+followed by the adverb operator ("C<< => >>"),
+and the adverb's value "C<::first>".
+
+=back
+
+The rule in the above example is one of a very common type:
+a trivial prioritized rule.
+A prioritized rule is one that contains one or more prioritized RHS alternatives.
+Prioritized rules are the only rules which may contain more than one RHS
+alternative, but even prioritized rules usually have only one RHS alternative.
+If there is only one RHS alternative, as in this case, the prioritization
+is B<trivial> --
+there is only one priority.
 
 =head2 Start rule
 
 Every source string should have a start rule.
 The LHS of this rule is the C<:start> pseudo-symbol.
-The RHS must be a single symbol name.
-The start rule does not accept any adverbs.
+Only one RHS alternative is allowed.
+This RHS alternative must contain only one symbol name,
+No adverbs should be associated with the RHS alternative.
 Start rules must be G1 rules.
 
 =head2 Empty rules
 
 An empty rule is a rule with an empty RHS.
-An empty right hand side is what the name suggests: no symbols
-or punctuation.
+The empty RHS, technically, is a RHS alternative, one with zero RHS primaries.
 The C<action> and
-C<bless> adverbs are allowed with empty rules,
+C<bless> adverbs are allowed 
+for the empty RHS alternative,
 but no others.
 A empty rule makes its LHS symbol a nullable symbol.
 
@@ -360,20 +429,22 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-A rule is a quantified rule if
-its RHS consists of a single symbol,
-followed by a "quantifier".
-A "single symbol" in this context is a symbol name or a character class.
+A quantified rule has only one RHS alternative,
+which is followed by a quantifier.
+The RHS alternative must consist of a single RHS primary.
+This RHS primary must be a symbol name or a character class.
 The quantifer is either
 a star ("C<*>"),
 or a plus sign ("C<+>")
 indicating, respectively, that the sequence rule has a minimum length
 of 0 or 1.
 
-Quantified rules allow the C<action>,
+Adverbs may be associated with the RHS alternative.
+The adverb list must follow the quantifier.
+The adverbs allowed are C<action>,
 C<bless>,
 C<proper> and
-C<separator> adverbs.
+C<separator>.
 
 =head2 Prioritized rules
 
@@ -393,22 +464,21 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-Any rule that is not a start rule,
-and that is not empty or quantified, is considered prioritized.
-The prioritization is often trivial, consisting only of a
-single priority level.
+A prioritized rule contains a series of one or more RHS alternatives,
+separated by either the alternation operator ("C<|>")
+or the loosen operators ("C<||>").
+In a typical grammar, most rules are prioritized rules,
+but they are often trivially prioritized,
+consisting of only one RHS alternative.
+For brevity, RHS alternatives are often called B<alternatives>.
 
-Each prioritized right hand side consists of one or more right hand alternatives
-(called "alternatives" for brevity).
-An alternative is a series of one or more symbols,
-followed by zero or more adverbs.
+Each alternative may be followed by a list of associated adverbs.
 The 
 C<action>,
 C<assoc> and
 C<bless> adverbs are allowed.
 
-The alternatives are separated by single or double "or" symbols.
-This means the alternatives in a prioritized right hand side proceed
+The RHS alternatives in a prioritized right hand side proceed
 from tightest (highest) priority to loosest.
 The double "or" symbol ("C<||>") is the "loosen" operator --
 the alternatives after it
@@ -416,13 +486,6 @@ have a looser (lower) priority than the alternatives before it.
 The single "or" symbol ("C<|>") is the ordinary "alternative" operator --
 alternatives on each side of it have the same priority.
 Associativity is specified using adverbs, as described below.
-
-Within an alternative, symbols may be enclosed in parentheses.
-A symbol enclosed in parentheses is hidden from
-L<Marpa's semantics|Marpa::R2::Semantics>.
-A set of parentheses may contain more than one symbol,
-in which case the entire sequence of symbols is hidden,
-as if they had been enclosed in parentheses individually.
 
 =head2 Discard rules
 
@@ -437,9 +500,11 @@ normalize-whitespace: 1
 
 A discard rule is a rule whose LHS is
 the C<:discard> pseudo-symbol,
-and whose RHS is a single symbol name,
+and which has only one RHS alternative.
+The RHS alternative must contain
+exactly one symbol name,
 called the B<discarded symbol>.
-These rules indicate that the discarded symbol is a top-level G0
+Discard rules indicate that the discarded symbol is a top-level G0
 symbol, but one which is not a lexeme.
 When a discarded symbol is recognized,
 it is not passed as a lexeme to the G1 parser, but is
@@ -458,21 +523,23 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-The default pseudo-rule changes the defaults for
+The purpose of
+the default pseudo-rule is change the defaults for
 rule adverbs.
+Techncially, it has one RHS alternative, but this must always contain
+zero RHS primaries.
 Default pseudo-rules do not affect the defaults for G0 rules
 or for lexemes.
 There may be more than one default pseudo-rule.
 The scope of default pseudo-rules is lexical, applying only to rules
 that appear afterwards in the DSL source.
 
-Currently only the defaults for
-the C<action> and C<bless> adverbs
+Currently only the C<action> and C<bless> adverbs
 can be specified in a default pseudo-rule.
 Each default pseudo-rule creates a completely new
 set of defaults -- if an adverb is not specified,
-it is reset to its original default, the one it had
-before any default pseudo-rules were encountered.
+the default is reset to its implicit value,
+the value which it had prior to any explicit settings.
 
 =head2 Lexeme pseudo-rules
 
@@ -485,23 +552,27 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-The C<:lexeme> pseudo-rule allows adverbs to be used to
+The purpose of
+the C<:lexeme> pseudo-rule is to allow adverbs to
 change the treatment of a lexeme.
+This pseudo-rule always had exactly one RHS alternative,
+and that RHS alternative must contain exactly one symbol.
+This RHS symbol identifies the lexeme which the adverbs will affect.
 The only adverbs allowed in a C<:lexeme> rule
 are
 L<C<priority>|/"priority">
 and
 L<C<pause>|/"pause">.
 
-As a side effect, a C<:lexeme> pseudo-rules
-declares that a symbol is a lexeme.
+As a side effect, a C<:lexeme> pseudo-rule
+declares that its RHS symbol is a lexeme.
 This declaration does not "force" lexeme status --
 if the symbol does not meet the criteria for a lexeme
 based on its use in G0 and G1 rules,
 the result will be a fatal error.
 Applications may find the ability to "declare"
 lexemes useful for debugging,
-and for documentating grammars.
+and for documenting grammars.
 
 =head2 Lexeme default statement
 
@@ -641,19 +712,29 @@ The adverb's value must be as described for each keyword.
 
 =head2 action
 
-The C<action> adverb specifies the semantics for a G1 rule
-or a lexeme, as described below.
-The C<action> adverb may also appear in a default pseudo-rule.
+The C<action> adverb is allowed for
 
-The default value of a G1 rule is a Perl C<undef>.
-The C<action> adverb is not allowed for G0 rules,
-which have no default value.
-The possible values of actions are described in
-L<their own section|/"Actions">.
+=over 4
 
-The default value of a lexeme is 
-its literal value in the input stream, as a string.
-This is called the B<token value> of the lexeme.
+=item *
+
+An RHS alternative, in which the action is for the alternative.
+
+=item *
+
+The default pseudo-rule, in which case the action is for all rules which do not
+have their own action explicitly specified.
+
+=item *
+
+The lexeme default statement, in which case the action is for all lexemes.
+
+=back
+
+The C<action> adverb is not allowed for G0 rules.
+The possible values of actions are described,
+along with other details of the semantics
+L<a separate document|Marpa::R2::Semantics>.
 
 =head2 assoc
 
@@ -669,57 +750,9 @@ L<below|/"Precedence">.
 
 The C<bless> adverb causes the result of the semantics to be
 blessed into the class indicated by the value of the adverb.
-The C<bless> adverb is allowed for alternatives of prioritized G1 rules,
-quantified G1 rules,
-and lexemes.
-The C<bless> adverb is also allowed for the default lexeme statement
-and the default pseudo-rule.
-A G0 rule cannot have a C<bless> adverb.
-
-The value of a C<bless> adverb is called a B<blessing>.
-If the blessing is a Perl word
-(a string of alphanumerics or underscores),
-the name of the class will be formed by prepending
-the value of L<the C<bless_package>
-named argument|Marpa::R2::Scanless::G/"bless_package">, followed
-by a double colon ("C<::>").
-
-If the blessing begins with a double colon ("C<::>"), it is a
-reserved blessing.
-A blessing of C<::undef> means that the rule or lexeme will not be blessed.
-By default, both
-rules and lexemes are not blessed.
-If any rule or lexeme of a SLIF grammar has
-a blessing other than C<::undef>,
-a C<bless_package> is required,
-and failure to specify one results in
-a fatal error.
-
-The bless adverb for
-rules allows one additional reserved blessing: C<::lhs>.
-A blessing of C<::lhs> causes the result to be blessed into
-a class whose name is based on the LHS of the rule.
-The class will be the name of the LHS with whitespace
-changed to an underscore.
-(As a reminder, the whitespace in symbol names will have been normalized,
-with leading and trailing whitespace removed,
-and all other whitespace sequences changed to a single ASCII space.)
-When a C<::lhs> blessing value applies to a rule, it is a fatal
-error if the LHS contains anything other than alphanumerics
-and whitespace.
-In particular, the LHS cannot already contain an underscore ("C<_>").
-The C<::lhs> blessing is most useful in a default rule.
-
-The bless adverb for lexemes allows only one
-reserved value: C<::name>.
-A reserved value of C<::name> causes the value of the lexeme to be blessed into
-a class whose name is based on the name of the lexeme.
-The class is derived from the symbol name in the same way,
-and subject to the same restrictions,
-as described above for deriving a class name from the LHS
-of a rule.
-The C<::name> reserved blessing is most useful in
-the lexeme default rule.
+Details of its use may be found in
+L<the semantics
+document|Marpa::R2::Semantics/"Blessings">.
 
 =head2 event
 
@@ -745,6 +778,37 @@ for the L<named event statement|"Named event statement">.
 
 It is a fatal error to specify the C<event> adverb
 if the C<pause> adverb is not also specified.
+
+=head2 null-ranking
+
+=for Marpa::R2::Display
+name: null-ranking adverb example
+partial: 1
+normalize-whitespace: 1
+
+    S ::= A A A A null-ranking => high
+
+=for Marpa::R2::Display::End
+
+The C<null-ranking> adverb applies only to rules.
+and is ignored unless
+the recognizer's C<ranking_method> named argument
+is set to something other than its default.
+The C<null_ranking> named argument allows the application
+to control the order in which rules with nullable symbols
+are returned by the C<value> method.
+Such rules can match the same input in several ways
+depending on which symbols are nulled.
+These different ways of nulling symbols in a rule
+are called its null variants.
+
+If C<null_ranking> is undefined,
+the order of the null variants will be arbitrary.
+This is the default,
+and is acceptable to most applications.
+For details on using the
+C<null_ranking> named argument,
+see L<the document on parse order|Marpa::R2::Semantics::Order>.
 
 =head2 pause
 
@@ -931,139 +995,6 @@ and its value must be a symbol of the grammar.
 If specified, that symbol must separate items of the sequence.
 A separator symbol may not be nullable.
 
-=head1 Actions
-
-=head2 Word actions
-
-If the action value is
-a Perl word (a string of alphanumerics or underscores),
-it will be interpreted as the action name,
-as described for
-L<the C<action> named argument of rule descriptors|Marpa::R2::NAIF::Grammar/"action">.
-Word actions are not allowed for lexemes.
-
-Typically, a word action is resolved to a Perl closure, called the B<semantic closure>.
-Ordinarily, the arguments to the semantic closure are the per-parse-tree
-variable,
-followed by values of the rule's child nodes,
-in the order in which they occurred in the input stream.
-
-However,
-if a rule with a word action is blessed,
-in order to allow the blessing to take effect,
-the arguments to a semantic closure are formed differently.
-If the rule is blessed, its semantic closure will always have
-exactly two arguments.
-The first will be the per-parse-tree variable.
-The second will be a blessed array that contains
-the child values in input-stream order.
-
-=head2 Reserved actions
-
-If the action value begins with a double colon ("C<::>"),
-it is a reserved action.
-The following are recognized:
-
-=over 4
-
-=item * C<::array>
-
-The value of the rule or lexeme is an array.
-For a rule, the array will
-contain the
-values of each of its children, in left-to-right order.
-If the rule has no children, the array will be empty.
-For a lexeme, the array will be of length one,
-and will contain the token value.
-
-=item * C<::first>
-
-The value of the rule is that of the rule's first child.
-If there is no such child, the value is a Perl C<undef>.
-
-It is a fatal error if a blessing
-is applied to a rule with a C<::first> action.
-This is the case even when either or both adverbs are
-the result of a default.
-It is also a fatal error to use a C<::first> action
-with a lexeme.
-
-=item * C<::undef>
-
-The value of the rule or lexeme is 
-a Perl C<undef>.
-It is a fatal error if a blessing
-is applied to a rule with a C<::undef> action.
-This is the case even when either or both adverbs are
-the result of a default.
-
-=back
-
-=head2 Array descriptor actions
-
-=for Marpa::R2::Display
-name: SLIF DSL synopsis
-partial: 1
-normalize-whitespace: 1
-
-    lexeme default = action => [start,length,value] bless => ::name
-
-=for Marpa::R2::Display::End
-
-If an action is enclosed in square brackets, it is an B<array descriptor>,
-and the value of the lexeme or rule will be an array.
-Inside the array descriptor should a comma separated list of zero or more array
-descriptor items.
-The B<array descriptor items> are keywords that describe how the array is to be filled
-out.
-
-If the array descriptor is an empty pair of square brackets ("C<[]>"),
-then there are zero array descriptor items,
-and the value will be an empty array.
-Otherwise the "array descriptor item" keywords are interpreted as lists
-and those lists are used to fill out the 
-array.
-A C<start> array descriptor item will put
-the start location of the rule or lexeme into the array.
-The C<length> array descriptor item will put
-the length of the rule or lexeme into the array.
-The start location is an offset in the input string.
-Length is in characters
-and is defined such that the end location
-is always start location plus length.
-
-For a rule,
-the C<values> array descriptor item indicates a list containing
-the values of
-the rule's children, in left-to-right order.
-For a lexeme, 
-the C<value> array descriptor item indicates a list
-containing a single element,
-the token value of the lexeme.
-
-C<::array> is equivalent to C<[values]>.
-The C<value> and C<values> array descriptor items are synonyms,
-and may be used interchangeably for both rules and lexemes.
-This means that, for both lexemes and rules,
-the actions C<[values]>, C<[value]> and C<::array>
-will do exactly the same thing.
-
-The array descriptor item keywords fill out the array in
-the order in which they appear in the the array descriptor.
-For example, if we are dealing with a rule,
-and the array descriptor is "C<[start,length,value]>",
-then the return value is an reference to an array,
-whose length will vary, but which will be contain least
-three elements.
-The first element will be the start location in the
-input string of this rule instance,
-and the second will be its length.
-The remaining elements will be
-the values of the rule's RHS children,
-in lexical order,
-as computed according to the semantics
-of those children.
-
 =head1 Precedence
 
 Marpa's precedence is a generalization beyond the traditional ideas of precedence.
@@ -1172,34 +1103,7 @@ in Marpa.
 Group associativity is meaningless for nullary alternatives,
 and is ignored.
 
-=head1 Caveats
-
-=head2 Symbol names
-
-The SLIF may rewrite its symbol names internally.
-Here we call the name by which a symbol is specified in the
-SLIF source string its "external symbol name",
-and its name as rewritten, its "internal symbol name".
-In many cases, Marpa::R2 makes sure the user sees only
-the external names of symbols.
-For example,
-L<the SLIF grammar's C<rule()> method|Marpa::R2::Scanless::G/"rule()">
-returns external symbol names.
-
-However,
-for some purposes, such as tracing grammars, the use of
-internal names may sometimes
-be appropriate.
-Marpa::R2's use of external and internal symbol names
-is evolving.
-When the SLIF is used,
-except as documented in this section,
-the user may see either the internal or external form
-of a symbol's name.
-Additionally, the exact form of the internal name is
-subject to change.
-
-=head2 Precedence: the good news
+=head2 Precedence and ambiguous grammars
 
 Marpa's generalization of precedence works
 for all grammars that
@@ -1210,8 +1114,6 @@ Marpa also allows you to define alternatives
 not allowed by traditional methods.
 Many of these are useful,
 and most of the useful ones can be parsed efficiently.
-
-=head2 Precedence and ambiguous grammars
 
 Because of the many forms of recursion allowed,
 it is possible
@@ -1234,13 +1136,14 @@ Marpa does catch the case where an alternative consists
 only of a single operand -- a "unit rule".
 This causes a fatal error.
 Unit rules are easy to define by accident in
-the Stuifzand interface.
+the SLIF.
 The author knows of no practical use for them,
 and their presence in a grammar is usually
 unintentional.
 Note that, in the event an application
 does find a use for a grammar with unit rules,
-Marpa's standard interface can parse it.
+the NAIF and the Thin interface
+can parse it.
 
 =head1 Copyright and License
 

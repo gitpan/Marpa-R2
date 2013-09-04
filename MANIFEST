@@ -224,6 +224,11 @@ pod/NAIF.pod
 pod/NAIF/Grammar.pod
 pod/NAIF/Progress.pod
 pod/NAIF/Recognizer.pod
+pod/NAIF/Semantics.pod
+pod/NAIF/Semantics/Infinite.pod
+pod/NAIF/Semantics/Null.pod
+pod/NAIF/Semantics/Order.pod
+pod/NAIF/Semantics/Phases.pod
 pod/NAIF/Tracing.pod
 pod/Progress.pod
 pod/Scanless.pod
@@ -231,7 +236,6 @@ pod/Scanless/DSL.pod
 pod/Scanless/G.pod
 pod/Scanless/R.pod
 pod/Semantics.pod
-pod/Semantics/Infinite.pod
 pod/Semantics/Null.pod
 pod/Semantics/Order.pod
 pod/Semantics/Phases.pod
@@ -287,6 +291,8 @@ t/randal.t
 t/rewrite.t
 t/sequence.t
 t/sequence2.t
+t/sl_action.t
+t/sl_action2.t
 t/sl_asf.t
 t/sl_ast.t
 t/sl_astsyn.t
@@ -307,6 +313,8 @@ t/sl_json.t
 t/sl_leo.t
 t/sl_leo2.t
 t/sl_lexevent.t
+t/sl_null_example.t
+t/sl_numeric.t
 t/sl_prefix.t
 t/sl_rank.t
 t/sl_syn.t

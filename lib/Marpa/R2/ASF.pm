@@ -21,7 +21,7 @@ use warnings;
 no warnings qw(recursion);
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.068000';
+$VERSION        = '2.069_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -602,10 +602,7 @@ sub Marpa::R2::Scanless::ASF::new {
         return if not defined $bocage;
     } ## end if ( not $bocage )
 
-    my $rule_resolutions =
-        $recce->[Marpa::R2::Internal::Recognizer::RULE_RESOLUTIONS]
-        // Marpa::R2::Internal::Recognizer::semantics_set( $recce,
-        Marpa::R2::Internal::Recognizer::default_semantics($recce) );
+    my $rule_resolutions = Marpa::R2::Internal::Recognizer::semantics_set( $recce);
 
     my $default_blessing_by_rule_id   = $rule_resolutions->{blessing};
     my $default_blessing_by_lexeme_id = $rule_resolutions->{blessing_by_lexeme};
@@ -614,7 +611,7 @@ sub Marpa::R2::Scanless::ASF::new {
     my $highest_rule_id = $grammar_c->highest_rule_id();
     RULE: for ( my $rule_id = 0; $rule_id <= $highest_rule_id; $rule_id++ ) {
         my $lhs_id = $grammar_c->rule_lhs($rule_id);
-        my $name   = $grammar->symbol_dsl_name($lhs_id);
+        my $name   = $grammar->symbol_name($lhs_id);
         if ( defined $force ) {
             $rule_blessing[$rule_id] = join q{::}, $force,
                 normalize_asf_blessing($name);
@@ -635,7 +632,7 @@ sub Marpa::R2::Scanless::ASF::new {
     my $highest_symbol_id = $grammar_c->highest_symbol_id();
     SYMBOL: for ( my $symbol_id = 0; $symbol_id <= $highest_symbol_id; $symbol_id++ )
     {
-        my $name = $grammar->symbol_dsl_name($symbol_id);
+        my $name = $grammar->symbol_name($symbol_id);
         if ( defined $force ) {
             $symbol_blessing[$symbol_id] = join q{::}, $force,
                 normalize_asf_blessing($name);

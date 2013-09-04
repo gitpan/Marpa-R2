@@ -14,13 +14,13 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-# NAIF semantics examples
+# SLIF semantics examples
 
 use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 7;
+use Test::More tests => 6;
 
 use English qw( -no_match_vars );
 use Fatal qw( open close );
@@ -31,13 +31,14 @@ use Marpa::R2;
 my $trace_rules = q{};
 
 # Marpa::R2::Display
-# name: Action context synopsis
+# name: SLIF action context synopsis
 
 sub do_S {
     my ($action_object) = @_;
-    my $rule_id = $Marpa::R2::Context::rule;
-    my $grammar = $Marpa::R2::Context::grammar;
-    my ( $lhs, @rhs ) = $grammar->rule($rule_id);
+    my $rule_id         = $Marpa::R2::Context::rule;
+    my $slg             = $Marpa::R2::Context::slg;
+    my ( $lhs, @rhs ) =
+        map { $slg->symbol_display_form($_) } $slg->rule_expand($rule_id);
     $action_object->{text} =
           "rule $rule_id: $lhs ::= "
         . ( join q{ }, @rhs ) . "\n"
@@ -49,7 +50,7 @@ sub do_S {
 # Marpa::R2::Display::End
 
 # Marpa::R2::Display
-# name: Semantics bail synopsis
+# name: SLIF bail synopsis
 
 my $bail_message = "This is a bail out message!";
 
@@ -66,31 +67,21 @@ sub do_bail_with_object_if_A {
 # Marpa::R2::Display::End
 
 my @terminals = qw/A B C D/;
-my $grammar   = Marpa::R2::Grammar->new(
-    {   start => 'S',
-        rules =>
-            [ { lhs => 'S', rhs => \@terminals, action => 'main::do_S' }, ],
-        symbols => { map { ( $_ => { terminal => 1 } ) } @terminals }
-    }
-);
-
-$grammar->precompute();
-
-# Marpa::R2::Display
-# name: rule_ids() Synopsis
-
-my @rule_ids = $grammar->rule_ids();
-
-# Marpa::R2::Display::End
-
-Test::More::is( ( join q{ }, @rule_ids ), '0', '$g->rule_ids() ok?' );
+my $grammar   = Marpa::R2::Scanless::G->new(
+    {   source => \<<'END_OF_SOURCE',
+:start ::= S
+S ::= A B C D action => main::do_S
+A ~ 'A'
+B ~ 'B'
+C ~ 'C'
+D ~ 'D'
+END_OF_SOURCE
+});
 
 sub do_parse {
-    my $recce = Marpa::R2::Recognizer->new( { grammar => $grammar } );
-    for my $terminal (@terminals) {
-        $recce->read( $terminal, $terminal );
-    }
-    return $recce->value();
+    my $slr = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
+    $slr->read( \'ABCD' );
+    return $slr->value();
 } ## end sub do_parse
 
 my $value_ref;
@@ -109,7 +100,7 @@ VALUE_TEST: {
             qq{Parse value ref type is "$ref_type"; it needs to be "HASH"});
         last VALUE_TEST;
     } ## end if ( ref $value ne 'HASH' )
-    my $expected_text = qq{rule 0: S ::= A B C D\nlocations: 0-4\n};
+    my $expected_text = qq{rule 1: <S> ::= <A> <B> <C> <D>\nlocations: 0-4\n};
     Test::More::is( $value->{text}, $expected_text, 'Parse ok?' );
 } ## end VALUE_TEST:
 
@@ -147,9 +138,4 @@ Test::More::is( $eval_error_ref_type, 'ARRAY',
 Test::More::is( $exception_value_desc, $bail_message,
     "bail with object argument value" );
 
-# Local Variables:
-#   mode: cperl
-#   cperl-indent-level: 4
-#   fill-column: 100
-# End:
 # vim: expandtab shiftwidth=4:

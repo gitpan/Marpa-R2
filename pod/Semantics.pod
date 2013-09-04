@@ -15,241 +15,708 @@
 
 =head1 NAME
 
-Marpa::R2::Semantics - How Marpa evaluates parses
+Marpa::R2::Semantics - How the SLIF evaluates parses
 
 =head1 Synopsis
 
 =for Marpa::R2::Display
-name: Engine Synopsis Unambiguous Parse
-partial: 1
+name: SLIF full synopsis
 normalize-whitespace: 1
 
-    my $grammar = Marpa::R2::Grammar->new(
-        {   start          => 'Expression',
-            actions        => 'My_Actions',
-            default_action => 'first_arg',
-            rules          => [
-                { lhs => 'Expression', rhs => [qw/Term/] },
-                { lhs => 'Term',       rhs => [qw/Factor/] },
-                { lhs => 'Factor',     rhs => [qw/Number/] },
-                { lhs => 'Term', rhs => [qw/Term Add Term/], action => 'do_add' },
-                {   lhs    => 'Factor',
-                    rhs    => [qw/Factor Multiply Factor/],
-                    action => 'do_multiply'
-                },
-            ],
+    use Marpa::R2;
+
+    my $grammar = Marpa::R2::Scanless::G->new(
+        {   bless_package => 'My_Nodes',
+            source        => \(<<'END_OF_SOURCE'),
+    :default ::= action => [values] bless => ::lhs
+    lexeme default = action => [start,length,value] bless => ::name
+
+    :start ::= Script
+    Script ::= Expression+ separator => comma
+    comma ~ [,]
+    Expression ::=
+        Number bless => primary
+        | '(' Expression ')' bless => paren assoc => group
+       || Expression '**' Expression bless => exponentiate assoc => right
+       || Expression '*' Expression bless => multiply
+        | Expression '/' Expression bless => divide
+       || Expression '+' Expression bless => add
+        | Expression '-' Expression bless => subtract
+
+    Number ~ [\d]+
+    :discard ~ whitespace
+    whitespace ~ [\s]+
+    # allow comments
+    :discard ~ <hash comment>
+    <hash comment> ~ <terminated hash comment> | <unterminated
+       final hash comment>
+    <terminated hash comment> ~ '#' <hash comment body> <vertical space char>
+    <unterminated final hash comment> ~ '#' <hash comment body>
+    <hash comment body> ~ <hash comment char>*
+    <vertical space char> ~ [\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]
+    <hash comment char> ~ [^\x{A}\x{B}\x{C}\x{D}\x{2028}\x{2029}]
+    END_OF_SOURCE
         }
     );
 
-=for Marpa::R2::Display::End
 
-=for Marpa::R2::Display
-name: Engine Synopsis Unambiguous Parse
-partial: 1
-normalize-whitespace: 1
+    my $recce = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
 
-    sub My_Actions::do_add {
-        my ( undef, $t1, undef, $t2 ) = @_;
-        return $t1 + $t2;
+    my $input = '42*2+7/3, 42*(2+7)/3, 2**7-3, 2**(7-3)';
+    $recce->read(\$input);
+    my $value_ref = $recce->value();
+    die "No parse was found\n" if not defined $value_ref;
+
+    # Result will be something like "86.33... 126 125 16"
+    # depending on the floating point precision
+    my $result = ${$value_ref}->doit();
+
+    package My_Nodes;
+
+    sub My_Nodes::primary::doit { return $_[0]->[0]->doit() }
+    sub My_Nodes::Number::doit  { return $_[0]->[2] }
+    sub My_Nodes::paren::doit   { my ($self) = @_; $self->[1]->doit() }
+
+    sub My_Nodes::add::doit {
+        my ($self) = @_;
+        $self->[0]->doit() + $self->[2]->doit();
     }
 
-    sub My_Actions::do_multiply {
-        my ( undef, $t1, undef, $t2 ) = @_;
-        return $t1 * $t2;
+    sub My_Nodes::subtract::doit {
+        my ($self) = @_;
+        $self->[0]->doit() - $self->[2]->doit();
     }
 
-    sub My_Actions::first_arg { shift; return shift; }
+    sub My_Nodes::multiply::doit {
+        my ($self) = @_;
+        $self->[0]->doit() * $self->[2]->doit();
+    }
 
-    my $value_ref = $recce->value;
-    my $value = $value_ref ? ${$value_ref} : 'No Parse';
+    sub My_Nodes::divide::doit {
+        my ($self) = @_;
+        $self->[0]->doit() / $self->[2]->doit();
+    }
+
+    sub My_Nodes::exponentiate::doit {
+        my ($self) = @_;
+        $self->[0]->doit()**$self->[2]->doit();
+    }
+
+    sub My_Nodes::Script::doit {
+        my ($self) = @_;
+        return join q{ }, map { $_->doit() } @{$self};
+    }
 
 =for Marpa::R2::Display::End
 
-=head1 Overview
+=head1 About this document
 
-Marpa's semantics will be
-familiar
-to those who have used traditional
-methods to evaluate parses.
-A parse is seen as a parse tree.
-Nodes on the tree are evaluated recursively, bottom-up.
-Once the values of all its child nodes are known,
-a parent node is ready to be evaluated.
-The value of a parse is the value of the top node
-of the parse tree.
+This document describes the semantics for
+Marpa's primary interface, the SLIF.
 
-This document is written on the assumption that the low-level NAIF interface
-is in use.
-The more high-level SLIF is similar,
-except that it hides even more of these details from the user.
-SLIF methods work in the same way,
-and use much of the same code,
-as the equivalently named methods of the NAIF recognizer.
-Certain methods and named arguments exist in the NAIF for which there are
-not corresponding methods or arguments in the SLIF, and this is the source
-of the differences.
+=head1 What is semantics?
 
-When a Marpa grammar is created,
-its semantics
-is
-specified indirectly, as B<action names>.
-To produce the values used in the semantics,
-Marpa must do three things:
+A parser is an algorithm
+that takes a string of symbols (tokens or characters) and finds a structure
+in it.
+Traditionally, that structure is a tree.
 
-=over
+Rarely is an application interested only in the tree.
+Usually the idea is that the string "means" something:
+the idea is that the string has a B<semantics>.
+Traditionally and most often, the tree
+is as an intermediate step in producing a value,
+a value which represents the "meaning" or "semantics" of the string.
 
-=item * Determine the action name.
+"Evaluating" a tree means finding its semantics.
+The rest of this document describes Marpa's methods for evaluating trees.
+Those of you who have dealt with other traditional parsers, such as yacc and bison,
+will find Marpa's approach familiar.
 
-=item * Resolve the action name to an action.
+=head1 Instances
 
-=item * If the action is a rule evaluation closure,
-call it to produce the actual result.
+At the start of evalution, semantics is associated with instances
+of rule alternatives or of lexemes.
+An B<instance> is an occurrence in terms of G1 locations.
+Every instance has two locations: a start location and
+an end location.
 
-=back
+A rule alternative is the LHS of a rule, together with one of its
+RHS alternatives.
+Unless a rule is a prioritized rule, it has exactly one rule alternative.
 
-An action name is either reserved,
-or resolves to a Perl object.
-When it resolves to a Perl object,
-that object is usually a Perl closure -- code.
-If the Perl object action is code,
-it is a rule evaluation closure, and will be
-called to produce the result.
-When a Perl object action is some other kind of object,
-its treatment is
-L<as described
-below|/"Reference actions">.
+Prioritized rules very often only have one rule alternative,
+in which case they are called trivial prioritized rules.
+But prioritized rules may have many rule alternatives.
 
-An action name
-and action is also used
-to create the per-parse-tree variable,
-as L<described
-below|/"The per-parse-tree variable">.
+When a rule has only one rule alternative,
+or when context makes it clear what is meant,
+a rule alternative is often simply called a rule.
+In particular, a B<rule alternative instance> is almost always
+called simply a B<rule instance>.
 
 =head1 Nodes
 
-=head2 Token nodes
+In a parse tree, nodes are points where the tree branches or terminates.
+Tree terminations are also called terminals or "leaves".
 
-For every input token, there is an associated B<token node>.
-Token nodes are leaf nodes
-in the parse tree.
-Tokens always have a B<token symbol>.
-At lexing time,
-they can be assigned a B<token value>.
-If no token value is assigned at lex time,
-the value of the token is a Perl C<undef>.
+Every rule instance in a Marpa parse is reprsented by a branch point (or "node")
+in the tree.
+The topmost node of a tree is its "root node".
+(Trees are easiest to draw upside down, so traditionally in programming,
+the top of a tree is its root.)
 
-=head2 Rule nodes
+A node, or branch point, "branches" into zero or more "child nodes".
+The node just above a child node,
+the one from which the child node branches out,
+is called its parent node.
 
-If a node is not a token node,
-then it is a B<rule node>.
-Rule nodes are always
-associated with a rule.
-It a rule's action is a rule evaluation closure,
-it is called at
-L<Node Evaluation Time|/"Tree Traversal Phase">.
+If the node is for a non-quantified rule instance,
+the parent node is the LHS of the rule,
+and the child nodes are the RHS of the rule alternative.
+If the node is for a quantified rule,
+the parent node is the LHS of the quantified rule,
+and the child nodes are the items of the quantified sequence of symbol on the
+right hand side.
+If the node is for a lexeme,
+the node represents the lexeme's symbol
+and there will be no child nodes.
 
-The rule evaluation closures's
-arguments will be a
-per-parse-tree variable followed, if the rule is not nulled,
-by the values of its child nodes in lexical order.
-If the rule is nulled, the child node values will be omitted.
-A rule evaluation closure action is always called in scalar context.
+A parent node can have zero or more children.
+Rule instances with zero children are nulled rule instances,
+and are "leaf nodes".
+Leaf nodes are also called B<terminals>.
+In Marpa's parse trees, every terminal is either
+a lexeme or a nulled rule instance.
 
-If the action is a constant,
-it becomes the value of the rule node.
-If the action is a rule evaluation closure,
-its return value becomes the value of the node.
-If there is no action for a
-rule node,
-the value of the rule node is a Perl C<undef>.
+In Marpa,
+evaluation only takes place within the structural (G1) subgrammar,
+and the descriptions of the behaviors of rule and lexeme instances below
+applies only to the G1 subgrammar.
+G0 rule alternatives and terminal symbols do not become nodes
+in the parse tree,
+and are never evaluated.
 
-=head2 Sequence rule nodes
+=head1 The order of node evaluation
 
-Some rules are L<sequence rules|Marpa::R2::NAIF::Grammar/"Sequence rules">.
-Sequence rule nodes are also rule nodes.
-Everything said above about rule nodes
-applies to sequence rule nodes.
-Specifically,
-the arguments to the value actions for sequence rules
-are the
-per-parse-tree variable followed by
-the values of the child nodes in lexical order.
+The nodes of a Marpa parse tree are
+evaluated recursively, left-to-right and bottom-up.
+This means that,
+when a parent node is evaluated,
+the values of all child nodes are known
+and available for use by the semantics.
+The final value of a parse is the value of the top node
+of the parse tree.
 
-The difference (and it is a big one)
-is that in an ordinary rule, the right hand side
-is fixed in length, and that length is known
-when you are writing the code for the value action.
-In a sequence rule,
-the number of right hand side symbols is not known
-until node evaluation time.
+=head1  Parse trees and parse series
+
+Because Marpa allows ambiguous parsing,
+each parse can produce a B<parse series> --
+a series of zero or more parse trees,
+each with its own parse result.
+The first call to the
+L<the SLIF recognizer's C<value()>
+method|Marpa::R2::Scanless::Recognizer/"value()">
+after the recognizer is created is the
+start of the first parse series,
+and Parse Series Setup Phase takes place
+at this point.
+
+The first parse series continues until there is
+a call to the
+L<the C<series_restart()>
+method|Marpa::R2::Scanless::R/"series_restart()">
+or until the recognizer is destroyed.
+An application is usually interested in only one
+parse series.
+
+The C<series_restart()> method starts a new parse series.
+The Parse Series Setup Phase for that parse series will take
+place during
+the next call of the SLIF recognizer's C<value()> method.
+
+The Parse Series Setup Phase
+is one of several phases in which the semantics are executed.
+Applications will find that the order in which
+these phases occurs "just works".
+But in some cases the details will matter.
+Applications whose behavior might depend on the details
+include those which make unusual use of side effects in the semantics;
+and those which alter their symbol tables at runtime.
+A full description of phases of Marpa'a semantic processing
+is in
+L<a separate
+document|Marpa::R2::Semantics::Phases>.
+
+=head1 Nulled subtrees
+
+A nulled subtree is a subtree of the parse tree formed by a nulled node and its direct and
+indirect child nodes.
+(All these child nodes will also be nulled nodes.)
+Before evaluation,
+Marpa prunes all nulled subtrees back to their topmost nulled
+node.
+Of all the ways of dealing with nulled subtrees, this is the
+simplest and
+Marpa's users have found it a natural approach.
+More detail on the semantics of nulled symbols and subtrees
+can be found in
+L<a separate document|Marpa::R2::Semantics::Null>.
+
+=head1 Actions and how Marpa finds them
+
+The way in which the SLIF finds the value of a node is called that node's B<action>.
+Actions can be explicit or implicit.
+An explicit action is one that is explicitly specified by the application,
+in one of the ways
+to be described below.
+A node's implicit action is the one it performs if it has no
+explicit action.
+
+=head2 Lexeme actions
+
+The implicit action for a lexeme is to return
+its literal value in the input stream, as a string.
+An explicit default action name for lexemes may be set using the
+L<the lexeme default statement|Marpa::R2::Scanless::DSL/"Lexeme default statement">.
+
+=head2 Rule actions
+
+The implicit action for a rule instance is to return a Perl C<undef>.
+An explicit action for a RHS alternative can be specified using
+L<the C<action> adverb|Marpa::R2::Scanless::DSL/"action">
+for the its RHS alternative.
+A default explicit action for RHS alternatives can be specified with a
+L<default pseudo-rule|Marpa::R2::Scanless::DSL/"Default pseudo-rules">.
+
+=head2 Nulled symbol actions
+
+As mentioned, nulled subtrees are pruned back to their topmost symbol.
+Lexemes are never nulled, so a nulled symbol is always the LHS of a rule instance,
+and the action is determined from the rule alternative,
+as L<just described|/"Rule actions">.
+
+A complication arises if the symbol appears on the LHS of more than one
+nullable rule alternative.  Because the symbol is nulled, the input is no help in determining
+which rule alternative to use.  The rule alternative whose semantics are used for a nulled symbol
+is determined as follows:
+
+=over 4
+
+=item * If all nullable rule alternatives have the same semantics, that semantics is used.
+
+=item * If one of the nullable rule alternatives
+is empty (that is, has a zero-length RHS),
+then the empty alternative's semantics are used.
+
+=item * 
+In the remaining case,
+two or more of the rule alternatives have different action names,
+but none of the alternatives has a zero-length RHS.
+When this happens, Marpa throws an exception.
+One easy way
+to fix the issue,
+to add an empty rule with the intended semantics.
+
+=back
+
+In determining whether the semantics of two nullable rule alternatives
+is "the same",
+the blessing is taken into account.
+Two rule alternatives are considered to have different semantics if
+they are blessed differently.
+The SLIF's null semantics are described in more detail
+L<in a separate document|Marpa::R2::Semantics::Null>.
+
+=head1 Blessings
+
+Part of a rule alternative's or lexeme's action may be a blessing.
+A blessing is the name of a Perl package.
+If the action is not a rule evaluation closure, the value
+of the action will be blessed into that package.
+In the case of a rule evaluation closure,
+the argument containing its child values will be blessed
+into that package.
+
+Only Perl objects pointed to by references can be blessed,
+and it is a fatal error to try to use a blessing with an inappropriate
+action.
+When an action or action name cannot be blessed, its description
+in this document
+indicates that.
+
+Implicitly, an action is not blessed.
+Also, it is a fatal error to bless the implicit action.
+Explicit blessings are made using 
+the C<bless> adverb.
+The C<bless> adverb is allowed
+
+=over 4
+
+=item * for RHS alternatives;
+
+=item * for lexemes;
+
+=item * for the default lexeme statement;
+
+=item * and for the default pseudo-rule.
+
+=back
+
+A G0 RHS alternative cannot have a C<bless> adverb.
+
+The value of a C<bless> adverb is called a B<blessing>.
+If the blessing is a Perl word
+(a string of alphanumerics or underscores),
+the name of the class will be formed by prepending
+the value of L<the C<bless_package>
+named argument|Marpa::R2::Scanless::G/"bless_package">, followed
+by a double colon ("C<::>").
+
+If the blessing begins with a double colon ("C<::>"), it is a
+reserved blessing.
+The reserved blessings are as follows:
+
+=over 4
+
+=item C<::undef>
+
+The RHS alternative or lexeme will not be blessed.
+For both RHS alternatives and lexemes,
+the implicit blessing is C<::undef>.
+
+=item C<::lhs>
+
+The RHS alternative is blessed into
+a class whose name is based on the LHS of the RHS alternative.
+A blessing of C<::lhs> is not allowed for a lexeme.
+
+The class will be the name of the LHS with whitespace
+changed to an underscore.
+(As a reminder, the whitespace in symbol names will have been normalized,
+with leading and trailing whitespace removed,
+and all other whitespace sequences changed to a single ASCII space.)
+When a C<::lhs> blessing value applies to a rule alternative, it is a fatal
+error if the LHS contains anything other than alphanumerics
+and whitespace.
+In particular, the LHS cannot already contain an underscore ("C<_>").
+The C<::lhs> blessing is most useful in a default pseudo-rule.
+
+=item C<::name>
+
+The lexeme
+is blessed into
+a class whose name is based on the name of the lexeme.
+The C<::name> blessing is not allowed for a RHS alternative.
+
+The class is derived from the symbol name in the same way,
+and subject to the same restrictions,
+as described above for deriving a class name from the LHS
+of a rule alternative.
+The C<::name> reserved blessing is most useful in
+the lexeme default statement.
+
+=back
+
+If any rule alternative or lexeme of a SLIF grammar has
+a blessing other than C<::undef>,
+a C<bless_package> is required,
+and failure to specify one results in
+a fatal error.
+
+=head1 Explicit actions
+
+There are four kinds of explicit action name:
+
+=over 4
+
+=item * Array descriptors
+
+=item * Reserved action names
+
+=item * Perl identifiers
+
+=item * Perl names
+
+=back
+
+These are detailed in the sections that follow.
+
+=head1 Array descriptor actions
+
+=for Marpa::R2::Display
+name: SLIF DSL synopsis
+partial: 1
+normalize-whitespace: 1
+
+    lexeme default = action => [start,length,value] bless => ::name
+
+=for Marpa::R2::Display::End
+
+If an action is enclosed in square brackets, it is an B<array descriptor>,
+and the value of the lexeme or rule alternative will be an array.
+Inside the array descriptor is a comma separated list of zero or more array item
+descriptors.
+The B<array item descriptors> are keywords that describe how the array is to be filled
+out.
+
+If the array descriptor is an empty pair of square brackets ("C<[]>"),
+then there are zero array item descriptors,
+and the value will be an empty array.
+Otherwise the array item descriptors are interpreted as lists
+and those lists are used to fill out the 
+array.
+
+=over 4
+
+=item C<length>
+
+The C<length> array item descriptor puts
+a single-element list into the array.
+That one element will be the length of the rule or lexeme instance.
+Length is in characters.
+
+=item C<start>
+
+The C<start> array item descriptor puts
+a single-element list into the array.
+That one element will be
+the start location of the rule or lexeme instance into the array.
+The start location is an offset in the input string.
+The elements of the C<length> and C<start> item descriptors are defined
+such that the end location
+is always start location plus length.
+
+=item C<value>
+
+For a rule alternative,
+the C<value> array item descriptor puts
+a list of zero or more elements into the array.
+The list will contain
+the values of
+the rule instance's children, in left-to-right order.
+
+For a lexeme,
+The C<value> array item descriptor puts
+a single-element list into the array.
+That one element
+will be a list
+containing a single element,
+the token value of the lexeme.
+
+=item C<values>
+
+The C<value> and C<values> array item descriptors are synonyms,
+and may be used interchangeably for both rules alternatives and lexemes.
+
+=back
+
+=head2 Example
+
+The array item descriptors fill out the array in
+the order in which they appear in the the array descriptor.
+For example, if we are dealing with a rule,
+and the array descriptor is "C<[start,length,value]>",
+then the return value is an reference to an array,
+whose length will vary, but which will be contain least
+two elements.
+The first element will be the start location in the
+input string of this rule instance,
+and the second will be its length.
+The remaining elements will be
+the values of the rule instance's RHS children,
+in lexical order.
+If the rule instance is nulled, the array will contain only two elements:
+start location and length.
+
+=head1 Reserved action names
+
+If the action value begins with a double colon ("C<::>"),
+it is a reserved action.
+The following are recognized:
+
+=over 4
+
+=item * C<::array>
+
+C<::array> is equivalent to C<[values]>.
+This means that, for both lexeme and rule instances,
+the actions C<[values]>, C<[value]> and C<::array>
+will do exactly the same thing.
+
+=item * C<::first>
+
+The value of the rule instance is that of the rule instance's first child.
+If there is no such child, the value is a Perl C<undef>.
+It is a fatal error if a 
+RHS alternative with a C<::first> action
+is blessed.
+It is also a fatal error to use a C<::first> action
+with a lexeme.
+
+=item * C<::undef>
+
+The value of the rule or lexeme instance will be
+a Perl C<undef>.
+It is a fatal error if a 
+RHS alternative with an C<::undef> action
+is blessed.
+
+=back
+
+=head1 Perl identifiers as action names
+
+An action name is considered to be
+a Perl identifier, if it is a sequence of one or more alphanumerics
+and underscores.
+If the action name is a Perl identifier,
+it is treated as the name of a Perl variable.
+To successfully resolve to actions,
+Perl identifiers must be resolved to Perl names,
+as L<described below|/"Resolving Perl identifiers to Perl names">.
+
+=head1 Perl names as action names
+
+For this purpose, a Perl name is
+is a series of two or more Perl identifiers
+separated by double colons ("C<::>").
+Note that, by this definition, a Perl name cannot start with a double colon.
+Action names starting with double colons
+are always treated as a reserved
+action names.
+
+Action names which are Perl names by this definition are
+treated as they were fully qualified Perl names.
+Fully qualified Perl names are resolved to variables in Perl's namespace,
+L<as described below|/"Resolving Perl names to Perl variables">.
+
+=head1 The semantics package
+
+To resolve Perl identifiers to Perl names,
+a semantics package must be defined.
+The semantics package can be defined using the
+L<SLIF recognizer's C<semantics_package> named
+argument|Marpa::R2::Scanless:R/"semantics_package">,
+or it can be taken from the argument to the first C<value()>
+call of the parse series.
+The C<semantics_package> named argument takes precedence.
+
+If the arguments to the C<value()> method are used to specify
+the semantics package, within a parse series they must consistently
+specify the same package.
+For details, see the description of
+L<SLIF recognizer's C<value()>
+method|Marpa::R2::Scanless:R/"value()">.
+
+If the user wants the Perl variables implementing the semantics
+in the C<main> namespace,
+she can specify
+C<"main">
+as the semantics package.
+But it is usually good practice to keep
+Perl variables intended for use by Marpa's semantics
+in their own namespace,
+especially if the application is not small.
+
+=head1 Resolving Perl identifiers to Perl names
+
+A Perl identifier is resolved to a Perl name by prepending
+the semantic package, followed by a double colon ("C<::>").
+For a Perl identifier to resolve successfully
+to a Perl name,
+a semantics package must be defined.
+
+For example, if the action name
+is "C<some_var>", the action name will be regarded as a Perl identifer.
+If the semantics package is "C<My_Actions>", Marpa will convert the action
+name to "C<My_Actions::some_var>", and hand
+it on for processing as a fully qualified Perl name.
+
+=head1 Resolving Perl names to Perl variables
+
+Once Marpa has a fully qualified Perl name, it looks in Perl's symbol tables for
+a Perl variable with that name,
+either the name of a subroutine, or of a scalar.
+It is important to note that for the purposes of Perl's symbol tables,
+and therefore for the purposes of Marpa's resolution of Perl names,
+references are scalars.
+
+If Marpa finds a Perl subroutine with that fully qualified Perl name,
+the action name is resolved to that subroutine,
+which then becomes a B<rule evaluation closure>.
+If Marpa does not find
+a Perl subroutine with that name,
+but does find a Perl scalar with that name,
+the action name is resolved to that Perl scalar.
+(Again, for this purpose a Perl reference is a kind of Perl scalar.)
+
+=head1 Executing rule evaluation closures
+
+A rule evaluation closure action is always called in scalar context,
+and its return value will be used as the value of its node.
+Arguments to the rule evaluation closure will be as follows:
+
+=over 4
+
+=item *
+
+If the rule instance is not nulled and
+the rule alternative is not blessed,
+the second and subsequent arguments are the values of its child nodes, in lexical order.
+
+=item *
+
+If the rule instance is nulled, there will be only one argument:
+the, first, per-parse argument.
+
+=item *
+
+If the rule alternative is blessed, and
+the rule instance is not nulled,
+the closure will always have exactly two arguments.
+The first will be the per-parse argument,
+and the second will be a blessed array that contains
+the child values in lexical order.
+(The grouping of child values into an array
+is required in order to allow the blessing to stay in effect.)
+
+=back
+
+Note that, in every case,
+the first argument of a rule evaluation closure is the per-parse argument.
+
+=head1 Quantified rule nodes
+
+Everything just said about rule nodes
+applies to nodes for
+L<quantified
+rules|Marpa::R2::Scanless::DSL/"Quanitified rules">.
+But there is a difference between quantified rules
+and others, and it a big one if you are writing a rule
+evaluation closure.
+
+In other rules, the right hand side
+is fixed in length,
+and therefore the number of child nodes is known in advance.
+This is not the case with a quantified rule.
 The rule evaluation closure
-of a sequence rule
+for a quantified rule
 must be capable of
 dealing with
-a variable number of arguments.
-
-Sequence semantics work best when
-every child node
-in the sequence has the same semantics.
-When that is not the case,
-writing the sequence using
-ordinary non-sequence rules should be considered as
-an alternative.
-
-By default, if a sequence rule has separators,
-the separators are thrown away before
-the value action is called.
-(Separators are described in
-L<the section introducing sequence rules|Marpa::R2::NAIF::Grammar/"Sequence rules">.)
-This means that separators do not appear in the C<@_> array
-of the rule evaluation closure which is the value action.
-If the value of the C<keep> rule property
-is a Perl true value, separators are kept,
-and do appear in the
-value action's
-C<@_> array.
-
-=head2 Null nodes
-
-A null node is a special case of a rule node,
-one where the rule derives the zero-length,
-or empty string.
-When the rule node is a null node,
-the rule evaluation closure will be called with
-no child value arguments.
-
-When a node is nulled,
-it must be as a result of a nullable rule,
-and the action name and action are those
-associated with that rule.
-An ambiguity can arise if there is more
-than one nullable rule with the same LHS,
-but a different action name.
-In that case the action name for the null nodes
-is that of the empty rule.
-
-The remaining case is that of
-a set of nullable rules with the same LHS,
-where two or more of the rules have different action names,
-but none of the rules in the set is an empty rule.
-When this happens, Marpa throws an exception.
-To fix the issue,
-the user can add an empty rule.
-For more details,
-see L<the document on
-null semantics|Marpa::R2::Semantics::Null>.
+a variable number of child nodes.
 
 =head1 Action context
 
 =for Marpa::R2::Display
-name: Action context synopsis
+name: SLIF action context synopsis
 normalize-whitespace: 1
 
     sub do_S {
         my ($action_object) = @_;
         my $rule_id         = $Marpa::R2::Context::rule;
-        my $grammar         = $Marpa::R2::Context::grammar;
-        my ( $lhs, @rhs ) = $grammar->rule($rule_id);
+        my $slg             = $Marpa::R2::Context::slg;
+        my ( $lhs, @rhs ) =
+            map { $slg->symbol_display_form($_) } $slg->rule_expand($rule_id);
         $action_object->{text} =
               "rule $rule_id: $lhs ::= "
             . ( join q{ }, @rhs ) . "\n"
@@ -260,31 +727,31 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-In addition to the per-parse-tree variable
-and their child arguments,
+In addition to the per-parse argument
+and their child values,
 rule evaluation closures also have access
 to B<context variables>.
 
 =over
 
-=item * C<$Marpa::R2::Context::grammar> is set to
-the grammar being parsed.
+=item * C<$Marpa::R2::Context::slg> is set to
+the SLIF grammar being parsed.
 
 =item * C<$Marpa::R2::Context::rule> is the ID of the
-current rule.
-Given the rule ID, an application can find
+current rule alternative.
+Given the rule alternative ID, an application can find
 its LHS and RHS symbols using
-L<the SLIF grammar's C<rule()> method|Marpa::R2::Scanless::G/"rule">.
+L<the SLIF grammar's C<rule_expand()> method|Marpa::R2::Scanless::G/"rule_expand()">.
 
 =item * C<Marpa::R2::Context::location()> returns the start
-and end locations of the current rule.
+and end locations of the current rule instance.
 
 =back
 
 =head1 Bailing out of parse evaluation
 
 =for Marpa::R2::Display
-name: Semantics bail synopsis
+name: SLIF bail synopsis
 normalize-whitespace: 1
 
     my $bail_message = "This is a bail out message!";
@@ -301,349 +768,37 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-The C<Marpa::R2::Context::bail()> static method is used to
-"bail out" of the evaluation of a parse tree.
-It will cause an exception to be thrown.
-If its first and only argument is a reference,
-that reference is the exception object.
-Otherwise, an exception message is created
-by converting the method's arguments to strings,
-concatenating them,
-and prepending them with a message indicating
-the file and line number at which the
-C<Marpa::R2::Context::bail()> method was called.
-
-=head1 Parse trees, parse results and parse series
-
-When the semantics are applied to a parse tree,
-it produces a value called a B<parse result>.
-Because Marpa allows ambiguous parsing,
-each parse can produce a B<parse series> --
-a series of zero or more parse trees,
-each with its own parse result.
-The first call to the
-L<the recognizer's C<value>
-method|Marpa::R2::NAIF::Recognizer/"value">
-after the recognizer is created is the
-start of the first parse series.
-The first parse series continues until there is
-a call to the
-L<the C<reset_evaluation>
-method|Marpa::R2::NAIF::Recognizer/"reset_evaluation">
-or until the recognizer is destroyed.
-Usually, an application is only interested in a single
-parse series.
-
-When the
-L<C<reset_evaluation>|Marpa::R2::NAIF::Recognizer/"reset_evaluation">
-method
-is called
-for a recognizer, it begins a new parse series.
-The new parse series continues until
-there is another
-call to the
-L<the C<reset_evaluation>
-method|Marpa::R2::NAIF::Recognizer/"reset_evaluation">,
-or until the recognizer is destroyed.
-
-Most applications will find that the order in which
-Marpa executes its semantics "just works".
-L<A separate
-document|Marpa::R2::Semantics::Phases>
-describes that order
-in detail.
-The details can matter in some applications,
-for example, those which exploit side effects.
-
-=head1 Finding the action for a rule
-
-Marpa finds the action for each rule based on
-rule and symbol properties and on the grammar named arguments.
-Specifically, Marpa attempts the following,
-in order:
-
-=over
-
-=item * Resolving an action based on the C<action> property of the rule,
-if one is defined.
-
-=item * If the rule is empty,
-and the C<default_empty_action> named argument of the grammar
-is defined,
-resolving an action based on that named argument.
-
-=item * Resolving an action based on
-the C<default_action> named argument of the grammar,
-if one is defined.
-
-=item * Defaulting to a Perl C<undef> value.
-
-=back
-
-Resolution of action names is L<described
-below|/"Resolving action names">.
-If the C<action> property,
-the C<default_action> named argument,
-or the C<default_empty_action> named argument
-is defined,
-but does not resolve successfully, Marpa
-throws an exception.
-Marpa prefers to "fast fail" in these cases,
-because they usually indicate a mistake
-that the application's author
-will want to correct.
-
-=head1 Resolving action names
-
-Action names come from these sources:
-
-=over
-
-=item * The C<default_action> named argument of Marpa's grammar.
-
-=item * The C<default_empty_action> named argument of Marpa's grammar.
-
-=item * The C<action> property of Marpa's rules.
-
-=item * The C<new> constructor in the package specified by the
-C<action_object> named argument of the Marpa grammar.
-
-=back
-
-=head2 Reserved action names
-
-Action names that begin with a double colon ("C<::>") are reserved.
-At present only the C<::undef> reserved action is documented for
-use outside of the DSL-based interfaces.
-
-=head3 ::undef
-
-A constant whose value is a Perl C<undef>.
-Perl is unable to distinguish reliably between a
-non-existent value and scalars with an C<undef> value.
-This makes it impossible to reliably distinguish
-resolutions
-to a Perl C<undef> from resolution problems.
-The "C<::undef>" reserved action name should 
-be preferred for
-indicating a constant whose value is a Perl C<undef>.
-
-=head2 Explicit resolution
-
-The recognizer's C<closures> named argument
-allows the user to directly control the mapping from action names
-to actions.
-The value of the C<closures> named argument
-is a reference to a hash whose keys are
-action names and whose hash values are references.
-Typically (but not always) these will be C<CODE> refs.
-
-If an action name is the key of an entry in the C<closures> hash,
-it resolves to the closure referenced by the value part of that hash entry.
-Resolution via the C<closures> named argument is
-called B<explicit resolution>.
-
-When explicit resolution is the only kind of resolution that is wanted,
-it is best to pick a name that is very unlikely to be the name
-of a Perl object.
-Many of
-L<Marpa::HTML>'s action names
-are intended for explicit resolution only.
-In L<Marpa::HTML> those action names
-begin with
-an exclamation mark ("!"),
-and that convention is recommended.
-
-=head2 Fully qualified action names
-
-If explicit resolution fails,
-Marpa transforms the action name into a
-B<fully qualified> Perl name.
-An action name that
-contains a double colon ("C<::>") or a single quote ("C<'>")
-is considered to be a fully qualified name.
-Any other action name is considered to be a B<bare action name>.
-
-If the action name to be resolved is already a fully qualified name,
-it is not further transformed.
-It will be resolved in the form it was received,
-or not at all.
-
-For bare action names,
-Marpa tries to qualify them by adding a package name.
-If the C<actions> grammar named argument is defined,
-Marpa uses it as the package name.
-Otherwise,
-if the
-C<action_object> grammar named argument is defined,
-Marpa uses it as the package name.
-Once Marpa has fully qualified the action name,
-Marpa looks for a Perl object with that name.
-
-Marpa will not attempt to resolve an action name
-that it cannot fully qualify.
-This implies that,
-for an action name to resolve successfully,
-one of these five things must be the case:
-
-=over
-
-=item * The action name is one of the reserved action names.
-
-=item * The action name resolves explicitly.
-
-=item * The action name is fully qualified to begin with.
-
-=item * The C<actions> named argument is defined.
-
-=item * The C<action_object> named argument is defined.
-
-=back
-
-Marpa's philosophy
-is to require that the programmer be specific about action names.
-This can be an inconvenience, but Marpa prefers this to
-silently executing unintended code.
-
-If the user wants to leave the
-rule evaluation closures in the C<main> namespace,
-she can specify
-C<"main">
-as the value of the C<actions> named argument.
-But
-it can be good practice to keep
-the rule evaluation closures
-in their own namespace,
-particularly if the application is not small.
-
-=head2 Perl object actions
-
-Actions divide into two types:
-reserved actions and Perl object actions.
-A Perl object action is a actual Perl object of some type:
-either code or a reference.
-
-A Perl object action may come either from resolution
-of an action name,
-or from explicit resolution.
-If it came from explicit resolution,
-it will always be a reference.
-
-In simplified terms,
-if a Perl object action comes from resolution of
-an action name,
-and
-there is a Perl closure of that name, the Perl
-closure is the resolution.
-If there is a reference with that name
-it is resolved
-L<as described for Perl reference
-actions|/"Reference actions">.
-If there is some other scalar with that name,
-it is a fatal error.
-All other Perl objects with that name are ignored.
-
-More precisely, the resolution depends the lookup
-of the action name in the Perl symbol table:
-
-=over 4
-
-=item * 
-
-If there is a C<CODE> entry,
-that entry is the resolution.
-
-=item * 
-
-If there is a C<SCALAR> entry,
-and it is a reference,
-it is resolved
-L<as described for Perl reference
-actions|/"Reference actions">.
-
-=item * 
-
-If there is a C<SCALAR> entry,
-and it is not a reference,
-it is a fatal error.
-
-=item * 
-
-If there is no C<SCALAR> entry and no C<CODE> entry,
-it will be considered a failure to resolve.
-
-=back
-
-=head2 Reference actions
-
-A Marpa action can be a Perl object which is a reference.
-A reference action may have come via name resolution,
-or it might be the result of explicit resolution.
-
-Referents should be treated as read-only constants.
-It is possible to modify the values pointed to
-by a reference, but the effect will be global,
-and this is deprecated as bad practice.
-The referents of reference actions should be treated
-as read-only, and never modified.
-
-In the following, let C<$action_ref> be the action reference.
-Reference actions are handled based on type,
-ignoring any blessing as class objects.
-This would be the reftype as returned
-by C<Scalar::Util::reftype $action_ref>.
-
-If the reftype is C<CODE>,
-the resolution is to the Perl closure.
-The effect is the same as if an action name
-had resolved directly to a closure with the same
-name.
-The Perl closure,
-also called a B<rule evaluation closure>,
-will be called to produce the value of
-the action.
-
-If the reftype is C<SCALAR>,
-the resolution is to its de-referenced value,
-C<${$action_ref}>.
-The effect is roughly the same as if an action
-name had resolved to a closure which returned
-C<${$action_ref}>.
-
-If the reftype is C<ARRAY>,
-the resolution is to the original reference,
-C<$action_ref>.
-The effect is roughly the same as if an action
-name had resolved to a closure which returned
-C<$action_ref>.
-
-If the reftype is C<HASH>,
-the resolution is to the original reference,
-C<$action_ref>.
-The effect is roughly the same as if an action
-name had resolved to a closure which returned
-C<$action_ref>.
-
-=head2 Modifying Perl object actions
-
-It is important to note multiple invocations
-of C<$action_ref> will
-always point to the same contents,
-and that any modification will be
-seen by other invocations.
-In other words, the modification will have global
-effect.
-For this reason modifying the referents of
-reference actions is deprecated.
+=head1 Perl scalars as actions
+
+If a Perl scalar is the action,
+it becomes the value of the node, as is.
+References are scalars in this context so that,
+for example, the value of the node could be a reference to an array.
+
+Another possiiblity is that the Perl scalar action is a reference to code.
+What happens in this case is very different from the case where the action
+is a rule evaluation closure.
+A rule evaluation closure is executed to produce the value of the node.
+In contrast, the reference to a subroutine is B<NOT> executed -- it becomes the
+value of the node directly.
+
+Assuming no trickery, such as use of Perl's C<local> keyword, takes place,
+resolution to a Perl scalar will always resolve to a single, global scalar.
+Any modification of this scalar will be seen
+by other nodes of the current parse,
+and by other parses.
+All this suggests that,
+as a matter of good practice,
+Perl scalar actions be used only as constants.
 
 For example,
-assume that actions are in a package named C<My_Nodes>,
+assume that actions are in a package named C<My_Actions>,
 which contains a hash reference named C<empty_hash>, 
 
 =for Marpa::R2::Display
 ignore: 1
 
-        package My_Nodes;
+        package My_Actions;
         our $empty_hash = {};
 
 =for Marpa::R2::Display::End
@@ -655,104 +810,86 @@ tree.
 But C<$empty_hash> points to a single hash object.
 This single hash object will shared by all nodes,
 with all nodes seeing each other's changes.
-Worse, all Marpa parsers which use the same C<My_Nodes>
+Worse, all Marpa parsers which use the same C<My_Actions>
 namespace will share the same hash object.
+The correct way to define an
+C<empty_hash> action that
+initializes an empty hash is as a rule
+evaluation closure 
+that returns C<{}>.
 
-When not simply a mistake,
-this is usually bad programming practice.
-Before modifying the referent of a reference action,
-rule evaluation closures should copy it.
-Safer, if less efficient,
-is to define the C<empty_hash> action
-as a closure which returns C<{}>.
+=for Marpa::R2::Display
+ignore: 1
 
-=head2 Visibility of Perl object actions
+        sub My_Actions::empty_hash { return {}; }
 
-It is important to note that,
-when Perl closures are used for the semantics,
-they must be visible in the scope where the semantics are
-B<resolved>.
-The action names are usually B<specified> with the grammar,
-but action B<resolution> takes place
-in the recognizer's
-L<C<value>|Marpa::R2::NAIF::Recognizer/"value">
-and
-L<C<reset_evaluation>|Marpa::R2::NAIF::Recognizer/"reset_evaluation">
-methods.
-This can sometimes be a source of confusion,
-because if a Perl closure is visible when the
-action is specified,
-but goes out of scope before the action name is resolved,
-resolution will fail.
+=for Marpa::R2::Display::End
 
-=head1 The per-parse-tree variable
+=head1 Visibility of Perl object actions
 
-In the Tree Setup Phase,
-Marpa creates a per-parse-tree variable.
-This becomes the first argument of the rule evaluation closures for
-the rule nodes.
-If the grammar's C<action_object> named argument is not defined,
-the per-parse-tree variable is initialized to an empty hash ref.
+Most applications do not manipulate the Perl symbol table at runtime,
+and do not make use of Perl's C<local> keyword for declarations.
+Applications which use the Perl global namespace in conventional ways,
+and which use the same names to point to the same variables
+throughout Marpa execution,
+can ignore questions about the visibility
+of the Perl variables used in actions.
 
-Most data for
-the value actions of the rules
-will be passed up the parse tree.
-The actions will see the values of the rule node's child nodes
-as arguments,
-and will return their own value to be seen as an argument
-by their parent node.
-The per-parse-tree variable can be used for data which does not
-conveniently fit this model.
+Less conventional applications should be aware that,
+for resolution from a Perl name to a Perl variable to take place,
+that Perl name must
+refer to the intended variable,
+and this variable must be visible,
+at Parse Series Setup Time.
+Parse Series Setup Time occurs during
+the first call to a recognizer's L<C<value()>|Marpa::R2::Scanless::R/"value()">
+method of the parse series.
+More details about Parse Series Setup Time
+can be found in
+L<the document that describes the processing phases of Marpa's
+semantics|Marpa::R2::Semantics::Phases>.
 
-The lifetime of the per-parse-tree variable
-extends into the Tree Traversal Phase.
-During the Tree Traversal Phase,
-Marpa's internals never alter the per-parse-tree variable --
+=head1 The per-parse argument
+
+The first argument of every rule evaluation closure is
+the B<per-parse> argument.
+This is taken from
+
+=over 4
+
+=item * The result of returned by per-parse constructor, if there is one.
+
+=item * Otherwise, the argument to the SLIF recognizer's C<value()> method, if there is one.
+
+=item * If not otherwise specified, the per-parse argument is an empty hash.
+
+=back
+
+The per-parse argument is destroyed once the evaluation of the parse tree is finished.
+Between creation and destruction, the per-parse argument is not touched by Marpa's internals --
 it is reserved for use by the application.
 
-=head2 Action object constructor
+The primary way of passing data while evaluating a parse tree is purely functional --
+results from child nodes are passed up to parent nodes.
+Applications can use
+the per-parse argument for data which does not conveniently fit the functional model.
+Symbol tables are
+one common example of data that is best handled outside the functional model.
 
-If the grammar's C<action_object> named argument has a defined value,
-that value is treated as the name of a class.
-The B<action object constructor> is
-the C<new> method
-in the C<action_object> class.
+=head1 The per-parse constructor
 
-The action object constructor is called
+The per-parse constructor is the C<new()> method of the semantics package.
+If there is no semantics package, or if it has no C<new()> method,
+there is no per-parse constructor.
+
+The per-parse constructor is called with one argument.
+This argument is the argument of the
+the SLIF recognizer's C<value()> method, if one was defined.
+Otherwise it is the name of the semantics package.
+
+The result returned by the per-parse constructor becomes the per-parse argument.
+The per-parse constructor is called
 in the Tree Setup Phase.
-The return value of the
-action object constructor becomes the per-parse-tree variable.
-It is a fatal error if the
-grammar's C<action_object> named argument is defined,
-but does not name a class with a C<new> method.
-
-Resolution of the action object constructor is
-resolution of the B<action object constructor name>.
-The action object constructor name is
-formed by concatenating
-the literal string "C<::new>" to
-the value of the C<action_object> named argument.
-
-All standard rules apply when resolving the action
-object constructor name.
-In particular, bypass via
-explicit resolution applies to
-the action object constructor.
-If the action object constructor name is
-a hash key in the
-evaluator's C<closures> named argument,
-then
-the value referred to by
-that hash entry becomes the
-action object constructor.
-
-If a grammar has both the C<actions> and the
-C<action_object> named arguments defined,
-all action names B<except>
-for the action object constructor will be
-resolved in the C<actions> package or not at all.
-The action object constructor is always in
-the C<action_object> class, if it is anywhere.
 
 =head1 Parse order
 
@@ -766,22 +903,13 @@ on parse order|Marpa::R2::Semantics::Order>.
 =head1 Infinite loops
 
 Grammars with infinite loops (cycles)
-are generally regarded as useless in practical applications,
-but Marpa allows them.
-Marpa can accurately
-claim to support B<every grammar> that can be written in BNF.
-
-If a grammar with cycles is ambiguous,
-it can produce cycle-free parses
-and parses with finite-length cycles,
-as well as parses with infinite length cycles.
-Marpa will parse with grammars that contain cycles,
-and Marpa's evaluator will iterate through
-the values from the grammar's
-cycle-free parses.
-For those who want to know more,
-the details are in a L<separate
-document|Marpa::R2::Semantics::Infinite>.
+are generally regarded as useless in practical applications.
+Due to lack of interest,
+the SLIF does not currently support them,
+although Libmarpa itself, Marpa's thin interface and the NAIF all do.
+Those interested in knowing more can look at L<the
+document on the NAIF's support of infinitely ambiguous
+grammars|Marpa::R2::NAIF::Semantics::Infinite>.
 
 =head1 Copyright and License
 

@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.068000';
+$VERSION        = '2.069_001';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -111,7 +111,7 @@ __DATA__
     BLESSING
     LEXEME_SEMANTICS
     DISPLAY_FORM
-    DSL_NAME
+    DSL_FORM
     LEGACY_NAME
     DESCRIPTION
 
@@ -210,11 +210,18 @@ __DATA__
     { The following fields must be reinitialized when
     evaluation is reset }
 
-    RULE_RESOLUTIONS
-    SYMBOL_RESOLUTIONS
-    NULL_VALUES
     EVENTS
     READ_STRING_ERROR
+    NULL_VALUES
+
+    { Fields for new SLIF resolution logic
+    -- must be reinitialized when evaluation is reset }
+    PER_PARSE_CONSTRUCTOR
+    RESOLVE_PACKAGE
+    RESOLVE_PACKAGE_SOURCE
+    REGISTRATIONS
+    CLOSURE_BY_SYMBOL_ID
+    CLOSURE_BY_RULE_ID
 
     { This is the end of the list of fields which
     must be reinitialized when evaluation is reset }
@@ -264,6 +271,7 @@ __DATA__
     MASK_BY_RULE_ID
 
     G1_ARGS
+    DEFAULT_G1_START_ACTION
     COMPLETION_EVENT_BY_ID
     NULLED_EVENT_BY_ID
     PREDICTION_EVENT_BY_ID

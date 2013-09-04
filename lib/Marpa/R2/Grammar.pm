@@ -26,7 +26,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.068000';
+$VERSION        = '2.069_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -648,13 +648,22 @@ sub Marpa::R2::Grammar::show_problems {
     return "Grammar has no problems\n";
 } ## end sub Marpa::R2::Grammar::show_problems
 
-# Return DSL name of symbol
+# Return DSL form of symbol
 # Does no checking
-sub Marpa::R2::Grammar::symbol_dsl_name {
+sub Marpa::R2::Grammar::symbol_dsl_form {
     my ( $grammar, $symbol_id ) = @_;
     my $symbols   = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
     my $symbol = $symbols->[$symbol_id];
-    return [Marpa::R2::Internal::Symbol::DSL_NAME];
+    return $symbol->[Marpa::R2::Internal::Symbol::DSL_FORM];
+}
+
+# Return description of symbol
+# Does no checking
+sub Marpa::R2::Grammar::symbol_description {
+    my ( $grammar, $symbol_id ) = @_;
+    my $symbols   = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
+    my $symbol = $symbols->[$symbol_id];
+    return $symbol->[Marpa::R2::Internal::Symbol::DESCRIPTION];
 }
 
 # Return display form of symbol
@@ -666,7 +675,7 @@ sub Marpa::R2::Grammar::symbol_in_display_form {
     return "<!No symbol with ID $symbol_id!>" if not defined $symbol;
     my $text = $symbol->[Marpa::R2::Internal::Symbol::DISPLAY_FORM];
     return $text if defined $text;
-    $text = $symbol->[Marpa::R2::Internal::Symbol::DSL_NAME];
+    $text = $symbol->[Marpa::R2::Internal::Symbol::DSL_FORM];
     return "<$text>" if defined $text;
     $text = $grammar->symbol_name($symbol_id);
     return "<$text>";
@@ -795,7 +804,7 @@ sub Marpa::R2::Grammar::show_rules {
     return $text;
 } ## end sub Marpa::R2::Grammar::show_rules
 
-# This logic tests for gaps in the rule numbering.
+# This logic deals with gaps in the rule numbering.
 # Currently there are none, but Libmarpa does not
 # guarantee this.
 sub Marpa::R2::Grammar::rule_ids {
@@ -804,18 +813,22 @@ sub Marpa::R2::Grammar::rule_ids {
     return 0 .. $grammar_c->highest_rule_id();
 } ## end sub Marpa::R2::Grammar::rule_ids
 
+# This logic deals with gaps in the symbol numbering.
+# Currently there are none, but Libmarpa does not
+# guarantee this.
+sub Marpa::R2::Grammar::symbol_ids {
+    my ($grammar) = @_;
+    my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
+    return 0 .. $grammar_c->highest_symbol_id();
+} ## end sub Marpa::R2::Grammar::rule_ids
+
 sub Marpa::R2::Grammar::rule {
     my ( $grammar, $rule_id ) = @_;
-    my $grammar_c   = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $symbols     = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
-    my $rule_length = $grammar_c->rule_length($rule_id);
-    return if not defined $rule_length;
-    my @symbol_ids = ( $grammar_c->rule_lhs($rule_id) );
-    push @symbol_ids,
-        map { $grammar_c->rule_rhs( $rule_id, $_ ) }
-        ( 0 .. $rule_length - 1 );
+    my $tracer    = $grammar->[Marpa::R2::Internal::Grammar::TRACER];
     my @symbol_names = ();
-    SYMBOL_ID: for my $symbol_id (@symbol_ids) {
+
+    SYMBOL_ID: for my $symbol_id ($tracer->rule_expand($rule_id)) {
         ## The name of the symbols, before the BNF rewrites
         my $name =
             $symbols->[$symbol_id]->[Marpa::R2::Internal::Symbol::LEGACY_NAME]
@@ -937,9 +950,9 @@ sub assign_symbol {
             $symbol->[Marpa::R2::Internal::Symbol::DESCRIPTION] = $value;
             next PROPERTY;
         }
-        if ( $property eq 'dsl_name' ) {
+        if ( $property eq 'dsl_form' ) {
             my $value = $options->{$property};
-            $symbol->[Marpa::R2::Internal::Symbol::DSL_NAME] = $value;
+            $symbol->[Marpa::R2::Internal::Symbol::DSL_FORM] = $value;
             next PROPERTY;
         }
         if ( $property eq 'legacy_name' ) {

@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.068000';
+$VERSION        = '2.069_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -83,6 +83,14 @@ sub Marpa::R2::Recognizer::new {
     } ## end if ( not defined $recce_c )
 
     $recce_c->ruby_slippers_set(1);
+
+    if (   defined $grammar->[Marpa::R2::Internal::Grammar::ACTION_OBJECT]
+        or defined $grammar->[Marpa::R2::Internal::Grammar::ACTIONS]
+        or not defined $grammar->[Marpa::R2::Internal::Grammar::INTERNAL] )
+    {
+        $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE_SOURCE] =
+            'legacy';
+    } ## end if ( defined $grammar->[...])
 
     ARG_HASH: for my $arg_hash (@arg_hashes) {
         if ( defined( my $value = $arg_hash->{'leo'} ) ) {
@@ -155,13 +163,30 @@ sub Marpa::R2::Recognizer::thin {
 
 sub Marpa::R2::Recognizer::reset_evaluation {
     my ($recce) = @_;
-    $recce->[Marpa::R2::Internal::Recognizer::B_C]                 = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::O_C]                 = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::T_C]                 = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::RULE_RESOLUTIONS]    = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES]         = undef;
-    $recce->[Marpa::R2::Internal::Recognizer::EVENTS]              = [];
-    $recce->[Marpa::R2::Internal::Recognizer::ASF_OR_NODES] = [];
+    my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    my $package_source =
+        $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE_SOURCE];
+    if ( defined $package_source and $package_source ne 'legacy' ) {
+
+        # Packaage source, once legacy, stays legacy
+        # Otherwise, reset it
+        $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE_SOURCE] =
+            undef;
+    } ## end if ( defined $package_source and $package_source ne ...)
+    $recce->[Marpa::R2::Internal::Recognizer::ASF_OR_NODES]          = [];
+    $recce->[Marpa::R2::Internal::Recognizer::B_C]                   = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::EVENTS]                = [];
+    $recce->[Marpa::R2::Internal::Recognizer::O_C]                   = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::PER_PARSE_CONSTRUCTOR] = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::READ_STRING_ERROR]     = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE]       = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::NULL_VALUES]        = undef;
+
+    $recce->[Marpa::R2::Internal::Recognizer::REGISTRATIONS]         = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::CLOSURE_BY_SYMBOL_ID] = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::CLOSURE_BY_RULE_ID]   = undef;
+
+    $recce->[Marpa::R2::Internal::Recognizer::T_C] = undef;
     return;
 } ## end sub Marpa::R2::Recognizer::reset_evaluation
 
@@ -192,6 +217,7 @@ sub Marpa::R2::Recognizer::set {
 		event_if_expected
 		leo
 		max_parses
+		semantics_package
 		ranking_method
 		too_many_earley_items
 		trace_actions
@@ -231,6 +257,30 @@ sub Marpa::R2::Recognizer::set {
         if ( defined( my $value = $args->{'max_parses'} ) ) {
             $recce->[Marpa::R2::Internal::Recognizer::MAX_PARSES] = $value;
         }
+
+        if ( defined( my $value = $args->{'semantics_package'} ) ) {
+
+            # Not allowed once parsing is started
+            if ( defined $recce->[Marpa::R2::Internal::Recognizer::B_C] ) {
+                Marpa::R2::exception(
+                    q{Cannot change 'semantics_package' named argument once parsing has started}
+                );
+            }
+
+            $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE_SOURCE]
+                //= 'semantics_package';
+            if ( $recce
+                ->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE_SOURCE] ne
+                'semantics_package' )
+            {
+                Marpa::R2::exception(
+                    qq{'semantics_package' named argument in conflict with other choices\n},
+                    qq{   Usually this means you tried to use the discouraged 'action_object' named argument as well\n}
+                );
+            } ## end if ( $recce->[...])
+            $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE] =
+                $value;
+        } ## end if ( defined( my $value = $args->{'semantics_package'...}))
 
         if ( defined( my $value = $args->{'ranking_method'} ) ) {
 
