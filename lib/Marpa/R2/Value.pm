@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.069_001';
+$VERSION        = '2.069_002';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1494,6 +1494,21 @@ sub Marpa::R2::Internal::Recognizer::evaluate {
 
 } ## end sub Marpa::R2::Internal::Recognizer::evaluate
 
+sub Marpa::R2::Recognizer::bocage_create {
+    my ($recce) = @_;
+    my $parse_set_arg =
+        $recce->[Marpa::R2::Internal::Recognizer::END_OF_PARSE];
+    my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
+    my $recce_c   = $recce->[Marpa::R2::Internal::Recognizer::C];
+
+    $grammar_c->throw_set(0);
+    my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C] =
+        Marpa::R2::Thin::B->new( $recce_c, ( $parse_set_arg // -1 ) );
+    $grammar_c->throw_set(1);
+    return $bocage;
+} ## end sub Marpa::R2::Recognizer::bocage_create
+
 # Returns false if no parse
 sub Marpa::R2::Recognizer::value
 {    ## no critic (Subroutines::RequireArgUnpacking)
@@ -1505,13 +1520,20 @@ sub Marpa::R2::Recognizer::value
             if ref $slr ne 'Marpa::R2::Scanless::R';
     }
 
+    $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE] //= 'tree';
+    if ( $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE] ne 'tree' ) {
+        Marpa::R2::exception(
+            "value() called when recognizer is not in tree mode\n",
+            '  The current mode is "',
+            $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE],
+            qq{"\n}
+        );
+    } ## end if ( $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE...])
+
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $recce_c   = $recce->[Marpa::R2::Internal::Recognizer::C];
     my $order     = $recce->[Marpa::R2::Internal::Recognizer::O_C];
-
-    my $parse_set_arg =
-        $recce->[Marpa::R2::Internal::Recognizer::END_OF_PARSE];
 
     local $Marpa::R2::Internal::TRACE_FH =
         $recce->[Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE];
@@ -1524,12 +1546,9 @@ sub Marpa::R2::Recognizer::value
         "  Recognition done only as far as location $last_completed_earleme\n"
     ) if $furthest_earleme > $last_completed_earleme;
 
-    my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-    my $tree;
+    my $tree = $recce->[Marpa::R2::Internal::Recognizer::T_C];
 
-    if ($bocage) {
-
-        $tree = $recce->[Marpa::R2::Internal::Recognizer::T_C];
+    if ($tree) {
 
         # On second and later calls to value() in a parse series, we need
         # to check the per-parse arg
@@ -1607,16 +1626,13 @@ sub Marpa::R2::Recognizer::value
                 "Maximum parse count ($max_parses) exceeded");
         }
 
-    } ## end if ($bocage)
+    } ## end if ($tree)
     else {
-        # No bocage, therefore not initialized
+        # No tree, therefore not initialized
 
-        $grammar_c->throw_set(0);
-        $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C] =
-            Marpa::R2::Thin::B->new( $recce_c, ( $parse_set_arg // -1 ) );
-        $grammar_c->throw_set(1);
-
-        return if not defined $bocage;
+        my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C] //
+                $recce->bocage_create();
+        return if not $bocage;
 
         $order = $recce->[Marpa::R2::Internal::Recognizer::O_C] =
             Marpa::R2::Thin::O->new($bocage);
@@ -1637,7 +1653,7 @@ sub Marpa::R2::Recognizer::value
         $tree = $recce->[Marpa::R2::Internal::Recognizer::T_C] =
             Marpa::R2::Thin::T->new($order);
 
-    } ## end else [ if ($bocage) ]
+    } ## end else [ if ($tree) ]
 
     if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_AND_NODES] ) {
         print {$Marpa::R2::Internal::TRACE_FH} 'AND_NODES: ',

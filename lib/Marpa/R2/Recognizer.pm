@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.069_001';
+$VERSION        = '2.069_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -187,6 +187,7 @@ sub Marpa::R2::Recognizer::reset_evaluation {
     $recce->[Marpa::R2::Internal::Recognizer::CLOSURE_BY_RULE_ID]   = undef;
 
     $recce->[Marpa::R2::Internal::Recognizer::T_C] = undef;
+    $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE] = undef;
     return;
 } ## end sub Marpa::R2::Recognizer::reset_evaluation
 

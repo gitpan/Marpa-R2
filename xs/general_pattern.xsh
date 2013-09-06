@@ -911,6 +911,23 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
 
+MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::B
+
+void
+ambiguity_metric( b_wrapper )
+    B_Wrapper *b_wrapper;
+PPCODE:
+{
+  Marpa_Bocage self = b_wrapper->b;
+  int gp_result = marpa_b_ambiguity_metric(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && b_wrapper->base->throw ) {
+    croak( "Problem in b->ambiguity_metric(): %s",
+     xs_g_error( b_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::O
 
 void

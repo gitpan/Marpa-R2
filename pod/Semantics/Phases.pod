@@ -35,8 +35,8 @@ each parse can produce a B<parse series> --
 a series of zero or more parse trees,
 each with its own parse result.
 The first call to the
-L<the SLIF recognizer's C<value()>
-method|Marpa::R2::Scanless::Recognizer/"value()">
+L<SLIF recognizer's C<value()>
+method|Marpa::R2::Scanless::R/"value()">
 after the recognizer is created is the
 start of the first parse series,
 and Parse Series Setup Phase takes place
@@ -44,7 +44,7 @@ at this point.
 
 The first parse series continues until there is
 a call to the
-L<the C<series_restart()>
+L<C<series_restart()>
 method|Marpa::R2::Scanless::R/"series_restart()">
 or until the recognizer is destroyed.
 An application is usually interested in only one

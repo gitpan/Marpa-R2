@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.069_001';
+$VERSION        = '2.069_002';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -184,6 +184,7 @@ __DATA__
     T_C { C structure for the Marpa tree iterator }
 
     GRAMMAR { the grammar used }
+    TREE_MODE { 'tree' or 'forest' or undef }
     FINISHED
     TOKEN_VALUES
 
