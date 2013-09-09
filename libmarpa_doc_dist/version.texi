@@ -1,4 +1,4 @@
-@set UPDATED 5 September 2013
+@set UPDATED 8 September 2013
 @set UPDATED-MONTH September 2013
-@set EDITION 5.169.102
-@set VERSION 5.169.102
+@set EDITION 5.170.100
+@set VERSION 5.170.100
