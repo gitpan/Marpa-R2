@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.070000';
+$VERSION        = '2.071_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1665,14 +1665,15 @@ sub character_describe {
     return $text;
 } ## end sub character_describe
 
-sub Marpa::R2::Scanless::R::is_ambiguous {
+sub Marpa::R2::Scanless::R::ambiguity_metric {
     my ($slr) = @_;
     my $thick_g1_recce =
         $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $bocage = $thick_g1_recce->[Marpa::R2::Internal::Recognizer::B_C]
-        // $thick_g1_recce->bocage_create();
-    return $bocage->ambiguity_metric() > 1;
-} ## end sub Marpa::R2::Scanless::R::is_ambiguous
+    $thick_g1_recce->ordering_create();
+    my $ordering = $thick_g1_recce->[Marpa::R2::Internal::Recognizer::O_C];
+    return 0 if not $ordering;
+    return $ordering->ambiguity_metric();
+} ## end sub Marpa::R2::Scanless::R::ambiguity_metric
 
 sub Marpa::R2::Scanless::R::value {
     my ( $slr, $per_parse_arg ) = @_;

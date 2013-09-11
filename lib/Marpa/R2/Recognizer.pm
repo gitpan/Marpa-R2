@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.070000';
+$VERSION        = '2.071_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -173,6 +173,7 @@ sub Marpa::R2::Recognizer::reset_evaluation {
         $recce->[Marpa::R2::Internal::Recognizer::RESOLVE_PACKAGE_SOURCE] =
             undef;
     } ## end if ( defined $package_source and $package_source ne ...)
+    $recce->[Marpa::R2::Internal::Recognizer::NO_PARSE]          = undef;
     $recce->[Marpa::R2::Internal::Recognizer::ASF_OR_NODES]          = [];
     $recce->[Marpa::R2::Internal::Recognizer::B_C]                   = undef;
     $recce->[Marpa::R2::Internal::Recognizer::EVENTS]                = [];

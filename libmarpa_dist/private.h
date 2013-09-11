@@ -125,12 +125,12 @@ static inline void recce_free(struct marpa_r *r);
 static inline ES current_es_of_r(RECCE r);
 static inline ES
 earley_set_new( RECCE r, EARLEME id);
+static inline void trace_earley_item_clear(RECCE r);
 static inline EIM earley_item_create(const RECCE r,
     const EIK_Object key);
 static inline EIM
 earley_item_assign (const RECCE r, const ES set, const ES origin,
 		    const AHFA state);
-static inline void trace_earley_item_clear(RECCE r);
 static inline PIM*
 pim_isy_p_find (ES set, ISYID isyid);
 static inline PIM first_pim_of_es_by_isyid(ES set, ISYID isyid);

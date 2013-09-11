@@ -931,6 +931,21 @@ PPCODE:
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::O
 
 void
+ambiguity_metric( o_wrapper )
+    O_Wrapper *o_wrapper;
+PPCODE:
+{
+  Marpa_Order self = o_wrapper->o;
+  int gp_result = marpa_o_ambiguity_metric(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && o_wrapper->base->throw ) {
+    croak( "Problem in o->ambiguity_metric(): %s",
+     xs_g_error( o_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
 high_rank_only_set( o_wrapper, flag )
     O_Wrapper *o_wrapper;
     int flag;

@@ -103,6 +103,7 @@ int marpa_b_ambiguity_metric (Marpa_Bocage b);
 Marpa_Order marpa_o_new ( Marpa_Bocage b);
 Marpa_Order marpa_o_ref ( Marpa_Order o);
 void marpa_o_unref ( Marpa_Order o);
+int marpa_o_ambiguity_metric (Marpa_Order o);
 int marpa_o_high_rank_only_set ( Marpa_Order o, int flag);
 int marpa_o_high_rank_only ( Marpa_Order o);
 int marpa_o_rank ( Marpa_Order o );

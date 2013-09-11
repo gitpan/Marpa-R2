@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.070000';
+$VERSION        = '2.071_000';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -191,6 +191,10 @@ __DATA__
     ASF_OR_NODES { memoized or-nodes }
 
     TRACE_FILE_HANDLE
+    ERROR_MESSAGE { Temporary place to put an error message for later use.
+    One use is when the error occurs in a subroutine, but you want the bail message
+    to have the benefit of a higher-level context.
+    }
 
     END_OF_PARSE
     CLOSURES
@@ -212,6 +216,7 @@ __DATA__
     evaluation is reset }
 
     EVENTS
+    NO_PARSE { no parse found in parse series -- memoized }
     READ_STRING_ERROR
     NULL_VALUES
 
@@ -259,6 +264,8 @@ __DATA__
 
     CHOICEPOINTS_BY_TOKEN_ID
     CHOICEPOINTS_BY_OR_NODE_ID
+
+    { To this point, keep as long as ASF2 is supported. }
 
     :package=Marpa::R2::Inner::Scanless::G
 

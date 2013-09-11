@@ -15,6 +15,12 @@
 
 Revision history for Marpa::R2
 
+2.071_000
+
+   * New series of developer's releases -- 2.069_003 leap-frogged
+
+   * Work on ASF's
+
 2.070000 Sun Sep  8 17:52:17 PDT 2013
 
    * Semantics docs updated for SLIF.  It is now possible to become a Marpa::R2
