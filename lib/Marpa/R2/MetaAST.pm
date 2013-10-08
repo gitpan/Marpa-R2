@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.071_000';
+$VERSION        = '2.071_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -131,7 +131,7 @@ sub ast_to_hash {
     $hashed_ast->{is_lexeme}  = \%is_lexeme;
 
     my @unproductive =
-        grep { not $lex_lhs{$_} and not $_ =~ /\A \[\[ /xms } (keys %lex_rhs,
+        map {"<$_>"} grep { not $lex_lhs{$_} and not $_ =~ /\A \[\[ /xms } (keys %lex_rhs,
         keys %lex_separator)
         ;
     if (@unproductive) {

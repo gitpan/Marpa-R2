@@ -1,8 +1,7 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (10 September 2013) is for the internals of Libmarpa
-5.171.100.
+This manual (8 October 2013) is for the internals of Libmarpa 5.171.101.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -18,8 +17,7 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (10 September 2013) is for the internals of Libmarpa
-5.171.100.
+This manual (8 October 2013) is for the internals of Libmarpa 5.171.101.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -561,6 +559,12 @@ File: internal.info,  Node: Bocage internals,  Next: Ordering internals,  Prev: 
  -- Function: int _marpa_b_or_node_position ( Marpa_Bocage B,
           Marpa_Or_Node_ID OR_NODE_ID)
 
+ -- Function: int _marpa_b_or_node_is_whole ( Marpa_Bocage B,
+          Marpa_Or_Node_ID OR_NODE_ID)
+
+ -- Function: int _marpa_b_or_node_is_semantic ( Marpa_Bocage B,
+          Marpa_Or_Node_ID OR_NODE_ID)
+
  -- Function: int _marpa_b_or_node_first_and ( Marpa_Bocage B,
           Marpa_Or_Node_ID OR_NODE_ID)
 
@@ -577,6 +581,12 @@ File: internal.info,  Node: Ordering internals,  Next: Tree internals,  Prev: Bo
 ======================
 
  -- Function: Marpa_And_Node_ID _marpa_o_and_order_get ( Marpa_Order O,
+          Marpa_Or_Node_ID OR_NODE_ID, int IX)
+
+ -- Function: int _marpa_o_or_node_and_node_count ( Marpa_Order O,
+          Marpa_Or_Node_ID OR_NODE_ID)
+
+ -- Function: int _marpa_o_or_node_and_node_id_by_ix ( Marpa_Order O,
           Marpa_Or_Node_ID OR_NODE_ID, int IX)
 
 
@@ -1127,18 +1137,18 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top514
-Node: Copying1407
-Node: About this document9843
-Node: Internal Interface10151
-Node: Symbol internal methods10919
-Node: Rule internals12598
-Node: Grammar internals15238
-Node: Recognizer internals16942
-Node: Bocage internals19816
-Node: Ordering internals22015
-Node: Tree internals22305
-Node: Valuator internals24313
-Node: GNU Free Documentation License24579
+Node: Top511
+Node: Copying1401
+Node: About this document9837
+Node: Internal Interface10145
+Node: Symbol internal methods10913
+Node: Rule internals12592
+Node: Grammar internals15232
+Node: Recognizer internals16936
+Node: Bocage internals19810
+Node: Ordering internals22216
+Node: Tree internals22731
+Node: Valuator internals24739
+Node: GNU Free Documentation License25005
 
 End Tag Table

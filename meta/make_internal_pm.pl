@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.071_000';
+$VERSION        = '2.071_001';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -239,15 +239,15 @@ __DATA__
     ORIGIN
     CURRENT
 
-    :package=Marpa::R2::Internal::Scanless::Choicepoint
+    :package=Marpa::R2::Internal::Choicepoint
 
-    OR_NODE_IDS { array of the or-node IDs }
-    TOKEN_IDS { array of the token IDs }
-    EXTERNAL { boolean: should this choicepoint be visible outside the ASF code? }
-
-    { One of the or-node and token ID array will be non-empty.
-      Currently only one will be non-empty, but this may change if
-      the SLIF implements LHS terminals. }
+    { An external choicepoint }
+    ASF
+    POWERSET
+    NID_IX 
+    SYMCH_IX 
+    FACTORING_STACK
+    POWERSET_TO_PRIOR_FACTORSET
 
     :package=Marpa::R2::Internal::Scanless::ASF
 
@@ -255,17 +255,36 @@ __DATA__
     CHOICE_BLESSING
     RULE_BLESSING
     SYMBOL_BLESSING
-    CHOICEPOINT_IS_FACTORED
 
-    { FAC_ indicates fields which would belong to separate factoring
-     object, if there was one }
-    FAC_CHAF_PREDECESSOR_BY_CAUSE
-    FAC_CHAF_CAUSE_IS_ACTIVE
+    INTSET_BY_KEY
+    NEXT_INTSET_ID
 
-    CHOICEPOINTS_BY_TOKEN_ID
-    CHOICEPOINTS_BY_OR_NODE_ID
+    TOP
+    NIDSET_BY_ID
+    POWERSET_BY_ID
+    POW3SET_BY_ID
 
-    { To this point, keep as long as ASF2 is supported. }
+    :package=Marpa::R2::Internal::Nidset
+
+    ID
+    NIDS
+
+    :package=Marpa::R2::Internal::Powerset
+
+    ID
+    NIDSET_IDS
+
+    :package=Marpa::R2::Internal::Pow3set
+
+    ID
+    POWERSET_IDS
+
+    :package=Marpa::R2::Internal::CPI
+
+    ASF
+    CHOICEPOINT
+    NID_IX
+    FACTORING
 
     :package=Marpa::R2::Inner::Scanless::G
 

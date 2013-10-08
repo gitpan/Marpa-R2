@@ -24,7 +24,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.071_000';
+$VERSION        = '2.071_001';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 
@@ -121,21 +121,43 @@ use constant POSITION => 1;
 use constant ORIGIN => 2;
 use constant CURRENT => 3;
 
-package Marpa::R2::Internal::Scanless::Choicepoint;
-use constant OR_NODE_IDS => 0;
-use constant TOKEN_IDS => 1;
-use constant EXTERNAL => 2;
+package Marpa::R2::Internal::Choicepoint;
+use constant ASF => 0;
+use constant POWERSET => 1;
+use constant NID_IX => 2;
+use constant SYMCH_IX => 3;
+use constant FACTORING_STACK => 4;
+use constant POWERSET_TO_PRIOR_FACTORSET => 5;
 
 package Marpa::R2::Internal::Scanless::ASF;
 use constant SLR => 0;
 use constant CHOICE_BLESSING => 1;
 use constant RULE_BLESSING => 2;
 use constant SYMBOL_BLESSING => 3;
-use constant CHOICEPOINT_IS_FACTORED => 4;
-use constant FAC_CHAF_PREDECESSOR_BY_CAUSE => 5;
-use constant FAC_CHAF_CAUSE_IS_ACTIVE => 6;
-use constant CHOICEPOINTS_BY_TOKEN_ID => 7;
-use constant CHOICEPOINTS_BY_OR_NODE_ID => 8;
+use constant INTSET_BY_KEY => 4;
+use constant NEXT_INTSET_ID => 5;
+use constant TOP => 6;
+use constant NIDSET_BY_ID => 7;
+use constant POWERSET_BY_ID => 8;
+use constant POW3SET_BY_ID => 9;
+
+package Marpa::R2::Internal::Nidset;
+use constant ID => 0;
+use constant NIDS => 1;
+
+package Marpa::R2::Internal::Powerset;
+use constant ID => 0;
+use constant NIDSET_IDS => 1;
+
+package Marpa::R2::Internal::Pow3set;
+use constant ID => 0;
+use constant POWERSET_IDS => 1;
+
+package Marpa::R2::Internal::CPI;
+use constant ASF => 0;
+use constant CHOICEPOINT => 1;
+use constant NID_IX => 2;
+use constant FACTORING => 3;
 
 package Marpa::R2::Inner::Scanless::G;
 use constant C => 0;
