@@ -98,10 +98,28 @@
 @s xor normal
 
 @s error normal
-@s PSAR int
-@s PSL int
-@s AVL_TREE int
 @s AVL_TRAV int
+@s AVL_TREE int
+@s Bit_Matrix int
+@s DAND int
+@s DSTACK int
+@s LBV int
+@s Marpa_Bocage int
+@s Marpa_IRL_ID int
+@s Marpa_Rule_ID int
+@s Marpa_Symbol_ID int
+@s NOOKID int
+@s NOOK_Object int
+@s OR int
+@s PIM int
+@s PRIVATE int
+@s PRIVATE_NOT_INLINE int
+@s PSAR int
+@s PSAR_Object int
+@s PSL int
+@s RULE int
+@s RULEID int
+@s XRL int
 
 @** License.
 \bigskip\noindent
@@ -259,15 +277,18 @@ of excellent ``average case" results.
 @ Finally, there is {\bf theoretical complexity}.
 This is the complexity I would claim in a write-up of the
 Marpa algorithm for a Theory of Computation article.
-Most of the time, this is the same as practical worst-case complexity.
+Most of the time, I am conservative, and do not
+claim a theoretical complexity better than
+the practical worst-case complexity.
 Often, however, for theoretical complexity I consider
 myself entitled to claim
 the time complexity for a 
 better algorithm, even thought that is not the one
 used in the actual implementation.
-@ Sorting is a good example of under what circumstances
-I take the liberty of claiming a time complexity I did not
-implement.
+@
+Sorting is a good example of a case where
+I take the liberty of claiming a time complexity better than
+the one I actually implemented.
 In many places in |libmarpa|,
 for sorting,
 the most reasonable practical
@@ -283,16 +304,16 @@ the GNU project has decided to base it on quicksort,
 and I do not care to second-guess them on this.
 But quicksort and insertion sorts are both, theoretically, $O(n^2)$.
 @ Clearly, in both cases, I could drop in a merge sort and achieve
-a theoretical $O(n \log n)$ worst case.
-Often just as clear is that is all cases likely to occur in practice,
+a theoretical time complexity $O(n \log n)$ in the worst case.
+Often it is just as clear is that, in practice,
 the merge sort would be inferior.
 @ When I claim a complexity from a theoretical choice of algorithm,
 rather than the actually implemented one, the following will always be
 the case:
 \li The existence of the theoretical algorithm must be generally accepted.
 \li The complexity I claim for it must be generally accepted.
-\li It must be clear that there are no obstacles to using the theoretical algorithm
-whose solution is not straightforward.
+\li It must be clear that there are no serious
+obstacles to using the theoretical algorithm.
 @ I am a big believer in theory.
 Often practical considerations didn't clearly indicate a choice of
 algorithm .
@@ -1300,25 +1321,7 @@ Is this (external) symbol on the LHS of a sequence rule?
 @ @<Initialize XSY elements@> =
     XSY_is_Sequence_LHS(xsy) = 0;
 
-@*0 Symbol has semantics?.
-Can the symbol have a user-specified semantics?
-Symbols are semantic by default.
-@d XSY_is_Semantic(xsy) ((xsy)->t_is_semantic)
-@<Bit aligned XSY elements@> = unsigned int t_is_semantic:1;
-@ @<Initialize XSY elements@> =
-    XSY_is_Semantic(xsy) = 1;
-@ @<Function definitions@> =
-int _marpa_g_symbol_is_semantic(
-    Marpa_Grammar g,
-    Marpa_Symbol_ID xsy_id)
-{
-    @<Return |-2| on failure@>@;
-    @<Fail if |xsy_id| is malformed@>@;
-    @<Soft fail if |xsy_id| does not exist@>@;
-    return XSY_is_Semantic(XSY_by_ID(xsy_id));
-}
-
-@*0 Nulling symbol has semantics?.
+@*0 Nulling symbol is valued?.
 This value describes the semantics
 for a symbol when it is nulling.
 Marpa optimizes for the case
@@ -1706,7 +1709,7 @@ The return value is a pointer to the nulling alias.
 PRIVATE
 ISY symbol_alias_create(GRAMMAR g, XSY symbol)
 {
-    ISY alias_isy = isy_new(g, symbol);
+    ISY alias_isy = semantic_isy_new(g, symbol);
     XSY_is_Nulling(symbol) = 0;
     XSY_is_Nullable(symbol) = 1;
     ISY_is_Nulling(alias_isy) = 1;
@@ -1724,7 +1727,8 @@ struct s_isy;
 typedef struct s_isy* ISY;
 typedef Marpa_ISY_ID ISYID;
 
-@ The initial element is a type |int|,
+@ Internal symbols are also used as the or-nodes for nulling tokens.
+The initial element is a type |int|,
 and the next element is the symbol ID,
 (the unique identifier for the symbol),
 so that the
@@ -1760,7 +1764,7 @@ isy_start(GRAMMAR g)
   return isy;
 }
 
-@ Create an ISY from scratch.
+@ Create a virtual ISY from scratch.
 A source symbol must be specified.
 @<Function definitions@> =
 PRIVATE ISY
@@ -1772,6 +1776,17 @@ isy_new(GRAMMAR g, XSY source)
   return new_isy;
 }
 
+@ Create an semantically-visible ISY from scratch.
+A source symbol must be specified.
+@<Function definitions@> =
+PRIVATE ISY
+semantic_isy_new(GRAMMAR g, XSY source)
+{
+  const ISY new_isy = isy_new (g, source);
+  ISY_is_Semantic(new_isy) = 1;
+  return new_isy;
+}
+
 @ Clone an ISY from an XSY.
 An XSY must be specified.
 @<Function definitions@> =
@@ -1780,6 +1795,7 @@ isy_clone(GRAMMAR g, XSY xsy)
 {
   const ISY new_isy = isy_start (g);
   Source_XSY_of_ISY (new_isy) = xsy;
+  ISY_is_Semantic (new_isy) = 1;
   Rank_of_ISY (new_isy) = ISY_Rank_by_XSY (xsy);
   ISY_is_Nulling (new_isy) = XSY_is_Nulling (xsy);
   return new_isy;
@@ -1844,10 +1860,30 @@ int _marpa_g_isy_is_nulling(Marpa_Grammar g, Marpa_ISY_ID isy_id)
   return ISY_is_Nulling(ISY_by_ID(isy_id));
 }
 
+@*0 Semantic XSY.
+Set if the internal symbol is semantically visible
+externally.
+@d ISY_is_Semantic(isy) ((isy)->t_is_semantic)
+@d ISYID_is_Semantic(isyid) (ISY_is_Semantic(ISY_by_ID(isyid)))
+@<Bit aligned ISY elements@> = unsigned int t_is_semantic:1;
+@ @<Initialize ISY elements@> = ISY_is_Semantic(isy) = 0;
+@ @<Function definitions@> =
+int _marpa_g_isy_is_semantic(
+    Marpa_Grammar g,
+    Marpa_IRL_ID isy_id)
+{
+    @<Return |-2| on failure@>@;
+    @<Fail if |isy_id| is invalid@>@;
+    return ISYID_is_Semantic(isy_id);
+}
+
 @*0 Source XSY.
 This is the external
 ``source'' of the internal symbol --
 the external symbol that it is derived from.
+There is always a non-null source XSY.
+It is used in ranking, and is also convenient
+for tracing and debugging.
 @d Source_XSY_of_ISY(isy) ((isy)->t_source_xsy)
 @d Source_XSY_of_ISYID(isyid) (Source_XSY_of_ISY(ISY_by_ID(isyid)))
 @<Widely aligned ISY elements@> = XSY t_source_xsy;
@@ -1861,7 +1897,7 @@ Marpa_Rule_ID _marpa_g_source_xsy(
     @<Return |-2| on failure@>@;
     @<Fail if |isy_id| is invalid@>@;
     source_xsy = Source_XSY_of_ISYID(isy_id);
-    return source_xsy ? ID_of_XSY(source_xsy) : -1;
+    return ID_of_XSY(source_xsy);
 }
 
 @*0 Source rule and offset.
@@ -2742,6 +2778,20 @@ Marpa's design criteria.
 It was an especially non-negotiable criteria, because
 almost the only reason for parsing a grammar is to apply the
 semantics specified for the original grammar.
+@ The rewriting of rules into internal rules must be
+such that every one of their parses
+corresponds to a ``factoring'' --
+a way of dividing up the input.
+If the rewriting is unambiguous, this is trivially true.
+For an ambiguous rewrite, each parse will be visible
+external as a unique ``factoring'' of the external rule's
+RHS symbols by location,
+and the rewrite must make sense when interpreted that
+way.
+@ An IRL has an external semantics if and only if it does
+have a non-virtual LHS.
+And if a rule does not have a virtual LHS, then its LHS
+side ISY must have a semantic XRL.
 @d IRL_has_Virtual_LHS(irl) ((irl)->t_is_virtual_lhs)
 @<Bit aligned IRL elements@> = unsigned int t_is_virtual_lhs:1;
 @ @<Initialize IRL elements@> =
@@ -2899,6 +2949,9 @@ be using it.
     First_AIM_of_IRL(irl) = NULL;
 
 @** Symbol instance (SYMI) code.
+The symbol instance identifies the instance of a symbol in the internal grammar,
+That is, it identifies not just the symbol, but the specific use of a symbol in
+a rule.
 @<Private typedefs@> = typedef int SYMI;
 @ @d SYMI_Count_of_G(g) ((g)->t_symbol_instance_count)
 @<Int aligned grammar elements@> =
@@ -2969,20 +3022,20 @@ int marpa_g_precompute(Marpa_Grammar g)
     @<Fail if no rules@>@;
     @<Fail if precomputed@>@;
     @<Fail if bad start symbol@>@;
-    // After this point, errors are not recoverable
+    // \break After this point, errors are not recoverable \break
     @<Clear rule duplication tree@>@;
-    // Phase 1: census the external grammar
+    /* \vskip\baselineskip Phase 1: census the external grammar */
     { /* Scope with only external grammar */
 	@<Declare census variables@>@;
 	@<Perform census of grammar |g|@>@;
 	@<Detect cycles@>@;
     }
-    // Phase 2: rewrite the grammar into internal form
+    //  \vskip\baselineskip Phase 2: rewrite the grammar into internal form 
     @<Initialize IRL stack@>@;
     @<Initialize ISY stack@>@;
     @<Rewrite grammar |g| into CHAF form@>@;
     @<Augment grammar |g|@>@;
-    // Phase 3: memoize the internal grammar
+    /* \vskip\baselineskip Phase 3: memoize the internal grammar */
      if (!G_is_Trivial(g)) {
 	@<Declare variables for the internal grammar
 	memoizations@>@;
@@ -6497,9 +6550,9 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
       AEX aex;
       const AHFA ahfa = AHFA_of_G_by_ID (g, ahfaid);
       const int ahfa_item_count = AIM_Count_of_AHFA (ahfa);
-  bv_clear (bv_completion_xsyid);
-  bv_clear (bv_prediction_xsyid);
-  bv_clear (bv_nulled_xsyid);
+      bv_clear (bv_completion_xsyid);
+      bv_clear (bv_prediction_xsyid);
+      bv_clear (bv_nulled_xsyid);
       for (aex = 0; aex < (AEX) ahfa_item_count; aex++)
 	{
 	  int rhs_ix;
@@ -6507,28 +6560,25 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
 	  const ISYID postdot_isyid = Postdot_ISYID_of_AIM (aim);
 	  const IRL irl = IRL_of_AIM (aim);
 	  int raw_position = Position_of_AIM (aim);
-if (raw_position < 0)
-  {				// Completion
-    raw_position = Length_of_IRL (irl);
-    if (!IRL_has_Virtual_LHS (irl))
-      {				// Completion
-	const ISY lhs = LHS_of_IRL (irl);
-	const XSY xsy = Source_XSY_of_ISY (lhs);
-	if (XSY_is_Completion_Event (xsy))
-	  {
-	    const XSYID xsyid = ID_of_XSY (xsy);
-	    bv_bit_set (bv_completion_xsyid, xsyid);
-	  }
-      }
-  }
+	  if (raw_position < 0)
+	    {			// Completion
+	      raw_position = Length_of_IRL (irl);
+	      if (!IRL_has_Virtual_LHS (irl))
+		{		// Completion
+		  const ISY lhs = LHS_of_IRL (irl);
+		  const XSY xsy = Source_XSY_of_ISY (lhs);
+		  if (XSY_is_Completion_Event (xsy))
+		    {
+		      const XSYID xsyid = ID_of_XSY (xsy);
+		      bv_bit_set (bv_completion_xsyid, xsyid);
+		    }
+		}
+	    }
 	  if (postdot_isyid >= 0)
 	    {
 	      const XSY xsy = Source_XSY_of_ISYID (postdot_isyid);
-	      if (xsy)
-		{
-		  const XSYID xsyid = ID_of_XSY (xsy);
-		  bv_bit_set (bv_prediction_xsyid, xsyid);
-		}
+	      const XSYID xsyid = ID_of_XSY (xsy);
+	      bv_bit_set (bv_prediction_xsyid, xsyid);
 	    }
 	  for (rhs_ix = raw_position - Null_Count_of_AIM (aim);
 	       rhs_ix < raw_position; rhs_ix++)
@@ -12036,6 +12086,31 @@ PRIVATE TOK and_node_token(AND and_node)
     return NULL;
 }
 
+@ The ``middle'' earley set of the and-node.
+It is most simply defined as equivalent to
+the start of the cause, but the cause can be token,
+and in that case the simpler definition is not helpful.
+Instead, the end of the predecessor is used, if there is one.
+If there is no predecessor, the origin of the parent or-node will
+always be the same as ``middle'' of the or-node.
+@<Function definitions@> =
+Marpa_Earley_Set_ID _marpa_b_and_node_middle(Marpa_Bocage b,
+    Marpa_And_Node_ID and_node_id)
+{
+  AND and_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Check bocage |and_node_id|; set |and_node|@>@;
+  {
+    const OR predecessor_or = Predecessor_OR_of_AND (and_node);
+    if (predecessor_or)
+      {
+	return ES_Ord_of_OR (predecessor_or);
+      }
+  }
+  return Origin_Ord_of_OR (OR_of_AND (and_node));
+}
+
 @** Progress report code.
 @<Private typedefs@> =
    typedef struct marpa_progress_item* PROGRESS;
@@ -13276,7 +13351,7 @@ int marpa_t_next(Marpa_Tree t)
 {
     @<Return |-2| on failure@>@;
     const int termination_indicator = -1;
-    int is_first_tree_attempt = 0;
+    int is_first_tree_attempt = (t->t_parse_count < 1);
     @<Unpack tree objects@>@;
     @<Fail if fatal error@>@;
     if (T_is_Paused(t)) {
@@ -13291,7 +13366,7 @@ int marpa_t_next(Marpa_Tree t)
       }
 
     if (T_is_Nulling(t)) {
-      if (t->t_parse_count < 1) {
+      if (is_first_tree_attempt) {
 	t->t_parse_count++;
 	return 0;
       } else {
@@ -13299,15 +13374,11 @@ int marpa_t_next(Marpa_Tree t)
       }
     }
 
-    if (t->t_parse_count < 1)
-      {
-       is_first_tree_attempt = 1;
-       @<Initialize the tree iterator@>@;
-      }
     while (1) {
       const AND ands_of_b = ANDs_of_B(b);
       if (is_first_tree_attempt) {
-	is_first_tree_attempt = 0;
+	 is_first_tree_attempt = 0;
+	 @<Initialize the tree iterator@>@;
        } else {
 	 @<Start a new iteration of the tree@>@;
        }
@@ -13355,7 +13426,8 @@ PRIVATE void tree_or_node_release(TREE tree, ORID or_node_id)
     bv_bit_clear(tree->t_or_node_in_use, (unsigned int)or_node_id);
 }
 
-@ @<Initialize the tree iterator@> =
+@*0 Iterating the tree.
+@<Initialize the tree iterator@> =
 {
   ORID top_or_id = Top_ORID_of_B (b);
   OR top_or_node = OR_of_B_by_ID (b, top_or_id);
@@ -13363,19 +13435,18 @@ PRIVATE void tree_or_node_release(TREE tree, ORID or_node_id)
   /* Due to skipping, it is possible for even
     the top or-node to have no valid choices,
     in which case there is no parse */
-  int choice = 0;
-  if (!and_order_ix_is_valid(o, top_or_node, 0))
+  const int choice = 0;
+  if (!and_order_ix_is_valid(o, top_or_node, choice))
     goto TREE_IS_EXHAUSTED;
   nook = FSTACK_PUSH (t->t_nook_stack);
   tree_or_node_try(t, top_or_id); /* Empty stack, so cannot fail */
   OR_of_NOOK (nook) = top_or_node;
   Choice_of_NOOK (nook) = choice;
   Parent_of_NOOK (nook) = -1;
-  NOOK_Cause_is_Ready (nook) = 0;
+  NOOK_Cause_is_Expanded (nook) = 0;
   NOOK_is_Cause (nook) = 0;
-  NOOK_Predecessor_is_Ready (nook) = 0;
+  NOOK_Predecessor_is_Expanded (nook) = 0;
   NOOK_is_Predecessor (nook) = 0;
-  *(FSTACK_PUSH (t->t_nook_worklist)) = 0;
 }
 
 @ Look for a nook to iterate.
@@ -13397,8 +13468,8 @@ Otherwise, the tree is exhausted.
 		and break out of the loop.
 	    */
 	    Choice_of_NOOK(iteration_candidate) = choice;
-	    NOOK_Cause_is_Ready(iteration_candidate) = 0;
-	    NOOK_Predecessor_is_Ready(iteration_candidate) = 0;
+	    NOOK_Cause_is_Expanded(iteration_candidate) = 0;
+	    NOOK_Predecessor_is_Expanded(iteration_candidate) = 0;
 	    break;
 	}
 	{
@@ -13408,10 +13479,10 @@ Otherwise, the tree is exhausted.
 	    if (parent_nook_ix >= 0) {
 		NOOK parent_nook = NOOK_of_TREE_by_IX(t, parent_nook_ix);
 		if (NOOK_is_Cause(iteration_candidate)) {
-		    NOOK_Cause_is_Ready(parent_nook) = 0;
+		    NOOK_Cause_is_Expanded(parent_nook) = 0;
 		}
 		if (NOOK_is_Predecessor(iteration_candidate)) {
-		    NOOK_Predecessor_is_Ready(parent_nook) = 0;
+		    NOOK_Predecessor_is_Expanded(parent_nook) = 0;
 		}
 	    }
 
@@ -13420,10 +13491,13 @@ Otherwise, the tree is exhausted.
 	    FSTACK_POP(t->t_nook_stack);
 	}
     }
+    if ( Size_of_T(t) <= 0) goto TREE_IS_EXHAUSTED;
+}
+
+@ @<Finish tree if possible@> = {
     {
-	int stack_length = Size_of_T(t);
+	const int stack_length = Size_of_T(t);
 	int i;
-	if (stack_length <= 0) goto TREE_IS_EXHAUSTED;
 	/* Clear the worklist, then copy the entire remaining
 	   tree onto it. */
 	FSTACK_CLEAR(t->t_nook_worklist);
@@ -13431,9 +13505,6 @@ Otherwise, the tree is exhausted.
 	    *(FSTACK_PUSH(t->t_nook_worklist)) = i;
 	}
     }
-}
-
-@ @<Finish tree if possible@> = {
     while (1) {
 	NOOKID* p_work_nook_id;
 	NOOK work_nook;
@@ -13444,35 +13515,39 @@ Otherwise, the tree is exhausted.
 	int choice;
 	int child_is_cause = 0;
 	int child_is_predecessor = 0;
+	if (FSTACK_LENGTH(t->t_nook_worklist) <= 0) { goto TREE_IS_FINISHED; }
 	p_work_nook_id = FSTACK_TOP(t->t_nook_worklist, NOOKID);
-	if (!p_work_nook_id) {
-	    goto TREE_IS_FINISHED;
-	}
 	work_nook = NOOK_of_TREE_by_IX(t, *p_work_nook_id);
 	work_or_node = OR_of_NOOK(work_nook);
 	work_and_node_id = and_order_get(o, work_or_node, Choice_of_NOOK(work_nook));
 	work_and_node = ands_of_b + work_and_node_id;
-	if (!NOOK_Cause_is_Ready(work_nook)) {
-	    child_or_node = Cause_OR_of_AND(work_and_node);
-	    if (child_or_node && OR_is_Token(child_or_node)) child_or_node = NULL;
-	    if (child_or_node) {
-		child_is_cause = 1;
-	    } else {
-		NOOK_Cause_is_Ready(work_nook) = 1;
-	    }
-	}
-	if (!child_or_node && !NOOK_Predecessor_is_Ready(work_nook)) {
-	    child_or_node = Predecessor_OR_of_AND(work_and_node);
-	    if (child_or_node) {
-		child_is_predecessor = 1;
-	    } else {
-		NOOK_Predecessor_is_Ready(work_nook) = 1;
-	    }
-	}
-	if (!child_or_node) {
-	    FSTACK_POP(t->t_nook_worklist);
+	do
+	  {
+	    if (!NOOK_Cause_is_Expanded (work_nook))
+	      {
+		const OR cause_or_node = Cause_OR_of_AND (work_and_node);
+		if (!OR_is_Token (cause_or_node))
+		  {
+		    child_or_node = cause_or_node;
+		    child_is_cause = 1;
+		    break;
+		  }
+	      }
+	    NOOK_Cause_is_Expanded (work_nook) = 1;
+	    if (!NOOK_Predecessor_is_Expanded (work_nook))
+	      {
+		child_or_node = Predecessor_OR_of_AND (work_and_node);
+		if (child_or_node)
+		  {
+		    child_is_predecessor = 1;
+		    break;
+		  }
+	      }
+	    NOOK_Predecessor_is_Expanded (work_nook) = 1;
+	    FSTACK_POP (t->t_nook_worklist);
 	    goto NEXT_NOOK_ON_WORKLIST;
-	}
+	  }
+	while (0);
 	if (!tree_or_node_try(t, ID_of_OR(child_or_node))) goto NEXT_TREE;
 	choice = 0;
 	if (!and_order_ix_is_valid(o, child_or_node, choice)) goto NEXT_TREE;
@@ -13490,17 +13565,18 @@ Otherwise, the tree is exhausted.
     Parent_of_NOOK(new_nook) = *p_work_nook_id;
     Choice_of_NOOK(new_nook) = choice;
     OR_of_NOOK(new_nook) = child_or_node;
-    NOOK_Cause_is_Ready(new_nook) = 0;
+    NOOK_Cause_is_Expanded(new_nook) = 0;
     if ( ( NOOK_is_Cause(new_nook) = child_is_cause ) ) {
-	NOOK_Cause_is_Ready(work_nook) = 1;
+	NOOK_Cause_is_Expanded(work_nook) = 1;
     }
-    NOOK_Predecessor_is_Ready(new_nook) = 0;
+    NOOK_Predecessor_is_Expanded(new_nook) = 0;
     if ( ( NOOK_is_Predecessor(new_nook) = child_is_predecessor ) ) {
-	NOOK_Predecessor_is_Ready(work_nook) = 1;
+	NOOK_Predecessor_is_Expanded(work_nook) = 1;
     }
 }
 
-@ @<Function definitions@> =
+@*0 Accessors.
+@<Function definitions@> =
 int marpa_t_parse_count(Marpa_Tree t)
 {
     return t->t_parse_count;
@@ -13535,9 +13611,9 @@ typedef struct s_nook* NOOK;
 @ @d OR_of_NOOK(nook) ((nook)->t_or_node)
 @d Choice_of_NOOK(nook) ((nook)->t_choice)
 @d Parent_of_NOOK(nook) ((nook)->t_parent)
-@d NOOK_Cause_is_Ready(nook) ((nook)->t_is_cause_ready)
+@d NOOK_Cause_is_Expanded(nook) ((nook)->t_is_cause_ready)
 @d NOOK_is_Cause(nook) ((nook)->t_is_cause_of_parent)
-@d NOOK_Predecessor_is_Ready(nook) ((nook)->t_is_predecessor_ready)
+@d NOOK_Predecessor_is_Expanded(nook) ((nook)->t_is_predecessor_ready)
 @d NOOK_is_Predecessor(nook) ((nook)->t_is_predecessor_of_parent)
 @s NOOK_Object int
 @<NOOK structure@> =
@@ -13611,7 +13687,7 @@ int _marpa_t_nook_cause_is_ready(Marpa_Tree t, int nook_id)
   @<Return |-2| on failure@>@;
   @<Unpack tree objects@>@;
    @<Check |r| and |nook_id|; set |nook|@>@;
-    return NOOK_Cause_is_Ready(nook);
+    return NOOK_Cause_is_Expanded(nook);
 }
 
 @ @<Function definitions@> =
@@ -13621,7 +13697,7 @@ int _marpa_t_nook_predecessor_is_ready(Marpa_Tree t, int nook_id)
   @<Return |-2| on failure@>@;
   @<Unpack tree objects@>@;
    @<Check |r| and |nook_id|; set |nook|@>@;
-    return NOOK_Predecessor_is_Ready(nook);
+    return NOOK_Predecessor_is_Expanded(nook);
 }
 
 @ @<Function definitions@> =

@@ -21,12 +21,16 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 8;
 use English qw( -no_match_vars );
 use lib 'inc';
 use Marpa::R2::Test;
 use Marpa::R2;
 use Data::Dumper;
+
+our $DEBUG = 0;
+
+# In crediting test, JDD = Jean-Damien Durand
 
 my $glenn_grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
@@ -47,25 +51,6 @@ END_OF_SOURCE
 );
 
 my $input = 'child::book';
-
-sub my_parser {
-    my ( $grammar, $string ) = @_;
-
-    my $recce = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
-
-    if ( not defined eval { $recce->read( \$string ); 1 } ) {
-        my $abbreviated_error = $EVAL_ERROR;
-        chomp $abbreviated_error;
-        $abbreviated_error =~ s/\n.*//xms;
-        $abbreviated_error =~ s/^Error \s+ in \s+ string_read: \s+ //xms;
-        return 'No parse', $abbreviated_error;
-    } ## end if ( not defined eval { $recce->read( \$string ); 1 ...})
-    my $value_ref = $recce->value();
-    if ( not defined $value_ref ) {
-        return 'No parse', 'Input read to end but no parse';
-    }
-    return [ return ${$value_ref}, 'Parse OK' ];
-} ## end sub my_parser
 
 my @tests_data = (
     [   $glenn_grammar,
@@ -105,7 +90,7 @@ push @tests_data, [
 INPUT
     [ "## Allowed in the input\n" ],
     'Parse OK',
-    'Jean-Damien Durand test of discard versus accepted'
+    'JDD test of discard versus accepted'
 ];
 
 my $durand_grammar2 = Marpa::R2::Scanless::G->new(
@@ -136,7 +121,43 @@ test input
 INPUT
     [ 'test input', "\n" ],
     'Parse OK',
-    'Regression test of bug found by Jean-Damien Durand'
+    'Regression test of bug found by JDD'
+];
+
+my $durand_grammar3 = Marpa::R2::Scanless::G->new(
+    {   source => \(<<'END_OF_SOURCE'),
+:default ::= action => ::array
+:start ::= Script
+
+Script ::= '=' '/' 'dumb'
+
+_WhiteSpace                            ~ ' '
+_LineTerminator                        ~ [\n]
+_SingleLineComment                     ~ '//' _SingleLineCommentCharsopt
+_SingleLineCommentChars                ~ _SingleLineCommentChar _SingleLineCommentCharsopt
+_SingleLineCommentCharsopt             ~ _SingleLineCommentChars
+_SingleLineCommentCharsopt             ~
+_SingleLineCommentChar                 ~ [^\n]
+
+_S ~
+    _WhiteSpace
+  | _LineTerminator
+  | _SingleLineComment
+
+S_MANY ~ _S+
+:discard ~ S_MANY
+
+END_OF_SOURCE
+    }
+);
+
+push @tests_data, [
+    $durand_grammar3, <<INPUT,
+ = / dumb
+INPUT
+    [ qw(= / dumb) ],
+    'Parse OK',
+    'Regression test of perl_pos bug found by JDD'
 ];
 
 TEST:
@@ -154,5 +175,25 @@ for my $test_data (@tests_data) {
     Test::More::is( $actual_result, $expected_result,
         qq{Result of $test_name} );
 } ## end TEST: for my $test_data (@tests_data)
+
+sub my_parser {
+    my ( $grammar, $string ) = @_;
+
+    my $recce = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
+
+    if ( not defined eval { $recce->read( \$string ); 1 } ) {
+        say $EVAL_ERROR if $DEBUG;
+        my $abbreviated_error = $EVAL_ERROR;
+        chomp $abbreviated_error;
+        $abbreviated_error =~ s/\n.*//xms;
+        $abbreviated_error =~ s/^Error \s+ in \s+ string_read: \s+ //xms;
+        return 'No parse', $abbreviated_error;
+    } ## end if ( not defined eval { $recce->read( \$string ); 1 ...})
+    my $value_ref = $recce->value();
+    if ( not defined $value_ref ) {
+        return 'No parse', 'Input read to end but no parse';
+    }
+    return [ return ${$value_ref}, 'Parse OK' ];
+} ## end sub my_parser
 
 # vim: expandtab shiftwidth=4:

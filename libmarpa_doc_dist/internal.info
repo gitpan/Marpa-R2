@@ -1,8 +1,8 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (23 October 2013) is for the internals of Libmarpa
-5.172.100.
+This manual (24 October 2013) is for the internals of Libmarpa
+5.173.100.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -18,8 +18,8 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (23 October 2013) is for the internals of Libmarpa
-5.172.100.
+This manual (24 October 2013) is for the internals of Libmarpa
+5.173.100.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -299,8 +299,8 @@ File: internal.info,  Node: Symbol internal methods,  Next: Rule internals,  Pre
  -- Function: Marpa_Symbol_ID _marpa_g_symbol_null_alias (
           Marpa_Grammar G, Marpa_Symbol_ID SYMID)
 
- -- Function: int _marpa_g_symbol_is_semantic ( Marpa_Grammar G,
-          Marpa_Symbol_ID SYMID)
+ -- Function: int _marpa_g_isy_is_semantic ( Marpa_Grammar G,
+          Marpa_ISY_ID ISY_ID)
 
  -- Function: Marpa_Rule_ID _marpa_g_source_xsy ( Marpa_Grammar G,
           Marpa_ISY_ID ISY_ID)
@@ -519,6 +519,9 @@ File: internal.info,  Node: Bocage internals,  Next: Ordering internals,  Prev: 
 ====================
 
  -- Function: int _marpa_b_and_node_count ( Marpa_Bocage B)
+
+ -- Function: Marpa_Earley_Set_ID _marpa_b_and_node_middle (
+          Marpa_Bocage B, Marpa_And_Node_ID AND_NODE_ID)
 
  -- Function: int _marpa_b_and_node_parent ( Marpa_Bocage B,
           Marpa_And_Node_ID AND_NODE_ID)
@@ -1144,13 +1147,13 @@ Node: Copying1403
 Node: About this document9839
 Node: Internal Interface10147
 Node: Symbol internal methods10915
-Node: Rule internals12594
-Node: Grammar internals15234
-Node: Recognizer internals16938
-Node: Bocage internals19812
-Node: Ordering internals22218
-Node: Tree internals22733
-Node: Valuator internals24741
-Node: GNU Free Documentation License25007
+Node: Rule internals12589
+Node: Grammar internals15229
+Node: Recognizer internals16933
+Node: Bocage internals19807
+Node: Ordering internals22332
+Node: Tree internals22847
+Node: Valuator internals24855
+Node: GNU Free Documentation License25121
 
 End Tag Table

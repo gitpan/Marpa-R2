@@ -88,6 +88,8 @@ isy_start(GRAMMAR g);
 static inline ISY
 isy_new(GRAMMAR g, XSY source);
 static inline ISY
+semantic_isy_new(GRAMMAR g, XSY source);
+static inline ISY
 isy_clone(GRAMMAR g, XSY xsy);
 static inline   XRL xrl_start (GRAMMAR g, const XSYID lhs, const XSYID * rhs, int length);
 static inline XRL xrl_finish(GRAMMAR g, XRL rule);

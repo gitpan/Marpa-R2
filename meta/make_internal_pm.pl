@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.072000';
+$VERSION        = '2.073_000';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -247,7 +247,20 @@ __DATA__
     NID_IX 
     SYMCH_IX 
     FACTORING_STACK
-    POWERSET_TO_PRIOR_FACTORSET
+    FACTORING_COUNT { Factoring expanded so far }
+    OR_NODE_IN_USE
+    IS_EXHAUSTED
+
+    :package=Marpa::R2::Internal::Nook
+
+    PARENT
+    OR_NODE
+    FIRST_CHOICE
+    LAST_CHOICE
+    IS_CAUSE
+    IS_PREDECESSOR
+    CAUSE_IS_EXPANDED
+    PREDECESSOR_IS_EXPANDED
 
     :package=Marpa::R2::Internal::Scanless::ASF
 
@@ -255,6 +268,10 @@ __DATA__
     CHOICE_BLESSING
     RULE_BLESSING
     SYMBOL_BLESSING
+    OR_NODES {
+	per or-node data, 
+        current arrays of sorted and-nodes
+    }
 
     INTSET_BY_KEY
     NEXT_INTSET_ID
@@ -262,7 +279,6 @@ __DATA__
     TOP
     NIDSET_BY_ID
     POWERSET_BY_ID
-    POW3SET_BY_ID
 
     :package=Marpa::R2::Internal::Nidset
 
@@ -273,11 +289,6 @@ __DATA__
 
     ID
     NIDSET_IDS
-
-    :package=Marpa::R2::Internal::Pow3set
-
-    ID
-    POWERSET_IDS
 
     :package=Marpa::R2::Internal::CPI
 
