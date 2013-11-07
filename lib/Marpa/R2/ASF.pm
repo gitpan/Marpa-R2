@@ -21,7 +21,7 @@ use warnings;
 no warnings qw(recursion);
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.074000';
+$VERSION        = '2.075_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -67,28 +67,29 @@ package Marpa::R2::Internal::ASF;
 # or the symbol of the token in the token and-nodes.
 
 sub intset_id {
-    my ($asf, @ids) = @_;
-    my $key = join q{ }, sort { $a <=> $b } @ids;
-    my $intset_by_key = $asf->[Marpa::R2::Internal::Scanless::ASF::INTSET_BY_KEY];
-    my $intset_id = $intset_by_key->{$key};
+    my ( $asf, @ids ) = @_;
+    my $key           = join q{ }, sort { $a <=> $b } @ids;
+    my $intset_by_key = $asf->[Marpa::R2::Internal::ASF::INTSET_BY_KEY];
+    my $intset_id     = $intset_by_key->{$key};
     return $intset_id if defined $intset_id;
-    $intset_id = $asf->[Marpa::R2::Internal::Scanless::ASF::NEXT_INTSET_ID]++;
+    $intset_id = $asf->[Marpa::R2::Internal::ASF::NEXT_INTSET_ID]++;
     $intset_by_key->{$key} = $intset_id;
     return $intset_id;
-}
+} ## end sub intset_id
 
 sub Marpa::R2::Nidset::obtain {
-    my ($class, $asf, @nids) = @_;
-    my $id = intset_id($asf, @nids);
-    my $nidset_by_id = $asf->[Marpa::R2::Internal::Scanless::ASF::NIDSET_BY_ID];
-    my $nidset = $nidset_by_id->[$id];
+    my ( $class, $asf, @nids ) = @_;
+    my $id           = intset_id( $asf, @nids );
+    my $nidset_by_id = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
+    my $nidset       = $nidset_by_id->[$id];
     return $nidset if defined $nidset;
     $nidset = bless [], $class;
     $nidset->[Marpa::R2::Internal::Nidset::ID] = $id;
-    $nidset->[Marpa::R2::Internal::Nidset::NIDS] = [sort { $a <=> $b } @nids];
+    $nidset->[Marpa::R2::Internal::Nidset::NIDS] =
+        [ sort { $a <=> $b } @nids ];
     $nidset_by_id->[$id] = $nidset;
     return $nidset;
-}
+} ## end sub Marpa::R2::Nidset::obtain
 
 sub Marpa::R2::Nidset::nids {
     my ($nidset) = @_;
@@ -96,13 +97,13 @@ sub Marpa::R2::Nidset::nids {
 }
 
 sub Marpa::R2::Nidset::nid {
-    my ($nidset, $ix) = @_;
+    my ( $nidset, $ix ) = @_;
     return $nidset->[Marpa::R2::Internal::Nidset::NIDS]->[$ix];
 }
 
 sub Marpa::R2::Nidset::count {
     my ($nidset) = @_;
-    return scalar @{$nidset->[Marpa::R2::Internal::Nidset::NIDS]};
+    return scalar @{ $nidset->[Marpa::R2::Internal::Nidset::NIDS] };
 }
 
 sub Marpa::R2::Nidset::id {
@@ -112,23 +113,24 @@ sub Marpa::R2::Nidset::id {
 
 sub Marpa::R2::Nidset::show {
     my ($nidset) = @_;
-    my $id = $nidset->id();
-    my $nids = $nidset->nids();
+    my $id       = $nidset->id();
+    my $nids     = $nidset->nids();
     return "Nidset #$id: " . join q{ }, @{$nids};
-}
+} ## end sub Marpa::R2::Nidset::show
 
 sub Marpa::R2::Powerset::obtain {
-    my ($class, $asf, @nidset_ids) = @_;
-    my $id = intset_id($asf, @nidset_ids);
-    my $powerset_by_id = $asf->[Marpa::R2::Internal::Scanless::ASF::POWERSET_BY_ID];
-    my $powerset = $powerset_by_id->[$id];
+    my ( $class, $asf, @nidset_ids ) = @_;
+    my $id             = intset_id( $asf, @nidset_ids );
+    my $powerset_by_id = $asf->[Marpa::R2::Internal::ASF::POWERSET_BY_ID];
+    my $powerset       = $powerset_by_id->[$id];
     return $powerset if defined $powerset;
     $powerset = bless [], $class;
     $powerset->[Marpa::R2::Internal::Powerset::ID] = $id;
-    $powerset->[Marpa::R2::Internal::Powerset::NIDSET_IDS] = [ sort { $a <=> $b } @nidset_ids ];
+    $powerset->[Marpa::R2::Internal::Powerset::NIDSET_IDS] =
+        [ sort { $a <=> $b } @nidset_ids ];
     $powerset_by_id->[$id] = $powerset;
     return $powerset;
-}
+} ## end sub Marpa::R2::Powerset::obtain
 
 sub Marpa::R2::Powerset::nidset_ids {
     my ($powerset) = @_;
@@ -137,15 +139,24 @@ sub Marpa::R2::Powerset::nidset_ids {
 
 sub Marpa::R2::Powerset::count {
     my ($powerset) = @_;
-    return scalar @{$powerset->[Marpa::R2::Internal::Powerset::NIDSET_IDS]};
+    return scalar @{ $powerset->[Marpa::R2::Internal::Powerset::NIDSET_IDS] };
 }
 
 sub Marpa::R2::Powerset::nidset_id {
-    my ($powerset, $ix) = @_;
+    my ( $powerset, $ix ) = @_;
     my $nidset_ids = $powerset->[Marpa::R2::Internal::Powerset::NIDSET_IDS];
     return if $ix > $#{$nidset_ids};
     return $powerset->[Marpa::R2::Internal::Powerset::NIDSET_IDS]->[$ix];
-}
+} ## end sub Marpa::R2::Powerset::nidset_id
+
+sub Marpa::R2::Powerset::nidset {
+    my ( $powerset, $asf, $ix ) = @_;
+    my $nidset_ids = $powerset->[Marpa::R2::Internal::Powerset::NIDSET_IDS];
+    return if $ix > $#{$nidset_ids};
+    my $nidset_id = $powerset->[Marpa::R2::Internal::Powerset::NIDSET_IDS]->[$ix];
+    my $nidset_by_id = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
+    return $nidset_by_id->[$nidset_id];
+} ## end sub Marpa::R2::Powerset::nidset_id
 
 sub Marpa::R2::Powerset::id {
     my ($powerset) = @_;
@@ -154,32 +165,34 @@ sub Marpa::R2::Powerset::id {
 
 sub Marpa::R2::Powerset::show {
     my ($powerset) = @_;
-    my $id = $powerset->id();
+    my $id         = $powerset->id();
     my $nidset_ids = $powerset->nidset_ids();
     return "Powerset #$id: " . join q{ }, @{$nidset_ids};
-}
+} ## end sub Marpa::R2::Powerset::show
 
 sub set_last_choice {
     my ( $asf, $nook ) = @_;
+    my $or_nodes   = $asf->[Marpa::R2::Internal::ASF::OR_NODES];
+    my $or_node_id = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
+    my $and_nodes  = $or_nodes->[$or_node_id];
     my $choice     = $nook->[Marpa::R2::Internal::Nook::FIRST_CHOICE];
+    return if $choice > $#{$and_nodes};
     if ( nook_has_semantic_cause( $asf, $nook ) ) {
-        my $or_node_id = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
-        my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+        my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
         my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
         my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
         my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
         my $bocage    = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-        my $or_nodes  = $asf->[Marpa::R2::Internal::Scanless::ASF::OR_NODES];
-        my $and_nodes = $or_nodes->[$or_node_id];
         my $and_node_id = $and_nodes->[$choice];
-        my $current_predecessor = $bocage->_marpa_b_and_node_predecessor($and_node_id);
+        my $current_predecessor =
+            $bocage->_marpa_b_and_node_predecessor($and_node_id) // -1;
         AND_NODE: while (1) {
             $choice++;
             $and_node_id = $and_nodes->[$choice];
             last AND_NODE if not defined $and_node_id;
-            last AND_NODE
-                if $current_predecessor
-                    != $bocage->_marpa_b_and_node_predecessor($and_node_id);
+            my $next_predecessor =
+                $bocage->_marpa_b_and_node_predecessor($and_node_id) // -1;
+            last AND_NODE if $current_predecessor != $next_predecessor;
         } ## end AND_NODE: while (1)
         $choice--;
     } ## end if ( nook_has_semantic_cause( $asf, $nook ) )
@@ -193,24 +206,23 @@ sub nook_new {
     $nook->[Marpa::R2::Internal::Nook::OR_NODE] = $or_node_id;
     $nook->[Marpa::R2::Internal::Nook::PARENT] = $parent_or_node_id // -1;
     $nook->[Marpa::R2::Internal::Nook::FIRST_CHOICE] = 0;
-    set_last_choice($asf, $nook);
+    set_last_choice( $asf, $nook );
     return $nook;
 } ## end sub nook_new
 
 sub nook_increment {
     my ( $asf, $nook ) = @_;
+    $nook->[Marpa::R2::Internal::Nook::LAST_CHOICE] //= 0;
     $nook->[Marpa::R2::Internal::Nook::FIRST_CHOICE] =
         $nook->[Marpa::R2::Internal::Nook::LAST_CHOICE] + 1;
-    my $choice = set_last_choice($asf, $nook);
-    my $or_node  = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
-    my $or_nodes = $asf->[Marpa::R2::Internal::Scanless::ASF::OR_NODES];
-    return $choice <= $#{ $or_nodes->[$or_node] };
+    return if not defined set_last_choice( $asf, $nook );
+    return 1;
 } ## end sub nook_increment
 
 sub nook_has_semantic_cause {
     my ( $asf, $nook ) = @_;
-    my $or_node = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
-    my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+    my $or_node   = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
+    my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
@@ -225,36 +237,34 @@ sub nook_has_semantic_cause {
 
 # No check for conflicting usage -- value(), asf(), etc.
 # at this point
-sub Marpa::R2::Scanless::ASF::top {
-    my ($asf) = @_;
-    my $top = $asf->[Marpa::R2::Internal::Scanless::ASF::TOP];
-    return $top if defined $top;
-    my $or_nodes = $asf->[Marpa::R2::Internal::Scanless::ASF::OR_NODES];
-    my $slr   = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
-    my $recce = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+sub Marpa::R2::ASF::peak {
+    my ($asf)    = @_;
+    my $or_nodes = $asf->[Marpa::R2::Internal::ASF::OR_NODES];
+    my $slr      = $asf->[Marpa::R2::Internal::ASF::SLR];
+    my $recce    = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
 
     my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C];
     die 'No Bocage' if not $bocage;
-    my $augment_or_node_id = $bocage->_marpa_b_top_or_node();
+    my $augment_or_node_id  = $bocage->_marpa_b_top_or_node();
     my $augment_and_node_id = $or_nodes->[$augment_or_node_id]->[0];
-
-    my $augment2_or_node_id =
-        $bocage->_marpa_b_and_node_cause($augment_and_node_id);
-    my $augment2_and_node_id = $or_nodes->[$augment2_or_node_id]->[0];
-
     my $start_or_node_id =
-        $bocage->_marpa_b_and_node_cause($augment2_and_node_id);
-    my $top_nidset = Marpa::R2::Nidset->obtain( $asf, $start_or_node_id );
-    my $top_choicepoint_base = nidset_to_choicepoint_base( $asf, $top_nidset );
-    $top = $asf->new_choicepoint($top_choicepoint_base);
+        $bocage->_marpa_b_and_node_cause($augment_and_node_id);
 
-    $asf->[Marpa::R2::Internal::Scanless::ASF::TOP] = $top;
-    return $top;
-} ## end sub Marpa::R2::Scanless::ASF::top
+    my $base_nidset = Marpa::R2::Nidset->obtain( $asf, $start_or_node_id );
+    my $glade_id = $base_nidset->id();
+
+    # Cannot "obtain" the glade if it is not registered
+    $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id]
+        ->[Marpa::R2::Internal::Glade::REGISTERED] = 1;
+    glade_obtain( $asf, $glade_id );
+    return $glade_id;
+} ## end sub Marpa::R2::ASF::peak
+
+our $SPOT_LEAF_BASE = -43;
 
 # Range from -1 to -42 reserved for special values
-sub and_node_to_nid { return -$_[0] - 43; }
-sub nid_to_and_node { return -$_[0] - 43; }
+sub and_node_to_nid { return -$_[0] + $SPOT_LEAF_BASE; }
+sub nid_to_and_node { return -$_[0] + $SPOT_LEAF_BASE; }
 
 sub normalize_asf_blessing {
     my ($name) = @_;
@@ -266,30 +276,33 @@ sub normalize_asf_blessing {
 } ## end sub normalize_asf_blessing
 
 sub Marpa::R2::Internal::ASF::blessings_set {
-    my ( $asf, $default_blessing, $force ) = @_;
-    my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+    my ( $asf, $default_blessing ) = @_;
+    my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
+    my $rules     = $grammar->[Marpa::R2::Internal::Grammar::RULES];
+    my $symbols   = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
+
+    my $default_token_blessing_package =
+        $asf->[ Marpa::R2::Internal::ASF::DEFAULT_TOKEN_BLESSING_PACKAGE ];
+    my $default_rule_blessing_package =
+        $asf->[Marpa::R2::Internal::ASF::DEFAULT_RULE_BLESSING_PACKAGE];
 
     my @rule_blessing   = ();
     my $highest_rule_id = $grammar_c->highest_rule_id();
     RULE: for ( my $rule_id = 0; $rule_id <= $highest_rule_id; $rule_id++ ) {
-        my $lhs_id = $grammar_c->rule_lhs($rule_id);
-        my $name   = $grammar->symbol_name($lhs_id);
-        if ( defined $force ) {
-            $rule_blessing[$rule_id] = join q{::}, $force,
-                normalize_asf_blessing($name);
-            next RULE;
-        }
-        my $blessing =
-            Marpa::R2::Internal::Recognizer::rule_blessing_find( $recce,
-            $rule_id );
-        if ( q{::} ne substr $blessing, 0, 2 ) {
+        my $blessing;
+        my $rule = $rules->[$rule_id];
+        $blessing = $rule->[Marpa::R2::Internal::Rule::BLESSING]
+            if defined $rule;
+        if ( defined $blessing and q{::} ne substr $blessing, 0, 2 ) {
             $rule_blessing[$rule_id] = $blessing;
             next RULE;
         }
-        $rule_blessing[$rule_id] = join q{::}, $default_blessing,
+        my $lhs_id = $grammar_c->rule_lhs($rule_id);
+        my $name   = $grammar->symbol_name($lhs_id);
+        $rule_blessing[$rule_id] = join q{::}, $default_rule_blessing_package,
             normalize_asf_blessing($name);
     } ## end RULE: for ( my $rule_id = 0; $rule_id <= $highest_rule_id; ...)
 
@@ -298,40 +311,35 @@ sub Marpa::R2::Internal::ASF::blessings_set {
     SYMBOL:
     for ( my $symbol_id = 0; $symbol_id <= $highest_symbol_id; $symbol_id++ )
     {
-        my $name = $grammar->symbol_name($symbol_id);
-        if ( defined $force ) {
-            $symbol_blessing[$symbol_id] = join q{::}, $force,
-                normalize_asf_blessing($name);
-            next SYMBOL;
-        }
-        my $blessing =
-            Marpa::R2::Internal::Recognizer::lexeme_blessing_find( $recce,
-            $symbol_id );
-        if ( q{::} ne substr $blessing, 0, 2 ) {
+        my $blessing;
+        my $symbol = $symbols->[$symbol_id];
+        $blessing = $symbol->[Marpa::R2::Internal::Symbol::BLESSING]
+            if defined $symbol;
+        if ( defined $blessing and q{::} ne substr $blessing, 0, 2 ) {
             $symbol_blessing[$symbol_id] = $blessing;
             next SYMBOL;
         }
-        $symbol_blessing[$symbol_id] = join q{::}, $default_blessing,
+        my $name = $grammar->symbol_name($symbol_id);
+        $symbol_blessing[$symbol_id] = join q{::},
+            $default_token_blessing_package,
             normalize_asf_blessing($name);
     } ## end SYMBOL: for ( my $symbol_id = 0; $symbol_id <= $highest_symbol_id...)
-    $asf->[Marpa::R2::Internal::Scanless::ASF::RULE_BLESSING] =
-        \@rule_blessing;
-    $asf->[Marpa::R2::Internal::Scanless::ASF::SYMBOL_BLESSING] =
-        \@symbol_blessing;
+    $asf->[Marpa::R2::Internal::ASF::RULE_BLESSINGS]   = \@rule_blessing;
+    $asf->[Marpa::R2::Internal::ASF::SYMBOL_BLESSINGS] = \@symbol_blessing;
     return $asf;
 } ## end sub Marpa::R2::Internal::ASF::blessings_set
 
 # Returns undef if no parse
-sub Marpa::R2::Scanless::ASF::new {
+sub Marpa::R2::ASF::new {
     my ( $class, @arg_hashes ) = @_;
-    my $asf       = bless [], $class;
+    my $asf = bless [], $class;
 
     my $slr;
 
     for my $arg_hash (@arg_hashes) {
         ARG: for my $arg ( keys %{$arg_hash} ) {
             if ( $arg eq 'slr' ) {
-                $asf->[Marpa::R2::Internal::Scanless::ASF::SLR] = $slr =
+                $asf->[Marpa::R2::Internal::ASF::SLR] = $slr =
                     $arg_hash->{$arg};
                 next ARG;
             }
@@ -341,13 +349,14 @@ sub Marpa::R2::Scanless::ASF::new {
     } ## end for my $arg_hash (@arg_hashes)
 
     Marpa::R2::exception(
-        q{The "slr" named argument must be specified with the Marpa::R2::Scanless::ASF::new method}
+        q{The "slr" named argument must be specified with the Marpa::R2::ASF::new method}
     ) if not defined $slr;
-    $asf->[Marpa::R2::Internal::Scanless::ASF::SLR] = $slr;
+    $asf->[Marpa::R2::Internal::ASF::SLR] = $slr;
 
-    my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    my $recce = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
 
     if ( defined $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE] ) {
+
         # If we already in ASF mode, or are in valuation mode, we cannot create an ASF
         Marpa::R2::exception(
             "An attempt was made to create an ASF for a SLIF recognizer already in use\n",
@@ -356,15 +365,25 @@ sub Marpa::R2::Scanless::ASF::new {
             $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE],
             qq{"\n}
         );
-    }
+    } ## end if ( defined $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE...])
     $recce->[Marpa::R2::Internal::Recognizer::TREE_MODE] = 'forest';
 
-    $asf->[Marpa::R2::Internal::Scanless::ASF::NEXT_INTSET_ID] = 0;
-    $asf->[Marpa::R2::Internal::Scanless::ASF::INTSET_BY_KEY] = {};
+    $asf->[Marpa::R2::Internal::ASF::SYMCH_BLESSING_PACKAGE] = 'My_Symch';
+    $asf->[Marpa::R2::Internal::ASF::FACTORING_BLESSING_PACKAGE] =
+        'My_Factoring';
+    $asf->[Marpa::R2::Internal::ASF::PROBLEM_BLESSING_PACKAGE] = 'My_Problem';
+    $asf->[Marpa::R2::Internal::ASF::DEFAULT_RULE_BLESSING_PACKAGE] =
+        'My_Rule';
+    $asf->[Marpa::R2::Internal::ASF::DEFAULT_TOKEN_BLESSING_PACKAGE] =
+        'My_Token';
 
-    $asf->[Marpa::R2::Internal::Scanless::ASF::NIDSET_BY_ID] = [];
-    $asf->[Marpa::R2::Internal::Scanless::ASF::POWERSET_BY_ID] = [];
+    $asf->[Marpa::R2::Internal::ASF::NEXT_INTSET_ID] = 0;
+    $asf->[Marpa::R2::Internal::ASF::INTSET_BY_KEY]  = {};
 
+    $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID]   = [];
+    $asf->[Marpa::R2::Internal::ASF::POWERSET_BY_ID] = [];
+
+    $asf->[Marpa::R2::Internal::ASF::GLADES] = [];
 
     my $slg       = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
     my $thin_slr  = $slr->[Marpa::R2::Inner::Scanless::R::C];
@@ -375,12 +394,19 @@ sub Marpa::R2::Scanless::ASF::new {
     $recce->ordering_create()
         if not $recce->[Marpa::R2::Internal::Recognizer::O_C];
 
-    my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C];
+    my $bocage   = $recce->[Marpa::R2::Internal::Recognizer::B_C];
     my $ordering = $recce->[Marpa::R2::Internal::Recognizer::O_C];
-    my $or_nodes = $asf->[Marpa::R2::Internal::Scanless::ASF::OR_NODES] = [];
+    Marpa::R2::exception(
+        "An attempt was make to create an ASF for a null parse\n",
+        "  A null parse is a successful parse of a zero-length string\n",
+        "  ASF's are not defined for null parses\n"
+    ) if $ordering->is_null();
+
+    my $or_nodes = $asf->[Marpa::R2::Internal::ASF::OR_NODES] = [];
     use sort 'stable';
     OR_NODE: for ( my $or_node_id = 0;; $or_node_id++ ) {
-        my @and_node_ids = $ordering->_marpa_o_or_node_and_node_ids($or_node_id);
+        my @and_node_ids =
+            $ordering->_marpa_o_or_node_and_node_ids($or_node_id);
         last OR_NODE if not scalar @and_node_ids;
         my @sorted_and_node_ids = map { $_->[-1] } sort { $a <=> $b } map {
             [ ( $bocage->_marpa_b_and_node_predecessor($_) // -1 ), $_ ]
@@ -388,154 +414,72 @@ sub Marpa::R2::Scanless::ASF::new {
         $or_nodes->[$or_node_id] = \@and_node_ids;
     } ## end OR_NODE: for ( my $or_node_id = 0;; $or_node_id++ )
 
+    blessings_set($asf);
     return $asf;
 
-} ## end sub Marpa::R2::Scanless::ASF::new
+} ## end sub Marpa::R2::ASF::new
 
-sub Marpa::R2::Scanless::ASF::new_choicepoint {
-    my ( $asf, $powerset ) = @_;
-    my $cp = bless [], 'Marpa::R2::Choicepoint';
-    $cp->[Marpa::R2::Internal::Choicepoint::ASF] = $asf;
-    $cp->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK] = undef;
-    $cp->[Marpa::R2::Internal::Choicepoint::POWERSET] = $powerset;
-    $cp->[Marpa::R2::Internal::Choicepoint::SYMCH_IX] = 0;
-    $cp->[Marpa::R2::Internal::Choicepoint::NID_IX] = 0;
-    $cp->[Marpa::R2::Internal::Choicepoint::FACTORING_COUNT] = 0;
-    return $cp;
-}
+sub Marpa::R2::ASF::glade_is_visited {
+    my ( $asf, $glade_id ) = @_;
+    my $glade = $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id];
+    return if not $glade;
+    return $glade->[Marpa::R2::Internal::Glade::VISITED];
+} ## end sub Marpa::R2::ASF::glade_is_visited
 
-sub nidset_to_choicepoint_base {
-    my ( $asf, $nidset ) = @_;
+sub Marpa::R2::ASF::glade_visited_clear {
+    my ( $asf, $glade_id ) = @_;
+    my $glade_list =
+        defined $glade_id
+        ? [ $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id] ]
+        : $asf->[Marpa::R2::Internal::ASF::GLADES];
+    $_->[Marpa::R2::Internal::Glade::VISITED] = undef
+        for grep {defined} @{$glade_list};
+    return;
+} ## end sub Marpa::R2::ASF::glade_visited_clear
 
-    # Memoize this method?
-
-    my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+sub nid_sort_ix {
+    my ( $asf, $nid ) = @_;
+    my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $bocage    = $recce->[Marpa::R2::Internal::Recognizer::B_C];
+    if ( $nid >= 0 ) {
+        my $irl_id = $bocage->_marpa_b_or_node_irl($nid);
+        return $grammar_c->_marpa_g_source_xrl($irl_id);
+    }
+    my $and_node_id  = nid_to_and_node($nid);
+    my $token_isy_id = $bocage->_marpa_b_and_node_symbol($and_node_id);
+    my $token_id     = $grammar_c->_marpa_g_source_xsy($token_isy_id);
 
-    my @source_data = ();
-    for my $source_nid ( @{ $nidset->nids() } ) {
-        my $sort_ix;
-        if ( $source_nid >= 0 ) {
-            my $irl_id = $bocage->_marpa_b_or_node_irl($source_nid);
-            $sort_ix = $grammar_c->_marpa_g_source_xrl($irl_id);
-        }
-        else {
-            my $and_node_id = nid_to_and_node($source_nid);
-            my $token_isy_id =
-                $bocage->_marpa_b_and_node_symbol($and_node_id);
-            my $token_id = $grammar_c->_marpa_g_source_xsy($token_isy_id);
-            $sort_ix = -$token_id - 1;
-        } ## end else [ if ( $source_nid >= 0 ) ]
-        push @source_data, [ $sort_ix, $source_nid ];
-    } ## end for my $source_nid ( @{ $nidset->nids() } )
-    my @sorted_source_data = sort { $a->[0] <=> $b->[0] } @source_data;
-    my $nid_ix = 0;
-    my ( $sort_ix_of_this_nid, $this_nid ) =
-        @{ $sorted_source_data[ $nid_ix++ ] };
-    my @nids_with_current_sort_ix = ();
-    my $current_sort_ix           = $sort_ix_of_this_nid;
-    my @symch_ids                 = ();
-    NID: while (1) {
+    # -2 is reserved for 'end of data'
+    return -$token_id - 3;
+} ## end sub nid_sort_ix
 
-        if ( $sort_ix_of_this_nid != $current_sort_ix ) {
+sub Marpa::R2::ASF::grammar {
+    my ($asf)   = @_;
+    my $slr     = $asf->[Marpa::R2::Internal::ASF::SLR];
+    my $recce   = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    return $grammar;
+} ## end sub Marpa::R2::ASF::grammar
 
-            # Currently only whole id break logic
-            my $nidset_for_sort_ix =
-                Marpa::R2::Nidset->obtain( $asf, @nids_with_current_sort_ix );
-            push @symch_ids, $nidset_for_sort_ix->id();
-            @nids_with_current_sort_ix = ();
-            $current_sort_ix           = $sort_ix_of_this_nid;
-        } ## end if ( $sort_ix_of_this_nid != $current_sort_ix )
-        last NID if not defined $this_nid;
-        push @nids_with_current_sort_ix, $this_nid;
-        my $sorted_entry = $sorted_source_data[ $nid_ix++ ];
-        if ( defined $sorted_entry ) {
-            ( $sort_ix_of_this_nid, $this_nid ) = @{$sorted_entry};
-            next NID;
-        }
-        $this_nid            = undef;
-        $sort_ix_of_this_nid = -2;
-    } ## end NID: while (1)
-    return Marpa::R2::Powerset->obtain( $asf, @symch_ids );
-} ## end sub nidset_to_choicepoint_base
-
-sub Marpa::R2::Choicepoint::show {
-    my ( $cp ) = @_;
-    my $id = $cp->base_id();
-    return join q{ }, "Choicepoint based on powerset #$id: ",
-        $cp->[Marpa::R2::Internal::Choicepoint::POWERSET]->show();
-}
-
-# ID of the set on which the choicepoint is based.  Two or more choicepoints
-# may share the same base ID.
-sub Marpa::R2::Choicepoint::base_id {
-    my ( $cp ) = @_;
-    return $cp->[Marpa::R2::Internal::Choicepoint::POWERSET]->id();
-}
-
-sub Marpa::R2::Choicepoint::symch_count {
-    my ( $cp ) = @_;
-    return $cp->[Marpa::R2::Internal::Choicepoint::POWERSET]->count();
-}
-
-sub Marpa::R2::Choicepoint::symch {
-    my ( $cp, $symch_ix ) = @_;
-    $symch_ix //= $cp->[Marpa::R2::Internal::Choicepoint::SYMCH_IX];
-    my $asf = $cp->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $nidset_by_id = $asf->[Marpa::R2::Internal::Scanless::ASF::NIDSET_BY_ID];
-    my $symch_id = $cp->[Marpa::R2::Internal::Choicepoint::POWERSET]->nidset_id($symch_ix);
-    return $nidset_by_id->[$symch_id];
-}
-
-sub Marpa::R2::Choicepoint::nid {
-    my ( $cp, $symch_ix, $nid_ix ) = @_;
-    $symch_ix //= $cp->[Marpa::R2::Internal::Choicepoint::SYMCH_IX];
-    $nid_ix //= $cp->[Marpa::R2::Internal::Choicepoint::NID_IX];
-    my $symch = $cp->symch($symch_ix);
-    return if not defined $symch;
-    return $symch->nid($nid_ix);
-} ## end sub Marpa::R2::Choicepoint::nid
-
-sub Marpa::R2::Choicepoint::symch_set {
-    my ( $cp, $ix ) = @_;
-    my $max_symch_ix = $cp->symch_count() - 1;
-    Marpa::R2::exception("SYMCH index must be in range from 0 to $max_symch_ix")
-       if $ix < 0 or $ix > $max_symch_ix;
-    $cp->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK] = undef;
-    $cp->[Marpa::R2::Internal::Choicepoint::FACTORING_COUNT] = 0;
-    $cp->[Marpa::R2::Internal::Choicepoint::NID_IX] = 0;
-    return $cp->[Marpa::R2::Internal::Choicepoint::SYMCH_IX] = $ix;
-}
-
-sub Marpa::R2::Choicepoint::rule_id {
-    my ($cp)      = @_;
-    my $asf     = $cp->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $or_node_id = $cp->nid() // -1;
-    return nid_to_whole_id($asf, $or_node_id);
-} ## end sub Marpa::R2::Choicepoint::rule_id
-
-# The "whole id" is the external rule ID, if there is one,
-# otherwise -1.  In particular, it is -1 is the NID is for
-# token
-sub nid_to_whole_id {
-    my ($asf, $nid) = @_;
-    my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+sub Marpa::R2::ASF::nid_rule_id {
+    my ( $asf, $spot_id ) = @_;
+    return if $spot_id < 0;
+    my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $bocage     = $recce->[Marpa::R2::Internal::Recognizer::B_C];
+    my $bocage    = $recce->[Marpa::R2::Internal::Recognizer::B_C];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
-    return -1 if $nid < 0;
-    my $irl_id = $bocage->_marpa_b_or_node_irl($nid);
-    my $xrl_id = $grammar_c->_marpa_g_source_xrl($irl_id);
+    my $irl_id    = $bocage->_marpa_b_or_node_irl($spot_id);
+    my $xrl_id    = $grammar_c->_marpa_g_source_xrl($irl_id);
     return $xrl_id;
-}
+} ## end sub Marpa::R2::ASF::nid_rule_id
 
 sub or_node_es_span {
     my ( $asf, $choicepoint ) = @_;
-    my $slr   = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+    my $slr        = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce      = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $bocage     = $recce->[Marpa::R2::Internal::Recognizer::B_C];
     my $origin_es  = $bocage->_marpa_b_or_node_origin($choicepoint);
@@ -545,7 +489,7 @@ sub or_node_es_span {
 
 sub token_es_span {
     my ( $asf, $and_node_id ) = @_;
-    my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+    my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
@@ -553,48 +497,79 @@ sub token_es_span {
     my $predecessor_id = $bocage->_marpa_b_and_node_predecessor($and_node_id);
     my $parent_or_node_id = $bocage->_marpa_b_and_node_parent($and_node_id);
 
-    if (defined $predecessor_id) {
+    if ( defined $predecessor_id ) {
         my $origin_es  = $bocage->_marpa_b_or_node_set($predecessor_id);
         my $current_es = $bocage->_marpa_b_or_node_set($parent_or_node_id);
         return ( $origin_es, $current_es - $origin_es );
-    } ## end if ($predecessor_id)
+    }
     return or_node_es_span( $asf, $parent_or_node_id );
 } ## end sub token_es_span
 
-sub Marpa::R2::Choicepoint::literal {
-    my ($cp)    = @_;
-    my $nid = $cp->nid();
-    my $asf     = $cp->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $slr     = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
-    if ( $nid < 0 ) {
-        my $and_node_id = nid_to_and_node($nid);
+sub Marpa::R2::ASF::spot_literal {
+    my ( $asf, $spot_id ) = @_;
+    my $slr = $asf->[Marpa::R2::Internal::ASF::SLR];
+    if ( $spot_id <= $SPOT_LEAF_BASE ) {
+        my $and_node_id = nid_to_and_node($spot_id);
         my ( $start, $length ) = token_es_span( $asf, $and_node_id );
         return q{} if $length == 0;
         return $slr->substring( $start, $length );
-    } ## end if ( $nid < 0 )
-    return $slr->substring( or_node_es_span( $asf, $nid ) );
-} ## end sub Marpa::R2::Choicepoint::literal
+    } ## end if ( $spot_id <= $SPOT_LEAF_BASE )
+    if ( $spot_id >= 0 ) {
+        return $slr->substring( or_node_es_span( $asf, $spot_id ) );
+    }
+    Marpa::R2::exception("No literal for spot: $spot_id");
+} ## end sub Marpa::R2::ASF::spot_literal
 
-sub Marpa::R2::Choicepoint::symbol_id {
-    my ($cp)      = @_;
-    my $nid_0   = $cp->nid(0);
-    my $asf       = $cp->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+sub Marpa::R2::ASF::spot_token_id {
+    my ( $asf, $spot_id ) = @_;
+    return if $spot_id > $SPOT_LEAF_BASE;
+    my $and_node_id  = nid_to_and_node($spot_id);
+    my $slr          = $asf->[Marpa::R2::Internal::ASF::SLR];
+    my $recce        = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    my $grammar      = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    my $grammar_c    = $grammar->[Marpa::R2::Internal::Grammar::C];
+    my $bocage       = $recce->[Marpa::R2::Internal::Recognizer::B_C];
+    my $token_isy_id = $bocage->_marpa_b_and_node_symbol($and_node_id);
+    my $token_id     = $grammar_c->_marpa_g_source_xsy($token_isy_id);
+    return $token_id;
+} ## end sub Marpa::R2::ASF::spot_token_id
+
+sub Marpa::R2::ASF::spot_symbol_id {
+    my ( $asf, $spot_id ) = @_;
+    my $token_id = $asf->spot_token_id($spot_id);
+    return $token_id if defined $token_id;
+    Marpa::R2::exception("No symbol ID for spot: $spot_id") if $spot_id < 0;
+
+    # Not a token, so return the LHS of the rule
+    my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $bocage    = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-    if ( $nid_0 < 0 ) {
-        my $and_node_id  = nid_to_and_node($nid_0);
-        my $token_isy_id = $bocage->_marpa_b_and_node_symbol($and_node_id);
-        my $token_id     = $grammar_c->_marpa_g_source_xsy($token_isy_id);
-        return $token_id;
-    } ## end if ( $nid_0 < 0 )
-    my $irl_id = $bocage->_marpa_b_or_node_irl($nid_0);
-    my $xrl_id = $grammar_c->_marpa_g_source_xrl($irl_id);
-    my $lhs_id = $grammar_c->rule_lhs($xrl_id);
+    my $irl_id    = $bocage->_marpa_b_or_node_irl($spot_id);
+    my $xrl_id    = $grammar_c->_marpa_g_source_xrl($irl_id);
+    my $lhs_id    = $grammar_c->rule_lhs($xrl_id);
     return $lhs_id;
-} ## end sub Marpa::R2::Choicepoint::symbol_id
+} ## end sub Marpa::R2::ASF::spot_symbol_id
+
+sub Marpa::R2::ASF::spot_symbol_name {
+    my ( $asf, $spot_id ) = @_;
+    my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
+    my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    my $symbol_id = $asf->spot_symbol_id($spot_id);
+    return $grammar->symbol_name($symbol_id);
+} ## end sub Marpa::R2::ASF::spot_symbol_name
+
+sub Marpa::R2::ASF::spot_token_name {
+    my ( $asf, $spot_id ) = @_;
+    my $slr      = $asf->[Marpa::R2::Internal::ASF::SLR];
+    my $recce    = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    my $grammar  = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+    my $token_id = $asf->spot_token_id($spot_id);
+    return if not defined $token_id;
+    return $grammar->symbol_name($token_id);
+} ## end sub Marpa::R2::ASF::spot_token_name
 
 # Memoization is heavily used -- it needs to be to keep the worst cases from
 # going exponential.  The need to memoize is the reason for the very heavy use of
@@ -610,199 +585,199 @@ sub Marpa::R2::Choicepoint::symbol_id {
 # current CP indexing it.  It is assumed that the indexes need only remain valid within
 # the method call that constructs the CPI (choicepoint iterator).
 
-# Not external -- first_symch() will be the external method.
-sub next_factoring {
-    my ($choicepoint) = @_;
-    say STDERR join q{ }, __FILE__, __LINE__, "next_factoring()",
-        $choicepoint->show();
-    say STDERR "next_factoring: id=", $choicepoint->base_id(),
-        "; symch IX = ",
-        $choicepoint->[Marpa::R2::Internal::Choicepoint::SYMCH_IX],
-        "; nid IX = ",
-        $choicepoint->[Marpa::R2::Internal::Choicepoint::NID_IX];
-    my $asf = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $or_nodes = $asf->[Marpa::R2::Internal::Scanless::ASF::OR_NODES];
-    $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK] //= [];
-    my $factoring_stack =
-        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK];
-    my $factoring_count =
-        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_COUNT];
-    my $is_first_factoring_attempt = ( $factoring_count <= 0 );
-
-    $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_COUNT]++;
+sub first_factoring {
+    my ($choicepoint, $nid_of_choicepoint) = @_;
 
     # Current NID of current SYMCH
-    my $nid_of_choicepoint = $choicepoint->nid();
-    say STDERR "next_factoring NID of choicepoint = ", $nid_of_choicepoint;
-
-    my $nidset_by_id =
-        $asf->[Marpa::R2::Internal::Scanless::ASF::NIDSET_BY_ID];
-    my $powerset_by_id =
-        $asf->[Marpa::R2::Internal::Scanless::ASF::POWERSET_BY_ID];
-
     # The caller should ensure that we are never called unless the current
     # NID is for a rule.
-    Marpa::exception(
-        "Internal error: next_factoring() called for negative NID: $nid_of_choicepoint"
+    Marpa::R2::exception(
+        "Internal error: first_factoring() called for negative NID: $nid_of_choicepoint"
     ) if $nid_of_choicepoint < 0;
 
-    my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+    # Due to skipping, even the top or-node can have no valid choices
+    my $asf      = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
+    my $or_nodes = $asf->[Marpa::R2::Internal::ASF::OR_NODES];
+    if ( not scalar @{ $or_nodes->[$nid_of_choicepoint] } ) {
+        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK] =
+            undef;
+        return;
+    }
+
+    $choicepoint->[Marpa::R2::Internal::Choicepoint::OR_NODE_IN_USE]
+        ->{$nid_of_choicepoint} = 1;
+    my $nook = nook_new( $asf, $nid_of_choicepoint );
+    $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK] =
+        [$nook];
+
+    # Iterate as long as we cannot finish this stack
+    while ( not factoring_finish($choicepoint, $nid_of_choicepoint) ) {
+        return if not factoring_iterate($choicepoint);
+    }
+    return 1;
+
+}
+
+sub next_factoring {
+    my ($choicepoint, $nid_of_choicepoint) = @_;
+    my $factoring_stack =
+        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK];
+    Marpa::R2::exception(
+        'Attempt to iterate factoring of uninitialized checkpoint')
+        if not $factoring_stack;
+
+    while ( factoring_iterate($choicepoint) ) {
+        return 1 if factoring_finish($choicepoint, $nid_of_choicepoint);
+    }
+
+    # Found nothing to iterate
+    return;
+}
+
+sub factoring_iterate {
+    my ($choicepoint) = @_;
+    my $asf = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
+    my $factoring_stack =
+        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK];
+    FIND_NODE_TO_ITERATE: while (1) {
+        if ( not scalar @{$factoring_stack} ) {
+            $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK]
+                = undef;
+            return;
+        }
+        my $top_nook = $factoring_stack->[-1];
+        if ( nook_increment( $asf, $top_nook ) ) {
+            last FIND_NODE_TO_ITERATE;    # in C, a "break" will do this
+        }
+
+        # Could not iterate
+        # "Dirty" the corresponding bits in the parent and pop this nook
+        my $stack_ix_of_parent_nook =
+            $top_nook->[Marpa::R2::Internal::Nook::PARENT];
+        if ( $stack_ix_of_parent_nook >= 0 ) {
+            my $parent_nook = $factoring_stack->[$stack_ix_of_parent_nook];
+            $parent_nook->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] = 0
+                if $top_nook->[Marpa::R2::Internal::Nook::IS_CAUSE];
+            $parent_nook->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED]
+                = 0
+                if $top_nook->[Marpa::R2::Internal::Nook::IS_PREDECESSOR];
+        } ## end if ( $stack_ix_of_parent_nook >= 0 )
+
+        my $top_or_node = $top_nook->[Marpa::R2::Internal::Nook::OR_NODE];
+        $choicepoint->[Marpa::R2::Internal::Choicepoint::OR_NODE_IN_USE]
+            ->{$top_or_node} = undef;
+        pop @{$factoring_stack};
+    } ## end FIND_NODE_TO_ITERATE: while (1)
+    return 1;
+} ## end sub factoring_iterate
+
+sub factoring_finish {
+    my ($choicepoint, $nid_of_choicepoint) = @_;
+    my $asf           = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
+    my $or_nodes      = $asf->[Marpa::R2::Internal::ASF::OR_NODES];
+    my $factoring_stack =
+        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK];
+
+    my $nidset_by_id   = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
+    my $powerset_by_id = $asf->[Marpa::R2::Internal::ASF::POWERSET_BY_ID];
+
+    my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $bocage    = $recce->[Marpa::R2::Internal::Recognizer::B_C];
 
-    FACTORING_ATTEMPT: while (1) {
-        if ($is_first_factoring_attempt) {
+    my @worklist = ( 0 .. $#{$factoring_stack} );
 
-            # Due to skipping, even the top or-node can have no valid choices
-            if (not scalar @{$or_nodes->[ $nid_of_choicepoint ]})
+    DO_WORKLIST: while ( scalar @worklist ) {
+        my $stack_ix_of_work_nook = $worklist[-1];
+        my $work_nook    = $factoring_stack->[$stack_ix_of_work_nook];
+        my $work_or_node = $work_nook->[Marpa::R2::Internal::Nook::OR_NODE];
+        my $working_choice =
+            $work_nook->[Marpa::R2::Internal::Nook::FIRST_CHOICE];
+        my $work_and_node_id = $or_nodes->[$work_or_node]->[$working_choice];
+        my $child_or_node;
+        my $child_is_cause;
+        my $child_is_predecessor;
+        FIND_CHILD_OR_NODE: {
+
+            if ( !$work_nook->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] )
             {
-                $choicepoint
-                    ->[Marpa::R2::Internal::Choicepoint::IS_EXHAUSTED] = 1;
-                $choicepoint
-                    ->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK] =
-                    undef;
-                return;
-            }
-
-            $is_first_factoring_attempt = 0;
-            $choicepoint->[Marpa::R2::Internal::Choicepoint::OR_NODE_IN_USE]
-                ->{$nid_of_choicepoint} = 1;
-            my $nook = nook_new($asf, $nid_of_choicepoint);
-            push @{$factoring_stack}, $nook;
-        } ## end if ($is_first_factoring_attempt)
-        else {
-            FIND_NODE_TO_ITERATE: while (1) {
-                if ( not scalar @{$factoring_stack} ) {
-                    $choicepoint
-                        ->[Marpa::R2::Internal::Choicepoint::IS_EXHAUSTED] = 1;
-                    $choicepoint
-                        ->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK]
-                        = undef;
-                    return;
-                } ## end if ( not scalar @{$factoring_stack} )
-                my $top_nook = $factoring_stack->[-1];
-                if ( nook_increment($asf, $top_nook) ) {
-                    $top_nook->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED]
-                        = 1;
-                    $top_nook
-                        ->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED]
-                        = 1;
-                    last FIND_NODE_TO_ITERATE;  # in C, a "break" will do this
-                } ## end if ( defined $work_and_node_id )
-
-                # Could not iterate
-                # "Dirty" the corresponding bits in the parent and pop this nook
-                my $stack_ix_of_parent_nook =
-                    $top_nook->[Marpa::R2::Internal::Nook::PARENT];
-                if ( $stack_ix_of_parent_nook >= 0 ) {
-                    my $parent_nook =
-                        $factoring_stack->[$stack_ix_of_parent_nook];
-                    $parent_nook
-                        ->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] = 0
-                        if $top_nook->[Marpa::R2::Internal::Nook::IS_CAUSE];
-                    $parent_nook
-                        ->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED]
-                        = 0
-                        if $top_nook
-                            ->[Marpa::R2::Internal::Nook::IS_PREDECESSOR];
-                } ## end if ( $stack_ix_of_parent_nook >= 0 )
-
-                my $top_or_node =
-                    $top_nook->[Marpa::R2::Internal::Nook::OR_NODE];
-                $choicepoint
-                    ->[Marpa::R2::Internal::Choicepoint::OR_NODE_IN_USE]
-                    ->{$top_or_node} = undef;
-                pop @{$factoring_stack};
-            } ## end FIND_NODE_TO_ITERATE: while (1)
-        } ## end else [ if ($is_first_factoring_attempt) ]
-
-        my @worklist = ( 0 .. $#{$factoring_stack} );
-
-        DO_WORKLIST: while ( scalar @worklist ) {
-            my $stack_ix_of_work_nook = $worklist[-1];
-            my $work_nook = $factoring_stack->[$stack_ix_of_work_nook];
-            my $work_or_node =
-                $work_nook->[Marpa::R2::Internal::Nook::OR_NODE];
-            my $working_choice =
-                $work_nook->[Marpa::R2::Internal::Nook::FIRST_CHOICE];
-            my $work_and_node_id = $or_nodes->[$work_or_node]->[$working_choice];
-            my $child_or_node;
-            my $child_is_cause;
-            my $child_is_predecessor;
-            FIND_CHILD_OR_NODE: {
-
-                if ( !$work_nook
-                    ->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] )
-                {
-                    if ( not nook_has_semantic_cause( $asf, $work_nook ) ) {
-                        $child_or_node =
-                            $bocage->_marpa_b_and_node_cause(
-                            $work_and_node_id);
-                        $child_is_cause = 1;
-                        last FIND_CHILD_OR_NODE;
-                    } ## end if ( not nook_has_semantic_cause( $asf, $work_nook ...))
-                } ## end if ( !$work_nook->[...])
-                $work_nook->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] =
-                    1;
-                if ( !$work_nook
-                    ->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED] )
-                {
+                if ( not nook_has_semantic_cause( $asf, $work_nook ) ) {
                     $child_or_node =
-                        $bocage->_marpa_b_and_node_predecessor(
-                        $work_and_node_id);
-                    if ( defined $child_or_node ) {
-                        $child_is_predecessor = 1;
-                        last FIND_CHILD_OR_NODE;
-                    }
-                } ## end if ( !$work_nook->[...])
-                $work_nook
-                    ->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED] =
-                    1;
-                pop @worklist;
-                next DO_WORKLIST;
-            } ## end FIND_CHILD_OR_NODE:
+                        $bocage->_marpa_b_and_node_cause($work_and_node_id);
+                    $child_is_cause = 1;
+                    last FIND_CHILD_OR_NODE;
+                } ## end if ( not nook_has_semantic_cause( $asf, $work_nook ))
+            } ## end if ( !$work_nook->[...])
+            $work_nook->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] = 1;
+            if ( !$work_nook
+                ->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED] )
+            {
+                $child_or_node =
+                    $bocage->_marpa_b_and_node_predecessor($work_and_node_id);
+                if ( defined $child_or_node ) {
+                    $child_is_predecessor = 1;
+                    last FIND_CHILD_OR_NODE;
+                }
+            } ## end if ( !$work_nook->[...])
+            $work_nook->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED] =
+                1;
+            pop @worklist;
+            next DO_WORKLIST;
+        } ## end FIND_CHILD_OR_NODE:
 
-            next FACTORING_ATTEMPT
-                if $choicepoint
-                    ->[Marpa::R2::Internal::Choicepoint::OR_NODE_IN_USE]
-                    ->{$child_or_node};
+        return 0
+            if
+            $choicepoint->[Marpa::R2::Internal::Choicepoint::OR_NODE_IN_USE]
+                ->{$child_or_node};
 
-            next FACTORING_ATTEMPT
-                if not scalar @{ $or_nodes->[ $work_or_node ] };
+        return 0
+            if not scalar @{ $or_nodes->[$work_or_node] };
 
-            my $new_nook = nook_new( $asf, $child_or_node , $stack_ix_of_work_nook);
-            if ($child_is_cause) {
-                $new_nook->[Marpa::R2::Internal::Nook::IS_CAUSE] = 1;
-                $work_nook->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] =
-                    1;
-            }
-            if ($child_is_predecessor) {
-                $new_nook->[Marpa::R2::Internal::Nook::IS_PREDECESSOR] = 1;
-                $work_nook
-                    ->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED] =
-                    1;
-            } ## end if ($child_is_predecessor)
-            push @{$factoring_stack}, $new_nook;
-            push @worklist, $#{$factoring_stack};
+        my $new_nook =
+            nook_new( $asf, $child_or_node, $stack_ix_of_work_nook );
+        if ($child_is_cause) {
+            $new_nook->[Marpa::R2::Internal::Nook::IS_CAUSE]           = 1;
+            $work_nook->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] = 1;
+        }
+        if ($child_is_predecessor) {
+            $new_nook->[Marpa::R2::Internal::Nook::IS_PREDECESSOR] = 1;
+            $work_nook->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED] =
+                1;
+        }
+        push @{$factoring_stack}, $new_nook;
+        push @worklist, $#{$factoring_stack};
 
-        } ## end DO_WORKLIST: while ( scalar @worklist )
+    } ## end DO_WORKLIST: while ( scalar @worklist )
 
-        return 1;
+    return 1;
 
-    } ## end FACTORING_ATTEMPT: while (1)
-} ## end sub next_factoring
+} ## end sub factoring_finish
 
-sub factors {
+sub and_nodes_to_cause_nids {
+    my ( $asf, @and_node_ids ) = @_;
+    my $slr    = $asf->[Marpa::R2::Internal::ASF::SLR];
+    my $recce  = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    my $bocage = $recce->[Marpa::R2::Internal::Recognizer::B_C];
+    my %causes = ();
+    for my $and_node_id (@and_node_ids) {
+        my $cause_nid = $bocage->_marpa_b_and_node_cause($and_node_id)
+            // and_node_to_nid($and_node_id);
+        $causes{$cause_nid} = 1;
+    }
+    return [ keys %causes ];
+} ## end sub and_nodes_to_cause_nids
+
+sub glade_id_factors {
     my ($choicepoint) = @_;
     my $asf           = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $slr           = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
+    my $slr           = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce         = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar       = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c     = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $bocage        = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-    my $or_nodes = $asf->[Marpa::R2::Internal::Scanless::ASF::OR_NODES];
+    my $or_nodes      = $asf->[Marpa::R2::Internal::ASF::OR_NODES];
 
     my @result;
     my $factoring_stack =
@@ -817,198 +792,279 @@ sub factors {
     {
         my $nook = $factoring_stack->[$factor_ix];
         next FACTOR if not nook_has_semantic_cause( $asf, $nook );
-        my %causes    = ();
-        my $or_node   = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
-        my $and_nodes = $or_nodes->[$or_node];
-        for my $and_node_ix ( $nook->[Marpa::R2::Internal::Nook::FIRST_CHOICE]
-            .. $nook->[Marpa::R2::Internal::Nook::LAST_CHOICE] )
-        {
-            my $and_node_id = $and_nodes->[$and_node_ix];
-            my $cause_nid   = $bocage->_marpa_b_and_node_cause($and_node_id)
-                // and_node_to_nid($and_node_id);
-            $causes{$cause_nid} = 1;
-        } ## end for my $and_node_ix ( $nook->[...])
-        my $choicepoint_nidset =
-            Marpa::R2::Nidset->obtain( $asf, keys %causes );
-        my $choicepoint_base =
-            nidset_to_choicepoint_base( $asf, $choicepoint_nidset );
-        my $new_choicepoint = $asf->new_choicepoint($choicepoint_base);
-        push @result, $new_choicepoint;
-    } ## end for ( my $factor_ix = 0; $factor_ix <= $#{$factoring_stack...})
+        my $or_node    = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
+        my $and_nodes  = $or_nodes->[$or_node];
+        my $cause_nids = and_nodes_to_cause_nids(
+            $asf,
+            map { $and_nodes->[$_] } (
+                $nook->[Marpa::R2::Internal::Nook::FIRST_CHOICE]
+                    .. $nook->[Marpa::R2::Internal::Nook::LAST_CHOICE]
+            )
+        );
+        my $base_nidset = Marpa::R2::Nidset->obtain( $asf, @{$cause_nids} );
+        my $glade_id = $base_nidset->id();
+
+        # say STDERR "Registering glade id $glade_id";
+        $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id]
+            ->[Marpa::R2::Internal::Glade::REGISTERED] = 1;
+        push @result, $glade_id;
+    } ## end FACTOR: for ( my $factor_ix = 0; $factor_ix <= $#{...})
     return \@result;
-} ## end sub factors
+} ## end sub glade_id_factors
 
-# Internal?
-# Return the size of the choicepoint ambiguous prefix.
-# This is the last point in the factoring stack with an ambiguity.
-# if the choicepoint is ambiguous, it is greater than 0.
-# If the choicepoint is unambiguous, it is always 0.
-# The concept of "point in the factoring stack" is internal.
-sub Marpa::R2::Choicepoint::ambiguous_prefix {
-    my ($choicepoint) = @_;
-    my $asf = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $or_nodes = $asf->[Marpa::R2::Internal::Scanless::ASF::OR_NODES];
-    my $slr       = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
-    my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+sub glade_obtain {
+    my ( $asf, $glade_id ) = @_;
 
-    my $factoring_stack =
-        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK];
-    Marpa::R2::exception('ASF choicepoint factoring was never initialized')
-        if not defined $factoring_stack;
-    my $stack_pos = $#{$factoring_stack};
-    STACK_POS: while ( $stack_pos >= 0 ) {
-        my $nook =  $factoring_stack->[$stack_pos];
-        my $or_node = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
-        last STACK_POS if scalar @{ $or_nodes->[$or_node] } > 1;
-        $stack_pos--;
-    } ## end STACK_POS: while ( $stack_pos >= 0 )
-    return $stack_pos + 1;
-} ## end sub Marpa::R2::Choicepoint::ambiguous_prefix
+    # say STDERR "Obtaining glade id $glade_id";
+    my $glades = $asf->[Marpa::R2::Internal::ASF::GLADES];
+    my $glade  = $glades->[$glade_id];
+    if (   not defined $glade
+        or not $glade->[Marpa::R2::Internal::Glade::REGISTERED] )
+    {
+        say Data::Dumper::Dumper($glade);
+        Marpa::R2::exception(
+            "Attempt to use an invalid glade, one whose ID is $glade_id");
+    } ## end if ( not defined $glade or not $glade->[...])
 
-sub Marpa::R2::Scanless::ASF::show_nidsets {
-    my ($asf) = @_;
-    my $text = q{};
-    my $nidsets = $asf->[Marpa::R2::Internal::Scanless::ASF::NIDSET_BY_ID];
-    for my $nidset (grep { defined } @{$nidsets}) {
+    # Return the glade if it is already set up
+    return $glade if $glade->[Marpa::R2::Internal::Glade::SYMCHES];
+
+    # say STDERR "Creating glade for glade id $glade_id";
+    my $base_nidset =
+        $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID]->[$glade_id];
+    my $choicepoint;
+    my $choicepoint_powerset;
+    {
+        my @source_data = ();
+        for my $source_nid ( @{ $base_nidset->nids() } ) {
+            my $sort_ix = nid_sort_ix( $asf, $source_nid );
+            push @source_data, [ $sort_ix, $source_nid ];
+        }
+        my @sorted_source_data = sort { $a->[0] <=> $b->[0] } @source_data;
+        my $nid_ix = 0;
+        my ( $sort_ix_of_this_nid, $this_nid ) =
+            @{ $sorted_source_data[ $nid_ix++ ] };
+        my @nids_with_current_sort_ix = ();
+        my $current_sort_ix           = $sort_ix_of_this_nid;
+        my @symch_ids                 = ();
+        NID: while (1) {
+
+            if ( $sort_ix_of_this_nid != $current_sort_ix ) {
+
+                # Currently only whole id break logic
+                my $nidset_for_sort_ix = Marpa::R2::Nidset->obtain( $asf,
+                    @nids_with_current_sort_ix );
+                push @symch_ids, $nidset_for_sort_ix->id();
+                @nids_with_current_sort_ix = ();
+                $current_sort_ix           = $sort_ix_of_this_nid;
+            } ## end if ( $sort_ix_of_this_nid != $current_sort_ix )
+            last NID if not defined $this_nid;
+            push @nids_with_current_sort_ix, $this_nid;
+            my $sorted_entry = $sorted_source_data[ $nid_ix++ ];
+            if ( defined $sorted_entry ) {
+                ( $sort_ix_of_this_nid, $this_nid ) = @{$sorted_entry};
+                next NID;
+            }
+            $this_nid            = undef;
+            $sort_ix_of_this_nid = -2;
+        } ## end NID: while (1)
+        $choicepoint_powerset = Marpa::R2::Powerset->obtain( $asf, @symch_ids );
+        $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF] = $asf;
+        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK] =
+            undef;
+    }
+
+    # Check if choicepoint already seen?
+    my @symches     = ();
+    my $symch_count = $choicepoint_powerset->count();
+    SYMCH: for ( my $symch_ix = 0; $symch_ix < $symch_count; $symch_ix++ ) {
+        $choicepoint->[Marpa::R2::Internal::Choicepoint::FACTORING_STACK] =
+            undef;
+        my $symch_nidset = $choicepoint_powerset->nidset($asf, $symch_ix);
+        my $choicepoint_nid = $symch_nidset->nid(0);
+        my $symch_rule_id = $asf->nid_rule_id($choicepoint_nid) // -1;
+
+        # Initial undef indicates no factorings omitted
+        my @factorings = ( $symch_rule_id, undef );
+
+        # For a token
+        # There will not be multiple factorings or nids,
+        # it is assumed, for a token
+        if ( $symch_rule_id < 0 ) {
+            my $base_nidset = Marpa::R2::Nidset->obtain( $asf, $choicepoint_nid );
+            my $glade_id    = $base_nidset->id();
+
+            # say STDERR "Registering glade id $glade_id";
+            $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id]
+                ->[Marpa::R2::Internal::Glade::REGISTERED] = 1;
+            push @factorings, [$glade_id];
+            push @symches, \@factorings;
+            next SYMCH;
+        } ## end if ( $symch_rule_id < 0 )
+
+        my $symch = $choicepoint_powerset->nidset($asf, $symch_ix);
+        my $nid_count = $symch->count();
+        my $factorings_omitted;
+        FACTORINGS_LOOP:
+        for ( my $nid_ix = 0; $nid_ix < $nid_count; $nid_ix++ ) {
+            $choicepoint_nid = $symch_nidset->nid($nid_ix);
+            first_factoring($choicepoint, $choicepoint_nid);
+            my $factoring = glade_id_factors($choicepoint);
+
+            FACTOR: while ( defined $factoring ) {
+                if ( scalar @factorings > 42 ) {
+
+                    # update factorings omitted flag
+                    $factorings[1] = 1;
+                    last FACTORINGS_LOOP;
+                } ## end if ( scalar @factorings > 42 )
+                my @factoring = ();
+                for (
+                    my $item_ix = $#{$factoring};
+                    $item_ix >= 0;
+                    $item_ix--
+                    )
+                {
+                    push @factoring, $factoring->[$item_ix];
+                } ## end for ( my $item_ix = $#{$factoring}; $item_ix >= 0; ...)
+                push @factorings, \@factoring;
+                next_factoring($choicepoint, $choicepoint_nid);
+                $factoring = glade_id_factors($choicepoint);
+            } ## end FACTOR: while ( defined $factoring )
+        } ## end FACTORINGS_LOOP: for ( my $nid_ix = 0; $nid_ix < $nid_count; $nid_ix...)
+        push @symches, \@factorings;
+    } ## end SYMCH: for ( my $symch_ix = 0; $symch_ix < $symch_count; ...)
+
+    $glade->[Marpa::R2::Internal::Glade::SYMCHES] = \@symches;
+
+    # say STDERR "Created glade for glade id $base_nidset_id from choicepoint";
+    $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id] = $glade;
+    return $glade;
+} ## end sub glade_obtain
+
+sub Marpa::R2::ASF::glade_symch_count {
+    my ( $asf, $glade_id ) = @_;
+    my $glade = glade_obtain( $asf, $glade_id );
+    return scalar @{ $glade->[Marpa::R2::Internal::Glade::SYMCHES] };
+}
+
+sub Marpa::R2::ASF::glade_literal {
+    my ( $asf, $glade_id ) = @_;
+    my $nidset_by_id = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
+    my $nidset       = $nidset_by_id->[$glade_id];
+    my $nid0         = $nidset->nid(0);
+    return $asf->spot_literal($nid0);
+} ## end sub Marpa::R2::ASF::glade_literal
+
+sub Marpa::R2::ASF::glade_symbol_name {
+    my ( $asf, $glade_id ) = @_;
+    my $nidset_by_id = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
+    my $nidset       = $nidset_by_id->[$glade_id];
+    my $nid0         = $nidset->nid(0);
+    return $asf->spot_symbol_name($nid0);
+} ## end sub Marpa::R2::ASF::glade_symbol_name
+
+sub Marpa::R2::ASF::symch_rule_id {
+    my ( $asf, $glade_id, $symch_ix ) = @_;
+    my $glade = glade_obtain( $asf, $glade_id );
+    my $symches = $glade->[Marpa::R2::Internal::Glade::SYMCHES];
+    return if $symch_ix > $#{$symches};
+    my ($rule_id) = @{ $symches->[$symch_ix] };
+    return $rule_id;
+} ## end sub Marpa::R2::ASF::symch_rule_id
+
+sub Marpa::R2::ASF::symch_factoring_count {
+    my ( $asf, $glade_id, $symch_ix ) = @_;
+    my $glade = glade_obtain( $asf, $glade_id );
+    my $symches = $glade->[Marpa::R2::Internal::Glade::SYMCHES];
+    return if $symch_ix > $#{$symches};
+    return $#{ $symches->[$symch_ix] } - 1;    # length minus 2
+} ## end sub Marpa::R2::ASF::symch_factoring_count
+
+sub Marpa::R2::ASF::factoring_symbol_count {
+    my ( $asf, $glade_id, $symch_ix, $factoring_ix ) = @_;
+    my $glade = glade_obtain( $asf, $glade_id );
+    my $symches = $glade->[Marpa::R2::Internal::Glade::SYMCHES];
+    return if $symch_ix > $#{$symches};
+    my $symch = $symches->[$symch_ix];
+    my ( undef, undef, @factorings ) = @{$symch};
+    return if $factoring_ix >= scalar @factorings;
+    my $factoring = $factorings[$factoring_ix];
+    return scalar @{$factoring};
+} ## end sub Marpa::R2::ASF::factoring_symbol_count
+
+sub Marpa::R2::ASF::factor_downglade_id {
+    my ( $asf, $glade_id, $symch_ix, $factoring_ix, $symbol_ix ) = @_;
+    my $glade = glade_obtain( $asf, $glade_id );
+    my $symches = $glade->[Marpa::R2::Internal::Glade::SYMCHES];
+    return if $symch_ix > $#{$symches};
+    my $symch = $symches->[$symch_ix];
+    my ( undef, undef, @factorings ) = @{$symch};
+    return if $factoring_ix >= scalar @factorings;
+    my $factoring = $factorings[$factoring_ix];
+    return if $symbol_ix > $#{$factoring};
+    return $factoring->[$symbol_ix];
+} ## end sub Marpa::R2::ASF::factor_downglade_id
+
+sub Marpa::R2::ASF::show_nidsets {
+    my ($asf)   = @_;
+    my $text    = q{};
+    my $nidsets = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
+    for my $nidset ( grep {defined} @{$nidsets} ) {
         $text .= $nidset->show() . "\n";
     }
     return $text;
-}
+} ## end sub Marpa::R2::ASF::show_nidsets
 
-sub Marpa::R2::Scanless::ASF::show_powersets {
-    my ($asf) = @_;
-    my $text = q{};
-    my $powersets = $asf->[Marpa::R2::Internal::Scanless::ASF::POWERSET_BY_ID];
-    for my $powerset (grep { defined } @{$powersets}) {
+sub Marpa::R2::ASF::show_powersets {
+    my ($asf)     = @_;
+    my $text      = q{};
+    my $powersets = $asf->[Marpa::R2::Internal::ASF::POWERSET_BY_ID];
+    for my $powerset ( grep {defined} @{$powersets} ) {
         $text .= $powerset->show() . "\n";
     }
     return $text;
-}
+} ## end sub Marpa::R2::ASF::show_powersets
 
-# CHOICEPOINT_SEEN is a local -- this is to silence warnings
-our %CHOICEPOINT_SEEN;
+sub dump_nook {
+    my ( $asf, $nook ) = @_;
+    my $slr        = $asf->[Marpa::R2::Internal::ASF::SLR];
+    my $or_nodes   = $asf->[Marpa::R2::Internal::ASF::OR_NODES];
+    my $recce      = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    my $or_node_id = $nook->[Marpa::R2::Internal::Nook::OR_NODE];
+    my $and_node_count = scalar @{ $or_nodes->[$or_node_id] };
+    my $text           = 'Nook ';
+    my @text           = ();
+    push @text, $nook->[Marpa::R2::Internal::Nook::IS_CAUSE] ? q{C} : q{-};
+    push @text,
+        $nook->[Marpa::R2::Internal::Nook::IS_PREDECESSOR] ? q{P} : q{-};
+    push @text,
+        $nook->[Marpa::R2::Internal::Nook::CAUSE_IS_EXPANDED] ? q{C+} : q{--};
+    push @text,
+        $nook->[Marpa::R2::Internal::Nook::PREDECESSOR_IS_EXPANDED]
+        ? q{P+}
+        : q{--};
+    $text .= join q{ }, @text;
+    $text
+        .= ' @'
+        . $nook->[Marpa::R2::Internal::Nook::FIRST_CHOICE] . q{-}
+        . $nook->[Marpa::R2::Internal::Nook::LAST_CHOICE]
+        . qq{ of $and_node_count: };
+    $text .= $recce->verbose_or_node($or_node_id);
+    return $text;
+} ## end sub dump_nook
 
-sub Marpa::R2::Choicepoint::show_nids {
-    my ( $choicepoint, $parent_choice ) = @_;
-    my $id = $choicepoint->base_id();
-    if ($CHOICEPOINT_SEEN{$id}) {
-        return ["CP$id already displayed"];
+# For debugging
+sub dump_factoring_stack {
+    my ( $asf, $stack ) = @_;
+    my $text = q{};
+    for ( my $stack_ix = 0; $stack_ix <= $#{$stack}; $stack_ix++ ) {
+
+        # Nook already has newline at end
+        $text .= "$stack_ix: " . dump_nook( $asf, $stack->[$stack_ix] );
     }
-    $CHOICEPOINT_SEEN{$id} = 1;
-    say STDERR join q{ }, __FILE__, __LINE__, ("show_nids($id, " . ($parent_choice // 'top') . ')'), $choicepoint->show();
-    $parent_choice .= q{.} if defined $parent_choice;
-    $parent_choice //= q{};
-
-    # Check if choicepoint already seen?
-    my $asf         = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $slr         = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
-    my $recce       = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $grammar     = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
-    my @lines = ();
-
-    my $symch_count = $choicepoint->symch_count();
-    for ( my $symch_ix = 0; $symch_ix < $symch_count; $symch_ix++ ) {
-        $choicepoint->symch_set($symch_ix);
-        my $current_choice = "$parent_choice$symch_ix";
-        push @lines, "CP$id SYMCH #$current_choice: " if $symch_count > 1;
-        my $rule_id = $choicepoint->rule_id();
-        if ( $rule_id >= 0 ) {
-            say STDERR "LINE: ", ( "CP$id Rule " . $grammar->brief_rule($rule_id) );
-            push @lines,
-            ( "CP$id Rule " . $grammar->brief_rule($rule_id) ),
-                map { q{  } . $_ }
-                @{ $choicepoint->show_factorings( $current_choice ) };
-        }
-        else {
-            push @lines,
-                @{ $choicepoint->show_symch_tokens( $current_choice ) };
-        }
-    }
-    return \@lines;
-} ## end sub Marpa::R2::Choicepoint::show_nids
-
-# Show all the factorings of a SYMCH
-sub Marpa::R2::Choicepoint::show_factorings {
-    my ( $choicepoint, $parent_choice ) = @_;
-    say STDERR join q{ }, __FILE__, __LINE__, "show_factorings()",
-        $choicepoint->show();
-    $parent_choice .= q{.} if defined $parent_choice;
-    $parent_choice //= q{};
-
-    # Check if choicepoint already seen?
-    my $asf     = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $slr     = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
-    my $recce   = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
-    my @lines;
-
-    my $symch     = $choicepoint->symch();
-    my $nid_count = $symch->count();
-    my $factor_ix = 0;
-    for ( my $nid_ix = 0; $nid_ix < $nid_count; $nid_ix++ ) {
-        $choicepoint->[Marpa::R2::Internal::Choicepoint::NID_IX] = $nid_ix;
-
-        next_factoring($choicepoint);
-        my $factoring = factors($choicepoint);
-
-        my $factoring_is_ambiguous = ($nid_count > 1) || $choicepoint->ambiguous_prefix();
-        FACTOR: while (defined $factoring ) {
-            my $current_choice = "$parent_choice$factor_ix";
-            my $indent         = q{};
-            if ($factoring_is_ambiguous) {
-                say STDERR "LINE: ", "Factoring #$current_choice";
-                push @lines, "Factoring #$current_choice";
-                $indent = q{  };
-            }
-            for my $choicepoint ( @{$factoring} ) {
-                push @lines,
-                    map { $indent . $_ }
-                    @{ $choicepoint->show_nids($current_choice) };
-            } ## end for my $choicepoint ( @{$factoring} )
-            next_factoring($choicepoint);
-            $factoring = factors($choicepoint);
-            $factor_ix++;
-        } ## end FACTOR: for ( my $factor_ix = 0; defined $factoring; ...)
-    } ## end for ( my $nid_ix = 0; $nid_ix < $nid_count; $nid_ix++)
-    return \@lines;
-} ## end sub Marpa::R2::Choicepoint::show_factorings
-
-# Show all the tokens of a SYMCH
-sub Marpa::R2::Choicepoint::show_symch_tokens {
-    my ( $choicepoint, $parent_choice ) = @_;
-    say STDERR join q{ }, __FILE__, __LINE__, "show_symch_tokens()",
-        $choicepoint->show();
-    my $id = $choicepoint->base_id();
-    $parent_choice .= q{.} if defined $parent_choice;
-    $parent_choice //= q{};
-
-    # Check if choicepoint already seen?
-    my $asf     = $choicepoint->[Marpa::R2::Internal::Choicepoint::ASF];
-    my $slr     = $asf->[Marpa::R2::Internal::Scanless::ASF::SLR];
-    my $recce   = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
-    my @lines;
-
-    my $symch     = $choicepoint->symch();
-    my $nid_count = $symch->count();
-    for ( my $nid_ix = 0; $nid_ix < $nid_count; $nid_ix++ ) {
-        $choicepoint->[Marpa::R2::Internal::Choicepoint::NID_IX] = $nid_ix;
-        my $symbol_id   = $choicepoint->symbol_id();
-        my $literal     = $choicepoint->literal();
-        my $symbol_name = $grammar->symbol_name($symbol_id);
-        say STDERR "LINE: ", qq{CP$id Symbol: $symbol_name "$literal"};
-        push @lines, qq{CP$id Symbol: $symbol_name "$literal"};
-    } ## end for ( my $nid_ix = 0; $nid_ix < $nid_count; $nid_ix++)
-    return \@lines;
-} ## end sub Marpa::R2::Choicepoint::show_symch_tokens
-
-sub Marpa::R2::Scanless::ASF::show {
-    my ($asf) = @_;
-    my $top = $asf->top();
-    local %CHOICEPOINT_SEEN = (); ## no critic (Variables::ProhibitLocalVars)
-    my $lines = $top->show_nids ();
-    return join "\n", @{$lines}, q{};
-}
+    return $text . "\n";
+} ## end sub dump_factoring_stack
 
 1;
 

@@ -100,10 +100,12 @@ Marpa_Bocage marpa_b_new (Marpa_Recognizer r, Marpa_Earley_Set_ID earley_set_ID)
 Marpa_Bocage marpa_b_ref (Marpa_Bocage b);
 void marpa_b_unref (Marpa_Bocage b);
 int marpa_b_ambiguity_metric (Marpa_Bocage b);
+int marpa_b_is_null (Marpa_Bocage b);
 Marpa_Order marpa_o_new ( Marpa_Bocage b);
 Marpa_Order marpa_o_ref ( Marpa_Order o);
 void marpa_o_unref ( Marpa_Order o);
 int marpa_o_ambiguity_metric (Marpa_Order o);
+int marpa_o_is_null (Marpa_Order o);
 int marpa_o_high_rank_only_set ( Marpa_Order o, int flag);
 int marpa_o_high_rank_only ( Marpa_Order o);
 int marpa_o_rank ( Marpa_Order o );

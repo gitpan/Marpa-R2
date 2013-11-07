@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.074000';
+$VERSION        = '2.075_001';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -239,17 +239,18 @@ __DATA__
     ORIGIN
     CURRENT
 
+    :package=Marpa::R2::Internal::Glade
+
+    SYMCHES
+    VISITED
+    REGISTERED
+
     :package=Marpa::R2::Internal::Choicepoint
 
     { An external choicepoint }
     ASF
-    POWERSET
-    NID_IX 
-    SYMCH_IX 
     FACTORING_STACK
-    FACTORING_COUNT { Factoring expanded so far }
     OR_NODE_IN_USE
-    IS_EXHAUSTED
 
     :package=Marpa::R2::Internal::Nook
 
@@ -262,21 +263,34 @@ __DATA__
     CAUSE_IS_EXPANDED
     PREDECESSOR_IS_EXPANDED
 
-    :package=Marpa::R2::Internal::Scanless::ASF
+    :package=Marpa::R2::Internal::ASF
+
+    { It is important not to keep any references to choicepoints, direct or
+      indirect in this structure.  The resulting circular reference would prevent
+      both structures from being freed, and create a memory leak. }
 
     SLR { The underlying SLR }
-    CHOICE_BLESSING
-    RULE_BLESSING
-    SYMBOL_BLESSING
+    RULE_BLESSINGS
+    SYMBOL_BLESSINGS
+
+    SYMCH_BLESSING_PACKAGE
+    FACTORING_BLESSING_PACKAGE
+    PROBLEM_BLESSING_PACKAGE
+    DEFAULT_RULE_BLESSING_PACKAGE
+    DEFAULT_TOKEN_BLESSING_PACKAGE
+
     OR_NODES {
 	per or-node data, 
         current arrays of sorted and-nodes
     }
+    GLADES { Memoized forest }
 
     INTSET_BY_KEY
     NEXT_INTSET_ID
 
-    TOP
+    { use powersets for choicepoints only
+      -- create a new series if I need them for something else
+    }
     NIDSET_BY_ID
     POWERSET_BY_ID
 
@@ -289,13 +303,6 @@ __DATA__
 
     ID
     NIDSET_IDS
-
-    :package=Marpa::R2::Internal::CPI
-
-    ASF
-    CHOICEPOINT
-    NID_IX
-    FACTORING
 
     :package=Marpa::R2::Inner::Scanless::G
 

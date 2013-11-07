@@ -524,9 +524,9 @@ normalize-whitespace: 1
 =for Marpa::R2::Display::End
 
 The purpose of
-the default pseudo-rule is change the defaults for
+the default pseudo-rule is to change the defaults for
 rule adverbs.
-Techncially, it has one RHS alternative, but this must always contain
+Technically, it has one RHS alternative, but this must always contain
 zero RHS primaries.
 Default pseudo-rules do not affect the defaults for G0 rules
 or for lexemes.
@@ -906,8 +906,12 @@ The C<priority> adverb is only allowed in
 L<a C<:lexeme>
 pseudo-rule|/"Lexeme pseudo-rule">.
 It sets the lexeme priority for the lexeme.
-Priority must be an integer.
-It may be negative.
+The priority must be an integer,
+but it may be negative.
+An increase in numerical value means a higher priority.
+For example,
+a priority of 1 is greater than a priority of 0.
+A priority of 0, in turn, is greater than a priority of -1.
 The default priority is zero.
 
 Where more than one lexeme can be accepted at

@@ -24,7 +24,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.074000';
+$VERSION        = '2.075_001';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 
@@ -121,15 +121,15 @@ use constant POSITION => 1;
 use constant ORIGIN => 2;
 use constant CURRENT => 3;
 
+package Marpa::R2::Internal::Glade;
+use constant SYMCHES => 0;
+use constant VISITED => 1;
+use constant REGISTERED => 2;
+
 package Marpa::R2::Internal::Choicepoint;
 use constant ASF => 0;
-use constant POWERSET => 1;
-use constant NID_IX => 2;
-use constant SYMCH_IX => 3;
-use constant FACTORING_STACK => 4;
-use constant FACTORING_COUNT => 5;
-use constant OR_NODE_IN_USE => 6;
-use constant IS_EXHAUSTED => 7;
+use constant FACTORING_STACK => 1;
+use constant OR_NODE_IN_USE => 2;
 
 package Marpa::R2::Internal::Nook;
 use constant PARENT => 0;
@@ -141,17 +141,21 @@ use constant IS_PREDECESSOR => 5;
 use constant CAUSE_IS_EXPANDED => 6;
 use constant PREDECESSOR_IS_EXPANDED => 7;
 
-package Marpa::R2::Internal::Scanless::ASF;
+package Marpa::R2::Internal::ASF;
 use constant SLR => 0;
-use constant CHOICE_BLESSING => 1;
-use constant RULE_BLESSING => 2;
-use constant SYMBOL_BLESSING => 3;
-use constant OR_NODES => 4;
-use constant INTSET_BY_KEY => 5;
-use constant NEXT_INTSET_ID => 6;
-use constant TOP => 7;
-use constant NIDSET_BY_ID => 8;
-use constant POWERSET_BY_ID => 9;
+use constant RULE_BLESSINGS => 1;
+use constant SYMBOL_BLESSINGS => 2;
+use constant SYMCH_BLESSING_PACKAGE => 3;
+use constant FACTORING_BLESSING_PACKAGE => 4;
+use constant PROBLEM_BLESSING_PACKAGE => 5;
+use constant DEFAULT_RULE_BLESSING_PACKAGE => 6;
+use constant DEFAULT_TOKEN_BLESSING_PACKAGE => 7;
+use constant OR_NODES => 8;
+use constant GLADES => 9;
+use constant INTSET_BY_KEY => 10;
+use constant NEXT_INTSET_ID => 11;
+use constant NIDSET_BY_ID => 12;
+use constant POWERSET_BY_ID => 13;
 
 package Marpa::R2::Internal::Nidset;
 use constant ID => 0;
@@ -160,12 +164,6 @@ use constant NIDS => 1;
 package Marpa::R2::Internal::Powerset;
 use constant ID => 0;
 use constant NIDSET_IDS => 1;
-
-package Marpa::R2::Internal::CPI;
-use constant ASF => 0;
-use constant CHOICEPOINT => 1;
-use constant NID_IX => 2;
-use constant FACTORING => 3;
 
 package Marpa::R2::Inner::Scanless::G;
 use constant C => 0;
