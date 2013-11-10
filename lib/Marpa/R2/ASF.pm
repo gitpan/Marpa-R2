@@ -21,7 +21,7 @@ use warnings;
 no warnings qw(recursion);
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_001';
+$VERSION        = '2.075_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -260,11 +260,11 @@ sub Marpa::R2::ASF::peak {
     return $glade_id;
 } ## end sub Marpa::R2::ASF::peak
 
-our $SPOT_LEAF_BASE = -43;
+our $NID_LEAF_BASE = -43;
 
 # Range from -1 to -42 reserved for special values
-sub and_node_to_nid { return -$_[0] + $SPOT_LEAF_BASE; }
-sub nid_to_and_node { return -$_[0] + $SPOT_LEAF_BASE; }
+sub and_node_to_nid { return -$_[0] + $NID_LEAF_BASE; }
+sub nid_to_and_node { return -$_[0] + $NID_LEAF_BASE; }
 
 sub normalize_asf_blessing {
     my ($name) = @_;
@@ -459,23 +459,22 @@ sub nid_sort_ix {
 sub Marpa::R2::ASF::grammar {
     my ($asf)   = @_;
     my $slr     = $asf->[Marpa::R2::Internal::ASF::SLR];
-    my $recce   = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
-    return $grammar;
+    my $slg = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+    return $slg;
 } ## end sub Marpa::R2::ASF::grammar
 
-sub Marpa::R2::ASF::nid_rule_id {
-    my ( $asf, $spot_id ) = @_;
-    return if $spot_id < 0;
+sub nid_rule_id {
+    my ( $asf, $nid ) = @_;
+    return if $nid < 0;
     my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $bocage    = $recce->[Marpa::R2::Internal::Recognizer::B_C];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
-    my $irl_id    = $bocage->_marpa_b_or_node_irl($spot_id);
+    my $irl_id    = $bocage->_marpa_b_or_node_irl($nid);
     my $xrl_id    = $grammar_c->_marpa_g_source_xrl($irl_id);
     return $xrl_id;
-} ## end sub Marpa::R2::ASF::nid_rule_id
+}
 
 sub or_node_es_span {
     my ( $asf, $choicepoint ) = @_;
@@ -505,25 +504,25 @@ sub token_es_span {
     return or_node_es_span( $asf, $parent_or_node_id );
 } ## end sub token_es_span
 
-sub Marpa::R2::ASF::spot_literal {
-    my ( $asf, $spot_id ) = @_;
+sub nid_literal {
+    my ( $asf, $nid ) = @_;
     my $slr = $asf->[Marpa::R2::Internal::ASF::SLR];
-    if ( $spot_id <= $SPOT_LEAF_BASE ) {
-        my $and_node_id = nid_to_and_node($spot_id);
+    if ( $nid <= $NID_LEAF_BASE ) {
+        my $and_node_id = nid_to_and_node($nid);
         my ( $start, $length ) = token_es_span( $asf, $and_node_id );
         return q{} if $length == 0;
         return $slr->substring( $start, $length );
-    } ## end if ( $spot_id <= $SPOT_LEAF_BASE )
-    if ( $spot_id >= 0 ) {
-        return $slr->substring( or_node_es_span( $asf, $spot_id ) );
+    } ## end if ( $nid <= $NID_LEAF_BASE )
+    if ( $nid >= 0 ) {
+        return $slr->substring( or_node_es_span( $asf, $nid ) );
     }
-    Marpa::R2::exception("No literal for spot: $spot_id");
-} ## end sub Marpa::R2::ASF::spot_literal
+    Marpa::R2::exception("No literal for node ID: $nid");
+}
 
-sub Marpa::R2::ASF::spot_token_id {
-    my ( $asf, $spot_id ) = @_;
-    return if $spot_id > $SPOT_LEAF_BASE;
-    my $and_node_id  = nid_to_and_node($spot_id);
+sub nid_token_id {
+    my ( $asf, $nid ) = @_;
+    return if $nid > $NID_LEAF_BASE;
+    my $and_node_id  = nid_to_and_node($nid);
     my $slr          = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce        = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar      = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
@@ -532,13 +531,13 @@ sub Marpa::R2::ASF::spot_token_id {
     my $token_isy_id = $bocage->_marpa_b_and_node_symbol($and_node_id);
     my $token_id     = $grammar_c->_marpa_g_source_xsy($token_isy_id);
     return $token_id;
-} ## end sub Marpa::R2::ASF::spot_token_id
+}
 
-sub Marpa::R2::ASF::spot_symbol_id {
-    my ( $asf, $spot_id ) = @_;
-    my $token_id = $asf->spot_token_id($spot_id);
+sub nid_symbol_id {
+    my ( $asf, $nid ) = @_;
+    my $token_id = nid_token_id($asf, $nid);
     return $token_id if defined $token_id;
-    Marpa::R2::exception("No symbol ID for spot: $spot_id") if $spot_id < 0;
+    Marpa::R2::exception("No symbol ID for node ID: $nid") if $nid < 0;
 
     # Not a token, so return the LHS of the rule
     my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
@@ -546,30 +545,30 @@ sub Marpa::R2::ASF::spot_symbol_id {
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $bocage    = $recce->[Marpa::R2::Internal::Recognizer::B_C];
-    my $irl_id    = $bocage->_marpa_b_or_node_irl($spot_id);
+    my $irl_id    = $bocage->_marpa_b_or_node_irl($nid);
     my $xrl_id    = $grammar_c->_marpa_g_source_xrl($irl_id);
     my $lhs_id    = $grammar_c->rule_lhs($xrl_id);
     return $lhs_id;
-} ## end sub Marpa::R2::ASF::spot_symbol_id
+}
 
-sub Marpa::R2::ASF::spot_symbol_name {
-    my ( $asf, $spot_id ) = @_;
+sub nid_symbol_name {
+    my ( $asf, $nid ) = @_;
     my $slr       = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce     = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
-    my $symbol_id = $asf->spot_symbol_id($spot_id);
+    my $symbol_id = nid_symbol_id($asf, $nid);
     return $grammar->symbol_name($symbol_id);
-} ## end sub Marpa::R2::ASF::spot_symbol_name
+}
 
-sub Marpa::R2::ASF::spot_token_name {
-    my ( $asf, $spot_id ) = @_;
+sub nid_token_name {
+    my ( $asf, $nid ) = @_;
     my $slr      = $asf->[Marpa::R2::Internal::ASF::SLR];
     my $recce    = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $grammar  = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
-    my $token_id = $asf->spot_token_id($spot_id);
+    my $token_id = nid_token_id($asf, $nid);
     return if not defined $token_id;
     return $grammar->symbol_name($token_id);
-} ## end sub Marpa::R2::ASF::spot_token_name
+}
 
 # Memoization is heavily used -- it needs to be to keep the worst cases from
 # going exponential.  The need to memoize is the reason for the very heavy use of
@@ -804,7 +803,6 @@ sub glade_id_factors {
         my $base_nidset = Marpa::R2::Nidset->obtain( $asf, @{$cause_nids} );
         my $glade_id = $base_nidset->id();
 
-        # say STDERR "Registering glade id $glade_id";
         $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id]
             ->[Marpa::R2::Internal::Glade::REGISTERED] = 1;
         push @result, $glade_id;
@@ -815,7 +813,6 @@ sub glade_id_factors {
 sub glade_obtain {
     my ( $asf, $glade_id ) = @_;
 
-    # say STDERR "Obtaining glade id $glade_id";
     my $glades = $asf->[Marpa::R2::Internal::ASF::GLADES];
     my $glade  = $glades->[$glade_id];
     if (   not defined $glade
@@ -829,7 +826,6 @@ sub glade_obtain {
     # Return the glade if it is already set up
     return $glade if $glade->[Marpa::R2::Internal::Glade::SYMCHES];
 
-    # say STDERR "Creating glade for glade id $glade_id";
     my $base_nidset =
         $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID]->[$glade_id];
     my $choicepoint;
@@ -882,7 +878,7 @@ sub glade_obtain {
             undef;
         my $symch_nidset = $choicepoint_powerset->nidset($asf, $symch_ix);
         my $choicepoint_nid = $symch_nidset->nid(0);
-        my $symch_rule_id = $asf->nid_rule_id($choicepoint_nid) // -1;
+        my $symch_rule_id = nid_rule_id($asf, $choicepoint_nid) // -1;
 
         # Initial undef indicates no factorings omitted
         my @factorings = ( $symch_rule_id, undef );
@@ -894,7 +890,6 @@ sub glade_obtain {
             my $base_nidset = Marpa::R2::Nidset->obtain( $asf, $choicepoint_nid );
             my $glade_id    = $base_nidset->id();
 
-            # say STDERR "Registering glade id $glade_id";
             $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id]
                 ->[Marpa::R2::Internal::Glade::REGISTERED] = 1;
             push @factorings, [$glade_id];
@@ -937,7 +932,6 @@ sub glade_obtain {
 
     $glade->[Marpa::R2::Internal::Glade::SYMCHES] = \@symches;
 
-    # say STDERR "Created glade for glade id $base_nidset_id from choicepoint";
     $asf->[Marpa::R2::Internal::ASF::GLADES]->[$glade_id] = $glade;
     return $glade;
 } ## end sub glade_obtain
@@ -945,6 +939,7 @@ sub glade_obtain {
 sub Marpa::R2::ASF::glade_symch_count {
     my ( $asf, $glade_id ) = @_;
     my $glade = glade_obtain( $asf, $glade_id );
+    Marpa::R2::exception("No glade found for glade ID $glade_id)") if not defined $glade;
     return scalar @{ $glade->[Marpa::R2::Internal::Glade::SYMCHES] };
 }
 
@@ -952,17 +947,20 @@ sub Marpa::R2::ASF::glade_literal {
     my ( $asf, $glade_id ) = @_;
     my $nidset_by_id = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
     my $nidset       = $nidset_by_id->[$glade_id];
+    Marpa::R2::exception("No glade found for glade ID $glade_id)") if not defined $nidset;
+    return if not defined $nidset;
     my $nid0         = $nidset->nid(0);
-    return $asf->spot_literal($nid0);
+    return nid_literal($asf, $nid0);
 } ## end sub Marpa::R2::ASF::glade_literal
 
-sub Marpa::R2::ASF::glade_symbol_name {
+sub Marpa::R2::ASF::glade_symbol_id {
     my ( $asf, $glade_id ) = @_;
     my $nidset_by_id = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
     my $nidset       = $nidset_by_id->[$glade_id];
+    Marpa::R2::exception("No glade found for glade ID $glade_id)") if not defined $nidset;
     my $nid0         = $nidset->nid(0);
-    return $asf->spot_symbol_name($nid0);
-} ## end sub Marpa::R2::ASF::glade_symbol_name
+    return nid_symbol_id($asf, $nid0);
+}
 
 sub Marpa::R2::ASF::symch_rule_id {
     my ( $asf, $glade_id, $symch_ix ) = @_;
@@ -976,35 +974,179 @@ sub Marpa::R2::ASF::symch_rule_id {
 sub Marpa::R2::ASF::symch_factoring_count {
     my ( $asf, $glade_id, $symch_ix ) = @_;
     my $glade = glade_obtain( $asf, $glade_id );
+    Marpa::R2::exception("No glade found for glade ID $glade_id)") if not defined $glade;
     my $symches = $glade->[Marpa::R2::Internal::Glade::SYMCHES];
     return if $symch_ix > $#{$symches};
     return $#{ $symches->[$symch_ix] } - 1;    # length minus 2
 } ## end sub Marpa::R2::ASF::symch_factoring_count
 
-sub Marpa::R2::ASF::factoring_symbol_count {
+sub Marpa::R2::ASF::factoring_downglades {
     my ( $asf, $glade_id, $symch_ix, $factoring_ix ) = @_;
     my $glade = glade_obtain( $asf, $glade_id );
+    Marpa::R2::exception("No glade found for glade ID $glade_id)") if not defined $glade;
     my $symches = $glade->[Marpa::R2::Internal::Glade::SYMCHES];
-    return if $symch_ix > $#{$symches};
+    Marpa::R2::exception("No symch #$symch_ix exists for glade ID $glade_id")
+        if $symch_ix > $#{$symches};
     my $symch = $symches->[$symch_ix];
-    my ( undef, undef, @factorings ) = @{$symch};
+    my ( $rule_id, undef, @factorings ) = @{$symch};
+    Marpa::R2::exception("No downglades for glade ID $glade_id, symch #$symch_ix: it is a token symch")
+        if $rule_id < 0;
     return if $factoring_ix >= scalar @factorings;
     my $factoring = $factorings[$factoring_ix];
+    return $factoring;
+}
+
+sub Marpa::R2::ASF::factoring_symbol_count {
+    my ( $asf, $glade_id, $symch_ix, $factoring_ix ) = @_;
+    my $factoring = $asf->factoring_downglades($glade_id, $symch_ix, $factoring_ix);
+    return if not defined $factoring;
     return scalar @{$factoring};
 } ## end sub Marpa::R2::ASF::factoring_symbol_count
 
-sub Marpa::R2::ASF::factor_downglade_id {
+sub Marpa::R2::ASF::factor_downglade {
     my ( $asf, $glade_id, $symch_ix, $factoring_ix, $symbol_ix ) = @_;
-    my $glade = glade_obtain( $asf, $glade_id );
-    my $symches = $glade->[Marpa::R2::Internal::Glade::SYMCHES];
-    return if $symch_ix > $#{$symches};
-    my $symch = $symches->[$symch_ix];
-    my ( undef, undef, @factorings ) = @{$symch};
-    return if $factoring_ix >= scalar @factorings;
-    my $factoring = $factorings[$factoring_ix];
-    return if $symbol_ix > $#{$factoring};
+    my $factoring = $asf->factoring_downglades($glade_id, $symch_ix, $factoring_ix);
+    return if not defined $factoring;
     return $factoring->[$symbol_ix];
-} ## end sub Marpa::R2::ASF::factor_downglade_id
+} ## end sub Marpa::R2::ASF::factor_downglade
+
+# GLADE_SEEN is a local -- this is to silence warnings
+our %GLADE_SEEN;
+
+sub form_choice {
+    my ( $parent_choice, $sub_choice ) = @_;
+    return $sub_choice if not defined $parent_choice;
+    return join q{.}, $parent_choice, $sub_choice;
+}
+
+sub Marpa::R2::ASF::dump_glade {
+    my ( $asf, $glade_id, $parent_choice, $item_ix ) = @_;
+    if ( $GLADE_SEEN{$glade_id} ) {
+        return [ [0, $glade_id, "already displayed"] ];
+    }
+    $GLADE_SEEN{$glade_id} = 1;
+
+    my $grammar      = $asf->grammar();
+    my @lines        = ();
+    my $symch_indent = 0;
+
+    my $symch_count  = $asf->glade_symch_count($glade_id);
+    my $symch_choice = $parent_choice;
+    if ( $symch_count > 1 ) {
+        $item_ix //= 0;
+        push @lines,
+              [ 0, undef, "Symbol #$item_ix "
+            . $grammar->symbol_display_form($asf->glade_symbol_id($glade_id))
+            . " has $symch_count symches" ];
+        $symch_indent += 2;
+        $symch_choice = form_choice( $parent_choice, $item_ix );
+    } ## end if ( $symch_count > 1 )
+    for ( my $symch_ix = 0; $symch_ix < $symch_count; $symch_ix++ ) {
+        my $current_choice =
+            $symch_count > 1
+            ? form_choice( $symch_choice, $symch_ix )
+            : $symch_choice;
+        my $indent = $symch_indent;
+        if ( $symch_count > 1 ) {
+            push @lines, [ $symch_indent , undef, "Symch #$current_choice" ];
+        }
+        my $rule_id = $asf->symch_rule_id( $glade_id, $symch_ix );
+        if ( $rule_id >= 0 ) {
+            push @lines,
+                [
+                $symch_indent, $glade_id,
+                "Rule $rule_id: " . $grammar->rule_show($rule_id)
+                ];
+            for my $line (
+                @{ dump_factorings(
+                    $asf, $glade_id, $symch_ix, $current_choice
+                ) }
+                )
+            {
+                my ( $line_indent, @rest_of_line ) = @{$line};
+                push @lines, [ $line_indent + $symch_indent + 2, @rest_of_line ];
+            } ## end for my $line ( dump_factorings( $asf, $glade_id, ...))
+        } ## end if ( $rule_id >= 0 )
+        else {
+            my $line = dump_terminal( $asf, $glade_id, $current_choice );
+            my ( $line_indent, @rest_of_line ) = @{$line};
+            push @lines, [ $line_indent + $symch_indent, @rest_of_line ];
+        } ## end else [ if ( $rule_id >= 0 ) ]
+    } ## end for ( my $symch_ix = 0; $symch_ix < $symch_count; $symch_ix...)
+    return \@lines;
+}
+
+# Show all the factorings of a SYMCH
+sub dump_factorings {
+    my ( $asf, $glade_id, $symch_ix, $parent_choice ) = @_;
+
+    my @lines;
+    my $factoring_count = $asf->symch_factoring_count( $glade_id, $symch_ix );
+    for (
+        my $factoring_ix = 0;
+        $factoring_ix < $factoring_count;
+        $factoring_ix++
+        )
+    {
+        my $indent         = 0;
+        my $current_choice = $parent_choice;
+        if ( $factoring_count > 1 ) {
+            $indent = 2;
+            $current_choice = form_choice( $parent_choice, $factoring_ix );
+            push @lines, [ 0, undef, "Factoring #$current_choice" ];
+        }
+        my $symbol_count =
+            $asf->factoring_symbol_count( $glade_id, $symch_ix,
+            $factoring_ix );
+        SYMBOL: for my $symbol_ix ( 0 .. $symbol_count - 1 ) {
+            my $downglade =
+                $asf->factor_downglade( $glade_id, $symch_ix, $factoring_ix,
+                $symbol_ix );
+            for my $line (
+                @{  $asf->dump_glade( $downglade, $current_choice,
+                        $symbol_ix )
+                }
+                )
+            {
+                my ( $line_indent, @rest_of_line ) = @{$line};
+                push @lines, [ $line_indent + $indent, @rest_of_line ];
+
+            } ## end for my $line ( @{ $asf->dump_glade( $downglade, ...)})
+        } ## end SYMBOL: for my $symbol_ix ( 0 .. $symbol_count - 1 )
+    } ## end for ( my $factoring_ix = 0; $factoring_ix < $factoring_count...)
+    return \@lines;
+} ## end sub dump_factorings
+
+sub dump_terminal {
+    my ( $asf, $glade_id, $symch_ix, $parent_choice ) = @_;
+
+    # There can only be one symbol in a terminal and therefore only one factoring
+    my $current_choice = $parent_choice;
+    my $literal        = $asf->glade_literal($glade_id);
+    my $symbol_id    = $asf->glade_symbol_id($glade_id);
+    my $grammar = $asf->grammar();
+    my $display_form = $grammar->symbol_display_form($symbol_id);
+    return [0, $glade_id, qq{Symbol $display_form: "$literal"}];
+} ## end sub dump_terminal
+
+sub Marpa::R2::ASF::dump {
+    my ($asf) = @_;
+    my $peak = $asf->peak();
+    local %GLADE_SEEN = ();    ## no critic (Variables::ProhibitLocalVars)
+    my $lines = $asf->dump_glade( $peak );
+    my $next_sequenced_id = 1; # one-based
+    my %sequenced_id = ();
+    $sequenced_id{$_} //= $next_sequenced_id++ for grep { defined } map { $_->[1] } @{$lines};
+    my $text = q{};
+    for my $line ( @{$lines}[ 1 .. $#$lines ] ) {
+        my ( $line_indent, $glade_id, $body ) = @{$line};
+        $line_indent -= 2;
+        $text .= q{ } x $line_indent;
+        $text .=  'GL' . $sequenced_id{$glade_id} . q{ } if defined $glade_id;
+        $text .= "$body\n";
+    }
+    return $text;
+} ## end sub show
 
 sub Marpa::R2::ASF::show_nidsets {
     my ($asf)   = @_;

@@ -42,11 +42,11 @@ END_OF_SOURCE
 push @tests_data, [
     $aaaa_grammar, 'aaaa',
     <<'END_OF_ASF',
-GL2 Rule 1: quartet -> a a a a
-  GL3 Symbol: a "a"
-  GL4 Symbol: a "a"
-  GL5 Symbol: a "a"
-  GL6 Symbol: a "a"
+GL2 Rule 1: quartet ::= a a a a
+  GL3 Symbol a: "a"
+  GL4 Symbol a: "a"
+  GL5 Symbol a: "a"
+  GL6 Symbol a: "a"
 END_OF_ASF
     'ASF OK',
     'Basic "a a a a" grammar'
@@ -65,49 +65,68 @@ END_OF_SOURCE
     }
 );
 
+# Marpa::R2::Display
+# name: ASF symch dump example grammar
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
+
 my $venus_grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
-    :start ::= planet
-    planet ::= hesperus
-    planet ::= phosphorus
-    hesperus ::= venus
-    phosphorus ::= venus
-    venus ~ 'venus'
+:start ::= planet
+planet ::= hesperus
+planet ::= phosphorus
+hesperus ::= venus
+phosphorus ::= venus
+venus ~ 'venus'
 END_OF_SOURCE
     }
 );
 
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: ASF symch dump example output
+# start-after-line: END_OF_OUTPUT
+# end-before-line: '^END_OF_OUTPUT$'
+
 push @tests_data, [
     $venus_grammar, 'venus',
-    <<'END_OF_ASF',
-Symbol #0, planet, has 2 symches
+    <<'END_OF_OUTPUT',
+Symbol #0 planet has 2 symches
   Symch #0.0
-  GL2 Rule 1: planet -> hesperus
-    GL3 Rule 3: hesperus -> venus
-      GL4 Symbol: venus "venus"
+  GL2 Rule 1: planet ::= hesperus
+    GL3 Rule 3: hesperus ::= venus
+      GL4 Symbol venus: "venus"
   Symch #0.1
-  GL2 Rule 2: planet -> phosphorus
-    GL5 Rule 4: phosphorus -> venus
-      GL6 Symbol: venus "venus"
-END_OF_ASF
+  GL2 Rule 2: planet ::= phosphorus
+    GL5 Rule 4: phosphorus ::= venus
+      GL6 Symbol venus: "venus"
+END_OF_OUTPUT
     'ASF OK',
     '"Hesperus is Phosphorus"" grammar'
     ]
     if 1;
 
+# Marpa::R2::Display::End
+
 push @tests_data, [
     $abcd_grammar, 'abcd',
     <<'END_OF_ASF',
-GL2 Rule 1: quartet -> a b c d
-  GL3 Symbol: a "a"
-  GL4 Symbol: b "b"
-  GL5 Symbol: c "c"
-  GL6 Symbol: d "d"
+GL2 Rule 1: quartet ::= a b c d
+  GL3 Symbol a: "a"
+  GL4 Symbol b: "b"
+  GL5 Symbol c: "c"
+  GL6 Symbol d: "d"
 END_OF_ASF
     'ASF OK',
     'Basic "a b c d" grammar'
     ]
     if 1;
+
+# Marpa::R2::Display
+# name: ASF factoring dump example grammar
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
 
 my $bb_grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
@@ -120,27 +139,36 @@ END_OF_SOURCE
     }
 );
 
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: ASF factoring dump example output
+# start-after-line: END_OF_OUTPUT
+# end-before-line: '^END_OF_OUTPUT$'
+
 push @tests_data, [
     $bb_grammar, 'aaa',
-    <<'END_OF_ASF',
-GL2 Rule 1: top -> b b
+    <<'END_OF_OUTPUT',
+GL2 Rule 1: top ::= b b
   Factoring #0
-    GL3 Rule 3: b -> a
-      GL4 Symbol: a "a"
-    GL5 Rule 2: b -> a a
-      GL6 Symbol: a "a"
-      GL7 Symbol: a "a"
+    GL3 Rule 3: b ::= a
+      GL4 Symbol a: "a"
+    GL5 Rule 2: b ::= a a
+      GL6 Symbol a: "a"
+      GL7 Symbol a: "a"
   Factoring #1
-    GL8 Rule 2: b -> a a
-      GL9 Symbol: a "a"
-      GL10 Symbol: a "a"
-    GL11 Rule 3: b -> a
-      GL12 Symbol: a "a"
-END_OF_ASF
+    GL8 Rule 2: b ::= a a
+      GL9 Symbol a: "a"
+      GL10 Symbol a: "a"
+    GL11 Rule 3: b ::= a
+      GL12 Symbol a: "a"
+END_OF_OUTPUT
     'ASF OK',
     '"b b" grammar'
     ]
     if 1;
+
+# Marpa::R2::Display::End
 
 my $seq_grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
@@ -156,16 +184,16 @@ END_OF_SOURCE
 push @tests_data, [
     $seq_grammar, 'aa',
     <<'END_OF_ASF',
-GL2 Rule 1: sequence -> item+
+GL2 Rule 1: sequence ::= item +
   Factoring #0
-    GL3 Rule 2: item -> pair
-      GL4 Rule 5: pair -> item item
-        GL5 Rule 3: item -> singleton
-          GL6 Rule 4: singleton -> [Lex-0]
-            GL7 Symbol: [Lex-0] "a"
-        GL8 Rule 3: item -> singleton
-          GL9 Rule 4: singleton -> [Lex-0]
-            GL10 Symbol: [Lex-0] "a"
+    GL3 Rule 2: item ::= pair
+      GL4 Rule 5: pair ::= item item
+        GL5 Rule 3: item ::= singleton
+          GL6 Rule 4: singleton ::= 'a'
+            GL7 Symbol 'a': "a"
+        GL8 Rule 3: item ::= singleton
+          GL9 Rule 4: singleton ::= 'a'
+            GL10 Symbol 'a': "a"
   Factoring #1
     GL5 already displayed
     GL8 already displayed
@@ -178,26 +206,26 @@ END_OF_ASF
 push @tests_data, [
     $seq_grammar, 'aaa',
     <<'END_OF_ASF',
-GL2 Rule 1: sequence -> item+
+GL2 Rule 1: sequence ::= item +
   Factoring #0
-    GL3 Rule 2: item -> pair
-      GL4 Rule 5: pair -> item item
+    GL3 Rule 2: item ::= pair
+      GL4 Rule 5: pair ::= item item
         Factoring #0.0
-          GL5 Rule 2: item -> pair
-            GL6 Rule 5: pair -> item item
-              GL7 Rule 3: item -> singleton
-                GL8 Rule 4: singleton -> [Lex-0]
-                  GL9 Symbol: [Lex-0] "a"
-              GL10 Rule 3: item -> singleton
-                GL11 Rule 4: singleton -> [Lex-0]
-                  GL12 Symbol: [Lex-0] "a"
-          GL13 Rule 3: item -> singleton
-            GL14 Rule 4: singleton -> [Lex-0]
-              GL15 Symbol: [Lex-0] "a"
+          GL5 Rule 2: item ::= pair
+            GL6 Rule 5: pair ::= item item
+              GL7 Rule 3: item ::= singleton
+                GL8 Rule 4: singleton ::= 'a'
+                  GL9 Symbol 'a': "a"
+              GL10 Rule 3: item ::= singleton
+                GL11 Rule 4: singleton ::= 'a'
+                  GL12 Symbol 'a': "a"
+          GL13 Rule 3: item ::= singleton
+            GL14 Rule 4: singleton ::= 'a'
+              GL15 Symbol 'a': "a"
         Factoring #0.1
           GL7 already displayed
-          GL16 Rule 2: item -> pair
-            GL17 Rule 5: pair -> item item
+          GL16 Rule 2: item ::= pair
+            GL17 Rule 5: pair ::= item item
               GL10 already displayed
               GL13 already displayed
   Factoring #1
@@ -231,28 +259,28 @@ END_OF_SOURCE
 push @tests_data, [
     $venus_seq_grammar, 'aa',
     <<'END_OF_ASF',
-GL2 Rule 1: sequence -> item+
+GL2 Rule 1: sequence ::= item +
   Factoring #0
-    GL3 Rule 2: item -> pair
-      GL4 Rule 7: pair -> item item
-        Symbol #0, item, has 2 symches
+    GL3 Rule 2: item ::= pair
+      GL4 Rule 7: pair ::= item item
+        Symbol #0 item has 2 symches
           Symch #0.0.0
-          GL5 Rule 3: item -> Hesperus
-            GL6 Rule 5: Hesperus -> [Lex-0]
-              GL7 Symbol: [Lex-0] "a"
+          GL5 Rule 3: item ::= Hesperus
+            GL6 Rule 5: Hesperus ::= 'a'
+              GL7 Symbol 'a': "a"
           Symch #0.0.1
-          GL5 Rule 4: item -> Phosphorus
-            GL8 Rule 6: Phosphorus -> [Lex-1]
-              GL9 Symbol: [Lex-1] "a"
-        Symbol #1, item, has 2 symches
+          GL5 Rule 4: item ::= Phosphorus
+            GL8 Rule 6: Phosphorus ::= 'a'
+              GL9 Symbol 'a': "a"
+        Symbol #1 item has 2 symches
           Symch #0.1.0
-          GL10 Rule 3: item -> Hesperus
-            GL11 Rule 5: Hesperus -> [Lex-0]
-              GL12 Symbol: [Lex-0] "a"
+          GL10 Rule 3: item ::= Hesperus
+            GL11 Rule 5: Hesperus ::= 'a'
+              GL12 Symbol 'a': "a"
           Symch #0.1.1
-          GL10 Rule 4: item -> Phosphorus
-            GL13 Rule 6: Phosphorus -> [Lex-1]
-              GL14 Symbol: [Lex-1] "a"
+          GL10 Rule 4: item ::= Phosphorus
+            GL13 Rule 6: Phosphorus ::= 'a'
+              GL14 Symbol 'a': "a"
   Factoring #1
     GL5 already displayed
     GL10 already displayed
@@ -275,15 +303,15 @@ END_OF_SOURCE
 push @tests_data, [
     $nulls_grammar, 'aaaa',
     <<'END_OF_ASF',
-GL2 Rule 1: top -> a a a a
-  GL3 Rule 2: a -> [Lex-0]
-    GL4 Symbol: [Lex-0] "a"
-  GL5 Rule 2: a -> [Lex-0]
-    GL6 Symbol: [Lex-0] "a"
-  GL7 Rule 2: a -> [Lex-0]
-    GL8 Symbol: [Lex-0] "a"
-  GL9 Rule 2: a -> [Lex-0]
-    GL10 Symbol: [Lex-0] "a"
+GL2 Rule 1: top ::= a a a a
+  GL3 Rule 2: a ::= 'a'
+    GL4 Symbol 'a': "a"
+  GL5 Rule 2: a ::= 'a'
+    GL6 Symbol 'a': "a"
+  GL7 Rule 2: a ::= 'a'
+    GL8 Symbol 'a': "a"
+  GL9 Rule 2: a ::= 'a'
+    GL10 Symbol 'a': "a"
 END_OF_ASF
     'ASF OK',
     'Nulls grammar for "aaaa"'
@@ -293,30 +321,30 @@ END_OF_ASF
 push @tests_data, [
     $nulls_grammar, 'aaa',
     <<'END_OF_ASF',
-GL2 Rule 1: top -> a a a a
+GL2 Rule 1: top ::= a a a a
   Factoring #0
-    GL3 Symbol: a ""
-    GL4 Rule 2: a -> [Lex-0]
-      GL5 Symbol: [Lex-0] "a"
-    GL6 Rule 2: a -> [Lex-0]
-      GL7 Symbol: [Lex-0] "a"
-    GL8 Rule 2: a -> [Lex-0]
-      GL9 Symbol: [Lex-0] "a"
+    GL3 Symbol a: ""
+    GL4 Rule 2: a ::= 'a'
+      GL5 Symbol 'a': "a"
+    GL6 Rule 2: a ::= 'a'
+      GL7 Symbol 'a': "a"
+    GL8 Rule 2: a ::= 'a'
+      GL9 Symbol 'a': "a"
   Factoring #1
     GL4 already displayed
-    GL10 Symbol: a ""
+    GL10 Symbol a: ""
     GL6 already displayed
     GL8 already displayed
   Factoring #2
     GL4 already displayed
     GL6 already displayed
-    GL11 Symbol: a ""
+    GL11 Symbol a: ""
     GL8 already displayed
   Factoring #3
     GL4 already displayed
     GL6 already displayed
     GL8 already displayed
-    GL12 Symbol: a ""
+    GL12 Symbol a: ""
 END_OF_ASF
     'ASF OK',
     'Nulls grammar for "aaa"'
@@ -326,32 +354,32 @@ END_OF_ASF
 push @tests_data, [
     $nulls_grammar, 'aa',
     <<'END_OF_ASF',
-GL2 Rule 1: top -> a a a a
+GL2 Rule 1: top ::= a a a a
   Factoring #0
-    GL3 Symbol: a ""
-    GL4 Symbol: a ""
-    GL5 Rule 2: a -> [Lex-0]
-      GL6 Symbol: [Lex-0] "a"
-    GL7 Rule 2: a -> [Lex-0]
-      GL8 Symbol: [Lex-0] "a"
+    GL3 Symbol a: ""
+    GL4 Symbol a: ""
+    GL5 Rule 2: a ::= 'a'
+      GL6 Symbol 'a': "a"
+    GL7 Rule 2: a ::= 'a'
+      GL8 Symbol 'a': "a"
   Factoring #1
     GL3 already displayed
     GL5 already displayed
-    GL9 Symbol: a ""
+    GL9 Symbol a: ""
     GL7 already displayed
   Factoring #2
     GL3 already displayed
     GL5 already displayed
     GL7 already displayed
-    GL10 Symbol: a ""
+    GL10 Symbol a: ""
   Factoring #3
     GL5 already displayed
     GL7 already displayed
-    GL11 Symbol: a ""
-    GL12 Symbol: a ""
+    GL11 Symbol a: ""
+    GL12 Symbol a: ""
   Factoring #4
     GL5 already displayed
-    GL13 Symbol: a ""
+    GL13 Symbol a: ""
     GL9 already displayed
     GL7 already displayed
   Factoring #5
@@ -368,28 +396,28 @@ END_OF_ASF
 push @tests_data, [
     $nulls_grammar, 'a',
     <<'END_OF_ASF',
-GL2 Rule 1: top -> a a a a
+GL2 Rule 1: top ::= a a a a
   Factoring #0
-    GL3 Rule 2: a -> [Lex-0]
-      GL4 Symbol: [Lex-0] "a"
-    GL5 Symbol: a ""
-    GL6 Symbol: a ""
-    GL7 Symbol: a ""
+    GL3 Rule 2: a ::= 'a'
+      GL4 Symbol 'a': "a"
+    GL5 Symbol a: ""
+    GL6 Symbol a: ""
+    GL7 Symbol a: ""
   Factoring #1
-    GL8 Symbol: a ""
+    GL8 Symbol a: ""
     GL3 already displayed
-    GL9 Symbol: a ""
-    GL10 Symbol: a ""
+    GL9 Symbol a: ""
+    GL10 Symbol a: ""
   Factoring #2
     GL8 already displayed
-    GL11 Symbol: a ""
-    GL12 Symbol: a ""
+    GL11 Symbol a: ""
+    GL12 Symbol a: ""
     GL3 already displayed
   Factoring #3
     GL8 already displayed
     GL11 already displayed
     GL3 already displayed
-    GL13 Symbol: a ""
+    GL13 Symbol a: ""
 END_OF_ASF
     'ASF OK',
     'Nulls grammar for "a"'
@@ -430,146 +458,9 @@ sub my_parser {
         return 'No ASF', 'Input read to end but no ASF';
     }
 
-    my $asf_desc = show($asf);
+    my $asf_desc = $asf->dump();
     return $asf_desc, 'ASF OK';
 
 } ## end sub my_parser
-
-# GLADE_SEEN is a local -- this is to silence warnings
-our %GLADE_SEEN;
-
-sub form_choice {
-    my ( $parent_choice, $sub_choice ) = @_;
-    return $sub_choice if not defined $parent_choice;
-    return join q{.}, $parent_choice, $sub_choice;
-}
-
-sub show_symches {
-    my ( $asf, $glade_id, $parent_choice, $item_ix ) = @_;
-    if ( $GLADE_SEEN{$glade_id} ) {
-        return [ [0, $glade_id, "already displayed"] ];
-    }
-    $GLADE_SEEN{$glade_id} = 1;
-
-    my $grammar      = $asf->grammar();
-    my @lines        = ();
-    my $symch_indent = 0;
-
-    my $symch_count  = $asf->glade_symch_count($glade_id);
-    my $symch_choice = $parent_choice;
-    if ( $symch_count > 1 ) {
-        $item_ix //= 0;
-        push @lines,
-              [ 0, undef, "Symbol #$item_ix, "
-            . $asf->glade_symbol_name($glade_id)
-            . ", has $symch_count symches" ];
-        $symch_indent += 2;
-        $symch_choice = form_choice( $parent_choice, $item_ix );
-    } ## end if ( $symch_count > 1 )
-    for ( my $symch_ix = 0; $symch_ix < $symch_count; $symch_ix++ ) {
-        my $current_choice =
-            $symch_count > 1
-            ? form_choice( $symch_choice, $symch_ix )
-            : $symch_choice;
-        my $indent = $symch_indent;
-        if ( $symch_count > 1 ) {
-            push @lines, [ $symch_indent , undef, "Symch #$current_choice" ];
-        }
-        my $rule_id = $asf->symch_rule_id( $glade_id, $symch_ix );
-        if ( $rule_id >= 0 ) {
-            push @lines,
-                [
-                $symch_indent, $glade_id,
-                "Rule " . $grammar->brief_rule($rule_id)
-                ];
-            for my $line (
-                @{ show_factorings(
-                    $asf, $glade_id, $symch_ix, $current_choice
-                ) }
-                )
-            {
-                my ( $line_indent, @rest_of_line ) = @{$line};
-                push @lines, [ $line_indent + $symch_indent + 2, @rest_of_line ];
-            } ## end for my $line ( show_factorings( $asf, $glade_id, ...))
-        } ## end if ( $rule_id >= 0 )
-        else {
-            my $line = show_terminal( $asf, $glade_id, $current_choice );
-            my ( $line_indent, @rest_of_line ) = @{$line};
-            push @lines, [ $line_indent + $symch_indent, @rest_of_line ];
-        } ## end else [ if ( $rule_id >= 0 ) ]
-    } ## end for ( my $symch_ix = 0; $symch_ix < $symch_count; $symch_ix...)
-    # say "show_symches = ", Data::Dumper::Dumper(\@lines);
-    return \@lines;
-} ## end sub show_symches
-
-# Show all the factorings of a SYMCH
-sub show_factorings {
-    my ( $asf, $glade_id, $symch_ix, $parent_choice ) = @_;
-
-    my @lines;
-    my $factoring_count = $asf->symch_factoring_count( $glade_id, $symch_ix );
-    for (
-        my $factoring_ix = 0;
-        $factoring_ix < $factoring_count;
-        $factoring_ix++
-        )
-    {
-        my $indent         = 0;
-        my $current_choice = $parent_choice;
-        if ( $factoring_count > 1 ) {
-            $indent = 2;
-            $current_choice = form_choice( $parent_choice, $factoring_ix );
-            push @lines, [ 0, undef, "Factoring #$current_choice" ];
-        }
-        my $symbol_count =
-            $asf->factoring_symbol_count( $glade_id, $symch_ix,
-            $factoring_ix );
-        SYMBOL: for my $symbol_ix ( 0 .. $symbol_count - 1 ) {
-            my $downglade_id =
-                $asf->factor_downglade_id( $glade_id, $symch_ix,
-                $factoring_ix, $symbol_ix );
-            for my $line (
-                @{ show_symches(
-                    $asf, $downglade_id, $current_choice, $symbol_ix
-                ) }
-                )
-            {
-                my ( $line_indent, @rest_of_line ) = @{$line};
-                push @lines, [ $line_indent + $indent, @rest_of_line ];
-
-            } ## end for my $line ( show_symches( $asf, $downglade_id, ...))
-        } ## end SYMBOL: for my $symbol_ix ( 0 .. $symbol_count - 1 )
-    } ## end for ( my $factoring_ix = 0; $factoring_ix < $factoring_count...)
-    return \@lines;
-} ## end sub show_factorings
-
-sub show_terminal {
-    my ( $asf, $glade_id, $symch_ix, $parent_choice ) = @_;
-
-    # There can only be one symbol in a terminal and therefore only one factoring
-    my $current_choice = $parent_choice;
-    my $literal        = $asf->glade_literal($glade_id);
-    my $symbol_name    = $asf->glade_symbol_name($glade_id);
-    return [0, $glade_id, qq{Symbol: $symbol_name "$literal"}];
-} ## end sub show_terminal
-
-sub show {
-    my ($asf) = @_;
-    my $peak = $asf->peak();
-    local %GLADE_SEEN = ();    ## no critic (Variables::ProhibitLocalVars)
-    my $lines = show_symches( $asf, $peak );
-    my $next_sequenced_id = 1; # one-based
-    my %sequenced_id = ();
-    $sequenced_id{$_} //= $next_sequenced_id++ for grep { defined } map { $_->[1] } @{$lines};
-    my $text = q{};
-    for my $line ( @{$lines}[ 1 .. $#$lines ] ) {
-        my ( $line_indent, $glade_id, $body ) = @{$line};
-        $line_indent -= 2;
-        $text .= q{ } x $line_indent;
-        $text .=  'GL' . $sequenced_id{$glade_id} . q{ } if defined $glade_id;
-        $text .= "$body\n";
-    }
-    return $text;
-} ## end sub show
 
 # vim: expandtab shiftwidth=4:

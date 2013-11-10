@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_001';
+$VERSION        = '2.075_002';
 $STRING_VERSION = $VERSION;
 $VERSION        = eval $VERSION;
 
@@ -93,6 +93,7 @@ sub rule_expand {
     my ( $self, $rule_id ) = @_;
     my $grammar     = $self->{g};
     my $rule_length = $grammar->rule_length($rule_id);
+    return if not defined $rule_length;
     my $lhs         = ( $grammar->rule_lhs($rule_id) );
     return ( $lhs,
         map { $grammar->rule_rhs( $rule_id, $_ ) }

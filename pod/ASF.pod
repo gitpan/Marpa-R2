@@ -15,7 +15,7 @@
 
 =head1 Name
 
-Marpa::R2::Scanless - Scanless interface
+Marpa::R2::ASF - Marpa's abstract syntax forests (ASF's)
 
 =head1 Synopsis
 
@@ -36,6 +36,9 @@ Marpa's SLIF interface.
 An abstract syntax forest, as the name suggests, is an abstract
 syntax tree, generalized to contain the multiple trees that result from an
 ambiguous parse.
+ASF's are expected to have a high-level and a low-level interface.
+The low-level interface is expected to be released first.
+It is described in L<a separate document|Marpa::R2::Glade>.
 
 =head1 Copyright and License
 

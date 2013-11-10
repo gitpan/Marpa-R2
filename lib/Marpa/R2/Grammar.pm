@@ -26,7 +26,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_001';
+$VERSION        = '2.075_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -675,10 +675,9 @@ sub Marpa::R2::Grammar::symbol_in_display_form {
     return "<!No symbol with ID $symbol_id!>" if not defined $symbol;
     my $text = $symbol->[Marpa::R2::Internal::Symbol::DISPLAY_FORM];
     return $text if defined $text;
-    $text = $symbol->[Marpa::R2::Internal::Symbol::DSL_FORM];
-    return "<$text>" if defined $text;
-    $text = $grammar->symbol_name($symbol_id);
-    return "<$text>";
+    $text = $symbol->[Marpa::R2::Internal::Symbol::DSL_FORM] //
+     $grammar->symbol_name($symbol_id);
+    return ($text =~ m/\s/xms) ? "<$text>" : $text;
 }
 
 sub Marpa::R2::Grammar::show_symbol {
@@ -822,13 +821,15 @@ sub Marpa::R2::Grammar::symbol_ids {
     return 0 .. $grammar_c->highest_symbol_id();
 } ## end sub Marpa::R2::Grammar::rule_ids
 
+# Returns empty array if not such rule
 sub Marpa::R2::Grammar::rule {
     my ( $grammar, $rule_id ) = @_;
     my $symbols     = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
     my $tracer    = $grammar->[Marpa::R2::Internal::Grammar::TRACER];
     my @symbol_names = ();
 
-    SYMBOL_ID: for my $symbol_id ($tracer->rule_expand($rule_id)) {
+    my @symbols = $tracer->rule_expand($rule_id);
+    SYMBOL_ID: for my $symbol_id (@symbols) {
         ## The name of the symbols, before the BNF rewrites
         my $name =
             $symbols->[$symbol_id]->[Marpa::R2::Internal::Symbol::LEGACY_NAME]
