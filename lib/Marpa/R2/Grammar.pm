@@ -26,7 +26,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_002';
+$VERSION        = '2.075_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -617,9 +617,9 @@ sub Marpa::R2::Grammar::precompute {
     if (defined $cc_hash) {
         my $class_table = $grammar->[Marpa::R2::Internal::Grammar::CHARACTER_CLASS_TABLE] = [];
         for my $cc_symbol ( sort keys %{$cc_hash} ) {
-            my $regex = $cc_hash->{$cc_symbol};
+            my $cc_components = $cc_hash->{$cc_symbol};
             push @{$class_table},
-                [ $grammar->thin_symbol($cc_symbol), $regex ];
+                [ $grammar->thin_symbol($cc_symbol), $cc_components ];
         }
     }
 

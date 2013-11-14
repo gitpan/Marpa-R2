@@ -2245,7 +2245,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 175
-#define EXPECTED_LIBMARPA_MICRO 102
+#define EXPECTED_LIBMARPA_MICRO 103
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -5356,7 +5356,7 @@ PPCODE:
   if (!sv_isa (slg_sv, "Marpa::R2::Thin::SLG"))
     {
       croak
-	("Problem in u->new(): g0 arg is not of type Marpa::R2::Thin::SLG");
+	("Problem in u->new(): slg arg is not of type Marpa::R2::Thin::SLG");
     }
   if (!sv_isa (r1_sv, "Marpa::R2::Thin::R"))
     {

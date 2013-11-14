@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_002';
+$VERSION        = '2.075_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -63,6 +63,7 @@ my %node_status =
     qw(
 action
 action_name
+adverb_body
 adverb_item
 adverb_list
 alternative

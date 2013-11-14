@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_002';
+$VERSION        = '2.075_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -34,6 +34,8 @@ sub new {
     my ( $class, $p_rules_source ) = @_;
     my $meta_recce = Marpa::R2::Internal::Scanless::meta_recce();
     $meta_recce->read($p_rules_source);
+    Marpa::R2::exception('Parse of BNF/Scanless source is ambiguous')
+        if $meta_recce->ambiguity_metric() > 1;
     my $value_ref = $meta_recce->value();
     Marpa::R2::exception('Parse of BNF/Scanless source failed')
         if not defined $value_ref;
@@ -434,6 +436,12 @@ sub Marpa::R2::Internal::MetaAST_Nodes::separator_specification::evaluate {
 }
 
 sub Marpa::R2::Internal::MetaAST_Nodes::adverb_item::evaluate {
+    my ( $values, $parse ) = @_;
+    my $child = $values->[2]->evaluate($parse);
+    return bless $child, $PROTO_ALTERNATIVE;
+}
+
+sub Marpa::R2::Internal::MetaAST_Nodes::adverb_body::evaluate {
     my ( $values, $parse ) = @_;
     my $child = $values->[2]->evaluate($parse);
     return bless $child, $PROTO_ALTERNATIVE;
@@ -1300,9 +1308,15 @@ sub Marpa::R2::Internal::MetaAST_Nodes::single_quoted_string::evaluate {
     my ( $values, $parse ) = @_;
     my ( undef, undef, $string ) = @{$values};
     my @symbols = ();
+
+    my $end_of_string = rindex $string, q{'};
+      my $unmodified_string = substr $string, 0, $end_of_string+1;
+      my $raw_flags = substr $string, $end_of_string+1;
+    my $flags = Marpa::R2::Internal::MetaAST::flag_string_to_flags($raw_flags);
+
     for my $char_class (
-        map { '[' . ( quotemeta $_ ) . ']' } split //xms,
-        substr $string,
+        map { '[' . ( quotemeta $_ ) . ']' . $flags } split //xms,
+        substr $unmodified_string,
         1, -1
         )
     {
@@ -1345,25 +1359,76 @@ sub combine {
     return bless $self, $class;
 } ## end sub combine
 
+sub Marpa::R2::Internal::MetaAST::char_class_to_re {
+    my ($cc_components) = @_;
+    die if ref $cc_components ne 'ARRAY';
+    my ( $char_class, $flags ) = @{$cc_components};
+    $flags = $flags ? '(' . q{?} . $flags . ')' : q{};
+    my $regex;
+    my $error;
+    if ( not defined eval { $regex = qr/$flags$char_class/xms; 1; } ) {
+        $error = qq{Problem in evaluating character class: "$char_class"\n};
+        $error .= qq{  Flags were "$flags"\n} if $flags;
+        $error .= $EVAL_ERROR;
+    }
+    return $regex, $error;
+}
+
+sub Marpa::R2::Internal::MetaAST::flag_string_to_flags {
+    my ($raw_flag_string) = @_;
+    return q{} if not $raw_flag_string;
+    my @raw_flags = split m/:/xms, $raw_flag_string;
+    my %flags = ();
+    RAW_FLAG: for my $raw_flag (@raw_flags) {
+        next RAW_FLAG if not $raw_flag;
+        if ( $raw_flag eq 'i' ) {
+            $flags{'i'} = 1;
+            next RAW_FLAG;
+        }
+        if ( $raw_flag eq 'ic' ) {
+            $flags{'i'} = 1;
+            next RAW_FLAG;
+        }
+        Carp::croak(
+            qq{Bad flag for character class\n},
+            qq{  Flag string was $raw_flag_string\n},
+            qq{  Bad flag was $raw_flag\n}
+        );
+    } ## end RAW_FLAG: for my $raw_flag (@raw_flags)
+    my $cooked_flags = join q{}, sort keys %flags;
+    return $cooked_flags;
+} ## end sub flag_string_to_flags
+
 # Return the character class symbol name,
 # after ensuring everything is set up properly
 sub char_class_to_symbol {
     my ( $class, $parse, $char_class ) = @_;
 
+    my $end_of_char_class = rindex $char_class, q{]};
+      my $unmodified_char_class = substr $char_class, 0, $end_of_char_class+1;
+      my $raw_flags = substr $char_class, $end_of_char_class+1;
+    my $flags = Marpa::R2::Internal::MetaAST::flag_string_to_flags($raw_flags);
+
     # character class symbol name always start with TWO left square brackets
-    my $symbol_name = '[' . $char_class . ']';
+    my $symbol_name = '[' . $unmodified_char_class . $flags . ']';
     $parse->{character_classes} //= {};
     my $cc_hash = $parse->{character_classes};
     my ( undef, $symbol ) = $cc_hash->{$symbol_name};
     if ( not defined $symbol ) {
-        my $regex;
-        if ( not defined eval { $regex = qr/$char_class/xms; 1; } ) {
-            Carp::croak( 'Bad Character class: ',
-                $char_class, "\n", 'Perl said ', $EVAL_ERROR );
-        }
+
+        my $cc_components = [$unmodified_char_class, $flags];
+
+        # Fast fail on badly formed char_class -- we re-evaluate the regex just in time
+        # before we register characters.
+        my ( $regex, $eval_error ) =
+            Marpa::R2::Internal::MetaAST::char_class_to_re($cc_components);
+        Carp::croak( 'Bad Character class: ',
+            $char_class, "\n", 'Perl said ', $eval_error )
+            if not $regex;
+
         $symbol =
             Marpa::R2::Internal::MetaAST::Symbol_List->new($symbol_name);
-        $cc_hash->{$symbol_name} = [ $regex, $symbol ];
+        $cc_hash->{$symbol_name} = [ $cc_components, $symbol ];
         $parse->symbol_names_set(
             $symbol_name,
             $Marpa::R2::Internal::SUBGRAMMAR,
