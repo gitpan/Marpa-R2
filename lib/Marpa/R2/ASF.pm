@@ -21,7 +21,7 @@ use warnings;
 no warnings qw(recursion);
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_003';
+$VERSION        = '2.075_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -519,6 +519,21 @@ sub nid_literal {
     Marpa::R2::exception("No literal for node ID: $nid");
 }
 
+sub nid_span {
+    my ( $asf, $nid ) = @_;
+    my $slr = $asf->[Marpa::R2::Internal::ASF::SLR];
+    if ( $nid <= $NID_LEAF_BASE ) {
+        my $and_node_id = nid_to_and_node($nid);
+        my ( $start, $length ) = token_es_span( $asf, $and_node_id );
+        return q{} if $length == 0;
+        return $slr->es_to_input_span( $start, $length );
+    } ## end if ( $nid <= $NID_LEAF_BASE )
+    if ( $nid >= 0 ) {
+        return $slr->es_to_input_span( or_node_es_span( $asf, $nid ) );
+    }
+    Marpa::R2::exception("No literal for node ID: $nid");
+}
+
 sub nid_token_id {
     my ( $asf, $nid ) = @_;
     return if $nid > $NID_LEAF_BASE;
@@ -953,6 +968,16 @@ sub Marpa::R2::ASF::glade_literal {
     return nid_literal($asf, $nid0);
 } ## end sub Marpa::R2::ASF::glade_literal
 
+sub Marpa::R2::ASF::glade_span {
+    my ( $asf, $glade_id ) = @_;
+    my $nidset_by_id = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
+    my $nidset       = $nidset_by_id->[$glade_id];
+    Marpa::R2::exception("No glade found for glade ID $glade_id)") if not defined $nidset;
+    return if not defined $nidset;
+    my $nid0         = $nidset->nid(0);
+    return nid_span($asf, $nid0);
+}
+
 sub Marpa::R2::ASF::glade_symbol_id {
     my ( $asf, $glade_id ) = @_;
     my $nidset_by_id = $asf->[Marpa::R2::Internal::ASF::NIDSET_BY_ID];
@@ -1009,6 +1034,190 @@ sub Marpa::R2::ASF::factor_downglade {
     return if not defined $factoring;
     return $factoring->[$symbol_ix];
 } ## end sub Marpa::R2::ASF::factor_downglade
+
+sub Marpa::R2::Internal::ASF::ambiguities {
+    my ($asf) = @_;
+    my $peak = $asf->peak();
+    return Marpa::R2::Internal::ASF::glade_ambiguities( $asf, $peak, [] );
+}
+
+sub Marpa::R2::Internal::ASF::glade_ambiguities {
+    my ( $asf, $glade, $seen ) = @_;
+    return [] if $seen->[$glade];    # empty on revisit
+    $seen->[$glade] = 1;
+    my $grammar     = $asf->grammar();
+    my $symch_count = $asf->glade_symch_count($glade);
+    if ( $symch_count > 1 ) {
+        my $literal      = $asf->glade_literal($glade);
+        my $symbol_id    = $asf->glade_symbol_id($glade);
+        my $display_form = $grammar->symbol_display_form($symbol_id);
+        return [
+            [   'symch',
+                $glade,
+                qq{Ambiguous symch; Glade $glade, Symbol $display_form: "$literal"}
+            ]
+        ];
+    } ## end if ( $symch_count > 1 )
+    my $rule_id = $asf->symch_rule_id( $glade, 0 );
+    return [] if $rule_id < 0;    # no ambiguities if a token
+
+    # ignore any truncation of the factorings
+    my $factoring_count = $asf->symch_factoring_count( $glade, 0 );
+    if ( $factoring_count <= 1 ) {
+        my $downglades = $asf->factoring_downglades( $glade, 0, 0 );
+        my @problems =
+            map { @{ glade_ambiguities( $asf, $_, $seen ) } } @{$downglades};
+        return \@problems;
+    } ## end if ( $factoring_count <= 1 )
+    my @results      = ();
+    my @symch_description = ("Glade $glade");
+    push @symch_description, $grammar->rule_show($rule_id);
+    my $symch_description = join q{, }, @symch_description;
+
+    my $downglades           = $asf->factoring_downglades( $glade, 0, 0 );
+    my $min_factors          = $#{$downglades} + 1;
+    my @factors_by_factoring = ($downglades);
+    for (
+        my $factoring_ix = 1;
+        $factoring_ix < $factoring_count;
+        $factoring_ix++
+        )
+    {
+        my $downglades =
+            $asf->factoring_downglades( $glade, 0, $factoring_ix );
+        my $factor_count = $#{$downglades} + 1;
+        $min_factors =
+            $min_factors > $factor_count ? $factor_count : $min_factors;
+        push @factors_by_factoring, $downglades;
+    } ## end for ( my $factoring_ix = 1; $factoring_ix < $factoring_count...)
+
+    my $factor_ix = 0;
+    FACTOR:
+    while ( $factor_ix < $min_factors ) {
+        my $factoring_ix;
+        my $first_downglade = $factors_by_factoring[0][$factor_ix];
+        for (
+            my $factoring_ix = 1;
+            $factoring_ix < $factoring_count;
+            $factoring_ix++
+            )
+        {
+            my $this_downglade =
+                $factors_by_factoring[$factoring_ix][$factor_ix];
+            last FACTOR if $this_downglade != $first_downglade;
+        } ## end for ( my $factoring_ix = 1; $factoring_ix < $factoring_count...)
+        push @results,
+            @{ glade_ambiguities( $asf, $first_downglade, $seen ) };
+        $factor_ix++;
+    } ## end FACTOR: while ( $factor_ix < $min_factors )
+
+    push @results,
+        [
+        'factoring', $glade, 0, $factor_ix,
+        "Glade $glade, symch 0 has $factoring_count factorings"
+        ];
+
+    $factor_ix = $factor_ix + 1;
+    FACTOR:
+    while ( $factor_ix < $min_factors ) {
+        my $factoring_ix;
+        my $first_downglade = $factors_by_factoring[0][$factor_ix];
+        for (
+            my $factoring_ix = 1;
+            $factoring_ix < $factoring_count;
+            $factoring_ix++
+            )
+        {
+            my $this_downglade =
+                $factors_by_factoring[$factoring_ix][$factor_ix];
+            if ($this_downglade != $first_downglade) {
+	        $factor_ix++;
+		next FACTOR;
+	    }
+        } ## end for ( my $factoring_ix = 1; $factoring_ix < $factoring_count...)
+        push @results,
+            @{ glade_ambiguities( $asf, $first_downglade, $seen ) };
+        $factor_ix++;
+    } ## end FACTOR: while ( $factor_ix < $min_factors )
+
+    return \@results;
+} ## end sub Marpa::R2::Internal::ASF::glade_ambiguities
+
+sub Marpa::R2::Internal::ASF::ambiguities_show {
+    my ( $asf, $ambiguities ) = @_;
+    my $grammar = $asf->grammar();
+    my $slr     = $asf->[Marpa::R2::Internal::ASF::SLR];
+    my $p_input = $slr->[Marpa::R2::Inner::Scanless::R::P_INPUT_STRING];
+    my $result  = q{};
+    AMBIGUITY: for my $ambiguity ( @{$ambiguities} ) {
+        my $type = $ambiguity->[0];
+        if ( $type eq 'factoring' ) {
+            my ( undef, $glade, $symch_ix, $first_ambiguous_factor ) =
+                @{$ambiguity};
+            my $first_downglades =
+                $asf->factoring_downglades( $glade, $symch_ix, 0 );
+            my $first_downglade =
+                $first_downglades->[$first_ambiguous_factor];
+            my $factoring_count =
+                $asf->symch_factoring_count( $glade, $symch_ix );
+            FACTORING:
+            for (
+                my $factoring_ix = 1;
+                $factoring_ix < $factoring_count;
+                $factoring_ix++
+                )
+            {
+                my $these_downglades =
+                    $asf->factoring_downglades( $glade, $symch_ix,
+                    $factoring_ix );
+                my $this_downglade =
+                    $these_downglades->[$first_ambiguous_factor];
+                next FACTORING if $this_downglade == $first_downglade;
+                my $symbol_display_form =
+                    $grammar->symbol_display_form(
+                    $asf->glade_symbol_id($first_downglade) );
+                my ( $start, $first_length ) =
+                    $asf->glade_span($first_downglade);
+                my ( undef, $this_length ) =
+                    $asf->glade_span($this_downglade);
+                my ( $start_line, $start_column ) = $slr->line_column($start);
+                my ( $end_line1, $end_column1 ) =
+                    $slr->line_column( $start + $first_length - 1 );
+                my ( $end_line2, $end_column2 ) =
+                    $slr->line_column( $start + $this_length - 1 );
+		my $display_length = List::Util::min($first_length, $this_length, 60);
+                $result
+                    .= qq{Length of symbol "$symbol_display_form" at line $start_line, column $start_column is ambiguous\n};
+                $result .= qq{  Choices start with: }
+                    . Marpa::R2::Internal::Scanless::input_escape( $p_input,
+                    $start, $display_length )
+                    . qq{\n};
+                $result
+                    .= qq{  Choice 1 ends at line $end_line1, column $end_column1\n};
+		$display_length = List::Util::min($first_length, 60);
+                $result .= qq{  Choice 1 ending: }
+                    . Marpa::R2::Internal::Scanless::reversed_input_escape( $p_input,
+                    $start + $first_length, $display_length )
+                    . qq{\n};
+                $result
+                    .= qq{  Choice 2: Symbol ends at line $end_line2, column $end_column2\n};
+		$display_length = List::Util::min($this_length, 60);
+                $result .= qq{  Choice 2 ending: }
+                    . Marpa::R2::Internal::Scanless::reversed_input_escape( $p_input,
+                    $start + $this_length, $display_length )
+                    . qq{\n};
+                next AMBIGUITY;
+            } ## end FACTORING: for ( my $factoring_ix = 1; $factoring_ix < ...)
+            next AMBIGUITY;
+        } ## end if ( $type eq 'factoring' )
+        $result
+            .= qq{Ambiguities of type "$type" not implemented: } . join q{ },
+            @{$ambiguity} . "\n";
+        next AMBIGUITY;
+
+    } ## end AMBIGUITY: for my $ambiguity ( @{$ambiguities} )
+    return $result;
+} ## end sub Marpa::R2::Internal::ASF::ambiguities_show
 
 # GLADE_SEEN is a local -- this is to silence warnings
 our %GLADE_SEEN;

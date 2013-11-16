@@ -35,7 +35,6 @@ our $DEBUG = 0;
 my $glenn_grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
             :default ::= action => ::array
-            :start ::= Start
 
             Start  ::= Child DoubleColon Token
 
@@ -61,10 +60,14 @@ my @tests_data = (
     ],
 );
 
+# Marpa::R2::Display
+# name: Case-insensitive characters examples
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
+
 my $ic_grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
             :default ::= action => ::array
-            :start ::= Start
 
             Start  ::= Child DoubleColon Token
 
@@ -73,11 +76,13 @@ my $ic_grammar = Marpa::R2::Scanless::G->new(
             Token ~
                 word
                 | word ':' word
-            word ~ [\w]:ic+
+            word ~ [\w]:ic +
 
 END_OF_SOURCE
     }
 );
+
+# Marpa::R2::Display::End
 
 push @tests_data,
     [   $ic_grammar,
@@ -90,7 +95,7 @@ push @tests_data,
 my $durand_grammar1 = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
 :default ::= action => ::array
-:start ::= test
+start symbol is test
 test ::= TEST
 :lexeme ~ TEST
 TEST                  ~ '## Allowed in the input' NEWLINE
@@ -122,7 +127,6 @@ INPUT
 my $durand_grammar2 = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
 :default ::= action => ::array
-:start ::= test
 test ::= 'test input' NEWLINE
 WS                    ~ [ \t]
 WS_any                ~ WS*
@@ -153,7 +157,6 @@ INPUT
 my $durand_grammar3 = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
 :default ::= action => ::array
-:start ::= Script
 
 Script ::= '=' '/' 'dumb'
 

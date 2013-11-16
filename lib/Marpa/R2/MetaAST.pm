@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_003';
+$VERSION        = '2.075_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -34,8 +34,16 @@ sub new {
     my ( $class, $p_rules_source ) = @_;
     my $meta_recce = Marpa::R2::Internal::Scanless::meta_recce();
     $meta_recce->read($p_rules_source);
-    Marpa::R2::exception('Parse of BNF/Scanless source is ambiguous')
-        if $meta_recce->ambiguity_metric() > 1;
+    if ( $meta_recce->ambiguity_metric() > 1 ) {
+	my $asf = Marpa::R2::ASF->new( { slr => $meta_recce } );
+	say STDERR 'No ASF' if not defined $asf;
+	my $ambiguities = Marpa::R2::Internal::ASF::ambiguities( $asf );
+	my @ambiguities = grep { defined } @{$ambiguities}[0 .. 1 ];
+        Marpa::R2::exception(
+            "Parse of BNF/Scanless source is ambiguous\n",
+            Marpa::R2::Internal::ASF::ambiguities_show( $asf, \@ambiguities )
+        );
+    }
     my $value_ref = $meta_recce->value();
     Marpa::R2::exception('Parse of BNF/Scanless source failed')
         if not defined $value_ref;
@@ -160,6 +168,15 @@ sub ast_to_hash {
 
     return $hashed_ast;
 } ## end sub ast_to_hash
+
+sub Marpa::R2::Internal::MetaAST::Parse::start_rule_setup {
+    my ($ast) = @_;
+    if (not defined $ast->{symbols}->{'G1'}->{'[:start]'}) {
+      my $first_lhs = $ast->{'first_lhs'};
+      Marpa::R2::exception('No rules in SLIF grammar') if not defined $first_lhs;
+      Marpa::R2::Internal::MetaAST::start_rule_create ( $ast, $first_lhs );
+    }
+}
 
 # This class is for pieces of RHS alternatives, as they are
 # being constructed
@@ -512,6 +529,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
         @{$values};
 
     my $subgrammar = $op_declare->op() eq q{::=} ? 'G1' : 'G0';
+    $parse->{'first_lhs'} //= $raw_lhs if $subgrammar eq 'G1';
     local $Marpa::R2::Internal::SUBGRAMMAR = $subgrammar;
     my $lhs = $raw_lhs->name($parse);
 
@@ -827,6 +845,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::empty_rule::evaluate {
 
     my $lhs = $raw_lhs->name($parse);
     my $subgrammar = $op_declare->op() eq q{::=} ? 'G1' : 'G0';
+    $parse->{'first_lhs'} //= $raw_lhs if $subgrammar eq 'G1';
     local $Marpa::R2::Internal::SUBGRAMMAR = $subgrammar;
 
     my %rule = ( lhs => $lhs,
@@ -979,9 +998,8 @@ sub Marpa::R2::Internal::MetaAST_Nodes::statement_body::evaluate {
     return undef;
 } ## end sub Marpa::R2::Internal::MetaAST_Nodes::statement_body::evaluate
 
-sub Marpa::R2::Internal::MetaAST_Nodes::start_rule::evaluate {
-    my ( $values, $parse ) = @_;
-    my ( $start, $length, $symbol ) = @{$values};
+sub Marpa::R2::Internal::MetaAST::start_rule_create {
+    my ( $parse, $symbol ) = @_;
     my $start_lhs = '[:start]';
     $parse->{'default_g1_start_action'} =
         $parse->{'default_adverbs'}->{'G1'}->{'action'};
@@ -995,9 +1013,15 @@ sub Marpa::R2::Internal::MetaAST_Nodes::start_rule::evaluate {
     push @{ $parse->{rules}->{G1} },
         {
         lhs    => $start_lhs,
-        rhs    => $symbol->names($parse),
+        rhs    => [$symbol->name($parse)],
         action => '::first'
         };
+}
+
+sub Marpa::R2::Internal::MetaAST_Nodes::start_rule::evaluate {
+    my ( $values, $parse ) = @_;
+    my ( $start, $length, $symbol ) = @{$values};
+    Marpa::R2::Internal::MetaAST::start_rule_create( $parse, $symbol );
     ## no critic(Subroutines::ProhibitExplicitReturnUndef)
     return undef;
 } ## end sub Marpa::R2::Internal::MetaAST_Nodes::start_rule::evaluate
@@ -1033,6 +1057,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::quantified_rule::evaluate {
         $proto_adverb_list )
         = @{$values};
     my $subgrammar = $op_declare->op() eq q{::=} ? 'G1' : 'G0';
+    $parse->{'first_lhs'} //= $lhs if $subgrammar eq 'G1';
     local $Marpa::R2::Internal::SUBGRAMMAR = $subgrammar;
 
     my $adverb_list     = $proto_adverb_list->evaluate($parse);

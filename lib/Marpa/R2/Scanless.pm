@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.075_003';
+$VERSION        = '2.075_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -173,15 +173,12 @@ sub Marpa::R2::Scanless::R::range_to_string {
         $end_earley_set - $start_earley_set );
 }
 
-# Substring in terms of earley sets.
-# Necessary for the use of show_progress()
-# Given a scanless recognizer and
-# and two earley sets, return the input string
-sub Marpa::R2::Scanless::R::substring {
+# Not documented.  Should I?
+sub Marpa::R2::Scanless::R::es_to_input_span {
     my ( $slr, $start_earley_set, $length_in_parse_locations ) = @_;
     return
         if not defined $start_earley_set
-            or not defined $length_in_parse_locations;
+        or not defined $length_in_parse_locations;
     my $thick_g1_recce =
         $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     my $thin_g1_recce     = $thick_g1_recce->thin();
@@ -210,7 +207,20 @@ sub Marpa::R2::Scanless::R::substring {
 
     # Negative lengths are quite possible if the application has jumped around in
     # the input.
-    return q{} if $length_in_characters <= 0;
+    $length_in_characters = 0 if $length_in_characters <= 0;
+    return ( $first_start_position, $length_in_characters );
+
+} ## end sub Marpa::R2::Scanless::R::es_to_input_span
+
+# Substring in terms of earley sets.
+# Necessary for the use of show_progress()
+# Given a scanless recognizer and
+# and two earley sets, return the input string
+sub Marpa::R2::Scanless::R::substring {
+    my ( $slr, $start_earley_set, $length_in_parse_locations ) = @_;
+    my ( $first_start_position, $length_in_characters ) =
+        $slr->es_to_input_span( $start_earley_set,
+        $length_in_parse_locations );
     my $p_input = $slr->[Marpa::R2::Inner::Scanless::R::P_INPUT_STRING];
     return substr ${$p_input}, $first_start_position, $length_in_characters;
 } ## end sub Marpa::R2::Scanless::R::substring
@@ -330,6 +340,7 @@ sub Marpa::R2::Scanless::G::new {
     } ## end if ( $ref_type ne 'SCALAR' )
     my $ast = Marpa::R2::Internal::MetaAST->new( $rules_source );
     my $hashed_ast = $ast->ast_to_hash();
+    $hashed_ast->start_rule_setup();
     $self->_hash_to_runtime($hashed_ast);
 
     return $self;
@@ -401,7 +412,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     $lex_args{start} = $lex_target_symbol;
     $lex_args{'_internal_'} = 1;
     my $lex_grammar = Marpa::R2::Grammar->new( \%lex_args );
-    $lex_grammar->precompute();
+    Marpa::R2::Internal::Grammar::slif_precompute( $lex_grammar);
     my $lex_tracer = $lex_grammar->tracer();
     my $g0_thin    = $lex_tracer->grammar();
     $slg->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMAR] = $lex_grammar;
@@ -505,7 +516,22 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     my $lexeme_events_by_id =
         $slg->[Marpa::R2::Inner::Scanless::G::LEXEME_EVENT_BY_ID] = [];
 
-    $thick_g1_grammar->precompute();
+    if (defined(
+            my $precompute_error = Marpa::R2::Internal::Grammar::slif_precompute( $thick_g1_grammar)
+        )
+        )
+    {
+        if ( $precompute_error == $Marpa::R2::Error::UNPRODUCTIVE_START ) {
+
+            # Maybe someday improve this by finding the start rule and showing
+            # its RHS -- for now it is clear enough
+            Marpa::R2::exception(qq{Unproductive start symbol});
+        } ## end if ( $precompute_error == ...)
+        Marpa::R2::exception(
+            'Internal errror: unnkown precompute error code ',
+            $precompute_error );
+    } ## end if ( defined( my $precompute_error = $thick_g1_grammar...))
+
     my @g0_lexeme_to_g1_symbol;
     my @g1_symbol_to_g0_lexeme;
     $g0_lexeme_to_g1_symbol[$_] = -1 for 0 .. $g1_thin->highest_symbol_id();
@@ -1674,6 +1700,81 @@ sub character_describe {
         );
     return $text;
 } ## end sub character_describe
+
+my @escape_by_ord = ();
+$escape_by_ord[ ord q{\\} ] = q{\\\\};
+$escape_by_ord[ ord eval qq{"$_"} ] = $_
+    for "\\t", "\\r", "\\f", "\\b", "\\a", "\\e";
+$escape_by_ord[0xa] = '\\n';
+$escape_by_ord[$_] //= chr $_ for 32 .. 126;
+$escape_by_ord[$_] //= sprintf( "\\x%02x", $_ ) for 0 .. 255;
+
+# This and the sister routine for "forward strings"
+# should replace the other string "escaping" subroutine
+# in the NAIF
+sub Marpa::R2::Internal::Scanless::reversed_input_escape {
+    my ( $p_input, $base_pos, $length ) = @_;
+    my @escaped_chars = ();
+    my $pos           =  $base_pos - 1 ;
+
+    my $trailing_spaces = 0;
+    CHAR: while ( $pos > 0 ) {
+        last CHAR if substr ${$p_input}, $pos, 1 ne q{ };
+	$trailing_spaces++;
+        $pos--;
+    }
+    my $length_so_far = $trailing_spaces * 2;
+
+    CHAR: while ( $pos > 0 ) {
+        my $char         = substr ${$p_input}, $pos, 1;
+        my $ord          = ord $char;
+        my $escaped_char = $escape_by_ord[$ord]
+            // sprintf( "\\x{%04x}", $ord );
+        my $char_length = length $escaped_char;
+        $length_so_far += $char_length;
+        last CHAR if $length_so_far > $length;
+        push @escaped_chars, $escaped_char;
+        $pos--;
+    } ## end CHAR: while ( $pos > 0 and $pos < $end_of_input )
+    @escaped_chars = reverse @escaped_chars;
+    push @escaped_chars, '\\s' for 1 .. $trailing_spaces;
+    return join q{}, @escaped_chars;
+} ## end sub Marpa::R2::Internal::Scanless::input_escape
+
+sub Marpa::R2::Internal::Scanless::input_escape {
+    my ( $p_input, $base_pos, $length ) = @_;
+    my @escaped_chars = ();
+    my $pos           = $base_pos;
+
+    my $length_so_far = 0;
+
+    my $end_of_input = length ${$p_input};
+    CHAR: while ( $pos < $end_of_input ) {
+        my $char         = substr ${$p_input}, $pos, 1;
+        my $ord          = ord $char;
+        my $escaped_char = $escape_by_ord[$ord]
+            // sprintf( "\\x{%04x}", $ord );
+        my $char_length = length $escaped_char;
+        $length_so_far += $char_length;
+        last CHAR if $length_so_far > $length;
+        push @escaped_chars, $escaped_char;
+        $pos++;
+    } ## end CHAR: while ( $pos < $end_of_input )
+
+    my $first_non_space_ix = $#escaped_chars;
+    my $trailing_spaces    = 0;
+    $trailing_spaces++ while $escaped_chars[ $first_non_space_ix-- ] eq q{ };
+    if ($trailing_spaces) {
+        splice @escaped_chars, -$trailing_spaces;
+        $length_so_far -= $trailing_spaces;
+        TRAILING_SPACE: while ( $trailing_spaces-- > 0 ) {
+            $length_so_far += 2;
+            last TRAILING_SPACE if $length_so_far > $length;
+            push @escaped_chars, '\\s';
+        }
+    } ## end if ($trailing_spaces)
+    return join q{}, @escaped_chars;
+} ## end sub Marpa::R2::Internal::Scanless::input_escape
 
 sub Marpa::R2::Scanless::R::ambiguity_metric {
     my ($slr) = @_;
