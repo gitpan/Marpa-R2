@@ -21,7 +21,7 @@ use warnings;
 no warnings qw(recursion);
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.076000';
+$VERSION        = '2.077_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1051,17 +1051,13 @@ sub Marpa::R2::Internal::ASF::glade_ambiguities {
         my $literal      = $asf->glade_literal($glade);
         my $symbol_id    = $asf->glade_symbol_id($glade);
         my $display_form = $grammar->symbol_display_form($symbol_id);
-        return [
-            [   'symch',
-                $glade,
-                qq{Ambiguous symch; Glade $glade, Symbol $display_form: "$literal"}
-            ]
-        ];
+        return [ [ 'symch', $glade, ] ];
     } ## end if ( $symch_count > 1 )
     my $rule_id = $asf->symch_rule_id( $glade, 0 );
-    return [] if $rule_id < 0;    # no ambiguities if a token
+    return [] if $rule_id < 0;       # no ambiguities if a token
 
     # ignore any truncation of the factorings
+
     my $factoring_count = $asf->symch_factoring_count( $glade, 0 );
     if ( $factoring_count <= 1 ) {
         my $downglades = $asf->factoring_downglades( $glade, 0, 0 );
@@ -1069,13 +1065,13 @@ sub Marpa::R2::Internal::ASF::glade_ambiguities {
             map { @{ glade_ambiguities( $asf, $_, $seen ) } } @{$downglades};
         return \@problems;
     } ## end if ( $factoring_count <= 1 )
-    my @results      = ();
-    my @symch_description = ("Glade $glade");
-    push @symch_description, $grammar->rule_show($rule_id);
-    my $symch_description = join q{, }, @symch_description;
+    my @results           = ();
 
-    my $downglades           = $asf->factoring_downglades( $glade, 0, 0 );
-    my $min_factors          = $#{$downglades} + 1;
+    my $downglades = $asf->factoring_downglades( $glade, 0, 0 );
+    my $min_factors = $#{$downglades} + 1;
+    my ( $upglade_start, $upglade_length ) = $asf->glade_span($glade);
+    my $sync_location = $upglade_start + $upglade_length;
+
     my @factors_by_factoring = ($downglades);
     for (
         my $factoring_ix = 1;
@@ -1088,61 +1084,110 @@ sub Marpa::R2::Internal::ASF::glade_ambiguities {
         my $factor_count = $#{$downglades} + 1;
         $min_factors =
             $min_factors > $factor_count ? $factor_count : $min_factors;
+
+        # Determine a first potential
+        # "sync location of the factors" from
+        # the earliest start of the first downglade of any factoring.
+        # Currently this will be the start of the parent glade, but this
+        # method will be safe against any future hacks.
+        my ($this_sync_location) = $asf->glade_span( $downglades->[0] );
+        $sync_location =
+            List::Util::min( $this_sync_location, $sync_location );
+
         push @factors_by_factoring, $downglades;
     } ## end for ( my $factoring_ix = 1; $factoring_ix < $factoring_count...)
 
-    my $factor_ix = 0;
-    FACTOR:
-    while ( $factor_ix < $min_factors ) {
-        my $factoring_ix;
-        my $first_downglade = $factors_by_factoring[0][$factor_ix];
+    my @factor_ix = (0) x $factoring_count;
+    SYNC_PASS: while (1) {
+
+        # Assume synced and unambiguous until we see otherwise.
+        my $is_synced = 1;
+
+        # First find a synch'ed set of factors, if we can
+        FACTORING:
         for (
-            my $factoring_ix = 1;
+            my $factoring_ix = 0;
             $factoring_ix < $factoring_count;
             $factoring_ix++
             )
         {
+            my $this_factor_ix = $factor_ix[$factoring_ix];
             my $this_downglade =
-                $factors_by_factoring[$factoring_ix][$factor_ix];
-            last FACTOR if $this_downglade != $first_downglade;
-        } ## end for ( my $factoring_ix = 1; $factoring_ix < $factoring_count...)
-        push @results,
-            @{ glade_ambiguities( $asf, $first_downglade, $seen ) };
-        $factor_ix++;
-    } ## end FACTOR: while ( $factor_ix < $min_factors )
+                $factors_by_factoring[$factoring_ix][$this_factor_ix];
+            my ($this_start) = $asf->glade_span($this_downglade);
 
-    push @results,
-        [
-        'factoring', $glade, 0, $factor_ix,
-        "Glade $glade, symch 0 has $factoring_count factorings"
-        ];
+	    # To keep time complexity down we limit the number of times we deal
+	    # with a factoring at a sync location to 3, worst case -- a pass which
+	    # identifies it as a potential sync location, a pass which 
+	    # (if possible) brings all the factors to that location, and a
+	    # pass which leaves all factor IX's where they are, and determines
+	    # we have found a sync location.  This makes out time O(f*n), where
+	    # f is the factoring count and n is the mininum number of factors.
 
-    $factor_ix = $factor_ix + 1;
-    FACTOR:
-    while ( $factor_ix < $min_factors ) {
-        my $factoring_ix;
-        my $first_downglade = $factors_by_factoring[0][$factor_ix];
-        for (
-            my $factoring_ix = 1;
-            $factoring_ix < $factoring_count;
-            $factoring_ix++
-            )
-        {
-            my $this_downglade =
-                $factors_by_factoring[$factoring_ix][$factor_ix];
-            if ($this_downglade != $first_downglade) {
-	        $factor_ix++;
-		next FACTOR;
-	    }
-        } ## end for ( my $factoring_ix = 1; $factoring_ix < $factoring_count...)
-        push @results,
-            @{ glade_ambiguities( $asf, $first_downglade, $seen ) };
-        $factor_ix++;
-    } ## end FACTOR: while ( $factor_ix < $min_factors )
+            while ( $this_start < $sync_location ) {
+                $factor_ix[$factoring_ix]++;
+                last SYNC_PASS if $factor_ix[$factoring_ix] >= $min_factors;
+		$this_start = $asf->glade_span($this_downglade);
+            } ## end if ( $this_start < $sync_location )
+            if ( $this_start > $sync_location ) {
+                $is_synced     = 0;
+                $sync_location = $this_start;
+            }
+        } ## end FACTORING: for ( my $factoring_ix = 0; $factoring_ix < ...)
+
+	next SYNC_PASS if not $is_synced;
+
+	# If here, every factor starts at the sync location
+
+        SYNCED_RESULT: {
+
+            my $ambiguous_factors;
+            my $first_factor_ix = $factor_ix[0];
+            my $first_downglade = $factors_by_factoring[0][$first_factor_ix];
+
+            FACTORING:
+            for (
+                my $factoring_ix = 1;
+                $factoring_ix < $factoring_count;
+                $factoring_ix++
+                )
+            {
+                my $this_factor_ix = $factor_ix[$factoring_ix];
+                my $this_downglade =
+                    $factors_by_factoring[$factoring_ix][$this_factor_ix];
+                if ( $this_downglade != $first_downglade ) {
+                    $ambiguous_factors = [
+                        $first_factor_ix, $factoring_ix,
+                        $this_factor_ix
+                    ];
+                    last FACTORING;
+                } ## end if ( $this_downglade != $first_downglade )
+
+            } ## end FACTORING: for ( my $factoring_ix = 1; $factoring_ix < ...)
+
+            # If here, all the the downglades are identical
+            if ( not defined $ambiguous_factors ) {
+                push @results,
+                    @{ glade_ambiguities( $asf, $first_downglade, $seen ) };
+                last SYNCED_RESULT;
+            }
+
+	    # First factoring IX is always zero
+            push @results,
+                [ 'factoring', $glade, 0, @{$ambiguous_factors} ];
+        } ## end SYNCED_RESULT:
+
+        $factor_ix[$_]++ for 0 .. $factoring_count;
+	last SYNC_PASS if List::Util::max(@factor_ix) >= $min_factors;
+
+    } ## end SYNC_PASS: while (1)
 
     return \@results;
+
 } ## end sub Marpa::R2::Internal::ASF::glade_ambiguities
 
+# A generic display routine for ambiguities -- complex application will
+# want to replace this, using it perhaps as a fallback.
 sub Marpa::R2::Internal::ASF::ambiguities_show {
     my ( $asf, $ambiguities ) = @_;
     my $grammar = $asf->grammar();
@@ -1151,28 +1196,63 @@ sub Marpa::R2::Internal::ASF::ambiguities_show {
     my $result  = q{};
     AMBIGUITY: for my $ambiguity ( @{$ambiguities} ) {
         my $type = $ambiguity->[0];
+        if ( $type eq 'symch' ) {
+
+            # Not tested !!!!
+            my ( undef, $glade ) = @{$ambiguity};
+            my $symbol_display_form =
+                $grammar->symbol_display_form(
+                $asf->glade_symbol_id($glade) );
+            my ( $start,      $length )       = $asf->glade_span($glade);
+            my ( $start_line, $start_column ) = $slr->line_column($start);
+            my ( $end_line,   $end_column ) =
+                $slr->line_column( $start + $length - 1 );
+            my $display_length = List::Util::min( $length, 60 );
+            $result
+                .= qq{Ambiguous symch at Glade=$glade, Symbol=<$symbol_display_form>:\n};
+            $result
+                .= qq{  The ambiguity is from line $start_line, column $start_column }
+                . qq{to line $end_line, column $end_column\n};
+            my $literal_label =
+                $display_length == $length ? 'Text is: ' : 'Text begins: ';
+            $result
+                .= q{  }
+                . $literal_label
+                . Marpa::R2::Internal::Scanless::input_escape( $p_input,
+                $start, $display_length )
+                . qq{\n};
+
+            my $symch_count = $asf->glade_symch_count($glade);
+            my $display_symch_count = List::Util::min( 5, $symch_count );
+            $result .=
+                $symch_count == $display_symch_count
+                ? "  There are $symch_count symches\n"
+                : "  There are $symch_count symches -- showing only the first $display_symch_count\n";
+            SYMCH_IX: for my $symch_ix ( 0 .. $display_symch_count - 1 ) {
+                my $rule_id = $asf->symch_rule_id( $glade, $symch_ix );
+                if ( $rule_id < 0 ) {
+                    $result .= "  Symch $symch_ix is a token\n";
+                    next SYMCH_IX;
+                }
+                $result .= "  Symch $symch_ix is a rule: "
+                    . $grammar->rule_show($rule_id) . "\n";
+            } ## end SYMCH_IX: for my $symch_ix ( 0 .. $display_symch_count - 1 )
+
+            next AMBIGUITY;
+        } ## end if ( $type eq 'symch' )
         if ( $type eq 'factoring' ) {
-            my ( undef, $glade, $symch_ix, $first_ambiguous_factor ) =
-                @{$ambiguity};
+            my $factoring_ix1 = 0;
+            my ( undef, $glade, $symch_ix, $factor_ix1, $factoring_ix2,
+                $factor_ix2 )
+                = @{$ambiguity};
             my $first_downglades =
                 $asf->factoring_downglades( $glade, $symch_ix, 0 );
-            my $first_downglade =
-                $first_downglades->[$first_ambiguous_factor];
-            my $factoring_count =
-                $asf->symch_factoring_count( $glade, $symch_ix );
-            FACTORING:
-            for (
-                my $factoring_ix = 1;
-                $factoring_ix < $factoring_count;
-                $factoring_ix++
-                )
+            my $first_downglade = $first_downglades->[$factor_ix1];
             {
                 my $these_downglades =
                     $asf->factoring_downglades( $glade, $symch_ix,
-                    $factoring_ix );
-                my $this_downglade =
-                    $these_downglades->[$first_ambiguous_factor];
-                next FACTORING if $this_downglade == $first_downglade;
+                    $factoring_ix2 );
+                my $this_downglade = $these_downglades->[$factor_ix2];
                 my $symbol_display_form =
                     $grammar->symbol_display_form(
                     $asf->glade_symbol_id($first_downglade) );
@@ -1185,7 +1265,8 @@ sub Marpa::R2::Internal::ASF::ambiguities_show {
                     $slr->line_column( $start + $first_length - 1 );
                 my ( $end_line2, $end_column2 ) =
                     $slr->line_column( $start + $this_length - 1 );
-		my $display_length = List::Util::min($first_length, $this_length, 60);
+                my $display_length =
+                    List::Util::min( $first_length, $this_length, 60 );
                 $result
                     .= qq{Length of symbol "$symbol_display_form" at line $start_line, column $start_column is ambiguous\n};
                 $result .= qq{  Choices start with: }
@@ -1194,25 +1275,27 @@ sub Marpa::R2::Internal::ASF::ambiguities_show {
                     . qq{\n};
                 $result
                     .= qq{  Choice 1 ends at line $end_line1, column $end_column1\n};
-		$display_length = List::Util::min($first_length, 60);
+                $display_length = List::Util::min( $first_length, 60 );
                 $result .= qq{  Choice 1 ending: }
-                    . Marpa::R2::Internal::Scanless::reversed_input_escape( $p_input,
-                    $start + $first_length, $display_length )
+                    . Marpa::R2::Internal::Scanless::reversed_input_escape(
+                    $p_input, $start + $first_length,
+                    $display_length )
                     . qq{\n};
                 $result
                     .= qq{  Choice 2: Symbol ends at line $end_line2, column $end_column2\n};
-		$display_length = List::Util::min($this_length, 60);
+                $display_length = List::Util::min( $this_length, 60 );
                 $result .= qq{  Choice 2 ending: }
-                    . Marpa::R2::Internal::Scanless::reversed_input_escape( $p_input,
-                    $start + $this_length, $display_length )
+                    . Marpa::R2::Internal::Scanless::reversed_input_escape(
+                    $p_input, $start + $this_length,
+                    $display_length )
                     . qq{\n};
                 next AMBIGUITY;
             } ## end FACTORING: for ( my $factoring_ix = 1; $factoring_ix < ...)
             next AMBIGUITY;
         } ## end if ( $type eq 'factoring' )
         $result
-            .= qq{Ambiguities of type "$type" not implemented: } . join q{ },
-            @{$ambiguity} . "\n";
+            .= qq{Ambiguities of type "$type" not implemented:\n}
+            . Data::Dumper::dumper($ambiguity);
         next AMBIGUITY;
 
     } ## end AMBIGUITY: for my $ambiguity ( @{$ambiguities} )

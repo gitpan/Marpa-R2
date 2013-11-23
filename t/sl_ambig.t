@@ -14,14 +14,14 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-# Tests which require only grammar, input, and an output with no
-# semantics -- usually just an AST
+# Tests of ambiguity detection in the target grammar
+# (as opposed to the SLIF DSL itself).
 
 use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 14;
+use Test::More tests => 2;
 use English qw( -no_match_vars );
 use lib 'inc';
 use Marpa::R2::Test;
@@ -31,111 +31,28 @@ use Data::Dumper;
 our $DEBUG = 0;
 my @tests_data = ();
 
-my $zero_grammar = \(<<'END_OF_SOURCE');
-            :default ::= action => ::array
-            quartet  ::= a a a a
-        a ~ 'a'
-END_OF_SOURCE
-
-push @tests_data,
-    [ $zero_grammar, 'aaaa', [qw(a a a a)], 'Parse OK',
-    'No start statement' ];
-
-my $colon1_grammar = \(<<'END_OF_SOURCE');
-            :default ::= action => ::array
-        :start ::= quartet
-            quartet  ::= a a a a
-        a ~ 'a'
-END_OF_SOURCE
-
-push @tests_data,
-    [
-    $colon1_grammar, 'aaaa',
-    [qw(a a a a)],   'Parse OK',
-    'Colon start statement first'
-    ];
-
-my $colon2_grammar = \(<<'END_OF_SOURCE');
-            :default ::= action => ::array
-            quartet  ::= a a a a
-        :start ::= quartet
-        a ~ 'a'
-END_OF_SOURCE
-
-push @tests_data,
-    [
-    $colon2_grammar, 'aaaa',
-    [qw(a a a a)],   'Parse OK',
-    'Colon start statement second'
-    ];
-
-my $english1_grammar = \(<<'END_OF_SOURCE');
-            :default ::= action => ::array
-        start symbol is quartet
-            quartet  ::= a a a a
-        a ~ 'a'
-END_OF_SOURCE
-
-push @tests_data,
-    [
-    $english1_grammar, 'aaaa',
-    [qw(a a a a)],     'Parse OK',
-    'English start statement first'
-    ];
-
-my $english2_grammar = \(<<'END_OF_SOURCE');
-            :default ::= action => ::array
-            quartet  ::= a a a a
-        start symbol is quartet
-        a ~ 'a'
+my $symch_ambiguity = \(<<'END_OF_SOURCE');
+:default ::= action => ::array
+pair ::= duple | item item
+duple ::= item item
+item ::= Hesperus | Phosphorus
+Hesperus ::= 'a'
+Phosphorus ::= 'a'
 END_OF_SOURCE
 
 push @tests_data, [
-    $english2_grammar, 'aaaa',
-    'SLIF grammar failed',
+    $symch_ambiguity, 'aa',
+    'Application grammar is ambiguous',
     <<'END_OF_MESSAGE',
-Parse of BNF/Scanless source is ambiguous
-Length of symbol "statement" at line 2, column 13 is ambiguous
-  Choices start with: quartet  ::= a a a a
-  Choice 1 ends at line 2, column 32
-  Choice 1 ending: quartet  ::= a a a a
-  Choice 2: Symbol ends at line 3, column 31
-  Choice 2 ending: uartet  ::= a a a a\n        start symbol is quartet
+Ambiguous symch at Glade=2, Symbol=<pair>:
+  The ambiguity is from line 1, column 1 to line 1, column 2
+  Text is: aa
+  There are 2 symches
+  Symch 0 is a rule: pair ::= duple
+  Symch 1 is a rule: pair ::= item item
 END_OF_MESSAGE
-    'English start statement second'
+    'Symch ambiguity'
 ];
-
-my $explicit_grammar1 = \(<<'END_OF_SOURCE');
-	      :default ::= action => ::array
-	      quartet  ::= a a a a;
-        start symbol is quartet
-        a ~ 'a'
-END_OF_SOURCE
-
-push @tests_data,
-    [
-    $explicit_grammar1, 'aaaa',
-    [qw(a a a a)],     'Parse OK',
-    'Explicit English start statement second'
-    ];
-
-my $explicit_grammar2 = \(<<'END_OF_SOURCE');
-	:default ::= action => ::array
-	octet  ::= a a a a
-        start symbol <is> octet
-        a ~ 'a'
-        start ~ 'a'
-        symbol ~ 'a'
-        is ~ 'a'
-        octet ::= a
-END_OF_SOURCE
-
-push @tests_data,
-    [
-    $explicit_grammar2, 'aaaaaaaa',
-    [qw(a a a a a a a), ['a']],     'Parse OK',
-    'Long quartet; no start statement'
-    ];
 
 TEST:
 for my $test_data (@tests_data) {
@@ -143,24 +60,8 @@ for my $test_data (@tests_data) {
         @{$test_data};
     my ( $actual_value, $actual_result );
     PROCESSING: {
-        my $grammar;
-        if (not defined eval {
-                $grammar =
-                    Marpa::R2::Scanless::G->new( { source => $source } );
-                1;
-            }
-            )
-        {
-            say $EVAL_ERROR if $DEBUG;
-            my $abbreviated_error = $EVAL_ERROR;
-
-            chomp $abbreviated_error;
-            $abbreviated_error =~ s/^ Marpa[:][:]R2 \s+ exception \s+ at \s+ .* \z//xms;
-            $actual_value  = 'SLIF grammar failed';
-            $actual_result = $abbreviated_error;
-            last PROCESSING;
-        } ## end if ( not defined eval { $grammar = Marpa::R2::Scanless::G...})
-        my $recce = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
+        my $grammar = Marpa::R2::Scanless::G->new( { source  => $source } );
+        my $recce   = Marpa::R2::Scanless::R->new( { grammar => $grammar } );
 
         if ( not defined eval { $recce->read( \$input ); 1 } ) {
             say $EVAL_ERROR if $DEBUG;
@@ -172,6 +73,26 @@ for my $test_data (@tests_data) {
             $actual_result = $abbreviated_error;
             last PROCESSING;
         } ## end if ( not defined eval { $recce->read( \$input ); 1 })
+
+# Marpa::R2::Display
+# name: ASF ambiguity reporting
+
+        if ( $recce->ambiguity_metric() > 1 ) {
+            my $asf = Marpa::R2::ASF->new( { slr => $recce } );
+            die 'No ASF' if not defined $asf;
+            my $ambiguities = Marpa::R2::Internal::ASF::ambiguities($asf);
+
+            # Only report the first two
+            my @ambiguities = grep {defined} @{$ambiguities}[ 0 .. 1 ];
+
+            $actual_value  = 'Application grammar is ambiguous';
+            $actual_result = Marpa::R2::Internal::ASF::ambiguities_show( $asf,
+                \@ambiguities );
+            last PROCESSING;
+        } ## end if ( $recce->ambiguity_metric() > 1 )
+
+# Marpa::R2::Display::End
+
         my $value_ref = $recce->value();
         if ( not defined $value_ref ) {
             $actual_value  = 'No parse';
@@ -190,6 +111,6 @@ for my $test_data (@tests_data) {
     );
     Test::More::is( $actual_result, $expected_result,
         qq{Result of $test_name} );
-} ## end for my $test_data (@tests_data)
+} ## end TEST: for my $test_data (@tests_data)
 
 # vim: expandtab shiftwidth=4:

@@ -15,6 +15,10 @@
 
 Revision history for Marpa::R2
 
+2.077_000
+
+   * New series of developer's releases
+
 2.076000 Wed Nov 20 16:22:56 PST 2013
 
    * SLIF Start rule is now optional.
