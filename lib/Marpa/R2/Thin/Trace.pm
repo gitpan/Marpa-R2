@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_000';
+$VERSION        = '2.077_001';
 $STRING_VERSION = $VERSION;
 $VERSION        = eval $VERSION;
 
@@ -147,20 +147,21 @@ sub progress_report {
     return $result;
 } ## end sub progress_report
 
-sub stream_progress_report {
-    my ( $self, $stream, $ordinal ) = @_;
+sub lexer_progress_report {
+    my ( $self, $slr, $ordinal ) = @_;
+    my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
     my $result = q{};
-    $ordinal //= $stream->latest_earley_set();
-    $stream->progress_report_start($ordinal);
+    $ordinal //= $thin_slr->lexer_latest_earley_set();
+    $thin_slr->lexer_progress_report_start($ordinal);
     ITEM: while (1) {
-        my ( $rule_id, $dot_position, $origin ) = $stream->progress_item();
+        my ( $rule_id, $dot_position, $origin ) = $thin_slr->lexer_progress_item();
         last ITEM if not defined $rule_id;
         $result
             .= q{@}
             . $origin . q{: }
             . $self->dotted_rule( $rule_id, $dot_position ) . "\n";
     } ## end ITEM: while (1)
-    $stream->progress_report_finish();
+    $thin_slr->lexer_progress_report_finish();
     return $result;
 } ## end sub progress_report
 

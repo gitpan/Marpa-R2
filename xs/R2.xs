@@ -82,43 +82,11 @@ typedef struct {
      */
 } Pos_Entry;
 
-typedef struct {
-     G_Wrapper* g0_wrapper;
-     /* Need to keep a copy of the G0 SV in order to properly "wrap"
-      * a recognizer.
-      */
-     SV* g0_sv;
-     Marpa_Recce r0;
-     /* character position, taking into account Unicode
-         Equivalent to Perl pos()
-	 One past last actual position indicates past-end-of-string
-     */
-     int perl_pos;
-     /* Position of problem -- unspecifed if not returning a problem */
-     int problem_pos;
-     /* Location (exclusive) at which to stop reading */
-     int end_pos;
-     SV* input;
-     Marpa_Symbol_ID input_symbol_id;
-     UV codepoint; /* For error returns */
-     HV* per_codepoint_ops;
-
-     /* The minimum number of tokens that must
-       be accepted at an earleme */
-     IV minimum_accepted;
-     IV trace_g0; /* trace level */
-     AV* event_queue;
-     Pos_Entry* pos_db;
-     int pos_db_logical_size;
-     int pos_db_physical_size;
-     int too_many_earley_items;
-} Unicode_Stream;
-
 #undef POS_TO_OFFSET
-#define POS_TO_OFFSET(stream, pos) \
-  ((pos) > 0 ? (stream)->pos_db[(pos) - 1].next_offset : 0)
-#undef OFFSET_OF_STREAM
-#define OFFSET_OF_STREAM(stream) POS_TO_OFFSET((stream), (stream)->perl_pos)
+#define POS_TO_OFFSET(slr, pos) \
+  ((pos) > 0 ? (slr)->pos_db[(pos) - 1].next_offset : 0)
+#undef OFFSET_IN_INPUT
+#define OFFSET_IN_INPUT(slr) POS_TO_OFFSET((slr), (slr)->perl_pos)
 
 struct lexeme_g_properties {
      int priority;
@@ -132,15 +100,27 @@ struct lexeme_r_properties {
      unsigned int pause_after_active:1;
 };
 
+ /* Lexers are not visible at the Perl level --
+  * for object ownership purposes they are simply components
+  * of an SLG.  Ownership of objects is by SLG.
+  */
+typedef struct
+{
+  SV *g0_sv;
+  Marpa_Symbol_ID *lexer_rule_to_g1_lexeme;
+  HV *per_codepoint_hash;
+  IV *per_codepoint_array[128];
+ G_Wrapper* g_wrapper;
+ int index; /* Index in the lexers array, for convenience */
+} Lexer;
+
 typedef struct {
-     SV* g0_sv;
+     Lexer **lexers;
+     int lexer_count;
+     int lexer_buffer_size;
      SV* g1_sv;
-     G_Wrapper* g0_wrapper;
      G_Wrapper* g1_wrapper;
-     Marpa_Grammar g0;
      Marpa_Grammar g1;
-    Marpa_Symbol_ID* g0_rule_to_g1_lexeme;
-    int lexeme_count;
     int precomputed;
     struct lexeme_g_properties * g1_lexeme_properties;
 } Scanless_G;
@@ -149,31 +129,46 @@ typedef struct
 {
   SV *slg_sv;
   SV *r1_sv;
-  SV *stream_sv;
+  Lexer *current_lexer;
   Scanless_G *slg;
-  Unicode_Stream *stream;
   R_Wrapper *r1_wrapper;
   Marpa_Recce r1;
-  G_Wrapper *g0_wrapper;
   G_Wrapper *g1_wrapper;
   AV *token_values;
+  IV trace_lexer;
   int trace_level;
   int trace_terminals;
   STRLEN start_of_lexeme;
   STRLEN end_of_lexeme;
 
-  /* Input stream position at which to start G0.
+  /* Input position at which to start the lexer.
      -1 means no restart.
    */
-  int g0_start_pos;
-  int stream_read_result;
+  int lexer_start_pos;
+  int lexer_read_result;
   int r1_earleme_complete_result;
+  int perl_pos;
+  Marpa_Recce r0;
+  /* character position, taking into account Unicode
+     Equivalent to Perl pos()
+     One past last actual position indicates past-end-of-string
+   */
+  /* Position of problem -- unspecifed if not returning a problem */
+  int problem_pos;
   int throw;
   int start_of_pause_lexeme;
   int end_of_pause_lexeme;
   Marpa_Symbol_ID pause_lexeme;
-  Marpa_Symbol_ID *lexeme_buffer;
   struct lexeme_r_properties *g1_lexeme_properties;
+  Pos_Entry *pos_db;
+  int pos_db_logical_size;
+  int pos_db_physical_size;
+
+  Marpa_Symbol_ID input_symbol_id;
+  UV codepoint;			/* For error returns */
+     int end_pos;
+     SV* input;
+     int too_many_earley_items;
 } Scanless_R;
 #define TOKEN_VALUE_IS_UNDEF (1)
 #define TOKEN_VALUE_IS_LITERAL (2)
@@ -225,7 +220,6 @@ typedef struct
 static const char grammar_c_class_name[] = "Marpa::R2::Thin::G";
 static const char recce_c_class_name[] = "Marpa::R2::Thin::R";
 static const char bocage_c_class_name[] = "Marpa::R2::Thin::B";
-static const char unicode_stream_class_name[] = "Marpa::R2::Thin::U";
 static const char order_c_class_name[] = "Marpa::R2::Thin::O";
 static const char tree_c_class_name[] = "Marpa::R2::Thin::T";
 static const char value_c_class_name[] = "Marpa::R2::Thin::V";
@@ -479,82 +473,86 @@ r_unwrap (R_Wrapper * r_wrapper)
   return r;
 }
 
-/* Static Stream methods */
+/* Static Lexer methods */
 
 /* The caller must ensure that g_sv is an SV of the correct type */
-static Unicode_Stream* u_new(SV* g_sv)
+static Lexer* lexer_add(Scanless_G* slg, SV* g_sv)
 {
   dTHX;
-  Unicode_Stream *stream;
-  IV tmp = SvIV ((SV *) SvRV (g_sv));
-  G_Wrapper *g_wrapper = INT2PTR (G_Wrapper *, tmp);
-  Newx (stream, 1, Unicode_Stream);
-  stream->g0_wrapper = g_wrapper;
-  stream->r0 = NULL;
-  /* Hold a ref to the grammar SV we were called with --
-   * it will have to exist for our lifetime
-   */
+  Lexer *lexer;
+  G_Wrapper *g_wrapper;
+  unsigned i;
+  int rule_ix;
+  Marpa_Rule_ID lexer_rule_count;
+  int lexer_count = slg->lexer_count;
+  int lexer_buffer_size = slg->lexer_buffer_size;
+  Lexer** lexers = slg->lexers;
+
+  Newx (lexer, 1, Lexer);
+  lexer->g0_sv = g_sv;
+  lexer->per_codepoint_hash = newHV ();
+  for (i = 0; i < Dim(lexer->per_codepoint_array); i++) {
+    lexer->per_codepoint_array[i] = NULL;
+  }
+  SET_G_WRAPPER_FROM_G_SV (g_wrapper, g_sv);
+  lexer->g_wrapper = g_wrapper;
+  lexer_rule_count = marpa_g_highest_rule_id (g_wrapper->g) + 1;
+  Newx (lexer->lexer_rule_to_g1_lexeme, lexer_rule_count, Marpa_Symbol_ID);
+  for (rule_ix = 0; rule_ix < lexer_rule_count; rule_ix++)
+    {
+      lexer->lexer_rule_to_g1_lexeme[rule_ix] = -1;
+    }
   SvREFCNT_inc (g_sv);
-  stream->g0_sv = g_sv;
-  stream->input = newSVpvn ("", 0);
-  stream->perl_pos = 0;
-  stream->problem_pos = -1;
-  stream->end_pos = 0;
-  stream->pos_db = 0;
-  stream->pos_db_logical_size = -1;
-  stream->pos_db_physical_size = -1;
-  stream->input_symbol_id = -1;
-  stream->per_codepoint_ops = newHV ();
-  stream->minimum_accepted = 1;
-  stream->trace_g0 = 0;
-  stream->event_queue = newAV ();
-  stream->too_many_earley_items = -1;
-  return stream;
+  if (lexer_count >= lexer_buffer_size) {
+      lexer_buffer_size = slg->lexer_buffer_size *= 2;
+      Renew(slg->lexers, lexer_buffer_size, Lexer*);
+    }
+  lexer->index = slg->lexer_count++;
+  slg->lexers[lexer->index] = lexer;
+  return lexer;
 }
 
-static void u_destroy(Unicode_Stream *stream)
+static void lexer_destroy(Lexer *lexer)
 {
   dTHX;
-  const Marpa_Recce r0 = stream->r0;
-  if (r0)
-    {
-      marpa_r_unref (r0);
-    }
-  SvREFCNT_dec (stream->event_queue);
-  Safefree(stream->pos_db);
-  SvREFCNT_dec (stream->input);
-  SvREFCNT_dec (stream->per_codepoint_ops);
-  SvREFCNT_dec (stream->g0_sv);
-  Safefree (stream);
+  unsigned i;
+  Safefree (lexer->lexer_rule_to_g1_lexeme);
+  SvREFCNT_dec (lexer->per_codepoint_hash);
+  for (i = 0; i < Dim(lexer->per_codepoint_array); i++) {
+    Safefree(lexer->per_codepoint_array[i]);
+  }
+  SvREFCNT_dec (lexer->g0_sv);
 }
+
+/* Static lexer methods */
 
 static void
-u_r0_clear (Unicode_Stream * stream)
+u_r0_clear (Scanless_R * slr)
 {
   dTHX;
-  Marpa_Recce r0 = stream->r0;
+  Marpa_Recce r0 = slr->r0;
   if (!r0)
     return;
   marpa_r_unref (r0);
-  stream->r0 = NULL;
+  slr->r0 = NULL;
 }
 
 static Marpa_Recce
-u_r0_new (Unicode_Stream * stream)
+u_r0_new (Scanless_R * slr)
 {
   dTHX;
-  Marpa_Recce r0 = stream->r0;
-  G_Wrapper *g0_wrapper = stream->g0_wrapper;
+  Marpa_Recce r0 = slr->r0;
+  G_Wrapper *lexer_wrapper = slr->current_lexer->g_wrapper;
   if (r0)
     {
       marpa_r_unref (r0);
     }
-  stream->r0 = r0 = marpa_r_new (g0_wrapper->g);
+  slr->r0 = r0 = marpa_r_new (lexer_wrapper->g);
   if (!r0)
     {
-      if (!g0_wrapper->throw)
+      if (!lexer_wrapper->throw)
 	return 0;
-      croak ("failure in marpa_r_new(): %s", xs_g_error (g0_wrapper));
+      croak ("failure in marpa_r_new(): %s", xs_g_error (lexer_wrapper));
     };
   {
     int gp_result = marpa_r_start_input (r0);
@@ -562,9 +560,9 @@ u_r0_new (Unicode_Stream * stream)
       return 0;
     if (gp_result < 0)
       {
-	if (g0_wrapper->throw)
+	if (lexer_wrapper->throw)
 	  {
-	    croak ("Problem in r->start_input(): %s", xs_g_error (g0_wrapper));
+	    croak ("Problem in r->start_input(): %s", xs_g_error (lexer_wrapper));
 	  }
 	return 0;
       }
@@ -574,16 +572,14 @@ u_r0_new (Unicode_Stream * stream)
 
 /* Assumes it is called
  after a successful marpa_r_earleme_complete()
- Return value is count of non-fatal events --
- it will always be greater than zero.
  */
-static int
-u_convert_events (Unicode_Stream * stream)
+static void
+u_convert_events (Scanless_R * slr)
 {
   dTHX;
   int event_ix;
   int non_fatal_event_count = 0;
-  Marpa_Grammar g = stream->g0_wrapper->g;
+  Marpa_Grammar g = slr->current_lexer->g_wrapper->g;
   const int event_count = marpa_g_event_count (g);
   for (event_ix = 0; event_ix < event_count; event_ix++)
     {
@@ -595,10 +591,9 @@ u_convert_events (Unicode_Stream * stream)
 	  {
 	case MARPA_EVENT_EXHAUSTED:
 	    /* Do nothing about exhaustion on success */
-	    non_fatal_event_count++;
 	    break;
 	case MARPA_EVENT_EARLEY_ITEM_THRESHOLD:
-	    /* All events are ignored on faiulre
+	    /* All events are ignored on failure
 	     * On success, all except MARPA_EVENT_EARLEY_ITEM_THRESHOLD
 	     * are ignored.
 	     *
@@ -608,9 +603,8 @@ u_convert_events (Unicode_Stream * stream)
 	     */
 	    {
 	      warn
-		("Marpa: stream Earley item count (%ld) exceeds warning threshold",
+		("Marpa: lexer Earley item count (%ld) exceeds warning threshold",
 		 (long) marpa_g_event_value (&marpa_event));
-	      non_fatal_event_count++;
 	    }
 	    break;
 	default:
@@ -618,29 +612,30 @@ u_convert_events (Unicode_Stream * stream)
 	      const char *result_string = event_type_to_string (event_type);
 	      if (result_string)
 		{
-		  croak ("unexpected stream grammar event: %s",
+		  croak ("unexpected lexer grammar event: %s",
 			 result_string);
 		}
-	      croak ("stream grammar event with unknown event code, %d",
+	      croak ("lexer grammar event with unknown event code, %d",
 		     event_type);
 	    }
 	    break;
 	  }
 	}
     }
-    return non_fatal_event_count;
 }
 
 /* Return values:
- * 1 or greater: an event count, as returned by earleme complete.
+ * 1 or greater: reserved for an event count, to deal with multiple events
+ *   when and if necessary
  * 0: success: a full reading of the input, with nothing to report.
  * -1: a character was rejected
  * -2: an unregistered character was found
- * -3: earleme_complete() reported an exhausted parse.
+ * -3: earleme_complete() reported an exhausted parse on failure
  * -4: we are tracing, character by character
+ * -5: earleme_complete() reported an exhausted parse on success
  */
 static int
-u_read(Unicode_Stream *stream)
+u_read(Scanless_R *slr)
 {
   dTHX;
   U8 *input;
@@ -648,39 +643,38 @@ u_read(Unicode_Stream *stream)
   int input_is_utf8;
   int input_length;
 
-  const IV trace_g0 = stream->trace_g0;
-  Marpa_Recognizer r = stream->r0;
+  const IV trace_lexer = slr->trace_lexer;
+  Lexer *lexer = slr->current_lexer;
+  Marpa_Recognizer r = slr->r0;
 
   if (!r)
     {
-      const int too_many_earley_items = stream->too_many_earley_items;
-      r = u_r0_new (stream);
+      const int too_many_earley_items = slr->too_many_earley_items;
+      r = u_r0_new (slr);
       if (!r)
-	croak ("Problem in u_read(): %s", xs_g_error (stream->g0_wrapper));
+	croak ("Problem in u_read(): %s", xs_g_error (slr->current_lexer->g_wrapper));
       if (too_many_earley_items >= 0) {
 	marpa_r_earley_item_warning_threshold_set(r, too_many_earley_items);
       }
     }
-  input_is_utf8 = SvUTF8 (stream->input);
-  input = (U8 *) SvPV (stream->input, len);
+  input_is_utf8 = SvUTF8 (slr->input);
+  input = (U8 *) SvPV (slr->input, len);
   for (;;)
     {
-      int return_value = 0;
       UV codepoint;
       STRLEN codepoint_length = 1;
       STRLEN op_ix;
       STRLEN op_count;
       IV *ops;
-      IV minimum_accepted = stream->minimum_accepted;
       int tokens_accepted = 0;
-      if (stream->perl_pos >= stream->end_pos)
+      if (slr->perl_pos >= slr->end_pos)
 	break;
 
       if (input_is_utf8)
 	{
 
 	  codepoint =
-	    utf8_to_uvchr_buf (input + OFFSET_OF_STREAM (stream),
+	    utf8_to_uvchr_buf (input + OFFSET_IN_INPUT (slr),
 			       input + len, &codepoint_length);
 
 	  /* Perl API documents that return value is 0 and length is -1 on error,
@@ -695,32 +689,42 @@ u_read(Unicode_Stream *stream)
 	}
       else
 	{
-	  codepoint = (UV) input[OFFSET_OF_STREAM (stream)];
+	  codepoint = (UV) input[OFFSET_IN_INPUT (slr)];
 	  codepoint_length = 1;
 	}
 
-      {
-	STRLEN dummy;
-	SV **p_ops_sv =
-	  hv_fetch (stream->per_codepoint_ops, (char *) &codepoint,
-		    (I32) sizeof (codepoint), 0);
-	if (!p_ops_sv)
-	  {
-	    stream->codepoint = codepoint;
-	    return -2;
-	  }
-	ops = (IV *) SvPV (*p_ops_sv, dummy);
-      }
-      if (trace_g0 >= 1)
+      if (codepoint < Dim (lexer->per_codepoint_array))
+	{
+	  ops = lexer->per_codepoint_array[codepoint];
+	  if (!ops)
+	    {
+	      slr->codepoint = codepoint;
+	      return -2;
+	    }
+	}
+      else
+	{
+	  STRLEN dummy;
+	  SV **p_ops_sv = hv_fetch (lexer->per_codepoint_hash, (char *) &codepoint,
+				    (I32) sizeof (codepoint), 0);
+	  if (!p_ops_sv)
+	    {
+	      slr->codepoint = codepoint;
+	      return -2;
+	    }
+	  ops = (IV *) SvPV (*p_ops_sv, dummy);
+	}
+
+      if (trace_lexer >= 1)
 	{
 	  AV *event;
 	  SV *event_data[4];
 	  event_data[0] = newSVpvs ("'trace");
-	  event_data[1] = newSVpvs ("g0 reading codepoint");
+	  event_data[1] = newSVpvs ("lexer reading codepoint");
 	  event_data[2] = newSViv ((IV) codepoint);
-	  event_data[3] = newSViv ((IV) stream->perl_pos);
+	  event_data[3] = newSViv ((IV) slr->perl_pos);
 	  event = av_make (Dim (event_data), event_data);
-	  av_push (stream->event_queue, newRV_noinc ((SV *) event));
+	  av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 	}
 
       /* ops[0] is codepoint */
@@ -763,68 +767,71 @@ u_read(Unicode_Stream *stream)
 		     * the minimum number of tokens accepted,
 		     * we have one of them as an example
 		     */
-		    stream->input_symbol_id = symbol_id;
-		    if (trace_g0 >= 1)
+		    slr->input_symbol_id = symbol_id;
+		    if (trace_lexer >= 1)
 		      {
 			AV *event;
 			SV *event_data[5];
 			event_data[0] = newSVpvs ("'trace");
-			event_data[1] = newSVpvs ("g0 rejected codepoint");
+			event_data[1] = newSVpvs ("lexer rejected codepoint");
 			event_data[2] = newSViv ((IV) codepoint);
-			event_data[3] = newSViv ((IV) stream->perl_pos);
+			event_data[3] = newSViv ((IV) slr->perl_pos);
 			event_data[4] = newSViv ((IV) symbol_id);
 			event = av_make (Dim (event_data), event_data);
-			av_push (stream->event_queue,
+			av_push (slr->r1_wrapper->event_queue,
 				 newRV_noinc ((SV *) event));
 		      }
 		    break;
 		  case MARPA_ERR_NONE:
-		    if (trace_g0 >= 1)
+		    if (trace_lexer >= 1)
 		      {
 			AV *event;
 			SV *event_data[5];
 			event_data[0] = newSVpvs ("'trace");
-			event_data[1] = newSVpvs ("g0 accepted codepoint");
+			event_data[1] = newSVpvs ("lexer accepted codepoint");
 			event_data[2] = newSViv ((IV) codepoint);
-			event_data[3] = newSViv ((IV) stream->perl_pos);
+			event_data[3] = newSViv ((IV) slr->perl_pos);
 			event_data[4] = newSViv ((IV) symbol_id);
 			event = av_make (Dim (event_data), event_data);
-			av_push (stream->event_queue,
+			av_push (slr->r1_wrapper->event_queue,
 				 newRV_noinc ((SV *) event));
 		      }
 		    tokens_accepted++;
 		    break;
 		  default:
-		    stream->codepoint = codepoint;
-		    stream->input_symbol_id = symbol_id;
+		    slr->codepoint = codepoint;
+		    slr->input_symbol_id = symbol_id;
 		    croak
 		      ("Problem alternative() failed at char ix %ld; symbol id %ld; codepoint 0x%lx\n"
 		       "Problem in u_read(), alternative() failed: %s",
-		       (long) stream->perl_pos, (long)symbol_id,
+		       (long) slr->perl_pos, (long)symbol_id,
 		       (unsigned long) codepoint,
-		       xs_g_error (stream->g0_wrapper));
+		       xs_g_error (slr->current_lexer->g_wrapper));
 		  }
 	      }
 	      break;
 	    case op_earleme_complete:
 	      {
 		int result;
-		if (tokens_accepted < minimum_accepted)
+		if (tokens_accepted < 1)
 		  {
-		    stream->codepoint = codepoint;
+		    slr->codepoint = codepoint;
 		    return -1;
 		  }
 		result = marpa_r_earleme_complete (r);
 		if (result > 0)
 		  {
-		    return_value = u_convert_events( stream );
+		     u_convert_events( slr );
 		    /* Advance one character before returning */
+		    if (marpa_r_is_exhausted (r)) {
+		        return -5;
+		    }
 		    goto ADVANCE_ONE_CHAR;
 		  }
 		if (result == -2)
 		  {
 		    const Marpa_Error_Code error =
-		      marpa_g_error (stream->g0_wrapper->g, NULL);
+		      marpa_g_error (slr->current_lexer->g_wrapper->g, NULL);
 		    if (error == MARPA_ERR_PARSE_EXHAUSTED)
 		      {
 			return -3;
@@ -834,7 +841,7 @@ u_read(Unicode_Stream *stream)
 		  {
 		    croak
 		      ("Problem in r->u_read(), earleme_complete() failed: %s",
-		       xs_g_error (stream->g0_wrapper));
+		       xs_g_error (slr->current_lexer->g_wrapper));
 		  }
 	      }
 	      break;
@@ -845,16 +852,12 @@ u_read(Unicode_Stream *stream)
 	    }
 	}
     ADVANCE_ONE_CHAR:;
-      stream->perl_pos++;
+      slr->perl_pos++;
       /* This logic does not allow a return value of 0,
        * which is reserved for a indicating a full
        * read of the input string without event
        */
-      if (return_value)
-	{
-	  return return_value;
-	}
-      if (trace_g0)
+      if (trace_lexer)
 	{
 	  return -4;
 	}
@@ -864,11 +867,11 @@ u_read(Unicode_Stream *stream)
 
 /* It is OK to set pos to last codepoint + 1 */
 static STRLEN
-u_pos_set (Unicode_Stream * stream, const char* name, int start_pos_arg, int length_arg)
+u_pos_set (Scanless_R * slr, const char* name, int start_pos_arg, int length_arg)
 {
   dTHX;
-  const STRLEN old_perl_pos = stream->perl_pos;
-  const STRLEN input_length = stream->pos_db_logical_size;
+  const STRLEN old_perl_pos = slr->perl_pos;
+  const STRLEN input_length = slr->pos_db_logical_size;
   int new_perl_pos;
   int new_end_pos;
 
@@ -877,7 +880,7 @@ u_pos_set (Unicode_Stream * stream, const char* name, int start_pos_arg, int len
   } else {
       new_perl_pos = start_pos_arg;
   }
-  if (new_perl_pos < 0 || new_perl_pos > stream->pos_db_logical_size)
+  if (new_perl_pos < 0 || new_perl_pos > slr->pos_db_logical_size)
   {
       croak ("Bad start position in %s(): %ld", name, (long)start_pos_arg);
   }
@@ -887,40 +890,40 @@ u_pos_set (Unicode_Stream * stream, const char* name, int start_pos_arg, int len
   } else {
     new_end_pos = new_perl_pos + length_arg;
   }
-  if (new_end_pos < 0 || new_end_pos > stream->pos_db_logical_size)
+  if (new_end_pos < 0 || new_end_pos > slr->pos_db_logical_size)
   {
       croak ("Bad length in %s(): %ld", name, (long)length_arg);
   }
 
   new_perl_pos = new_perl_pos;
-  stream->perl_pos = new_perl_pos;
+  slr->perl_pos = new_perl_pos;
   new_end_pos = new_end_pos;
-  stream->end_pos = new_end_pos;
+  slr->end_pos = new_end_pos;
   return old_perl_pos;
 }
 
 static SV *
-u_pos_span_to_literal_sv (Unicode_Stream * stream,
+u_pos_span_to_literal_sv (Scanless_R * slr,
 			  int start_pos, int length_in_positions)
 {
   dTHX;
   STRLEN dummy;
-  char *input = SvPV (stream->input, dummy);
-  int start_offset = POS_TO_OFFSET (stream, start_pos);
+  char *input = SvPV (slr->input, dummy);
+  int start_offset = POS_TO_OFFSET (slr, start_pos);
   int length_in_bytes =
-    POS_TO_OFFSET (stream,
+    POS_TO_OFFSET (slr,
 		   start_pos + length_in_positions) - start_offset;
   return newSVpvn (input + start_offset, length_in_bytes);
 }
 
 static SV*
-u_substring (Unicode_Stream * stream, const char *name, int start_pos_arg,
+u_substring (Scanless_R * slr, const char *name, int start_pos_arg,
 	     int length_arg)
 {
   dTHX;
   int start_pos;
   int end_pos;
-  const int input_length = stream->pos_db_logical_size;
+  const int input_length = slr->pos_db_logical_size;
   int substring_length;
 
   start_pos =
@@ -937,7 +940,7 @@ u_substring (Unicode_Stream * stream, const char *name, int start_pos_arg,
       croak ("Bad length in %s: %ld", name, (long) length_arg);
     }
   substring_length = end_pos - start_pos;
-  return u_pos_span_to_literal_sv (stream, start_pos, substring_length);
+  return u_pos_span_to_literal_sv (slr, start_pos, substring_length);
 }
 
 /* Static valuator methods */
@@ -1580,9 +1583,8 @@ slr_discard (Scanless_R * slr)
   int lexemes_found = 0;
   Marpa_Recce r0;
   Marpa_Earley_Set_ID earley_set;
-  Unicode_Stream * const stream = slr->stream;
 
-  r0 = stream->r0;
+  r0 = slr->r0;
   if (!r0)
     {
       croak ("Problem in slr->read(): No R0 at %s %d", __FILE__, __LINE__);
@@ -1601,7 +1603,7 @@ slr_discard (Scanless_R * slr)
 	{
 	  croak ("Problem in marpa_r_progress_report_start(%p, %ld): %s",
 		 (void *) r0, (unsigned long) earley_set,
-		 xs_g_error (slr->g0_wrapper));
+		 xs_g_error (slr->current_lexer->g_wrapper));
 	}
       while (1)
 	{
@@ -1613,7 +1615,7 @@ slr_discard (Scanless_R * slr)
 	  if (rule_id <= -2)
 	    {
 	      croak ("Problem in marpa_r_progress_item(): %s",
-		     xs_g_error (slr->g0_wrapper));
+		     xs_g_error (slr->current_lexer->g_wrapper));
 	    }
 	  if (rule_id == -1)
 	    goto NO_MORE_REPORT_ITEMS;
@@ -1621,7 +1623,7 @@ slr_discard (Scanless_R * slr)
 	    goto NEXT_REPORT_ITEM;
 	  if (dot_position != -1)
 	    goto NEXT_REPORT_ITEM;
-	  g1_lexeme = slr->slg->g0_rule_to_g1_lexeme[rule_id];
+	  g1_lexeme = slr->current_lexer->lexer_rule_to_g1_lexeme[rule_id];
 	  if (g1_lexeme == -1)
 	    goto NEXT_REPORT_ITEM;
 	  lexemes_found++;
@@ -1638,7 +1640,7 @@ slr_discard (Scanless_R * slr)
 		  event_data[0] = newSVpvs ("'trace");
 		  event_data[1] = newSVpvs ("discarded lexeme");
 		  /* We do not have the lexeme, but we have the 
-		   * g0 rule.
+		   * lexer rule.
 		   * The upper level will have to figure things out.
 		   */
 		  event_data[2] = newSViv (rule_id);
@@ -1651,7 +1653,7 @@ slr_discard (Scanless_R * slr)
 	      /* If there is discarded item, we are fine,
 	       * and can return success.
 	       */
-	      slr->g0_start_pos = stream->perl_pos = working_pos;
+	      slr->lexer_start_pos = slr->perl_pos = working_pos;
 	      return 0;
 	    }
 
@@ -1682,7 +1684,7 @@ slr_discard (Scanless_R * slr)
 	   * to discard this input.
 	   * Return failure.
 	   */
-	  stream->perl_pos = stream->problem_pos = slr->g0_start_pos = slr->start_of_lexeme;
+	  slr->perl_pos = slr->problem_pos = slr->lexer_start_pos = slr->start_of_lexeme;
 	  return -4;
 	}
       earley_set--;
@@ -1692,7 +1694,7 @@ slr_discard (Scanless_R * slr)
    * and therefore none which can be discarded.
    * Return failure.
    */
-  stream->perl_pos = stream->problem_pos = slr->g0_start_pos = slr->start_of_lexeme;
+  slr->perl_pos = slr->problem_pos = slr->lexer_start_pos = slr->start_of_lexeme;
   return -4;
 }
 
@@ -1806,9 +1808,13 @@ slr_alternatives (Scanless_R * slr)
   Marpa_Recce r1 = slr->r1;
   Marpa_Earley_Set_ID earley_set;
   const Scanless_G *slg = slr->slg;
-  Unicode_Stream * const stream = slr->stream;
 
-  r0 = stream->r0;
+  /* Put this in SLG structure? */
+  int lexeme_buffer_size= 8;
+  Marpa_Symbol_ID *lexeme_buffer;
+  Newx(lexeme_buffer, lexeme_buffer_size, Marpa_Symbol_ID);
+
+  r0 = slr->r0;
   if (!r0)
     {
       croak ("Problem in slr->read(): No R0 at %s %d", __FILE__, __LINE__);
@@ -1836,7 +1842,7 @@ slr_alternatives (Scanless_R * slr)
 	{
 	  croak ("Problem in marpa_r_progress_report_start(%p, %ld): %s",
 		 (void *) r0, (unsigned long) earley_set,
-		 xs_g_error (slr->g0_wrapper));
+		 xs_g_error (slr->current_lexer->g_wrapper));
 	}
       do
 	{			/* pass 1 -- do-block executed only once */
@@ -1857,7 +1863,7 @@ slr_alternatives (Scanless_R * slr)
 	      if (rule_id <= -2)
 		{
 		  croak ("Problem in marpa_r_progress_item(): %s",
-			 xs_g_error (slr->g0_wrapper));
+			 xs_g_error (slr->current_lexer->g_wrapper));
 		}
 	      if (rule_id == -1)
 		goto END_OF_PASS1;
@@ -1865,7 +1871,7 @@ slr_alternatives (Scanless_R * slr)
 		goto NEXT_PASS1_REPORT_ITEM;
 	      if (dot_position != -1)
 		goto NEXT_PASS1_REPORT_ITEM;
-	      g1_lexeme = slr->slg->g0_rule_to_g1_lexeme[rule_id];
+	      g1_lexeme = slr->current_lexer->lexer_rule_to_g1_lexeme[rule_id];
 	      if (g1_lexeme == -1)
 		goto NEXT_PASS1_REPORT_ITEM;
 	      slr->end_of_lexeme = working_pos;
@@ -1880,7 +1886,7 @@ slr_alternatives (Scanless_R * slr)
 		      event_data[0] = newSVpvs ("'trace");
 		      event_data[1] = newSVpvs ("discarded lexeme");
 		      /* We do not have the lexeme, but we have the 
-		       * g0 rule.
+		       * lexer rule.
 		       * The upper level will have to figure things out.
 		       */
 		      event_data[2] = newSViv (rule_id);
@@ -1906,7 +1912,7 @@ slr_alternatives (Scanless_R * slr)
 		    {
 		      warn
 			("slr->read() R1 Rejected unexpected symbol %d at pos %d",
-			 g1_lexeme, (int) stream->perl_pos);
+			 g1_lexeme, (int) slr->perl_pos);
 		    }
 		  if (slr->trace_terminals)
 		    {
@@ -1943,7 +1949,11 @@ slr_alternatives (Scanless_R * slr)
 		  is_priority_set = 1;
 		}
 
-	      (slr->lexeme_buffer)[lexemes_in_buffer++] = g1_lexeme;
+	      if (lexemes_in_buffer >= lexeme_buffer_size) {
+		  lexeme_buffer_size *= 2;
+	          Renew(lexeme_buffer, lexeme_buffer_size, Marpa_Symbol_ID);
+	      }
+	      lexeme_buffer[lexemes_in_buffer++] = g1_lexeme;
 
 	    NEXT_PASS1_REPORT_ITEM:;
 	    }
@@ -1954,12 +1964,12 @@ slr_alternatives (Scanless_R * slr)
 	    {
 	      if (discarded)
 		{
-		  stream->perl_pos = slr->g0_start_pos = working_pos;
+		  slr->perl_pos = slr->lexer_start_pos = working_pos;
 		  return 0;
 		}
 	      if (unforgiven)
 		{
-		  stream->perl_pos = stream->problem_pos = slr->g0_start_pos =
+		  slr->perl_pos = slr->problem_pos = slr->lexer_start_pos =
 		    slr->start_of_lexeme;
 		  return "no lexemes accepted";
 		}
@@ -1977,7 +1987,7 @@ slr_alternatives (Scanless_R * slr)
 	int lexeme_ix;
 	for (lexeme_ix = 0; lexeme_ix < lexemes_in_buffer; lexeme_ix++)
 	  {
-	    const Marpa_Symbol_ID lexeme_id = (slr->lexeme_buffer)[lexeme_ix];
+	    const Marpa_Symbol_ID lexeme_id = lexeme_buffer[lexeme_ix];
 	    const struct lexeme_r_properties *lexeme_r_properties
 	      = slr->g1_lexeme_properties + lexeme_id;
 	    if (lexeme_r_properties->pause_before_active)
@@ -2012,7 +2022,7 @@ slr_alternatives (Scanless_R * slr)
 	  }
 	if (g1_lexeme >= 0)
 	  {
-	    slr->g0_start_pos = stream->perl_pos = slr->start_of_lexeme;
+	    slr->lexer_start_pos = slr->perl_pos = slr->start_of_lexeme;
 	    return "event";
 	  }
       }
@@ -2021,7 +2031,7 @@ slr_alternatives (Scanless_R * slr)
 	int lexeme_ix;
 	for (lexeme_ix = 0; lexeme_ix < lexemes_in_buffer; lexeme_ix++)
 	  {
-	    const Marpa_Symbol_ID g1_lexeme = (slr->lexeme_buffer)[lexeme_ix];
+	    const Marpa_Symbol_ID g1_lexeme = lexeme_buffer[lexeme_ix];
 	    const struct lexeme_r_properties *lexeme_r_properties
 	      = slr->g1_lexeme_properties + g1_lexeme;
 
@@ -2055,7 +2065,7 @@ slr_alternatives (Scanless_R * slr)
 		  {
 		    warn
 		      ("slr->read() R1 Rejected duplicate symbol %d at pos %d",
-		       g1_lexeme, (int) stream->perl_pos);
+		       g1_lexeme, (int) slr->perl_pos);
 		  }
 		if (slr->trace_terminals)
 		  {
@@ -2077,7 +2087,7 @@ slr_alternatives (Scanless_R * slr)
 		  {
 		    warn
 		      ("slr->read() R1 Accepted symbol %d at pos %d",
-		       g1_lexeme, (int) stream->perl_pos);
+		       g1_lexeme, (int) slr->perl_pos);
 		  }
 		if (slr->trace_terminals)
 		  {
@@ -2125,7 +2135,7 @@ slr_alternatives (Scanless_R * slr)
 	      default:
 		croak
 		  ("Problem SLR->read() failed on symbol id %d at position %d: %s",
-		   g1_lexeme, (int) stream->perl_pos,
+		   g1_lexeme, (int) slr->perl_pos,
 		   xs_g_error (slr->g1_wrapper));
 		/* NOTREACHED */
 
@@ -2141,7 +2151,7 @@ slr_alternatives (Scanless_R * slr)
 	    croak ("Problem in marpa_r_earleme_complete(): %s",
 		   xs_g_error (slr->g1_wrapper));
 	  }
-	slr->g0_start_pos = stream->perl_pos = slr->end_of_lexeme;
+	slr->lexer_start_pos = slr->perl_pos = slr->end_of_lexeme;
 	if (return_value > 0)
 	  {
 	    r_convert_events (slr->r1_wrapper);
@@ -2161,7 +2171,7 @@ slr_alternatives (Scanless_R * slr)
       earley_set--;
     }
 
-  stream->perl_pos = stream->problem_pos = slr->g0_start_pos =
+  slr->perl_pos = slr->problem_pos = slr->lexer_start_pos =
     slr->start_of_lexeme;
   return "no lexeme";
 }
@@ -2206,7 +2216,7 @@ slr_es_to_literal_span (Scanless_R * slr,
   if (start_earley_set >= latest_earley_set)
     {
       /* Should only happen if length == 0 */
-      *p_start = slr->stream->pos_db_logical_size;
+      *p_start = slr->pos_db_logical_size;
       *p_length = 0;
       return;
     }
@@ -2233,19 +2243,18 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
       int length_in_positions;
       int start_position;
       STRLEN dummy;
-      Unicode_Stream *stream = slr->stream;
-      char *input = SvPV (stream->input, dummy);
+      char *input = SvPV (slr->input, dummy);
       slr_es_to_literal_span (slr,
 			      start_earley_set, length,
 			      &start_position, &length_in_positions);
-      return u_pos_span_to_literal_sv(stream, start_position, length_in_positions);
+      return u_pos_span_to_literal_sv(slr, start_position, length_in_positions);
     }
   return newSVpvn ("", 0);
 }
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 177
-#define EXPECTED_LIBMARPA_MICRO 100
+#define EXPECTED_LIBMARPA_MICRO 101
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -2918,344 +2927,6 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (rule_id)));
   XPUSHs (sv_2mortal (newSViv (position)));
   XPUSHs (sv_2mortal (newSViv (origin)));
-}
-
-MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::U
-
-void
-new( class, g_sv )
-    char * class;
-    SV *g_sv;
-PPCODE:
-{
-  SV* new_sv;
-  Unicode_Stream *stream;
-  if (!sv_isa (g_sv, "Marpa::R2::Thin::G"))
-    {
-      croak ("Problem in u->new(): arg is not of type Marpa::R2::Thin::G");
-    }
-  stream = u_new (g_sv);
-  new_sv = sv_newmortal ();
-  sv_setref_pv (new_sv, unicode_stream_class_name, (void *) stream);
-  XPUSHs (new_sv);
-}
-
-void
-DESTROY( stream )
-    Unicode_Stream *stream;
-PPCODE:
-{
-  u_destroy(stream);
-}
-
-void
-trace_g0( stream, level )
-     Unicode_Stream *stream;
-    int level;
-PPCODE:
-{
-  if (level < 0)
-    {
-      /* Always thrown */
-      croak ("Problem in u->trace(%d): argument must be greater than 0", level);
-    }
-  warn ("Setting Marpa scannerless stream G0 trace level to %d", level);
-  stream->trace_g0 = level;
-  XPUSHs (sv_2mortal (newSViv (level)));
-}
-
-void
-event( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-    SV* event = av_shift(stream->event_queue);
-    XPUSHs (sv_2mortal (event));
-}
-
-void
-progress_report_start( stream, ordinal )
-    Unicode_Stream *stream;
-    Marpa_Earley_Set_ID ordinal;
-PPCODE:
-{
-  int gp_result;
-  G_Wrapper* g0_wrapper;
-  const Marpa_Recognizer recce = stream->r0;
-  if (!recce)
-    {
-      croak ("Problem in r->progress_item(): No G0 Recognizer");
-    }
-  g0_wrapper = stream->g0_wrapper;
-  gp_result = marpa_r_progress_report_start(recce, ordinal);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && g0_wrapper->throw ) {
-    croak( "Problem in r->progress_report_start(%d): %s",
-     ordinal, xs_g_error( g0_wrapper ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
-progress_report_finish( stream )
-    Unicode_Stream *stream;
-PPCODE:
-{
-  int gp_result;
-  G_Wrapper* g0_wrapper;
-  const Marpa_Recognizer recce = stream->r0;
-  if (!recce)
-    {
-      croak ("Problem in r->progress_item(): No G0 Recognizer");
-    }
-  g0_wrapper = stream->g0_wrapper;
-  gp_result = marpa_r_progress_report_finish(recce);
-  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
-  if ( gp_result < 0 && g0_wrapper->throw ) {
-    croak( "Problem in r->progress_report_finish(): %s",
-     xs_g_error( g0_wrapper ));
-  }
-  XPUSHs (sv_2mortal (newSViv (gp_result)));
-}
-
-void
-progress_item( stream )
-    Unicode_Stream *stream;
-PPCODE:
-{
-  Marpa_Rule_ID rule_id;
-  Marpa_Earley_Set_ID origin = -1;
-  int position = -1;
-  G_Wrapper* g0_wrapper;
-  const Marpa_Recognizer recce = stream->r0;
-  if (!recce)
-    {
-      croak ("Problem in r->progress_item(): No G0 Recognizer");
-    }
-  g0_wrapper = stream->g0_wrapper;
-  rule_id = marpa_r_progress_item (recce, &position, &origin);
-  if (rule_id == -1)
-    {
-      XSRETURN_UNDEF;
-    }
-  if (rule_id < 0 && g0_wrapper->throw)
-    {
-      croak ("Problem in r->progress_item(): %s",
-	     xs_g_error (g0_wrapper));
-    }
-  XPUSHs (sv_2mortal (newSViv (rule_id)));
-  XPUSHs (sv_2mortal (newSViv (position)));
-  XPUSHs (sv_2mortal (newSViv (origin)));
-}
-
-void
-_per_codepoint_ops( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  XPUSHs (sv_2mortal (newRV ((SV*)stream->per_codepoint_ops)));
-}
-
-void
-char_register( stream, codepoint, ... )
-     Unicode_Stream *stream;
-     UV codepoint;
-PPCODE:
-{
-  /* OP Count is args less two, then plus two for codepoint and length fields */
-  const STRLEN op_count = items;
-  STRLEN op_ix;
-  STRLEN dummy;
-  IV *ops;
-  SV *ops_sv = newSV (op_count * sizeof (ops[0]));
-  SvPOK_on (ops_sv);
-  ops = (IV *) SvPV (ops_sv, dummy);
-  ops[0] = codepoint;
-  ops[1] = op_count;
-  for (op_ix = 2; op_ix < op_count; op_ix++)
-    {
-      /* By coincidence, offset of individual ops is 2 both in the
-       * method arguments and in the op_list, so that arg IX == op_ix
-       */
-      ops[op_ix] = SvUV (ST (op_ix));
-    }
-  hv_store (stream->per_codepoint_ops, (char *) &codepoint,
-	    sizeof (codepoint), ops_sv, 0);
-}
-
-void
-string_set( stream, string )
-     Unicode_Stream *stream;
-     SVREF string;
-PPCODE:
-{
-  U8* p;
-  U8* start_of_string;
-  U8* end_of_string;
-  int input_is_utf8;
-
-  /* Initialized to a Unicode non-character.  In fact, anything
-   * but a CR would work here.
-   */
-  UV previous_codepoint = 0xFDD0;
-  int next_line = 1;
-  int next_column = 0;
-
-  STRLEN pv_length;
-
-  /* Fail fast with a tainted input string */
-  if (SvTAINTED(string)) {
-      croak
-	("Problem in v->string_set(): Attempt to use a tainted input string with Marpa::R2\n"
-	"Marpa::R2 is insecure for use with tainted data\n");
-  }
-
-  /* Get our own copy and coerce it to a PV.
-   * Stealing is OK, magic is not.
-   */
-  SvSetSV (stream->input, string);
-  start_of_string = (U8*)SvPV_force_nomg (stream->input, pv_length);
-  end_of_string = start_of_string + pv_length;
-  input_is_utf8 = SvUTF8 (stream->input);
-
-  stream->pos_db_logical_size = 0;
-  /* This original buffer size my be too small.
-   */
-  stream->pos_db_physical_size = 1024;
-  Newx (stream->pos_db, stream->pos_db_physical_size, Pos_Entry);
-
-  for (p = start_of_string; p < end_of_string; ) {
-      STRLEN codepoint_length;
-      UV codepoint;
-      if (input_is_utf8)
-	{
-	  codepoint = utf8_to_uvchr_buf (p, end_of_string, &codepoint_length);
-	  /* Perl API documents that return value is 0 and length is -1 on error,
-	   * "if possible".  length can be, and is, in fact unsigned.
-	   * I deal with this by noting that 0 is a valid UTF8 char but should
-	   * have a length of 1, when valid.
-	   */
-	  if (codepoint == 0 && codepoint_length != 1)
-	    {
-	      croak
-		("Problem in stream->string_set(): invalid UTF8 character");
-	    }
-	}
-      else
-	{
-	  codepoint = (UV) * p;
-	  codepoint_length = 1;
-	}
-      /* Ensure that there is enough space */
-      if (stream->pos_db_logical_size >= stream->pos_db_physical_size)
-	{
-	  stream->pos_db_physical_size *= 2;
-	  stream->pos_db =
-	    Renew (stream->pos_db, stream->pos_db_physical_size, Pos_Entry);
-	}
-      p += codepoint_length;
-      stream->pos_db[stream->pos_db_logical_size].next_offset =
-	p - start_of_string;
-
-	/* The definition of newline here follows the Unicode standard TR13 */
-      if (codepoint == 0x0a && previous_codepoint == 0x0d) {
-	stream->pos_db[stream->pos_db_logical_size].linecol =
-	  stream->pos_db[stream->pos_db_logical_size-1].linecol - 1;
-      } else {
-	stream->pos_db[stream->pos_db_logical_size].linecol = next_column ? next_column : next_line;
-      }
-      switch (codepoint) {
-      case 0x0a: case 0x0b: case 0x0c: case 0x0d:
-      case 0x85: case 0x2028: case 0x2029:
-          next_line++;
-	  next_column = 0;
-	  break;
-      default:
-          next_column--;
-      }
-      stream->pos_db_logical_size++;
-      previous_codepoint = codepoint;
-    }
-  XSRETURN_YES;
-}
-
-void
-input_length( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  XSRETURN_IV(stream->pos_db_logical_size);
-}
-
-void
-pos( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  XSRETURN_IV(stream->perl_pos);
-}
-
-void
-problem_pos( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  if (stream->problem_pos < 0) {
-     XSRETURN_UNDEF;
-  }
-  XSRETURN_IV(stream->problem_pos);
-}
-
-void
-latest_earley_set( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  const Marpa_Recce r0 = stream->r0;
-  if (!stream->r0)
-    {
-      XSRETURN_UNDEF;
-    }
-  XSRETURN_IV (marpa_r_latest_earley_set (stream->r0));
-}
-
-void
-substring(stream, start_pos, length)
-    Unicode_Stream *stream;
-    int start_pos;
-    int length;
-PPCODE:
-{
-  SV* literal_sv = u_substring(stream, "stream->substring()", start_pos, length);
-  XPUSHs (sv_2mortal (literal_sv));
-}
-
-void
-codepoint( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  XSRETURN_UV(stream->codepoint);
-}
-
-void
-symbol_id( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  XSRETURN_IV(stream->input_symbol_id);
-}
-
-void
-read( stream )
-     Unicode_Stream *stream;
-PPCODE:
-{
-  int return_value;
-  av_clear(stream->event_queue);
-  u_pos_set(stream, "stream->read", 0, -1);
-  return_value = u_read(stream);
-  XSRETURN_IV(return_value);
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::B
@@ -5080,28 +4751,22 @@ PPCODE:
   Newx (slg, 1, Scanless_G);
 
   # Copy and take references to the parent objects
-  slg->g0_sv = g0_sv;
-  SvREFCNT_inc (g0_sv);
+  Newx(slg->lexers, 1, Lexer*);
+  # After testing, start with a larger buffer size, perhaps 8
+  slg->lexer_buffer_size = 1;
+  slg->lexer_count = 0;
+  lexer_add(slg, g0_sv);
+
   slg->g1_sv = g1_sv;
   SvREFCNT_inc (g1_sv);
 
+
   # These do not need references, because parent objects
   # hold references to them
-  SET_G_WRAPPER_FROM_G_SV(slg->g0_wrapper, g0_sv)
   SET_G_WRAPPER_FROM_G_SV(slg->g1_wrapper, g1_sv)
-  slg->g0 = slg->g0_wrapper->g;
   slg->g1 = slg->g1_wrapper->g;
   slg->precomputed = 0;
 
-  {
-    Marpa_Rule_ID rule;
-    Marpa_Rule_ID g0_rule_count = marpa_g_highest_rule_id (slg->g0) + 1;
-    Newx (slg->g0_rule_to_g1_lexeme, g0_rule_count, Marpa_Symbol_ID);
-    for (rule = 0; rule < g0_rule_count; rule++)
-      {
-	slg->g0_rule_to_g1_lexeme[rule] = -1;
-      }
-  }
   {
     Marpa_Symbol_ID symbol_id;
     Marpa_Symbol_ID g1_symbol_count = marpa_g_highest_symbol_id (slg->g1) + 1;
@@ -5124,25 +4789,18 @@ DESTROY( slg )
     Scanless_G *slg;
 PPCODE:
 {
-  SvREFCNT_dec (slg->g0_sv);
+  int i;
+  for (i = 0; i < slg->lexer_count; i++)
+    {
+      Lexer *lexer = slg->lexers[i];
+      if (lexer)
+	{
+	  lexer_destroy (lexer);
+	}
+    }
   SvREFCNT_dec (slg->g1_sv);
-  Safefree(slg->g0_rule_to_g1_lexeme);
-  Safefree(slg->g1_lexeme_properties);
-  Safefree(slg);
-}
-
- #  Always returns the same SV for a given Scanless recce object -- 
- #  it does not create a new one
- # 
-void
-g0( slg )
-    Scanless_G *slg;
-PPCODE:
-{
-  /* Not mortalized because,
-   * held for the length of the scanless object.
-   */
-  XPUSHs (sv_2mortal (SvREFCNT_inc_NN (slg->g0_sv)));
+  Safefree (slg->g1_lexeme_properties);
+  Safefree (slg);
 }
 
  #  Always returns the same SV for a given Scanless recce object -- 
@@ -5160,47 +4818,61 @@ PPCODE:
 }
 
 void
-g0_rule_to_g1_lexeme_set( slg, g0_rule, g1_lexeme )
+lexer_rule_to_g1_lexeme_set( slg, lexer_ix, lexer_rule, g1_lexeme )
     Scanless_G *slg;
-    Marpa_Rule_ID g0_rule;
+    int lexer_ix;
+    Marpa_Rule_ID lexer_rule;
     Marpa_Symbol_ID g1_lexeme;
 PPCODE:
 {
-  Marpa_Rule_ID highest_g0_rule_id = marpa_g_highest_rule_id (slg->g0);
-  Marpa_Symbol_ID highest_g1_symbol_id = marpa_g_highest_symbol_id (slg->g1);
+  Marpa_Rule_ID highest_lexer_rule_id;
+  Marpa_Symbol_ID highest_g1_symbol_id;
+  Lexer *lexer;
+
+  if (lexer_ix < 0 || lexer_ix >= slg->lexer_count)
+    {
+      croak
+	("slg->lexer_rule_to_g1_lexeme_set(%ld, %ld, %ld) called for invalid lexer(%ld)",
+	 (long) lexer_rule, (long) lexer_ix, (long) g1_lexeme, (long) lexer_ix);
+    }
+  lexer = slg->lexers[lexer_ix];
+  highest_lexer_rule_id = marpa_g_highest_rule_id (lexer->g_wrapper->g);
+  highest_g1_symbol_id = marpa_g_highest_symbol_id (slg->g1);
   if (slg->precomputed)
     {
       croak
-	("slg->g0_rule_to_g1_lexeme_set(%ld, %ld) called after SLG is precomputed",
-	 (long) g0_rule, (long) g1_lexeme);
+	("slg->lexer_rule_to_g1_lexeme_set(%ld, %ld, %ld) called after SLG is precomputed",
+	 (long) lexer_rule, (long) lexer_ix, (long) g1_lexeme);
     }
-  if (g0_rule > highest_g0_rule_id)
+  if (lexer_rule > highest_lexer_rule_id)
     {
       croak
-	("Problem in slg->g0_rule_to_g1_lexeme_set(%ld, %ld): rule ID was %ld, but highest G0 rule ID = %ld",
-	 (long) g0_rule,
-	 (long) g1_lexeme, (long) g0_rule, (long) highest_g0_rule_id);
+	("Problem in slg->lexer_rule_to_g1_lexeme_set(%ld, %ld, %ld): rule ID was %ld, but highest lexer rule ID = %ld",
+	 (long) lexer_rule, (long) lexer_ix,
+	 (long) g1_lexeme, (long) lexer_rule, (long) highest_lexer_rule_id);
     }
   if (g1_lexeme > highest_g1_symbol_id)
     {
       croak
-	("Problem in slg->g0_rule_to_g1_lexeme_set(%ld, %ld): symbol ID was %ld, but highest G1 symbol ID = %ld",
-	 (long) g0_rule,
-	 (long) g1_lexeme, (long) g0_rule, (long) highest_g1_symbol_id);
+	("Problem in slg->lexer_rule_to_g1_lexeme_set(%ld, %ld, %ld): symbol ID was %ld, but highest G1 symbol ID = %ld",
+	 (long) lexer_rule, (long) lexer_ix,
+	 (long) g1_lexeme, (long) lexer_rule, (long) highest_g1_symbol_id);
     }
-  if (g0_rule < -2)
+  if (lexer_rule < -2)
     {
       croak
-	("Problem in slg->g0_rule_to_g1_lexeme_set(%ld, %ld): rule ID was %ld, a disallowed value",
-	 (long) g0_rule, (long) g1_lexeme, (long) g0_rule);
+	("Problem in slg->lexer_rule_to_g1_lexeme_set(%ld, %ld, %ld): rule ID was %ld, a disallowed value",
+	 (long) lexer_rule, (long) lexer_ix, (long) g1_lexeme,
+	 (long) lexer_rule);
     }
   if (g1_lexeme < -2)
     {
       croak
-	("Problem in slg->g0_rule_to_g1_lexeme_set(%ld, %ld): symbol ID was %ld, a disallowed value",
-	 (long) g0_rule, (long) g1_lexeme, (long) g1_lexeme);
+	("Problem in slg->lexer_rule_to_g1_lexeme_set(%ld, %ld, %ld): symbol ID was %ld, a disallowed value",
+	 (long) lexer_rule, (long) lexer_ix, (long) g1_lexeme,
+	 (long) g1_lexeme);
     }
-  slg->g0_rule_to_g1_lexeme[g0_rule] = g1_lexeme;
+  lexer->lexer_rule_to_g1_lexeme[lexer_rule] = g1_lexeme;
   XSRETURN_YES;
 }
 
@@ -5323,19 +4995,17 @@ precompute( slg )
     Scanless_G *slg;
 PPCODE:
 {
-  /* Ensure that I can call this multiple times safely */
+  /* Currently this routine does nothing except set a flag to
+   * enforce the * separation of the precomputation phase
+   * from the main processing.
+   */
   if (!slg->precomputed)
     {
-      Marpa_Rule_ID rule_id;
-      const Marpa_Rule_ID g0_rule_count =
-	marpa_g_highest_rule_id (slg->g0) + 1;
-      slg->lexeme_count = 0;
+      /*
+       * Ensure that I can call this multiple times safely, even
+       * if I do some real processing here.
+       */
       slg->precomputed = 1;
-      for (rule_id = 0; rule_id < g0_rule_count; rule_id++)
-	{
-	  if (slg->g0_rule_to_g1_lexeme[rule_id] >= 0)
-	    slg->lexeme_count++;
-	}
     }
   XSRETURN_IV (1);
 }
@@ -5366,7 +5036,9 @@ PPCODE:
 
   slr->throw = 1;
   slr->trace_level = 0;
+  slr->trace_lexer = 0;
   slr->trace_terminals = 0;
+  slr->r0 = NULL;
 
 # Copy and take references to the "parent objects",
 # the ones responsible for holding references.
@@ -5390,18 +5062,10 @@ PPCODE:
 
   slr->start_of_lexeme = 0;
   slr->end_of_lexeme = 0;
+  slr->perl_pos = 0;
+  slr->problem_pos = -1;
   slr->token_values = newAV ();
   av_fill (slr->token_values, TOKEN_VALUE_IS_LITERAL);
-
-  {
-    SV *g0_sv = slg->g0_sv;
-    Unicode_Stream *stream = u_new (g0_sv);
-    SV *stream_sv = newSV (0);
-    SET_G_WRAPPER_FROM_G_SV (slr->g0_wrapper, g0_sv);
-    sv_setref_pv (stream_sv, unicode_stream_class_name, (void *) stream);
-    slr->stream = stream;
-    slr->stream_sv = stream_sv;
-  }
 
   {
     Marpa_Symbol_ID symbol_id;
@@ -5420,14 +5084,22 @@ PPCODE:
       }
   }
 
-  slr->g0_start_pos = slr->stream->perl_pos;
-  slr->stream_read_result = 0;
+  slr->lexer_start_pos = slr->perl_pos;
+  slr->lexer_read_result = 0;
   slr->r1_earleme_complete_result = 0;
   slr->start_of_pause_lexeme = -1;
   slr->end_of_pause_lexeme = -1;
   slr->pause_lexeme = -1;
-  slr->lexeme_buffer = NULL;
-  Newx (slr->lexeme_buffer, slg->lexeme_count, Marpa_Symbol_ID);
+
+  slr->pos_db = 0;
+  slr->pos_db_logical_size = -1;
+  slr->pos_db_physical_size = -1;
+
+  slr->input_symbol_id = -1;
+  slr->input = newSVpvn ("", 0);
+  slr->end_pos = 0;
+  slr->too_many_earley_items = -1;
+  slr->current_lexer = slg->lexers[0];
 
   new_sv = sv_newmortal ();
   sv_setref_pv (new_sv, scanless_r_class_name, (void *) slr);
@@ -5439,15 +5111,20 @@ DESTROY( slr )
     Scanless_R *slr;
 PPCODE:
 {
-  SvREFCNT_dec (slr->stream_sv);
+  const Marpa_Recce r0 = slr->r0;
+  if (r0)
+    {
+      marpa_r_unref (r0);
+    }
+  Safefree(slr->pos_db);
   SvREFCNT_dec (slr->slg_sv);
   SvREFCNT_dec (slr->r1_sv);
   Safefree(slr->g1_lexeme_properties);
-  Safefree(slr->lexeme_buffer);
   if (slr->token_values)
     {
       SvREFCNT_dec ((SV *) slr->token_values);
     }
+  SvREFCNT_dec (slr->input);
   Safefree (slr);
 }
 
@@ -5472,16 +5149,15 @@ PPCODE:
 }
 
 void
-trace_g0( slr, new_level )
+trace_lexer( slr, new_level )
     Scanless_R *slr;
     int new_level;
 PPCODE:
 {
-  Unicode_Stream *stream = slr->stream;
-  IV old_level = stream->trace_g0;
-  stream->trace_g0 = new_level;
+  IV old_level = slr->trace_lexer;
+  slr->trace_lexer = new_level;
   if (slr->trace_level) {
-    /* Note that we use *trace_level*, not *trace_g0* to control warning.
+    /* Note that we use *trace_level*, not *trace_lexer* to control warning.
      * We never warn() for trace_terminals, just report events.
      */
     warn("Changing SLR g0 trace level from %d to %d", (int)old_level, (int)new_level);
@@ -5511,7 +5187,7 @@ earley_item_warning_threshold( slr )
     Scanless_R *slr;
 PPCODE:
 {
-  XSRETURN_IV(slr->stream->too_many_earley_items);
+  XSRETURN_IV(slr->too_many_earley_items);
 }
 
 void
@@ -5520,18 +5196,7 @@ earley_item_warning_threshold_set( slr, too_many_earley_items )
     int too_many_earley_items;
 PPCODE:
 {
-  slr->stream->too_many_earley_items = too_many_earley_items;
-}
-
- #  Always returns the same SV for a given Scanless recce object -- 
- #  it does not create a new one
- # 
-void
-g0( slr )
-    Scanless_R *slr;
-PPCODE:
-{
-  XPUSHs (sv_2mortal (SvREFCNT_inc_NN ( slr->slg->g0_sv)));
+  slr->too_many_earley_items = too_many_earley_items;
 }
 
  #  Always returns the same SV for a given Scanless recce object -- 
@@ -5545,24 +5210,12 @@ PPCODE:
   XPUSHs (sv_2mortal (SvREFCNT_inc_NN ( slr->r1_wrapper->base_sv)));
 }
 
- #  Always returns the same SV for a given Scanless recce object -- 
- #  it does not create a new one
- # 
-void
-stream( slr )
-    Scanless_R *slr;
-PPCODE:
-{
-  XPUSHs (sv_2mortal (SvREFCNT_inc_NN ( slr->stream_sv)));
-}
-
 void
 pos( slr )
     Scanless_R *slr;
 PPCODE:
 {
-  Unicode_Stream *stream = slr->stream;
-  XSRETURN_IV(stream->perl_pos);
+  XSRETURN_IV(slr->perl_pos);
 }
 
 void
@@ -5572,11 +5225,10 @@ pos_set( slr, start_pos_sv, length_sv )
      SV* length_sv;
 PPCODE:
 {
-  Unicode_Stream *stream = slr->stream;
-  int start_pos = SvIOK(start_pos_sv) ? SvIV(start_pos_sv) : stream->perl_pos;
+  int start_pos = SvIOK(start_pos_sv) ? SvIV(start_pos_sv) : slr->perl_pos;
   int length = SvIOK(length_sv) ? SvIV(length_sv) : -1;
-  u_pos_set(stream, "stream->pos_set", start_pos, length);
-  slr->g0_start_pos = stream->perl_pos;
+  u_pos_set(slr, "slr->pos_set", start_pos, length);
+  slr->lexer_start_pos = slr->perl_pos;
   XSRETURN_YES;
 }
 
@@ -5587,8 +5239,7 @@ substring(slr, start_pos, length)
     int length;
 PPCODE:
 {
-  Unicode_Stream *stream = slr->stream;
-  SV* literal_sv = u_substring(stream, "slr->substring()", start_pos, length);
+  SV* literal_sv = u_substring(slr, "slr->substring()", start_pos, length);
   XPUSHs (sv_2mortal (literal_sv));
 }
 
@@ -5636,45 +5287,42 @@ read(slr)
 PPCODE:
 {
   int result = 0;		/* Hold various results */
-  Unicode_Stream *stream = slr->stream;
-  int trace_g0 = stream->trace_g0;
+  int trace_lexer = slr->trace_lexer;
 
-  slr->stream_read_result = 0;
+  slr->lexer_read_result = 0;
   slr->r1_earleme_complete_result = 0;
   slr->start_of_pause_lexeme = -1;
   slr->end_of_pause_lexeme = -1;
   slr->pause_lexeme = -1;
-  av_clear (stream->event_queue);
+  av_clear (slr->r1_wrapper->event_queue);
 
   while (1)
     {
-      if (slr->g0_start_pos >= 0)
+      if (slr->lexer_start_pos >= 0)
 	{
-	  STRLEN input_length = SvCUR (stream->input);
+	  STRLEN input_length = SvCUR (slr->input);
 
-	  if (slr->g0_start_pos >= stream->end_pos)
+	  if (slr->lexer_start_pos >= slr->end_pos)
 	  {
 	    XSRETURN_PV ("");
 	  }
 
-	  slr->start_of_lexeme = stream->perl_pos = slr->g0_start_pos;
-	  slr->g0_start_pos = -1;
-	  u_r0_clear (stream);
-	  if (trace_g0 >= 1)
+	  slr->start_of_lexeme = slr->perl_pos = slr->lexer_start_pos;
+	  slr->lexer_start_pos = -1;
+	  u_r0_clear (slr);
+	  if (trace_lexer >= 1)
 	    {
 	      AV *event;
 	      SV *event_data[3];
 	      event_data[0] = newSVpvs ("'trace");
 	      event_data[1] = newSVpv ("g0 restarted recognizer", 0);
-	      event_data[2] = newSViv ((IV) stream->perl_pos);
+	      event_data[2] = newSViv ((IV) slr->perl_pos);
 	      event = av_make (Dim (event_data), event_data);
-	      av_push (stream->event_queue, newRV_noinc ((SV *) event));
+	      av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 	    }
 	}
 
-      av_clear (slr->r1_wrapper->event_queue);
-
-      result = slr->stream_read_result = u_read (stream);
+      result = slr->lexer_read_result = u_read (slr);
       if (result == -4)
 	{
 	  XSRETURN_PV ("trace");
@@ -5683,7 +5331,7 @@ PPCODE:
 	{
 	  XSRETURN_PV ("unregistered char");
 	}
-      if (result < -1)
+      if (result < -5)
 	{
 	  XSRETURN_PV ("R0 read() problem");
 	}
@@ -5704,7 +5352,7 @@ PPCODE:
 	    }
 	}
 
-      if (slr->trace_terminals || stream->trace_g0)
+      if (slr->trace_terminals || slr->trace_lexer)
 	{
 	  XSRETURN_PV ("trace");
 	}
@@ -5716,11 +5364,11 @@ PPCODE:
 }
 
 void
-stream_read_result (slr)
+lexer_read_result (slr)
      Scanless_R *slr;
 PPCODE:
 {
-  XPUSHs (sv_2mortal (newSViv ((IV) slr->stream_read_result)));
+  XPUSHs (sv_2mortal (newSViv ((IV) slr->lexer_read_result)));
 }
 
 void
@@ -5766,16 +5414,9 @@ events(slr)
     Scanless_R *slr;
 PPCODE:
 {
-  Unicode_Stream *stream = slr->stream;
   int i;
-  const int stream_queue_length = av_len (stream->event_queue);
-  const int slr_queue_length = av_len (slr->r1_wrapper->event_queue);
-  for (i = 0; i <= stream_queue_length; i++)
-    {
-    SV *event = av_shift (stream->event_queue);
-      XPUSHs (sv_2mortal (event));
-    }
-  for (i = 0; i <= slr_queue_length; i++)
+  const int queue_length = av_len (slr->r1_wrapper->event_queue);
+  for (i = 0; i <= queue_length; i++)
     {
       SV *event = av_shift (slr->r1_wrapper->event_queue);
       XPUSHs (sv_2mortal (event));
@@ -5812,27 +5453,26 @@ line_column(slr, pos)
      IV pos;
 PPCODE:
 {
-  Unicode_Stream *stream = slr->stream;
   int line = 1;
   int column = 1;
   int linecol;
   if (pos < 0)
     {
-      pos = stream->perl_pos;
+      pos = slr->perl_pos;
     }
-  if (pos >= stream->pos_db_logical_size)
+  if (pos >= slr->pos_db_logical_size)
     {
       croak ("Problem in slr->line_column(%ld): position out of range",
 	     (long) pos);
     }
-  linecol = stream->pos_db[pos].linecol;
+  linecol = slr->pos_db[pos].linecol;
   if (linecol >= 0)
     {				/* Zero should not happen */
       line = linecol;
     }
   else
     {
-      line = stream->pos_db[pos + linecol].linecol;
+      line = slr->pos_db[pos + linecol].linecol;
       column = -linecol + 1;
     }
   XPUSHs (sv_2mortal (newSViv ((IV) line)));
@@ -5895,15 +5535,14 @@ g1_lexeme_complete (slr, start_pos_sv, length_sv)
 PPCODE:
 {
   int result;
-  Unicode_Stream *stream = slr->stream;
-  const int old_pos = stream->perl_pos;
-  const int input_length = stream->pos_db_logical_size;
+  const int old_pos = slr->perl_pos;
+  const int input_length = slr->pos_db_logical_size;
 
   int start_pos =
-    SvIOK (start_pos_sv) ? SvIV (start_pos_sv) : stream->perl_pos;
+    SvIOK (start_pos_sv) ? SvIV (start_pos_sv) : slr->perl_pos;
 
   int lexeme_length = SvIOK (length_sv) ? SvIV (length_sv)
-    : stream->perl_pos ==
+    : slr->perl_pos ==
     slr->start_of_pause_lexeme ? (slr->end_of_pause_lexeme -
 				  slr->start_of_pause_lexeme) : -1;
 
@@ -5914,7 +5553,7 @@ PPCODE:
       croak ("Bad start position in slr->g1_lexeme_complete(): %ld",
 	     (long) (SvIOK (start_pos_sv) ? SvIV (start_pos_sv) : -1));
     }
-  stream->perl_pos = start_pos;
+  slr->perl_pos = start_pos;
 
   {
     const int end_pos =
@@ -5936,8 +5575,8 @@ PPCODE:
       r_convert_events (slr->r1_wrapper);
       marpa_r_latest_earley_set_values_set (slr->r1, start_pos,
 					    INT2PTR (void *, lexeme_length));
-      stream->perl_pos = start_pos + lexeme_length;
-      XSRETURN_IV (stream->perl_pos);
+      slr->perl_pos = start_pos + lexeme_length;
+      XSRETURN_IV (slr->perl_pos);
     }
   if (result == -2)
     {
@@ -6003,6 +5642,269 @@ PPCODE:
 	 (long) g1_lexeme_id, (long) reactivate, (long) reactivate);
     }
   XPUSHs (sv_2mortal (newSViv (reactivate)));
+}
+
+void
+problem_pos( slr )
+     Scanless_R *slr;
+PPCODE:
+{
+  if (slr->problem_pos < 0) {
+     XSRETURN_UNDEF;
+  }
+  XSRETURN_IV(slr->problem_pos);
+}
+
+void
+lexer_latest_earley_set( slr )
+     Scanless_R *slr;
+PPCODE:
+{
+  const Marpa_Recce r0 = slr->r0;
+  if (!r0)
+    {
+      XSRETURN_UNDEF;
+    }
+  XSRETURN_IV (marpa_r_latest_earley_set (r0));
+}
+
+void
+lexer_progress_report_start( slr, ordinal )
+    Scanless_R *slr;
+    Marpa_Earley_Set_ID ordinal;
+PPCODE:
+{
+  int gp_result;
+  G_Wrapper* lexer_wrapper;
+  const Marpa_Recognizer recce = slr->r0;
+  if (!recce)
+    {
+      croak ("Problem in r->progress_item(): No lexer recognizer");
+    }
+  lexer_wrapper = slr->current_lexer->g_wrapper;
+  gp_result = marpa_r_progress_report_start(recce, ordinal);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && lexer_wrapper->throw ) {
+    croak( "Problem in r->progress_report_start(%d): %s",
+     ordinal, xs_g_error( lexer_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+lexer_progress_report_finish( slr )
+    Scanless_R *slr;
+PPCODE:
+{
+  int gp_result;
+  G_Wrapper* lexer_wrapper;
+  const Marpa_Recognizer recce = slr->r0;
+  if (!recce)
+    {
+      croak ("Problem in r->progress_item(): No lexer recognizer");
+    }
+  lexer_wrapper = slr->current_lexer->g_wrapper;
+  gp_result = marpa_r_progress_report_finish(recce);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && lexer_wrapper->throw ) {
+    croak( "Problem in r->progress_report_finish(): %s",
+     xs_g_error( lexer_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+lexer_progress_item( slr )
+    Scanless_R *slr;
+PPCODE:
+{
+  Marpa_Rule_ID rule_id;
+  Marpa_Earley_Set_ID origin = -1;
+  int position = -1;
+  G_Wrapper* lexer_wrapper;
+  const Marpa_Recognizer recce = slr->r0;
+  if (!recce)
+    {
+      croak ("Problem in r->progress_item(): No lexer recognizer");
+    }
+  lexer_wrapper = slr->current_lexer->g_wrapper;
+  rule_id = marpa_r_progress_item (recce, &position, &origin);
+  if (rule_id == -1)
+    {
+      XSRETURN_UNDEF;
+    }
+  if (rule_id < 0 && lexer_wrapper->throw)
+    {
+      croak ("Problem in r->progress_item(): %s",
+	     xs_g_error (lexer_wrapper));
+    }
+  XPUSHs (sv_2mortal (newSViv (rule_id)));
+  XPUSHs (sv_2mortal (newSViv (position)));
+  XPUSHs (sv_2mortal (newSViv (origin)));
+}
+
+void
+string_set( slr, string )
+     Scanless_R *slr;
+     SVREF string;
+PPCODE:
+{
+  U8* p;
+  U8* start_of_string;
+  U8* end_of_string;
+  int input_is_utf8;
+
+  /* Initialized to a Unicode non-character.  In fact, anything
+   * but a CR would work here.
+   */
+  UV previous_codepoint = 0xFDD0;
+  int next_line = 1;
+  int next_column = 0;
+
+  STRLEN pv_length;
+
+  /* Fail fast with a tainted input string */
+  if (SvTAINTED(string)) {
+      croak
+	("Problem in v->string_set(): Attempt to use a tainted input string with Marpa::R2\n"
+	"Marpa::R2 is insecure for use with tainted data\n");
+  }
+
+  /* Get our own copy and coerce it to a PV.
+   * Stealing is OK, magic is not.
+   */
+  SvSetSV (slr->input, string);
+  start_of_string = (U8*)SvPV_force_nomg (slr->input, pv_length);
+  end_of_string = start_of_string + pv_length;
+  input_is_utf8 = SvUTF8 (slr->input);
+
+  slr->pos_db_logical_size = 0;
+  /* This original buffer size my be too small.
+   */
+  slr->pos_db_physical_size = 1024;
+  Newx (slr->pos_db, slr->pos_db_physical_size, Pos_Entry);
+
+  for (p = start_of_string; p < end_of_string; ) {
+      STRLEN codepoint_length;
+      UV codepoint;
+      if (input_is_utf8)
+	{
+	  codepoint = utf8_to_uvchr_buf (p, end_of_string, &codepoint_length);
+	  /* Perl API documents that return value is 0 and length is -1 on error,
+	   * "if possible".  length can be, and is, in fact unsigned.
+	   * I deal with this by noting that 0 is a valid UTF8 char but should
+	   * have a length of 1, when valid.
+	   */
+	  if (codepoint == 0 && codepoint_length != 1)
+	    {
+	      croak
+		("Problem in slr->string_set(): invalid UTF8 character");
+	    }
+	}
+      else
+	{
+	  codepoint = (UV) * p;
+	  codepoint_length = 1;
+	}
+      /* Ensure that there is enough space */
+      if (slr->pos_db_logical_size >= slr->pos_db_physical_size)
+	{
+	  slr->pos_db_physical_size *= 2;
+	  slr->pos_db =
+	    Renew (slr->pos_db, slr->pos_db_physical_size, Pos_Entry);
+	}
+      p += codepoint_length;
+      slr->pos_db[slr->pos_db_logical_size].next_offset =
+	p - start_of_string;
+
+	/* The definition of newline here follows the Unicode standard TR13 */
+      if (codepoint == 0x0a && previous_codepoint == 0x0d) {
+	slr->pos_db[slr->pos_db_logical_size].linecol =
+	  slr->pos_db[slr->pos_db_logical_size-1].linecol - 1;
+      } else {
+	slr->pos_db[slr->pos_db_logical_size].linecol = next_column ? next_column : next_line;
+      }
+      switch (codepoint) {
+      case 0x0a: case 0x0b: case 0x0c: case 0x0d:
+      case 0x85: case 0x2028: case 0x2029:
+          next_line++;
+	  next_column = 0;
+	  break;
+      default:
+          next_column--;
+      }
+      slr->pos_db_logical_size++;
+      previous_codepoint = codepoint;
+    }
+  XSRETURN_YES;
+}
+
+void
+input_length( slr )
+     Scanless_R *slr;
+PPCODE:
+{
+  XSRETURN_IV(slr->pos_db_logical_size);
+}
+
+void
+codepoint( slr )
+     Scanless_R *slr;
+PPCODE:
+{
+  XSRETURN_UV(slr->codepoint);
+}
+
+void
+symbol_id( slr )
+     Scanless_R *slr;
+PPCODE:
+{
+  XSRETURN_IV(slr->input_symbol_id);
+}
+
+void
+char_register( slr, codepoint, ... )
+    Scanless_R *slr;
+     UV codepoint;
+PPCODE:
+{
+  /* OP Count is args less two, then plus two for codepoint and length fields */
+  const STRLEN op_count = items;
+  STRLEN op_ix;
+  IV *ops;
+  SV *ops_sv = NULL;
+  Lexer *lexer = slr->current_lexer;
+  const unsigned array_size = Dim (lexer->per_codepoint_array);
+  const int use_array = codepoint < array_size;
+
+  if (use_array)
+    {
+      ops = lexer->per_codepoint_array[codepoint];
+      Renew (ops, op_count, IV);
+      lexer->per_codepoint_array[codepoint] = ops;
+    }
+  else
+    {
+      STRLEN dummy;
+      ops_sv = newSV (op_count * sizeof (ops[0]));
+      SvPOK_on (ops_sv);
+      ops = (IV *) SvPV (ops_sv, dummy);
+    }
+  ops[0] = codepoint;
+  ops[1] = op_count;
+  for (op_ix = 2; op_ix < op_count; op_ix++)
+    {
+      /* By coincidence, offset of individual ops is 2 both in the
+       * method arguments and in the op_list, so that arg IX == op_ix
+       */
+      ops[op_ix] = SvUV (ST (op_ix));
+    }
+  if (ops_sv)
+    {
+      hv_store (slr->current_lexer->per_codepoint_hash, (char *) &codepoint,
+		sizeof (codepoint), ops_sv, 0);
+    }
 }
 
 INCLUDE: general_pattern.xsh
