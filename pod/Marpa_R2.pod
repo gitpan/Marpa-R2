@@ -184,7 +184,7 @@ Structural rules are the kinds of rules typically seen in BNF --
 they describe the symbols which provide the structure of the grammar,
 but leave out details of whitespace.
 The SLIF also handles the lexical details in this example,
-but it does it via G0 rules,
+but it does it via L0 rules,
 which we will see shortly.
 
 =for Marpa::R2::Display
@@ -248,7 +248,7 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-=head2 G0 rules
+=head2 L0 rules
 
 The structural rules define the high-level structure of the grammar,
 and ignore details of whitespace, comments, etc.
@@ -289,7 +289,7 @@ The whitespace items are defined by a character class: C<[\s]>.
 Marpa supports the same character classes, and the same character class syntax,
 as Perl does.
 
-The next pair of G0 rules define the C<Number> symbol
+The next pair of L0 rules define the C<Number> symbol
 
 =for Marpa::R2::Display
 name: Landing page synopsis
@@ -303,7 +303,7 @@ normalize-whitespace: 1
 
 The above two rules say that a C<Number> is a sequence of one or more digits.
 C<Number> is a lexeme -- a G1 symbol which is defined and recognized at the lexical
-(G0) level.
+(L0) level.
 In this example, there are three other lexemes:
 C<whitespace>, and the addition and multiplication operators.
 
@@ -323,7 +323,7 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-In the above rule, the single-quoted string C<'+'> implicitly defines a G0 lexeme.
+In the above rule, the single-quoted string C<'+'> implicitly defines a L0 lexeme.
 Something similar happens with the C<'*'> string in the rule for a C<Factor>.
 
 The SLIF's lexer mostly "does what you mean".
@@ -425,9 +425,9 @@ Parse trees are usually drawn upside-down
 with their root at the top,
 and their "leaves" at the bottom.
 In Marpa::R2's SLIF, the "leaves" are the symbols
-that the G1 (structural) rules share with the G0 (lexical)
+that the G1 (structural) rules share with the L0 (lexical)
 rules.
-The symbols shared by G0 and G1
+The symbols shared by L0 and G1
 are those lexemes which are not
 discarded.
 In this example, the lexemes visible to G1 are
@@ -439,7 +439,7 @@ and
 
 Marpa assigns values to the nodes of the tree,
 starting with the leaves.
-Marpa's "leaves" will always be G0 symbols,
+Marpa's "leaves" will always be L0 symbols,
 and their value by default is the literal
 value at their location in the input stream.
 In the case of the two operators described
@@ -605,23 +605,13 @@ The exception is the value for the start rule.
 The return value for the start rule becomes
 the parse result.
 
-=head1 Errors and exceptions
-
-Methods in the Marpa API usually do not return errors.
-When there are errors,
-Marpa API methods throw an exception.
-
-=head1 Inheritance
-
-Classes in Marpa's API's are not designed to
-be inherited.
-
 =head1 Tainted data
 
 Marpa::R2 exists to allow its input to alter execution in
 flexible and powerful ways.
 Marpa should not be used with untrusted input.
 In Perl' s taint mode, it is a fatal error to use Marpa's SLIF
+interface
 with a tainted grammar, a tainted input string,
 or tainted token values.
 
@@ -629,27 +619,18 @@ or tainted token values.
 
 When used in a thread-safe Perl, Marpa::R2 should be thread-safe,
 with one important restriction:
-All Marpa objects have a base grammar and all objects that share
-a base grammar write to it.
-All Marpa objects that share a base grammar must be created
+All Marpa objects that share the same grammar must be created
 and used within a single thread.
-
-All Marpa objects are either grammars,
-or are created from other Marpa objects.
-When a Marpa object is created from another Marpa object,
-the newly created Marpa object inherits the base grammar of its parent object.
-Marpa grammars are their own base grammar.
 
 This restriction may be lifted someday, but
 in practice it does not seem onerous.
-Note that what cannot be shared between
-threads is a base grammar B<object> --
+Note that 
 you can use
 the same grammar in different
-threads by creating base grammars
+threads by creating grammars
 that are exact
 copies of each other,
-one base grammar per thread.
+one grammar per thread.
 
 =head1 The Marpa:: namespace
 

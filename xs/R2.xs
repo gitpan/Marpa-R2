@@ -106,7 +106,7 @@ struct lexeme_r_properties {
   */
 typedef struct
 {
-  SV *g0_sv;
+  SV *g_sv;
   Marpa_Symbol_ID *lexer_rule_to_g1_lexeme;
   HV *per_codepoint_hash;
   IV *per_codepoint_array[128];
@@ -489,7 +489,7 @@ static Lexer* lexer_add(Scanless_G* slg, SV* g_sv)
   Lexer** lexers = slg->lexers;
 
   Newx (lexer, 1, Lexer);
-  lexer->g0_sv = g_sv;
+  lexer->g_sv = g_sv;
   lexer->per_codepoint_hash = newHV ();
   for (i = 0; i < Dim(lexer->per_codepoint_array); i++) {
     lexer->per_codepoint_array[i] = NULL;
@@ -521,7 +521,7 @@ static void lexer_destroy(Lexer *lexer)
   for (i = 0; i < Dim(lexer->per_codepoint_array); i++) {
     Safefree(lexer->per_codepoint_array[i]);
   }
-  SvREFCNT_dec (lexer->g0_sv);
+  SvREFCNT_dec (lexer->g_sv);
 }
 
 /* Static lexer methods */
@@ -718,11 +718,12 @@ u_read(Scanless_R *slr)
       if (trace_lexer >= 1)
 	{
 	  AV *event;
-	  SV *event_data[4];
+	  SV *event_data[5];
 	  event_data[0] = newSVpvs ("'trace");
 	  event_data[1] = newSVpvs ("lexer reading codepoint");
 	  event_data[2] = newSViv ((IV) codepoint);
 	  event_data[3] = newSViv ((IV) slr->perl_pos);
+	  event_data[4] = newSViv (slr->current_lexer->index);
 	  event = av_make (Dim (event_data), event_data);
 	  av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 	}
@@ -771,12 +772,13 @@ u_read(Scanless_R *slr)
 		    if (trace_lexer >= 1)
 		      {
 			AV *event;
-			SV *event_data[5];
+			SV *event_data[6];
 			event_data[0] = newSVpvs ("'trace");
 			event_data[1] = newSVpvs ("lexer rejected codepoint");
 			event_data[2] = newSViv ((IV) codepoint);
 			event_data[3] = newSViv ((IV) slr->perl_pos);
 			event_data[4] = newSViv ((IV) symbol_id);
+			event_data[5] = newSViv ((IV)slr->current_lexer->index);
 			event = av_make (Dim (event_data), event_data);
 			av_push (slr->r1_wrapper->event_queue,
 				 newRV_noinc ((SV *) event));
@@ -786,12 +788,13 @@ u_read(Scanless_R *slr)
 		    if (trace_lexer >= 1)
 		      {
 			AV *event;
-			SV *event_data[5];
+			SV *event_data[6];
 			event_data[0] = newSVpvs ("'trace");
 			event_data[1] = newSVpvs ("lexer accepted codepoint");
 			event_data[2] = newSViv ((IV) codepoint);
 			event_data[3] = newSViv ((IV) slr->perl_pos);
 			event_data[4] = newSViv ((IV) symbol_id);
+			event_data[5] = newSViv ((IV)slr->current_lexer->index);
 			event = av_make (Dim (event_data), event_data);
 			av_push (slr->r1_wrapper->event_queue,
 				 newRV_noinc ((SV *) event));
@@ -1636,7 +1639,7 @@ slr_discard (Scanless_R * slr)
 	      if (slr->trace_terminals)
 		{
 		  AV *event;
-		  SV *event_data[5];
+		  SV *event_data[6];
 		  event_data[0] = newSVpvs ("'trace");
 		  event_data[1] = newSVpvs ("discarded lexeme");
 		  /* We do not have the lexeme, but we have the 
@@ -1646,6 +1649,7 @@ slr_discard (Scanless_R * slr)
 		  event_data[2] = newSViv (rule_id);
 		  event_data[3] = newSViv (slr->start_of_lexeme);
 		  event_data[4] = newSViv (slr->end_of_lexeme);
+		  event_data[5] = newSViv (slr->current_lexer->index);
 		  event = av_make (Dim (event_data), event_data);
 		  av_push (slr->r1_wrapper->event_queue,
 			   newRV_noinc ((SV *) event));
@@ -1882,7 +1886,7 @@ slr_alternatives (Scanless_R * slr)
 		  if (slr->trace_terminals)
 		    {
 		      AV *event;
-		      SV *event_data[5];
+		      SV *event_data[6];
 		      event_data[0] = newSVpvs ("'trace");
 		      event_data[1] = newSVpvs ("discarded lexeme");
 		      /* We do not have the lexeme, but we have the 
@@ -1892,6 +1896,7 @@ slr_alternatives (Scanless_R * slr)
 		      event_data[2] = newSViv (rule_id);
 		      event_data[3] = newSViv (slr->start_of_lexeme);
 		      event_data[4] = newSViv (slr->end_of_lexeme);
+		      event_data[5] = newSViv (slr->current_lexer->index);
 		      event = av_make (Dim (event_data), event_data);
 		      av_push (slr->r1_wrapper->event_queue,
 			       newRV_noinc ((SV *) event));
@@ -2254,7 +2259,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 177
-#define EXPECTED_LIBMARPA_MICRO 101
+#define EXPECTED_LIBMARPA_MICRO 102
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -4731,22 +4736,22 @@ PPCODE:
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::SLG
 
 void
-new( class, g0_sv, g1_sv )
+new( class, l0_sv, g1_sv )
     char * class;
-    SV *g0_sv;
+    SV *l0_sv;
     SV *g1_sv;
 PPCODE:
 {
   SV* new_sv;
   Scanless_G *slg;
 
-  if (!sv_isa (g0_sv, "Marpa::R2::Thin::G"))
+  if (!sv_isa (l0_sv, "Marpa::R2::Thin::G"))
     {
-      croak ("Problem in u->new(): g0 arg is not of type Marpa::R2::Thin::G");
+      croak ("Problem in u->new(): L0 arg is not of type Marpa::R2::Thin::G");
     }
   if (!sv_isa (g1_sv, "Marpa::R2::Thin::G"))
     {
-      croak ("Problem in u->new(): r1 arg is not of type Marpa::R2::Thin::G");
+      croak ("Problem in u->new(): G1 arg is not of type Marpa::R2::Thin::G");
     }
   Newx (slg, 1, Scanless_G);
 
@@ -4755,7 +4760,7 @@ PPCODE:
   # After testing, start with a larger buffer size, perhaps 8
   slg->lexer_buffer_size = 1;
   slg->lexer_count = 0;
-  lexer_add(slg, g0_sv);
+  lexer_add(slg, l0_sv);
 
   slg->g1_sv = g1_sv;
   SvREFCNT_inc (g1_sv);
@@ -5160,7 +5165,7 @@ PPCODE:
     /* Note that we use *trace_level*, not *trace_lexer* to control warning.
      * We never warn() for trace_terminals, just report events.
      */
-    warn("Changing SLR g0 trace level from %d to %d", (int)old_level, (int)new_level);
+    warn("Changing SLR lexer trace level from %d to %d", (int)old_level, (int)new_level);
   }
   XSRETURN_IV(old_level);
 }
@@ -5313,10 +5318,11 @@ PPCODE:
 	  if (trace_lexer >= 1)
 	    {
 	      AV *event;
-	      SV *event_data[3];
+	      SV *event_data[4];
 	      event_data[0] = newSVpvs ("'trace");
-	      event_data[1] = newSVpv ("g0 restarted recognizer", 0);
+	      event_data[1] = newSVpv ("lexer restarted recognizer", 0);
 	      event_data[2] = newSViv ((IV) slr->perl_pos);
+	      event_data[3] = newSViv ((IV) slr->current_lexer->index);
 	      event = av_make (Dim (event_data), event_data);
 	      av_push (slr->r1_wrapper->event_queue, newRV_noinc ((SV *) event));
 	    }
@@ -5905,6 +5911,14 @@ PPCODE:
       hv_store (slr->current_lexer->per_codepoint_hash, (char *) &codepoint,
 		sizeof (codepoint), ops_sv, 0);
     }
+}
+
+void
+current_lexer( slr )
+     Scanless_R *slr;
+PPCODE:
+{
+  XSRETURN_IV(slr->current_lexer->index);
 }
 
 INCLUDE: general_pattern.xsh

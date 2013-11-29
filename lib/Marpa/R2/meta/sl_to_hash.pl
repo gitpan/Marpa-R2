@@ -58,12 +58,13 @@ sub sort_bnf {
 } ## end sub sort_bnf
 
 my %cooked_parse_result = (
-    is_lexeme         => $parse_result->{is_lexeme},
-    character_classes => $parse_result->{character_classes},
-    symbols        => $parse_result->{symbols},
+    character_classes      => $parse_result->{character_classes},
+    symbols                => $parse_result->{symbols},
+    lexeme_default_adverbs => $parse_result->{lexeme_default_adverbs}
 );
 
-for my $rule_set (qw(G0 G1)) {
+my @rule_sets = keys %{ $parse_result->{rules} };
+for my $rule_set (@rule_sets) {
     my $aoh        = $parse_result->{rules}->{$rule_set};
     my $sorted_aoh = [ sort sort_bnf @{$aoh} ];
     $cooked_parse_result{rules}->{$rule_set} = $sorted_aoh;

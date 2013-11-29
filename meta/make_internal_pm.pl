@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_001';
+$VERSION        = '2.077_002';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -308,9 +308,11 @@ __DATA__
 
     C { The thin version of this object }
 
-    THICK_LEX_GRAMMAR
+    THICK_LEX_GRAMMARS
     THICK_G1_GRAMMAR
-    CHARACTER_CLASS_TABLE
+    CHARACTER_CLASS_TABLES
+    LEXER_BY_NAME
+    LEXER_NAME_BY_ID
     MASK_BY_RULE_ID
 
     G1_ARGS
