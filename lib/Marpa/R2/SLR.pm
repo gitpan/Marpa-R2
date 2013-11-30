@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_002';
+$VERSION        = '2.077_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -181,10 +181,10 @@ sub Marpa::R2::Internal::Scanless::meta_recce {
 } ## end sub Marpa::R2::Internal::Scanless::meta_recce
 
 # For error messages, make it convenient to use an SLR
-sub Marpa::R2::Scanless::R::show_rule {
+sub Marpa::R2::Scanless::R::rule_show {
     my ( $slr, $rule_id ) = @_;
     my $slg = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
-    return $slg->show_rule($rule_id);
+    return $slg->rule_show($rule_id);
 }
 
 sub Marpa::R2::Scanless::R::new {
@@ -1131,7 +1131,8 @@ sub Marpa::R2::Scanless::R::series_restart {
     my ( $slr , @args ) = @_;
     my $thick_g1_recce =
         $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    $thick_g1_recce->reset_evaluation( @args );
+    $thick_g1_recce->reset_evaluation();
+    $thick_g1_recce->set( @args );
     return 1;
 }
 
