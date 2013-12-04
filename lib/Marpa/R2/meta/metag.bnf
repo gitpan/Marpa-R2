@@ -18,14 +18,16 @@ lexeme default = action => [start,length,value] bless => ::name
 
 :start ::= statements
 statements ::= statement+
-statement ::= <statement body>
-statement ::= <statement body> ';'
-<statement body> ::= <start rule> | <empty rule>
+statement ::= <start rule> | <empty rule>
+  | <null statement> | <statement group>
   | <priority rule> | <quantified rule> | <discard rule> | <default rule>
   | <lexeme default statement> | <lexeme rule>
   | <completion event declaration>
   | <nulled event declaration>
   | <prediction event declaration>
+  | <current lexer statement>
+<null statement> ::= ';'
+<statement group> ::= ('{') statements '}'
 <start rule> ::= (':start' <op declare bnf>) symbol
 <start rule> ::= ('start' 'symbol' 'is') symbol
 <default rule> ::= ':default' <op declare bnf> <adverb list>
@@ -38,6 +40,8 @@ statement ::= <statement body> ';'
 <completion event declaration> ::= ('event') <event name> ('=' 'completed') <symbol name>
 <nulled event declaration> ::= ('event') <event name> ('=' 'nulled') <symbol name>
 <prediction event declaration> ::= ('event') <event name> ('=' 'predicted') <symbol name>
+<current lexer statement> ::= ('current' 'lexer' 'is') <lexer name>
+
 <op declare> ::= <op declare bnf> | <op declare match>
 priorities ::= alternatives+
     separator => <op loosen> proper => 1
@@ -46,17 +50,17 @@ alternatives ::= alternative+
 alternative ::= rhs <adverb list>
 
 <adverb list> ::= <adverb list items>
-<adverb list> ::= (',') <adverb list items>
 <adverb list items> ::= <adverb item>*
-<adverb item> ::= <adverb body> | <adverb body> (',')
-<adverb body> ::=
+<adverb item> ::=
       action
     | <left association> | <right association> | <group association>
     | <separator specification> | <proper specification>
     | <rank specification> | <null ranking specification>
     | <priority specification> | <pause specification> | <event specification>
     | blessing
+    | <null adverb>
 
+<null adverb> ::= ','
 action ::= ('action' '=>') <action name>
 <left association> ::= ('assoc' '=>' 'left')
 <right association> ::= ('assoc' '=>' 'right')
@@ -71,6 +75,8 @@ action ::= ('action' '=>') <action name>
 <pause specification> ::= ('pause' '=>') <before or after>
 <event specification> ::= ('event' '=>') <event name>
 <blessing> ::= ('bless' '=>') <blessing name>
+
+<lexer name> ::= <standard name> | <single quoted name>
 <event name> ::= <standard name> | <single quoted name>
 <blessing name> ::= <standard name>
 <blessing name> ::= <reserved blessing name>

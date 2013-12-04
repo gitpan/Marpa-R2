@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_003';
+$VERSION        = '2.077_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -127,7 +127,6 @@ sub Marpa::R2::Scanless::G::new {
     } ## end if ( $ref_type ne 'SCALAR' )
     my $ast = Marpa::R2::Internal::MetaAST->new( $rules_source );
     my $hashed_ast = $ast->ast_to_hash();
-    $hashed_ast->start_rule_setup();
     $self->_hash_to_runtime($hashed_ast);
 
     return $self;
@@ -181,10 +180,15 @@ sub Marpa::R2::Scanless::G::set {
 sub Marpa::R2::Scanless::G::_hash_to_runtime {
     my ( $slg, $hashed_source ) = @_;
 
+    # Pre-lexer G1 processing
+
+    my $start_lhs = $hashed_source->{'start_lhs'} // $hashed_source->{'first_lhs'};
+    Marpa::R2::exception('No rules in SLIF grammar')
+        if not defined $start_lhs;
+    Marpa::R2::Internal::MetaAST::start_rule_create( $hashed_source, $start_lhs );
+
     $slg->[Marpa::R2::Inner::Scanless::G::DEFAULT_G1_START_ACTION] =
         $hashed_source->{'default_g1_start_action'};
-
-    # Pre-lexer G1 processing
 
     my $g1_args = $slg->[Marpa::R2::Inner::Scanless::G::G1_ARGS];
     $g1_args->{trace_file_handle} =
@@ -298,7 +302,12 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
     # Lexers
 
-    my @lexer_names = ('L0');
+    my %grammars = ();
+    $grammars{$_} = 1 for keys %{ $hashed_source->{rules} };
+    my @lexer_names =
+        grep { ( substr $_, 0, 1 ) eq 'L' } keys %grammars;
+
+
     my %lexer_id_by_name = ();
     my %thick_grammar_by_lexer_name = ();
     my %lexer_and_rule_to_g1_lexeme = ();
@@ -308,10 +317,11 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
     # Need to clean up determination of lexeme status
 
+    my $lexer_symbols = $hashed_source->{symbols}->{'L'};
+
     for my $lexer_name (@lexer_names) {
 
 	my $lexer_rules = $hashed_source->{rules}->{$lexer_name};
-	my $lexer_symbols = $hashed_source->{symbols}->{$lexer_name};
 
         Marpa::R2::exception("No rules for lexer $lexer_name")
             if not $lexer_rules;
@@ -326,6 +336,16 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
                 $lex_separator{$separator} = 1;
             }
         } ## end for my $lex_rule ( @{$lexer_rules} )
+
+        my %this_lexer_symbols = ();
+        SYMBOL:
+        for my $symbol_name ( ( keys %lex_lhs ), ( keys %lex_rhs ),
+            ( keys %lex_separator ) )
+        {
+            my $symbol_data = $lexer_symbols->{$symbol_name};
+            $this_lexer_symbols{$symbol_name} = $symbol_data
+                if defined $symbol_data;
+        }
 
         my %is_lexeme_in_this_lexer = ();
         LEX_LHS: for my $lex_lhs ( keys %lex_lhs ) {
@@ -350,8 +370,8 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
                 join q{ }, @unproductive );
         }
 
-        $lexer_symbols->{$lex_start_symbol_name}->{display_form} = ':start_lex';
-        $lexer_symbols->{$lex_start_symbol_name}->{description} =
+        $this_lexer_symbols{$lex_start_symbol_name}->{display_form} = ':start_lex';
+        $this_lexer_symbols{$lex_start_symbol_name}->{description} =
             'Internal L0 (lexical) start symbol';
         push @{ $lexer_rules }, map {
             ;
@@ -368,18 +388,19 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
         $lex_args{start}        = $lex_start_symbol_name;
         $lex_args{'_internal_'} = 1;
         $lex_args{rules}        = $lexer_rules;
-        $lex_args{symbols}        = $lexer_symbols;
+        $lex_args{symbols}        = \%this_lexer_symbols;
 
         my $lex_grammar = Marpa::R2::Grammar->new( \%lex_args );
         $thick_grammar_by_lexer_name{$lexer_name} = $lex_grammar;
         Marpa::R2::Internal::Grammar::slif_precompute($lex_grammar);
         my $lex_tracer = $lex_grammar->tracer();
         my $lex_thin    = $lex_tracer->grammar();
-        my $character_class_hash =
-            $hashed_source->{character_classes}->{$lexer_name};
+        my $character_class_hash = $hashed_source->{character_classes};
         my @class_table = ();
 
-        for my $class_symbol ( sort keys %{$character_class_hash} ) {
+        CLASS_SYMBOL: for my $class_symbol ( sort keys %{$character_class_hash} ) {
+	    my $symbol_id = $lex_tracer->symbol_by_name($class_symbol);
+	    next CLASS_SYMBOL if not defined $symbol_id;
             my $cc_components = $character_class_hash->{$class_symbol};
             my ( $compiled_re, $error ) =
                 Marpa::R2::Internal::MetaAST::char_class_to_re(
@@ -390,8 +411,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
                     "Failed belatedly to evaluate character class\n",
                     $error );
             } ## end if ( not $compiled_re )
-            push @class_table,
-                [ $lex_tracer->symbol_by_name($class_symbol), $compiled_re ];
+            push @class_table, [ $symbol_id, $compiled_re ];
         } ## end for my $class_symbol ( sort keys %{$character_class_hash...})
         $character_class_table_by_lexer_name{$lexer_name} = \@class_table;
 
@@ -447,6 +467,13 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
     # Relies on default lexer being given number zero
     $lexer_id_by_name{'L0'} = 0;
+
+    LEXER: for my $lexer_name (@lexer_names) {
+        next LEXER if $lexer_name eq 'L0';
+	my $thick_g = $thick_grammar_by_lexer_name{$lexer_name};
+	my $thin_g = $thick_g->[Marpa::R2::Internal::Grammar::C];
+	$lexer_id_by_name{$lexer_name} = $thin_slg->lexer_add($thin_g);
+    }
 
     LEXEME: for my $g1_lexeme ( 0 .. $#g1_lexemes ) {
 
@@ -528,12 +555,16 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
         $thick_g1_grammar;
     for my $lexer_name (@lexer_names) {
         my $lexer_id = $lexer_id_by_name{$lexer_name};
+        my $external_lexer_name =
+            ( substr $lexer_name, 0, 2 ) eq 'L-'
+            ? substr $lexer_name, 2
+            : $lexer_name;
         my $character_class_table =
             $character_class_table_by_lexer_name{$lexer_name};
-        $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]->[$lexer_id] =
-            $lexer_name;
-        $slg->[Marpa::R2::Inner::Scanless::G::LEXER_BY_NAME]->{$lexer_name} =
-            $lexer_id;
+        $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]->[$lexer_id]
+            = $external_lexer_name;
+        $slg->[Marpa::R2::Inner::Scanless::G::LEXER_BY_NAME]
+            ->{$external_lexer_name} = $lexer_id;
         $slg->[Marpa::R2::Inner::Scanless::G::CHARACTER_CLASS_TABLES]
             ->[$lexer_id] = $character_class_table;
         $slg->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]->[$lexer_id]

@@ -99,8 +99,8 @@
 @s xor normal
 
 @s error normal
-@s AVL_TRAV int
-@s AVL_TREE int
+@s MARPA_AVL_TRAV int
+@s MARPA_AVL_TREE int
 @s Bit_Matrix int
 @s DAND int
 @s DSTACK int
@@ -1088,7 +1088,7 @@ marpa_g_event_count (Marpa_Grammar g)
 This AVL tree is kept, before precomputation,
 to help detect BNF rules.
 @<Widely aligned grammar elements@> =
-AVL_TREE t_xrl_tree;
+MARPA_AVL_TREE t_xrl_tree;
 @ @<Initialize grammar elements@> =
   (g)->t_xrl_tree = _marpa_avl_create (duplicate_rule_cmp, NULL, 0);
 @ @<Clear rule duplication tree@> =
@@ -1118,14 +1118,14 @@ call.
 This obstack is cleared on exit from a method.
 
 @<Widely aligned grammar elements@> =
-struct obstack* t_obs;
-struct obstack* t_xrl_obs;
+struct marpa_obstack* t_obs;
+struct marpa_obstack* t_xrl_obs;
 @ @<Initialize grammar elements@> =
-g->t_obs = my_obstack_init;
-g->t_xrl_obs = my_obstack_begin(0, alignof(struct s_xrl));
+g->t_obs = marpa_obs_init;
+g->t_xrl_obs = marpa_obs_begin(0, alignof(struct s_xrl));
 @ @<Destroy grammar elements@> =
-my_obstack_free(g->t_obs);
-my_obstack_free(g->t_xrl_obs);
+marpa_obs_free(g->t_obs);
+marpa_obs_free(g->t_xrl_obs);
 
 @*0 The grammar constant integer list arena.
 Keeps constant integer lists with the same lifetime
@@ -1236,7 +1236,7 @@ struct s_xsy {
 PRIVATE XSY
 symbol_new (GRAMMAR g)
 {
-  XSY xsy = my_obstack_new (g->t_obs, struct s_xsy, 1);
+  XSY xsy = marpa_obs_new (g->t_obs, struct s_xsy, 1);
   @<Initialize XSY elements @>@;
   symbol_add (g, xsy);
   return xsy;
@@ -1758,7 +1758,7 @@ Symbols are used a nulling tokens, and
 PRIVATE ISY
 isy_start(GRAMMAR g)
 {
-  const ISY isy = my_obstack_new (g->t_obs, struct s_isy, 1);
+  const ISY isy = marpa_obs_new (g->t_obs, struct s_isy, 1);
   ID_of_ISY(isy) = DSTACK_LENGTH((g)->t_isy_stack);
   *DSTACK_PUSH((g)->t_isy_stack, ISY) = isy;
   @<Initialize ISY elements@>@;
@@ -2014,8 +2014,8 @@ PRIVATE
   XRL xrl;
   const int sizeof_xrl = offsetof (struct s_xrl, t_symbols) +
     (length + 1) * sizeof (xrl->t_symbols[0]);
-  my_obstack_reserve (g->t_xrl_obs, sizeof_xrl);
-  xrl = my_obstack_base (g->t_xrl_obs);
+  marpa_obs_reserve (g->t_xrl_obs, sizeof_xrl);
+  xrl = marpa_obs_base (g->t_xrl_obs);
   Length_of_XRL (xrl) = length;
   xrl->t_symbols[0] = lhs;
   XSY_is_LHS (XSY_by_ID (lhs)) = 1;
@@ -2043,7 +2043,7 @@ const XSYID lhs, const XSYID *rhs, int length)
 {
     RULE rule = xrl_start(g, lhs, rhs, length);
     xrl_finish(g, rule);
-    rule = my_obstack_finish(g->t_xrl_obs);
+    rule = marpa_obs_finish(g->t_xrl_obs);
     return rule;
 }
 
@@ -2055,7 +2055,7 @@ irl_start(GRAMMAR g, int length)
   IRL irl;
   const int sizeof_irl = offsetof (struct s_irl, t_isyid_array) +
     (length + 1) * sizeof (irl->t_isyid_array[0]);
-  irl = my_obstack_alloc (g->t_obs, sizeof_irl);
+  irl = marpa_obs_alloc (g->t_obs, sizeof_irl);
   ID_of_IRL(irl) = DSTACK_LENGTH((g)->t_irl_stack);
   Length_of_IRL(irl) = length;
   @<Initialize IRL elements@>@;
@@ -2128,11 +2128,11 @@ marpa_g_rule_new (Marpa_Grammar g,
   if (UNLIKELY (_marpa_avl_insert (g->t_xrl_tree, rule) != NULL))
     {
       MARPA_ERROR (MARPA_ERR_DUPLICATE_RULE);
-      my_obstack_reject(g->t_xrl_obs);
+      marpa_obs_reject(g->t_xrl_obs);
       return failure_indicator;
     }
   rule = xrl_finish (g, rule);
-  rule = my_obstack_finish(g->t_xrl_obs);
+  rule = marpa_obs_finish(g->t_xrl_obs);
   XRL_is_BNF (rule) = 1;
   rule_id = rule->t_id;
   return rule_id;
@@ -3016,7 +3016,7 @@ int marpa_g_precompute(Marpa_Grammar g)
 {
     @<Return |-2| on failure@>@;
     int return_value = failure_indicator;
-    struct obstack *obs_precompute = my_obstack_init;
+    struct marpa_obstack *obs_precompute = marpa_obs_init;
     @<Declare precompute variables@>@;
     @<Fail if fatal error@>@;
     G_EVENTS_CLEAR(g);
@@ -3066,7 +3066,7 @@ int marpa_g_precompute(Marpa_Grammar g)
     FAILURE:;
     goto CLEANUP;
     CLEANUP:;
-    my_obstack_free (obs_precompute);
+    marpa_obs_free (obs_precompute);
     return return_value;
 }
 
@@ -3180,20 +3180,20 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
   Marpa_Rule_ID rule_id;
 
   /* \comment AVL tree for RHS symbols */
-  const AVL_TREE rhs_avl_tree =
+  const MARPA_AVL_TREE rhs_avl_tree =
     _marpa_avl_create (sym_rule_cmp, NULL, alignof (struct sym_rule_pair));
     /* Size of G is sum of RHS lengths, plus 1 for each rule, which here is necessary
     for separator of sequences */
   struct sym_rule_pair *const p_rh_sym_rule_pair_base =
-    my_obstack_new (AVL_OBSTACK (rhs_avl_tree), struct sym_rule_pair,
+    marpa_obs_new (MARPA_AVL_OBSTACK (rhs_avl_tree), struct sym_rule_pair,
 		    External_Size_of_G (g));
   struct sym_rule_pair *p_rh_sym_rule_pairs = p_rh_sym_rule_pair_base;
 
   /* \comment AVL tree for LHS symbols */
-  const AVL_TREE lhs_avl_tree =
+  const MARPA_AVL_TREE lhs_avl_tree =
     _marpa_avl_create (sym_rule_cmp, NULL, alignof (struct sym_rule_pair));
   struct sym_rule_pair *const p_lh_sym_rule_pair_base =
-    my_obstack_new (AVL_OBSTACK (lhs_avl_tree), struct sym_rule_pair,
+    marpa_obs_new (MARPA_AVL_OBSTACK (lhs_avl_tree), struct sym_rule_pair,
 		    xrl_count);
   struct sym_rule_pair *p_lh_sym_rule_pairs = p_lh_sym_rule_pair_base;
 
@@ -3246,15 +3246,15 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
 	}
     }
   {
-    AVL_TRAV traverser;
+    MARPA_AVL_TRAV traverser;
     struct sym_rule_pair *pair;
     XSYID seen_symid = -1;
     RULEID *const rule_data_base =
-      my_obstack_new (obs_precompute, RULEID, External_Size_of_G (g));
+      marpa_obs_new (obs_precompute, RULEID, External_Size_of_G (g));
     RULEID *p_rule_data = rule_data_base;
     traverser = _marpa_avl_t_init (rhs_avl_tree);
     /* \comment One extra "symbol" as an end marker */
-    xrl_list_x_rh_sym = my_obstack_new (obs_precompute, RULEID*, pre_census_xsy_count + 1);
+    xrl_list_x_rh_sym = marpa_obs_new (obs_precompute, RULEID*, pre_census_xsy_count + 1);
     for (pair = _marpa_avl_t_first (traverser); pair;
 	 pair = (struct sym_rule_pair*)_marpa_avl_t_next (traverser))
       {
@@ -3269,16 +3269,16 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
   }
 
   {
-    AVL_TRAV traverser;
+    MARPA_AVL_TRAV traverser;
     struct sym_rule_pair *pair;
     XSYID seen_symid = -1;
     RULEID *const rule_data_base =
-      my_obstack_new (obs_precompute, RULEID, xrl_count);
+      marpa_obs_new (obs_precompute, RULEID, xrl_count);
     RULEID *p_rule_data = rule_data_base;
     traverser = _marpa_avl_t_init (lhs_avl_tree);
     /* \comment One extra "symbol" as an end marker */
     xrl_list_x_lh_sym =
-      my_obstack_new (obs_precompute, RULEID *, pre_census_xsy_count + 1);
+      marpa_obs_new (obs_precompute, RULEID *, pre_census_xsy_count + 1);
     for (pair = _marpa_avl_t_first (traverser); pair;
 	pair = (struct sym_rule_pair *) _marpa_avl_t_next (traverser))
       {
@@ -3926,7 +3926,7 @@ into multiple CHAF rules.
 int factor_count;
 int* factor_positions;
 @ @<CHAF rewrite allocations@> =
-factor_positions = my_obstack_new(obs_precompute, int, g->t_max_rule_length);
+factor_positions = marpa_obs_new(obs_precompute, int, g->t_max_rule_length);
 
 @*0 Divide the rule into pieces.
 @<Factor the rule into CHAF rules@> =
@@ -5496,7 +5496,7 @@ PRIVATE_NOT_INLINE int AHFA_state_cmp(
    IRL* irl_by_sort_key = my_new(IRL, irl_count);
   Bit_Vector per_ahfa_complete_v = bv_obs_create (obs_precompute, isy_count);
   Bit_Vector per_ahfa_postdot_v = bv_obs_create (obs_precompute, isy_count);
-    AVL_TREE duplicates;
+    MARPA_AVL_TREE duplicates;
     AHFA* singleton_duplicates;
    DQUEUE_DECLARE(states);
   int ahfa_count_of_g;
@@ -5574,7 +5574,7 @@ NEXT_AHFA_STATE:;
 		   int sizeof_transition =
 		       offsetof (struct s_transition, t_aex) + completion_count *
 		       sizeof (transitions[0]->t_aex[0]);
-		   TRANS new_transition = my_obstack_alloc(g->t_obs, sizeof_transition);
+		   TRANS new_transition = marpa_obs_alloc(g->t_obs, sizeof_transition);
 		   LV_To_AHFA_of_TRANS(new_transition) = To_AHFA_of_TRANS(working_transition);
 		   LV_Completion_Count_of_TRANS(new_transition) = 0;
 		   transitions[isyid] = new_transition;
@@ -5669,7 +5669,7 @@ _marpa_avl_destroy(duplicates);
   ISYID *postdot_isyidary;
   AIM start_item;
   ISYID postdot_isyid;
-  AIM *item_list = my_obstack_alloc (g->t_obs, sizeof (AIM));
+  AIM *item_list = marpa_obs_alloc (g->t_obs, sizeof (AIM));
   /* The start item is the initial item for the start rule */
   start_item = First_AIM_of_IRL(start_irl);
   item_list[0] = start_item;
@@ -5681,7 +5681,7 @@ _marpa_avl_destroy(duplicates);
   TRANSs_of_AHFA (p_initial_state) = transitions_new (g, isy_count);
   Postdot_ISY_Count_of_AHFA (p_initial_state) = 1;
   postdot_isyidary = Postdot_ISYIDAry_of_AHFA (p_initial_state) =
-    my_obstack_alloc (g->t_obs, sizeof (ISYID));
+    marpa_obs_alloc (g->t_obs, sizeof (ISYID));
   postdot_isyid = Postdot_ISYID_of_AIM (start_item);
   *postdot_isyidary = postdot_isyid;
   Completion_CIL_of_AHFA(p_initial_state) =
@@ -5740,7 +5740,7 @@ a start rule completion, and it is a
     AHFA_initialize(p_new_state);
     singleton_duplicates[working_aim_id] = p_new_state;
     new_state_item_list = p_new_state->t_items =
-	my_obstack_alloc (g->t_obs, sizeof (AIM));
+	marpa_obs_alloc (g->t_obs, sizeof (AIM));
     new_state_item_list[0] = working_aim_p;
     p_new_state->t_item_count = 1;
     AHFA_is_Predicted(p_new_state) = 0;
@@ -5751,7 +5751,7 @@ a start rule completion, and it is a
     if (postdot_isyid >= 0)
       {
 	ISYID* p_postdot_isyidary = Postdot_ISYIDAry_of_AHFA(p_new_state) =
-	  my_obstack_alloc (g->t_obs, sizeof (ISYID));
+	  marpa_obs_alloc (g->t_obs, sizeof (ISYID));
 	Completion_CIL_of_AHFA(p_new_state)
 	  = cil_empty (&g->t_cilar);
 	Postdot_ISY_Count_of_AHFA(p_new_state) = 1;
@@ -5814,7 +5814,7 @@ be if written 100\% using indexes.
 	memoizations@> =
   const RULEID irl_count = IRL_Count_of_G(g);
   AIM* const item_list_working_buffer
-    = my_obstack_alloc(obs_precompute, irl_count*sizeof(AIM));
+    = marpa_obs_alloc(obs_precompute, irl_count*sizeof(AIM));
   const ISYID isy_count = ISY_Count_of_G(g);
   const XSYID xsy_count = XSY_Count_of_G(g);
   IRLID** irl_list_x_lh_isy = NULL;
@@ -5839,10 +5839,10 @@ of minimum sizes.
 @ @<Calculate Rule by LHS lists@> =
 {
   IRLID irl_id;
-  const AVL_TREE lhs_avl_tree =
+  const MARPA_AVL_TREE lhs_avl_tree =
     _marpa_avl_create (sym_rule_cmp, NULL, alignof (struct sym_rule_pair));
   struct sym_rule_pair *const p_sym_rule_pair_base =
-    my_obstack_new (AVL_OBSTACK (lhs_avl_tree), struct sym_rule_pair,
+    marpa_obs_new (MARPA_AVL_OBSTACK (lhs_avl_tree), struct sym_rule_pair,
 		    irl_count);
   struct sym_rule_pair *p_sym_rule_pairs = p_sym_rule_pair_base;
   for (irl_id = 0; irl_id < irl_count; irl_id++)
@@ -5855,16 +5855,16 @@ of minimum sizes.
       p_sym_rule_pairs++;
     }
   {
-    AVL_TRAV traverser;
+    MARPA_AVL_TRAV traverser;
     struct sym_rule_pair *pair;
     ISYID seen_isyid = -1;
     IRLID *const rule_data_base =
-      my_obstack_new (obs_precompute, IRLID, irl_count);
+      marpa_obs_new (obs_precompute, IRLID, irl_count);
     IRLID *p_rule_data = rule_data_base;
     traverser = _marpa_avl_t_init (lhs_avl_tree);
     /* One extra "symbol" as an end marker */
     irl_list_x_lh_isy =
-      my_obstack_new (obs_precompute, IRLID *, isy_count + 1);
+      marpa_obs_new (obs_precompute, IRLID *, isy_count + 1);
     for (pair = _marpa_avl_t_first (traverser); pair;
 	 pair = (struct sym_rule_pair *) _marpa_avl_t_next (traverser))
       {
@@ -5920,7 +5920,7 @@ of minimum sizes.
   {
       int i;
       AIM* const final_aim_list = p_new_state->t_items =
-	  my_obstack_alloc( g->t_obs, no_of_items_in_new_state * sizeof (AIM));
+	  marpa_obs_alloc( g->t_obs, no_of_items_in_new_state * sizeof (AIM));
       for (i = 0; i < no_of_items_in_new_state; i++) {
           final_aim_list[i] = item_list_working_buffer[i];
       }
@@ -5965,7 +5965,7 @@ for discovered state with 2+ items@> =
     {
       unsigned int min, max, start;
       ISYID *p_isyid = Postdot_ISYIDAry_of_AHFA (p_new_state) =
-	my_obstack_alloc (g->t_obs,
+	marpa_obs_alloc (g->t_obs,
 			  no_of_postdot_isys * sizeof (ISYID));
       for (start = 0; bv_scan (per_ahfa_postdot_v, start, &min, &max);
 	   start = max + 2)
@@ -5989,7 +5989,7 @@ and return |NULL|.
 When it does exist, return a pointer to it.
 @<Function definitions@> =
 PRIVATE AHFA
-assign_AHFA_state (AHFA sought_state, AVL_TREE duplicates)
+assign_AHFA_state (AHFA sought_state, MARPA_AVL_TREE duplicates)
 {
   const AHFA state_found = _marpa_avl_insert(duplicates, sought_state);
   return state_found;
@@ -6215,7 +6215,7 @@ create_predicted_AHFA_state(
      Bit_Vector prediction_rule_vector,
      IRL* irl_by_sort_key,
      DQUEUE states_p,
-     AVL_TREE duplicates,
+     MARPA_AVL_TREE duplicates,
      AIM* item_list_working_buffer
      )
 {
@@ -6258,7 +6258,7 @@ create_predicted_AHFA_state(
   {
     int i;
     AIM *const final_aim_list = p_new_state->t_items =
-      my_obstack_alloc (g->t_obs, no_of_items_in_new_state * sizeof (AIM));
+      marpa_obs_alloc (g->t_obs, no_of_items_in_new_state * sizeof (AIM));
     for (i = 0; i < no_of_items_in_new_state; i++)
       {
 	final_aim_list[i] = item_list_working_buffer[i];
@@ -6290,7 +6290,7 @@ create_predicted_AHFA_state(
   {
     unsigned int min, max, start;
     ISYID *p_isyid = Postdot_ISYIDAry_of_AHFA(p_new_state) =
-      my_obstack_alloc (g->t_obs,
+      marpa_obs_alloc (g->t_obs,
 		     no_of_postdot_isys * sizeof (ISYID));
     for (start = 0; bv_scan (postdot_v, start, &min, &max); start = max + 2)
       {
@@ -6393,10 +6393,10 @@ PRIVATE int completion_count_of_transition_get(TRANS transition)
 
 @ @<Function definitions@> =
 PRIVATE
-URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix)
+URTRANS transition_new(struct marpa_obstack *obstack, AHFA to_ahfa, int aim_ix)
 {
      URTRANS transition;
-     transition = my_obstack_alloc (obstack, sizeof (transition[0]));
+     transition = marpa_obs_alloc (obstack, sizeof (transition[0]));
      transition->t_to_ahfa = to_ahfa;
      transition->t_completion_count = aim_ix;
      return transition;
@@ -6406,7 +6406,7 @@ URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix)
 PRIVATE TRANS* transitions_new(GRAMMAR g, int isy_count)
 {
     int isyid = 0;
-    TRANS* transitions = my_obstack_new(g->t_obs, TRANS, isy_count);
+    TRANS* transitions = marpa_obs_new(g->t_obs, TRANS, isy_count);
     while (isyid < isy_count) transitions[isyid++] = NULL; /*
         |malloc0| will not work because NULL is not guaranteed
 	to be a bitwise zero. */
@@ -6415,7 +6415,7 @@ PRIVATE TRANS* transitions_new(GRAMMAR g, int isy_count)
 
 @ @<Function definitions@> =
 PRIVATE
-void transition_add(struct obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA to_ahfa)
+void transition_add(struct marpa_obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA to_ahfa)
 {
     TRANS* transitions = TRANSs_of_AHFA(from_ahfa);
     TRANS transition = transitions[isyid];
@@ -6433,7 +6433,7 @@ Once all the counts are complete,
 the array is populated.
 @<Function definitions@> =
 PRIVATE
-void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, ISYID isyid)
+void completion_count_inc(struct marpa_obstack *obstack, AHFA from_ahfa, ISYID isyid)
 {
     TRANS* transitions = TRANSs_of_AHFA(from_ahfa);
     TRANS transition = transitions[isyid];
@@ -6706,7 +6706,7 @@ struct s_input {
 PRIVATE INPUT input_new (GRAMMAR g)
 {
   INPUT input = my_slice_new (struct s_input);
-  TOK_Obs_of_I (input) = my_obstack_init;
+  TOK_Obs_of_I (input) = marpa_obs_init;
   @<Initialize input elements@>@;
   return input;
 }
@@ -6747,7 +6747,7 @@ guarantee that it is safe to destroy it.
 @<Function definitions@> =
 PRIVATE void input_free(INPUT input)
 {
-    my_obstack_free(TOK_Obs_of_I(input));
+    marpa_obs_free(TOK_Obs_of_I(input));
     my_slice_free(struct s_input, input);
 }
 
@@ -6767,7 +6767,7 @@ this fact by freeing up the rest of recognizer memory.
 @d TOK_Obs_of_I(i)
     ((i)->t_token_obs)
 @<Widely aligned input elements@> =
-struct obstack* t_token_obs;
+struct marpa_obstack* t_token_obs;
 
 @*0 Base objects.
 @ @d G_of_I(i) ((i)->t_grammar)
@@ -7328,9 +7328,9 @@ int marpa_r_is_exhausted(Marpa_Recognizer r)
 Create an obstack with the lifetime of the recognizer.
 This is a very efficient way of allocating memory which won't be
 resized and which will have the same lifetime as the recognizer.
-@<Widely aligned recognizer elements@> = struct obstack *t_obs;
-@ @<Initialize recognizer obstack@> = r->t_obs = my_obstack_init;
-@ @<Destroy recognizer obstack@> = my_obstack_free(r->t_obs);
+@<Widely aligned recognizer elements@> = struct marpa_obstack *t_obs;
+@ @<Initialize recognizer obstack@> = r->t_obs = marpa_obs_init;
+@ @<Destroy recognizer obstack@> = marpa_obs_free(r->t_obs);
 
 @** Earlemes.
 In most parsers, the input is modeled as a token stream ---
@@ -7512,7 +7512,7 @@ earley_set_new( RECCE r, EARLEME id)
 {
   ESK_Object key;
   ES set;
-  set = my_obstack_alloc (r->t_obs, sizeof (*set));
+  set = marpa_obs_alloc (r->t_obs, sizeof (*set));
   key.t_earleme = id;
   set->t_key = key;
   set->t_postdot_ary = NULL;
@@ -7847,7 +7847,7 @@ PRIVATE EIM earley_item_create(const RECCE r,
   const ES set = key.t_set;
   const int count = ++EIM_Count_of_ES(set);
   @<Check count against Earley item thresholds@>@;
-  new_item = my_obstack_new (r->t_obs, struct s_earley_item, 1);
+  new_item = marpa_obs_new (r->t_obs, struct s_earley_item, 1);
   new_item->t_key = key;
   new_item->t_source_type = NO_SOURCE;
   Ord_of_EIM(new_item) = count - 1;
@@ -8398,7 +8398,7 @@ token_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
+  new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = LV_First_Token_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   TOK_of_Source(new_link->t_source) = token;
@@ -8477,7 +8477,7 @@ completion_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
+  new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = LV_First_Completion_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -8506,7 +8506,7 @@ leo_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
+  new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
   new_link->t_next = LV_First_Leo_SRCL_of_EIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -8551,7 +8551,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate token source@> = {
-  SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
+  SRCL new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
   *new_link = *SRCL_of_EIM(item);
   LV_First_Leo_SRCL_of_EIM (item) = NULL;
   LV_First_Completion_SRCL_of_EIM (item) = NULL;
@@ -8559,7 +8559,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate completion source@> = {
-  SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
+  SRCL new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
   *new_link = *SRCL_of_EIM(item);
   LV_First_Leo_SRCL_of_EIM (item) = NULL;
   LV_First_Completion_SRCL_of_EIM (item) = new_link;
@@ -8567,7 +8567,7 @@ void earley_item_ambiguate (struct marpa_r * r, EIM item)
 }
 
 @ @<Ambiguate Leo source@> = {
-  SRCL new_link = my_obstack_alloc (r->t_obs, sizeof (*new_link));
+  SRCL new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
   *new_link = *SRCL_of_EIM(item);
   LV_First_Leo_SRCL_of_EIM (item) = new_link;
   LV_First_Completion_SRCL_of_EIM (item) = NULL;
@@ -9435,19 +9435,19 @@ altered by the attempt.
 {
   TOK token;
   ALT_Object alternative;
-  struct obstack * const token_obstack = TOK_Obs_of_I (input);
+  struct marpa_obstack * const token_obstack = TOK_Obs_of_I (input);
   if (value)
     {
-      my_obstack_reserve (TOK_Obs_of_I (input), sizeof (*token));
-      token = my_obstack_base (token_obstack);
+      marpa_obs_reserve (TOK_Obs_of_I (input), sizeof (*token));
+      token = marpa_obs_base (token_obstack);
       ISYID_of_TOK (token) = token_isyid;
       Type_of_TOK (token) = VALUED_TOKEN_OR_NODE;
       Value_of_TOK (token) = value;
     }
   else
     {
-      my_obstack_reserve (TOK_Obs_of_I (input), sizeof (token->t_unvalued));
-      token = my_obstack_base (token_obstack);
+      marpa_obs_reserve (TOK_Obs_of_I (input), sizeof (token->t_unvalued));
+      token = marpa_obs_base (token_obstack);
       ISYID_of_TOK (token) = token_isyid;
       Type_of_TOK (token) = UNVALUED_TOKEN_OR_NODE;
     }
@@ -9458,11 +9458,11 @@ altered by the attempt.
   alternative.t_end_earleme = target_earleme;
   if (alternative_insert (r, &alternative) < 0)
     {
-      my_obstack_reject (token_obstack);
+      marpa_obs_reject (token_obstack);
       MARPA_ERROR(MARPA_ERR_DUPLICATE_TOKEN);
       return MARPA_ERR_DUPLICATE_TOKEN;
     }
-  token = my_obstack_finish (token_obstack);
+  token = marpa_obs_finish (token_obstack);
 }
 
 @** Complete an Earley set.
@@ -9476,8 +9476,12 @@ This section is devoted to the logic for completion.
 @<Widely aligned recognizer elements@> = DSTACK_DECLARE(t_eim_work_stack);
 @ @<Initialize recognizer elements@> = DSTACK_SAFE(r->t_eim_work_stack);
 @ @<Initialize Earley item work stacks@> =
-    DSTACK_IS_INITIALIZED(r->t_eim_work_stack) ||
-	DSTACK_INIT2 (r->t_eim_work_stack, EIM );
+{
+  if (!DSTACK_IS_INITIALIZED (r->t_eim_work_stack))
+    {
+      DSTACK_INIT2 (r->t_eim_work_stack, EIM);
+    }
+}
 @ @<Destroy recognizer elements@> = DSTACK_DESTROY(r->t_eim_work_stack);
 
 @ The completion stack is initialized to a very high-ball estimate of the
@@ -9487,8 +9491,12 @@ Large stacks may needed for very ambiguous grammars.
 @<Widely aligned recognizer elements@> = DSTACK_DECLARE(t_completion_stack);
 @ @<Initialize recognizer elements@> = DSTACK_SAFE(r->t_completion_stack);
 @ @<Initialize Earley item work stacks@> =
-    DSTACK_IS_INITIALIZED(r->t_completion_stack) ||
-    DSTACK_INIT2 (r->t_completion_stack, EIM );
+{
+  if (!DSTACK_IS_INITIALIZED (r->t_completion_stack))
+    {
+      DSTACK_INIT2 (r->t_completion_stack, EIM);
+    }
+}
 @ @<Destroy recognizer elements@> = DSTACK_DESTROY(r->t_completion_stack);
 
 @ @<Widely aligned recognizer elements@> = DSTACK_DECLARE(t_earley_set_stack);
@@ -9571,10 +9579,10 @@ But I expect to use it for other purposes.
 @<Declare |marpa_r_earleme_complete| locals@> =
     const ISYID isy_count = ISY_Count_of_G(g);
     Bit_Vector bv_ok_for_chain = bv_create(isy_count);
-    struct obstack* const earleme_complete_obs = my_obstack_init;
+    struct marpa_obstack* const earleme_complete_obs = marpa_obs_init;
 @ @<Destroy |marpa_r_earleme_complete| locals@> =
     bv_free(bv_ok_for_chain);
-    my_obstack_free( earleme_complete_obs );
+    marpa_obs_free( earleme_complete_obs );
 
 @ @<Initialize |current_earleme|@> = {
   current_earleme = ++(Current_Earleme_of_R(r));
@@ -9749,7 +9757,7 @@ PRIVATE void trigger_events(RECCE r)
   const ES current_earley_set = Latest_ES_of_R (r);
   unsigned int min, max, start;
   int eim_ix;
-  struct obstack *const trigger_events_obs = my_obstack_init;
+  struct marpa_obstack *const trigger_events_obs = marpa_obs_init;
   const EIM *eims = EIMs_of_ES (current_earley_set);
   const XSYID xsy_count = XSY_Count_of_G (g);
   const AHFAID ahfa_count = AHFA_Count_of_G (g);
@@ -9879,7 +9887,7 @@ PRIVATE void trigger_events(RECCE r)
 	    }
 	}
     }
-  my_obstack_free (trigger_events_obs);
+  marpa_obs_free (trigger_events_obs);
 }
 
 @ @<Function definitions@> =
@@ -9889,7 +9897,7 @@ PRIVATE void earley_set_update_items(RECCE r, ES set)
     EIM* finished_earley_items;
     int working_earley_item_count;
     int i;
-    EIMs_of_ES(set) = my_obstack_new(r->t_obs, EIM, EIM_Count_of_ES(set));
+    EIMs_of_ES(set) = marpa_obs_new(r->t_obs, EIM, EIM_Count_of_ES(set));
     finished_earley_items = EIMs_of_ES(set);
     working_earley_items = Work_EIMs_of_R(r);
     working_earley_item_count = Work_EIM_Count_of_R(r);
@@ -9952,7 +9960,7 @@ This may require running benchmarks.
 @ @<Allocate recognizer containers@> = 
   r->t_bv_lim_symbols = bv_obs_create(r->t_obs, isy_count);
   r->t_bv_pim_symbols = bv_obs_create(r->t_obs, isy_count);
-  r->t_pim_workarea = my_obstack_new(r->t_obs, void*, isy_count);
+  r->t_pim_workarea = marpa_obs_new(r->t_obs, void*, isy_count);
 @ @<Reinitialize containers used in PIM setup@> =
   bv_clear(r->t_bv_lim_symbols);
   bv_clear(r->t_bv_pim_symbols);
@@ -9994,7 +10002,7 @@ At this point there are no Leo items.
 	  PIM old_pim = NULL;
 	  PIM new_pim;
 	  ISYID isyid;
-	  new_pim = my_obstack_alloc (r->t_obs, sizeof (EIX_Object));
+	  new_pim = marpa_obs_alloc (r->t_obs, sizeof (EIX_Object));
 	  isyid = postdot_isyidary[isy_ix];
 	  Postdot_ISYID_of_PIM(new_pim) = isyid;
 	  EIM_of_PIM(new_pim) = earley_item;
@@ -10057,7 +10065,7 @@ That may become its actual value,
 once it is populated.
 @<Create a new, unpopulated, LIM@> = {
     LIM new_lim;
-    new_lim = my_obstack_alloc(r->t_obs, sizeof(*new_lim));
+    new_lim = marpa_obs_alloc(r->t_obs, sizeof(*new_lim));
     Postdot_ISYID_of_LIM(new_lim) = isyid;
     EIM_of_PIM(new_lim) = NULL;
     Predecessor_LIM_of_LIM(new_lim) = NULL;
@@ -10217,7 +10225,7 @@ In a populated LIM, this will not necessarily be the case.
 @ @<Widely aligned recognizer elements@> =
   void** t_lim_chain;
 @ @<Allocate recognizer containers@> = 
-  r->t_lim_chain = my_obstack_new(r->t_obs, void*, 2*isy_count);
+  r->t_lim_chain = marpa_obs_new(r->t_obs, void*, 2*isy_count);
 @ @<Create and populate a LIM chain@> = {
   int lim_chain_ix;
   @<Create a LIM chain@>@;
@@ -10358,7 +10366,7 @@ of the base EIM.
 @ @<Copy PIM workarea to postdot item array@> = {
     PIM *postdot_array
 	= current_earley_set->t_postdot_ary
-	= my_obstack_alloc (r->t_obs,
+	= marpa_obs_alloc (r->t_obs,
 	       current_earley_set->t_postdot_sym_count * sizeof (PIM));
     unsigned int min, max, start;
     int postdot_array_ix = 0;
@@ -10505,7 +10513,7 @@ will need to be changed.
 
 @<Private structures@> =
 struct s_ur_node_stack {
-   struct obstack* t_obs;
+   struct marpa_obstack* t_obs;
    UR t_base;
    UR t_top;
 };
@@ -10530,7 +10538,7 @@ are settled.
 @ @<Function definitions@> =
 PRIVATE void ur_node_stack_init(URS stack)
 {
-    stack->t_obs = my_obstack_init;
+    stack->t_obs = marpa_obs_init;
     stack->t_base = ur_node_new(stack, 0);
     ur_node_stack_reset(stack);
 }
@@ -10544,7 +10552,7 @@ PRIVATE void ur_node_stack_reset(URS stack)
 @ @<Function definitions@> =
 PRIVATE void ur_node_stack_destroy(URS stack)
 {
-    if (stack->t_base) my_obstack_free(stack->t_obs);
+    if (stack->t_base) marpa_obs_free(stack->t_obs);
     stack->t_base = NULL;
 }
 
@@ -10552,7 +10560,7 @@ PRIVATE void ur_node_stack_destroy(URS stack)
 PRIVATE UR ur_node_new(URS stack, UR prev)
 {
     UR new_ur_node;
-    new_ur_node = my_obstack_alloc(stack->t_obs, sizeof(new_ur_node[0]));
+    new_ur_node = marpa_obs_alloc(stack->t_obs, sizeof(new_ur_node[0]));
     Next_UR_of_UR(new_ur_node) = 0;
     Prev_UR_of_UR(new_ur_node) = prev;
     return new_ur_node;
@@ -10639,7 +10647,7 @@ This function ensures that the appropriate |PSIA| boolean is set.
 It returns that boolean's value {\bf prior} to the call.
 @<Function definitions@> = 
 PRIVATE int psia_test_and_set(
-    struct obstack* obs,
+    struct marpa_obstack* obs,
     struct s_bocage_setup_per_es* per_es_data,
     EIM earley_item,
     AEX ahfa_element_ix)
@@ -10653,7 +10661,7 @@ MARPA_ASSERT(ahfa_element_ix < aim_count_of_item)@;
     if (!nodes_by_aex) {
 	AEX aex;
         nodes_by_aex = nodes_by_item[item_ordinal] =
-	    my_obstack_alloc(obs, aim_count_of_item*sizeof(OR));
+	    marpa_obs_alloc(obs, aim_count_of_item*sizeof(OR));
 	for (aex = 0; aex < aim_count_of_item; aex++) {
 	    nodes_by_aex[aex] = NULL;
 	}
@@ -11107,7 +11115,7 @@ or arranging to test it.
 {
   const int or_node_id = OR_Count_of_B (b)++;
   OR *or_nodes_of_b = ORs_of_B (b);
-  last_or_node = (OR)my_obstack_alloc (OBS_of_B(b), sizeof(OR_Object));
+  last_or_node = (OR)marpa_obs_alloc (OBS_of_B(b), sizeof(OR_Object));
   ID_of_OR(last_or_node) = or_node_id;
   if (UNLIKELY(or_node_id >= or_node_estimate))
     {
@@ -11537,9 +11545,9 @@ typedef struct s_draft_and_node DAND_Object;
 
 @ @<Function definitions@> =
 PRIVATE
-DAND draft_and_node_new(struct obstack *obs, OR predecessor, OR cause)
+DAND draft_and_node_new(struct marpa_obstack *obs, OR predecessor, OR cause)
 {
-    DAND draft_and_node = my_obstack_alloc (obs, sizeof(DAND_Object));
+    DAND draft_and_node = marpa_obs_alloc (obs, sizeof(DAND_Object));
     Predecessor_OR_of_DAND(draft_and_node) = predecessor;
     Cause_OR_of_DAND(draft_and_node) = cause;
     MARPA_ASSERT(cause != NULL);
@@ -11560,7 +11568,7 @@ and the PSARs can be reserved for the unusual case where this
 is not sufficient.
 @<Function definitions@> =
 PRIVATE
-void draft_and_node_add(struct obstack *obs, OR parent, OR predecessor, OR cause)
+void draft_and_node_add(struct marpa_obstack *obs, OR parent, OR predecessor, OR cause)
 {
     MARPA_OFF_ASSERT(Position_of_OR(parent) <= 1 || predecessor)
     const DAND new = draft_and_node_new(obs, predecessor, cause);
@@ -12126,14 +12134,14 @@ Marpa_Earley_Set_ID _marpa_b_and_node_middle(Marpa_Bocage b,
    typedef struct marpa_progress_item* PROGRESS;
 @ @<Widely aligned recognizer elements@> =
    const struct marpa_progress_item* t_current_report_item;
-   AVL_TRAV t_progress_report_traverser;
+   MARPA_AVL_TRAV t_progress_report_traverser;
 @ @<Initialize recognizer elements@> =
    r->t_current_report_item = &progress_report_not_ready;
    r->t_progress_report_traverser = NULL;
 @ @<Clear progress report in |r|@> =
    r->t_current_report_item = &progress_report_not_ready;
     if (r->t_progress_report_traverser) {
-    _marpa_avl_destroy ( TREE_of_AVL_TRAV(r->t_progress_report_traverser) );
+    _marpa_avl_destroy ( MARPA_TREE_OF_AVL_TRAV(r->t_progress_report_traverser) );
     }
    r->t_progress_report_traverser = NULL;
 @ @<Destroy recognizer elements@> =
@@ -12197,7 +12205,7 @@ int marpa_r_progress_report_start(
   earley_set = ES_of_R_by_Ord (r, set_id);
   @<Clear progress report in |r|@>@;
   {
-    const AVL_TREE report_tree =
+    const MARPA_AVL_TREE report_tree =
       _marpa_avl_create (report_item_cmp, NULL, alignof (PROGRESS));
     const EIM *const earley_items = EIMs_of_ES (earley_set);
     const int earley_item_count = EIM_Count_of_ES (earley_set);
@@ -12216,7 +12224,7 @@ int marpa_r_progress_report_start(
 int marpa_r_progress_report_reset( Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
-  AVL_TRAV traverser = r->t_progress_report_traverser;
+  MARPA_AVL_TRAV traverser = r->t_progress_report_traverser;
   @<Unpack recognizer objects@>@;
   @<Fail if fatal error@>@;
   @<Fail if recognizer not started@>@;
@@ -12321,7 +12329,7 @@ NEXT_EARLEY_ITEM:;
 	    }
 	  {
 	    const PROGRESS new_report_item =
-	      my_obstack_new (AVL_OBSTACK (report_tree), struct marpa_progress_item,
+	      marpa_obs_new (MARPA_AVL_OBSTACK (report_tree), struct marpa_progress_item,
 			      1);
 	    Position_of_PROGRESS (new_report_item) = xrl_position;
 	    Origin_of_PROGRESS (new_report_item) = report_origin;
@@ -12338,7 +12346,7 @@ int marpa_r_progress_report_finish(Marpa_Recognizer r) {
   const int success = 1;
   @<Return |-2| on failure@>@;
   @<Unpack recognizer objects@>@;
-  const AVL_TRAV traverser = r->t_progress_report_traverser;
+  const MARPA_AVL_TRAV traverser = r->t_progress_report_traverser;
   @<Fail if no |traverser|@>@;
     @<Clear progress report in |r|@>@;
     return success;
@@ -12350,7 +12358,7 @@ Marpa_Rule_ID marpa_r_progress_item(
 ) {
   @<Return |-2| on failure@>@;
   PROGRESS report_item;
-  AVL_TRAV traverser;
+  MARPA_AVL_TRAV traverser;
   @<Unpack recognizer objects@>@;
   @<Fail if fatal error@>@;
   @<Fail if recognizer not started@>@;
@@ -12409,9 +12417,9 @@ struct marpa_bocage {
 An obstack with the lifetime of the bocage.
 @d OBS_of_B(b) ((b)->t_obs)
 @<Widely aligned bocage elements@> =
-struct obstack *t_obs;
+struct marpa_obstack *t_obs;
 @ @<Destroy bocage elements, final phase@> =
-my_obstack_free(OBS_of_B(b));
+marpa_obs_free(OBS_of_B(b));
 
 @*0 Bocage construction.
 @<Function definitions@> =
@@ -12424,8 +12432,8 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     @<Fail if fatal error@>@;
     @<Fail if recognizer not started@>@;
     {
-	struct obstack* const obstack = my_obstack_init;
-	b = my_obstack_new (obstack, struct marpa_bocage, 1);
+	struct marpa_obstack* const obstack = marpa_obs_init;
+	b = marpa_obs_new (obstack, struct marpa_bocage, 1);
 	OBS_of_B(b) = obstack;
     }
     @<Initialize bocage elements@>@;
@@ -12448,13 +12456,13 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
       }
     @<Find |start_eim|, |start_aim| and |start_aex|@>@;
     if (!start_eim) goto NO_PARSE;
-    bocage_setup_obs = my_obstack_init;
+    bocage_setup_obs = marpa_obs_init;
     @<Allocate bocage setup working data@>@;
     @<Populate the PSIA data@>@;
     @<Create the or-nodes for all earley sets@>@;
     @<Create the final and-nodes for all earley sets@>@;
     @<Set top or node id in |b|@>;
-    my_obstack_free(bocage_setup_obs);
+    marpa_obs_free(bocage_setup_obs);
     return b;
     NO_PARSE: ;
 	  MARPA_ERROR(MARPA_ERR_NO_PARSE);
@@ -12487,7 +12495,7 @@ EARLEME end_of_parse_earleme;
 EIM start_eim = NULL;
 AIM start_aim = NULL;
 AEX start_aex = -1;
-struct obstack* bocage_setup_obs = NULL;
+struct marpa_obstack* bocage_setup_obs = NULL;
 int total_earley_items_in_parse;
 int or_node_estimate = 0;
 const int earley_set_count_of_r = ES_Count_of_R (r);
@@ -12531,7 +12539,7 @@ struct s_bocage_setup_per_es* per_es_data = NULL;
   unsigned int earley_set_count = ES_Count_of_R (r);
   total_earley_items_in_parse = 0;
   per_es_data =
-    my_obstack_alloc (bocage_setup_obs,
+    marpa_obs_alloc (bocage_setup_obs,
 		   sizeof (struct s_bocage_setup_per_es) * earley_set_count);
   for (ix = 0; ix < earley_set_count; ix++)
     {
@@ -12541,7 +12549,7 @@ struct s_bocage_setup_per_es* per_es_data = NULL;
 	{
 	  struct s_bocage_setup_per_es *per_es = per_es_data + ix;
 	  OR ** const per_eim_eixes = per_es->t_aexes_by_item =
-	    my_obstack_alloc (bocage_setup_obs, sizeof (OR *) * item_count);
+	    marpa_obs_alloc (bocage_setup_obs, sizeof (OR *) * item_count);
 	  unsigned int item_ordinal;
 	  per_es->t_or_psl = NULL;
 	  per_es->t_and_psl = NULL;
@@ -12737,7 +12745,7 @@ It is non-null if and only if
 @d O_is_Frozen(o) ((o)->t_is_frozen)
 @<Private structures@> =
 struct marpa_order {
-    struct obstack* t_ordering_obs;
+    struct marpa_obstack* t_ordering_obs;
     ANDID** t_and_node_orderings;
     @<Widely aligned order elements@>@;
     @<Int aligned order elements@>@;
@@ -12815,7 +12823,7 @@ PRIVATE void order_free(ORDER o)
 {
   @<Unpack order objects@>@;
   bocage_unref(b);
-  my_obstack_free(OBS_of_O(o));
+  marpa_obs_free(OBS_of_O(o));
   my_slice_free(*o, o);
 }
 
@@ -12932,7 +12940,7 @@ not less.
 int marpa_o_rank( Marpa_Order o)
 {
   ANDID** and_node_orderings;
-  struct obstack *obs;
+  struct marpa_obstack *obs;
   int bocage_was_reordered = 0;
   @<Return |-2| on failure@>@;
   @<Unpack order objects@>@;
@@ -12949,7 +12957,7 @@ int marpa_o_rank( Marpa_Order o)
     @<Sort bocage for "rank by rule"@>@;
   }
   if (!bocage_was_reordered) {
-    my_obstack_free(obs);
+    marpa_obs_free(obs);
     OBS_of_O(o) = NULL;
     o->t_and_node_orderings = NULL;
   }
@@ -12984,8 +12992,8 @@ int marpa_o_rank( Marpa_Order o)
       const ANDID last_and_node_id =
 	(first_and_node_id + and_count_of_or) - 1;
       ANDID *const order_base =
-	(my_obstack_reserve (obs, sizeof (ANDID) * (and_count_of_or + 1)),
-	 my_obstack_base (obs));
+	(marpa_obs_reserve (obs, sizeof (ANDID) * (and_count_of_or + 1)),
+	 marpa_obs_base (obs));
       ANDID *order = order_base + 1;
       ANDID and_node_id;
       bocage_was_reordered = 1;
@@ -13007,8 +13015,8 @@ int marpa_o_rank( Marpa_Order o)
 	int final_count = (order - order_base) - 1;
 	*order_base = final_count;
 	ambiguity_metric = MAX (ambiguity_metric, final_count);
-	my_obstack_confirm_fast (obs, sizeof (ANDID) * (final_count + 1));
-	and_node_orderings[or_node_id] = my_obstack_finish (obs);
+	marpa_obs_confirm_fast (obs, sizeof (ANDID) * (final_count + 1));
+	and_node_orderings[or_node_id] = marpa_obs_finish (obs);
       }
     }
 }
@@ -13076,7 +13084,7 @@ and code-size savings in exchange for the space.
     {
       const ANDID first_and_node_id = First_ANDID_of_OR (work_or_node);
       ANDID *const order_base =
-	my_obstack_alloc (obs, sizeof (ANDID) * (and_count_of_or + 1));
+	marpa_obs_alloc (obs, sizeof (ANDID) * (and_count_of_or + 1));
       ANDID *order = order_base + 1;
       int nodes_inserted_so_far;
       bocage_was_reordered = 1;
@@ -13105,10 +13113,10 @@ and code-size savings in exchange for the space.
 {
   int and_id;
   const int and_count_of_r = AND_Count_of_B (b);
-  obs = OBS_of_O (o) = my_obstack_init;
+  obs = OBS_of_O (o) = marpa_obs_init;
   o->t_and_node_orderings =
     and_node_orderings =
-    my_obstack_alloc (obs, sizeof (ANDID *) * and_count_of_r);
+    marpa_obs_alloc (obs, sizeof (ANDID *) * and_count_of_r);
   for (and_id = 0; and_id < and_count_of_r; and_id++)
     {
       and_node_orderings[and_id] = (ANDID *) NULL;
@@ -13860,9 +13868,9 @@ ES_ID_of_V(v) = -1;
 @*0 The obstack.
 An obstack with the same lifetime as the valuator.
 @<Widely aligned value elements@> =
-  struct obstack* t_obs;
+  struct marpa_obstack* t_obs;
 @ @<Destroy value obstack@> =
-  my_obstack_free(v->t_obs);
+  marpa_obs_free(v->t_obs);
 
 @*0 Virtual stack.
 @ A dynamic stack is used here instead of a fixed
@@ -13932,8 +13940,8 @@ Marpa_Value marpa_v_new(Marpa_Tree t)
     if (!T_is_Exhausted (t))
       {
 	const XSYID xsy_count = XSY_Count_of_G (g);
-	struct obstack* const obstack = my_obstack_init;
-	const VALUE v = my_obstack_new (obstack, struct s_value, 1);
+	struct marpa_obstack* const obstack = marpa_obs_init;
+	const VALUE v = marpa_obs_new (obstack, struct s_value, 1);
 	v->t_obs = obstack;
 	Step_Type_of_V (v) = Next_Value_Type_of_V (v) = MARPA_STEP_INITIAL;
 	@<Initialize value elements@>@;
@@ -14447,10 +14455,10 @@ PRIVATE int lbv_bits_to_size(int bits)
 @*0 Create an unitialized LBV on an obstack.
 @<Function definitions@> =
 PRIVATE Bit_Vector
-lbv_obs_new (struct obstack *obs, int bits)
+lbv_obs_new (struct marpa_obstack *obs, int bits)
 {
   int size = lbv_bits_to_size (bits);
-  LBV lbv = my_obstack_new (obs, LBW, size);
+  LBV lbv = marpa_obs_new (obs, LBW, size);
   return lbv;
 }
 
@@ -14470,7 +14478,7 @@ lbv_zero (Bit_Vector lbv, int bits)
 @*0 Create a zeroed LBV on an obstack.
 @<Function definitions@> =
 PRIVATE Bit_Vector
-lbv_obs_new0 (struct obstack *obs, int bits)
+lbv_obs_new0 (struct marpa_obstack *obs, int bits)
 {
   LBV lbv = lbv_obs_new(obs, bits);
   return lbv_zero(lbv, bits);
@@ -14489,10 +14497,10 @@ lbv_obs_new0 (struct obstack *obs, int bits)
 @*0 Clone an LBV onto an obstack.
 @<Function definitions@> =
 PRIVATE LBV lbv_clone(
-  struct obstack* obs, LBV old_lbv, int bits)
+  struct marpa_obstack* obs, LBV old_lbv, int bits)
 {
   int size = lbv_bits_to_size (bits);
-  const LBV new_lbv = my_obstack_new (obs, LBW, size);
+  const LBV new_lbv = marpa_obs_new (obs, LBW, size);
   if (size > 0) {
       LBW *from_addr = old_lbv;
       LBW *to_addr = new_lbv;
@@ -14579,11 +14587,11 @@ This is offset from the |malloc|'d space,
 by |bv_hiddenwords|.
 @<Function definitions@> =
 PRIVATE Bit_Vector
-bv_obs_create (struct obstack *obs, unsigned int bits)
+bv_obs_create (struct marpa_obstack *obs, unsigned int bits)
 {
   unsigned int size = bv_bits_to_size (bits);
   unsigned int bytes = (size + bv_hiddenwords) * sizeof (Bit_Vector_Word);
-  unsigned int *addr = (Bit_Vector) my_obstack_alloc (obs, (size_t) bytes);
+  unsigned int *addr = (Bit_Vector) marpa_obs_alloc (obs, (size_t) bytes);
   *addr++ = bits;
   *addr++ = size;
   *addr++ = bv_bits_to_unused_mask (bits);
@@ -14603,7 +14611,7 @@ PRIVATE Bit_Vector bv_shadow(Bit_Vector bv)
 {
     return bv_create(BV_BITS(bv));
 }
-PRIVATE Bit_Vector bv_obs_shadow(struct obstack * obs, Bit_Vector bv)
+PRIVATE Bit_Vector bv_obs_shadow(struct marpa_obstack * obs, Bit_Vector bv)
 {
     return bv_obs_create(obs, BV_BITS(bv));
 }
@@ -14638,7 +14646,7 @@ Bit_Vector bv_clone(Bit_Vector bv)
 }
 
 PRIVATE
-Bit_Vector bv_obs_clone(struct obstack *obs, Bit_Vector bv)
+Bit_Vector bv_obs_clone(struct marpa_obstack *obs, Bit_Vector bv)
 {
     return bv_copy(bv_obs_shadow(obs, bv), bv);
 }
@@ -15038,10 +15046,13 @@ PRIVATE size_t matrix_sizeof(unsigned int rows, unsigned int columns)
 
 @*0 Create a boolean matrix on an obstack.
 @ @<Function definitions@> =
-PRIVATE Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns)
+PRIVATE Bit_Matrix matrix_obs_create(
+  struct marpa_obstack *obs,
+  unsigned int rows,
+  unsigned int columns)
 {
   Bit_Matrix matrix_addr =
-    my_obstack_alloc (obs, matrix_sizeof (rows, columns));
+    marpa_obs_alloc (obs, matrix_sizeof (rows, columns));
   return matrix_buffer_create (matrix_addr, rows, columns);
 }
 
@@ -15348,8 +15359,8 @@ for random-access through a pointer.
 for the lookups.
 @<Private utility structures@> =
 struct s_cil_arena {
-    struct obstack* t_obs;
-    AVL_TREE t_avl;
+    struct marpa_obstack* t_obs;
+    MARPA_AVL_TREE t_avl;
     DSTACK_DECLARE(t_buffer);
 };
 typedef struct s_cil_arena CILAR_Object;
@@ -15369,7 +15380,7 @@ Once things settle, |DSTACK_INIT| should be changed to
 PRIVATE void
 cilar_init (const CILAR cilar)
 {
-  cilar->t_obs = my_obstack_init;
+  cilar->t_obs = marpa_obs_init;
   cilar->t_avl = _marpa_avl_create (cil_cmp, NULL, 0);
   DSTACK_INIT(cilar->t_buffer, int, 2);
   *DSTACK_INDEX(cilar->t_buffer, int, 0) = 0;
@@ -15392,7 +15403,7 @@ cilar_reinit (const CILAR cilar)
 PRIVATE void cilar_destroy(const CILAR cilar)
 {
   _marpa_avl_destroy (cilar->t_avl );
-  my_obstack_free(cilar->t_obs);
+  marpa_obs_free(cilar->t_obs);
   DSTACK_DESTROY((cilar->t_buffer));
 }
 
@@ -15432,7 +15443,7 @@ PRIVATE CIL cil_buffer_add(CILAR cilar)
     {
       int i;
       const int cil_size_in_ints = Count_of_CIL (cil_in_buffer) + 1;
-      found_cil = my_obstack_new (cilar->t_obs, int, cil_size_in_ints);
+      found_cil = marpa_obs_new (cilar->t_obs, int, cil_size_in_ints);
       for (i = 0; i < cil_size_in_ints; i++)
 	{			/* Assumes that the CIL's are |int*| */
 	  found_cil[i] = cil_in_buffer[i];
@@ -16507,7 +16518,7 @@ So I add such a comment.
 #include "marpa_util.h"
 @h
 #include "marpa_obs.h"
-#include "avl.h"
+#include "marpa_avl.h"
 @<Private incomplete structures@>@;
 @<Private typedefs@>@;
 @<Private utility structures@>@;

@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_003';
+$VERSION        = '2.077_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -63,7 +63,6 @@ my %node_status =
     qw(
 action
 action_name
-adverb_body
 adverb_item
 adverb_list
 adverb_list_items
@@ -101,7 +100,6 @@ standard_name
 start_rule
 statement
 statements
-statement_body
 symbol
 symbol_name
 );
@@ -178,7 +176,8 @@ sub parse_rules {
     my $ast              = Marpa::R2::Internal::MetaAST->new($p_rules_source);
     {
         local $Marpa::R2::Internal::P_SOURCE = $p_rules_source;
-        my $problem = Marpa::R2::Internal::Stuifzand::check_ast_node($ast->{top_node});
+        my $problem = Marpa::R2::Internal::Stuifzand::check_ast_node(
+            $ast->{top_node} );
         ## Uncaught problem -- should not happen
         if ($problem) {
             Marpa::R2::exception(
@@ -188,6 +187,24 @@ sub parse_rules {
         } ## end if ($problem)
     }
     my $hashed_ast = $ast->ast_to_hash();
+    my $start_lhs = $hashed_ast->{'start_lhs'} // $hashed_ast->{'first_lhs'};
+    Marpa::R2::exception( 'No rules in Stuifzand grammar', )
+        if not defined $start_lhs;
+
+    my $internal_start_lhs = '[:start]';
+    $hashed_ast->{'default_g1_start_action'} =
+        $hashed_ast->{'default_adverbs'}->{'G1'}->{'action'};
+    $hashed_ast->{'symbols'}->{'G1'}->{$internal_start_lhs} = {
+        display_form => ':start',
+        description  => 'Internal G1 start symbol'
+    };
+    push @{ $hashed_ast->{rules}->{G1} },
+        {
+        lhs    => $internal_start_lhs,
+        rhs    => [$start_lhs],
+        action => '::first'
+        };
+
     $self->{rules} = $hashed_ast->{rules}->{G1};
     return $self;
 } ## end sub parse_rules

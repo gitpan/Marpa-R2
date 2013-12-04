@@ -2259,7 +2259,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 177
-#define EXPECTED_LIBMARPA_MICRO 103
+#define EXPECTED_LIBMARPA_MICRO 104
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -4809,6 +4809,24 @@ PPCODE:
 }
 
  #  Always returns the same SV for a given Scanless recce object -- 
+void
+lexer_add( slg, lexer_sv )
+  Scanless_G *slg;
+    SV *lexer_sv;
+PPCODE:
+{
+  SV *new_sv;
+  Lexer *lexer;
+
+  if (!sv_isa (lexer_sv, "Marpa::R2::Thin::G"))
+    {
+      croak ("Problem in u->new(): L0 arg is not of type Marpa::R2::Thin::G");
+    }
+
+  lexer = lexer_add (slg, lexer_sv);
+  XSRETURN_IV ((IV) lexer->index);
+}
+
  #  it does not create a new one
  # 
 void
@@ -5286,13 +5304,33 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv ((IV) literal_length)));
 }
 
+ #  Always returns the same SV for a given Scanless recce object -- 
+void
+lexer_set( slr, lexer_id )
+    Scanless_R *slr;
+    int lexer_id;
+PPCODE:
+{
+  const int old_lexer_id = slr->current_lexer->index;
+  const Scanless_G *slg = slr->slg;
+  const int lexer_count = slg->lexer_count;
+  if (lexer_id >= lexer_count || lexer_id < 0)
+    {
+      croak
+	("Problem in slr->lexer_set(%ld): lexer id must be between 0 and %ld",
+	 (long) lexer_id, (long) (lexer_count - 1));
+    }
+  slr->current_lexer = slg->lexers[lexer_id];
+  XSRETURN_IV ((IV) old_lexer_id);
+}
+
 void
 read(slr)
     Scanless_R *slr;
 PPCODE:
 {
   int result = 0;		/* Hold various results */
-  int trace_lexer = slr->trace_lexer;
+  const int trace_lexer = slr->trace_lexer;
 
   slr->lexer_read_result = 0;
   slr->r1_earleme_complete_result = 0;

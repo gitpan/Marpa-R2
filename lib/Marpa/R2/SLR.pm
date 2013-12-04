@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_003';
+$VERSION        = '2.077_004';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -402,6 +402,15 @@ sub Marpa::R2::Scanless::R::read {
     return $self->resume( $start_pos, $length );
 
 } ## end sub Marpa::R2::Scanless::R::read
+
+sub Marpa::R2::Scanless::R::lexer_set {
+    my ( $slr, $lexer_name ) = @_;
+    my $slg = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+    my $lexer_id = $slg->[Marpa::R2::Inner::Scanless::G::LEXER_BY_NAME]->{$lexer_name};
+    Marpa::R2::exception( "Attempt to switch to unknown lexer: $lexer_name" ) if not defined $lexer_id;
+    my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
+    return $thin_slr->lexer_set($lexer_id);
+}
 
 my $libmarpa_trace_event_handlers = {
 
@@ -792,10 +801,10 @@ sub Marpa::R2::Scanless::R::resume {
             # Recover by registering character, if we can
             my $codepoint = $thin_slr->codepoint();
             my $character = chr($codepoint);
-            my $lexer     = $thin_slr->current_lexer();
+            my $lexer_id     = $thin_slr->current_lexer();
             my $character_class_table =
                 $slg->[Marpa::R2::Inner::Scanless::G::CHARACTER_CLASS_TABLES]
-                ->[$lexer];
+                ->[$lexer_id];
             my @ops;
             for my $entry ( @{$character_class_table} ) {
 
@@ -803,7 +812,6 @@ sub Marpa::R2::Scanless::R::resume {
                 if ( $character =~ $re ) {
 
                     if ( $trace_terminals >= 2 ) {
-			my $lexer_id     = $thin_slr->current_lexer();
                         my $thick_lex_grammar = $slg->[
                             Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]->[$lexer_id];
                         my $trace_file_handle = $slr->[
@@ -823,8 +831,9 @@ sub Marpa::R2::Scanless::R::resume {
                 } ## end if ( $character =~ $re )
             } ## end for my $entry ( @{$character_class_table} )
 
+            my $lexer_name = $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]->[$lexer_id];
             Marpa::R2::exception(
-                'Lexing failed at unacceptable character ',
+                qq{Lexer "$lexer_name" failed at unacceptable character },
                 character_describe( chr $codepoint )
             ) if not @ops;
             $thin_slr->char_register( $codepoint, @ops,

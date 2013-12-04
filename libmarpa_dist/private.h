@@ -45,7 +45,7 @@ create_predicted_AHFA_state(
      Bit_Vector prediction_rule_vector,
      IRL* irl_by_sort_key,
      DQUEUE states_p,
-     AVL_TREE duplicates,
+     MARPA_AVL_TREE duplicates,
      AIM* item_list_working_buffer
      );
 static Marpa_Error_Code invalid_source_type_code(unsigned int type);
@@ -107,13 +107,13 @@ static inline void AHFA_initialize(AHFA ahfa);
 static inline AEX aex_of_ahfa_by_aim_get(AHFA ahfa, AIM sought_aim);
 static inline int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id);
 static inline AHFA
-assign_AHFA_state (AHFA sought_state, AVL_TREE duplicates);
+assign_AHFA_state (AHFA sought_state, MARPA_AVL_TREE duplicates);
 static inline AHFA to_ahfa_of_transition_get(TRANS transition);
 static inline int completion_count_of_transition_get(TRANS transition);
-static inline URTRANS transition_new(struct obstack *obstack, AHFA to_ahfa, int aim_ix);
+static inline URTRANS transition_new(struct marpa_obstack *obstack, AHFA to_ahfa, int aim_ix);
 static inline TRANS* transitions_new(GRAMMAR g, int isy_count);
-static inline void transition_add(struct obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA to_ahfa);
-static inline void completion_count_inc(struct obstack *obstack, AHFA from_ahfa, ISYID isyid);
+static inline void transition_add(struct marpa_obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA to_ahfa);
+static inline void completion_count_inc(struct marpa_obstack *obstack, AHFA from_ahfa, ISYID isyid);
 static inline INPUT input_new (GRAMMAR g);
 static inline void
 input_unref (INPUT input);
@@ -164,14 +164,14 @@ ur_node_push (URS stack, EIM earley_item, AEX aex);
 static inline UR
 ur_node_pop (URS stack);
 static inline int psia_test_and_set(
-    struct obstack* obs,
+    struct marpa_obstack* obs,
     struct s_bocage_setup_per_es* per_es_data,
     EIM earley_item,
     AEX ahfa_element_ix);
 static inline AEX lim_base_data_get(LIM leo_item, EIM* p_base);
 static inline AIM base_aim_of_lim(LIM leo_item);
-static inline DAND draft_and_node_new(struct obstack *obs, OR predecessor, OR cause);
-static inline void draft_and_node_add(struct obstack *obs, OR parent, OR predecessor, OR cause);
+static inline DAND draft_and_node_new(struct marpa_obstack *obs, OR predecessor, OR cause);
+static inline void draft_and_node_add(struct marpa_obstack *obs, OR parent, OR predecessor, OR cause);
 static inline TOK and_node_token(AND and_node);
 static inline void
 bocage_unref (BOCAGE b);
@@ -207,25 +207,25 @@ static inline int symbol_is_valued_set (
     VALUE v, XSYID xsy_id, int value);
 static inline int lbv_bits_to_size(int bits);
 static inline Bit_Vector
-lbv_obs_new (struct obstack *obs, int bits);
+lbv_obs_new (struct marpa_obstack *obs, int bits);
 static inline Bit_Vector
 lbv_zero (Bit_Vector lbv, int bits);
 static inline Bit_Vector
-lbv_obs_new0 (struct obstack *obs, int bits);
+lbv_obs_new0 (struct marpa_obstack *obs, int bits);
 static inline LBV lbv_clone(
-  struct obstack* obs, LBV old_lbv, int bits);
+  struct marpa_obstack* obs, LBV old_lbv, int bits);
 static inline LBV lbv_fill(
   LBV lbv, int bits);
 static inline unsigned int bv_bits_to_size(unsigned int bits);
 static inline unsigned int bv_bits_to_unused_mask(unsigned int bits);
 static inline Bit_Vector bv_create(unsigned int bits);
 static inline Bit_Vector
-bv_obs_create (struct obstack *obs, unsigned int bits);
+bv_obs_create (struct marpa_obstack *obs, unsigned int bits);
 static inline Bit_Vector bv_shadow(Bit_Vector bv);
-static inline Bit_Vector bv_obs_shadow(struct obstack * obs, Bit_Vector bv);
+static inline Bit_Vector bv_obs_shadow(struct marpa_obstack * obs, Bit_Vector bv);
 static inline Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from);
 static inline Bit_Vector bv_clone(Bit_Vector bv);
-static inline Bit_Vector bv_obs_clone(struct obstack *obs, Bit_Vector bv);
+static inline Bit_Vector bv_obs_clone(struct marpa_obstack *obs, Bit_Vector bv);
 static inline void bv_free(Bit_Vector vector);
 static inline void bv_fill(Bit_Vector bv);
 static inline void bv_clear(Bit_Vector bv);
@@ -246,7 +246,10 @@ static inline void
 rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym);
 static inline Bit_Matrix matrix_buffer_create(void *buffer, unsigned int rows, unsigned int columns);
 static inline size_t matrix_sizeof(unsigned int rows, unsigned int columns);
-static inline Bit_Matrix matrix_obs_create(struct obstack *obs, unsigned int rows, unsigned int columns);
+static inline Bit_Matrix matrix_obs_create(
+  struct marpa_obstack *obs,
+  unsigned int rows,
+  unsigned int columns);
 static inline void matrix_clear(Bit_Matrix matrix);
 static inline int matrix_columns(Bit_Matrix matrix);
 static inline Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
