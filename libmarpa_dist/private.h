@@ -61,7 +61,6 @@ static int report_item_cmp (
 static int bv_scan(Bit_Vector bv, unsigned int start,
                                     unsigned int* min, unsigned int* max);
 static void transitive_closure(Bit_Matrix matrix);
-static void * dstack_resize2(struct s_dstack* this, size_t type_bytes);
 static int
 cil_cmp (const void *ap, const void *bp, void *param  UNUSED);
 static void*
@@ -256,7 +255,6 @@ static inline Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row);
 static inline void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int column);
 static inline int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int column);
-static inline void * dstack_resize(struct s_dstack* this, size_t type_bytes, int new_size);
 static inline void
 cilar_init (const CILAR cilar);
 static inline void

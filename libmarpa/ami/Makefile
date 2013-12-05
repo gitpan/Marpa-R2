@@ -20,7 +20,7 @@ PDFTEX = pdftex
 CWEAVE = cweave
 CTANGLE = ctangle
 
-.PHONY: docs
+.PHONY: all
 
 .SUFFIXES: .dvi .tex .w .pdf
 
@@ -48,30 +48,26 @@ CTANGLE = ctangle
 	 pdftex ) pdftex $* ;; \
 	esac
 
-all: marpa.pdf sources
+all: marpa_ami.pdf sources
 
-sources: marpa.c marpa.h marpa_int.h marpa_util.h marpa_api.h codes.h codes.c private.h
+sources: marpa_ami.c marpa_ami.h ami_private.h
 
-marpa.h marpa.c: copyright_page_license.w marpa.w
-	$(CTANGLE) marpa.w
+copyright_page_license.w: ../dev/copyright_page_license.w
+	cp $? $@
 
-codes.c codes.h marpa_api.h: api.texi internal.texi texi2code.pl
-	cat api.texi internal.texi | \
-	  perl texi2code.pl marpa_api.h codes.h codes.c
+marpa_ami.h marpa_ami.c: copyright_page_license.w marpa_ami.w
+	$(CTANGLE) marpa_ami.w
 
-private.h: marpa.w w2private_h.pl
-	perl w2private_h.pl private.h < marpa.w
+cwebmac.tex: ../dev/cwebmac.tex
+	cp $? $@
 
-marpa.pdf: marpa.tex cwebmac.tex
+marpa_ami.tex: cwebmac.tex copyright_page_license.w
 
-docs: marpa.pdf
+marpa_ami.pdf: marpa_ami.tex
 
-update_texi:
-	emacs -batch api.texi \
-	    -f texinfo-every-node-update \
-	    -f texinfo-all-menus-update \
-	    -f save-buffer -kill
-	emacs -batch internal.texi \
-	    -f texinfo-every-node-update \
-	    -f texinfo-all-menus-update \
-	    -f save-buffer -kill
+w2private_h.pl: ../dev/w2private_h.pl
+	cp $? $@
+
+ami_private.h: marpa_ami.w w2private_h.pl
+	perl w2private_h.pl ami_private.h < marpa_ami.w
+

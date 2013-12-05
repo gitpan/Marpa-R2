@@ -25,7 +25,7 @@ m4_define(marpa_configure_in)
 
 m4_define([marpa_major_version], [5])
 m4_define([marpa_minor_version], [177])
-m4_define([marpa_micro_version], [105])
+m4_define([marpa_micro_version], [106])
 m4_define([marpa_interface_age], [100])
 m4_define([marpa_binary_age],
           [m4_eval(100 * marpa_minor_version + marpa_micro_version)])
@@ -155,12 +155,12 @@ AC_CONFIG_COMMANDS([marpa_config.h],
  * This is a generated file.  Please modify 'configure.ac'
  */
 
-#ifndef __MARPA_CONFIG_H__
-#define __MARPA_CONFIG_H__
+#ifndef _MARPA_CONFIG_H__
+#define _MARPA_CONFIG_H__ 1
 
 $marpa_defines
 
-#endif /* __MARPA_CONFIG_H__ */
+#endif /* _MARPA_CONFIG_H__ */
 
 _______EOF
 

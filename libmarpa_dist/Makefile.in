@@ -72,7 +72,8 @@ CONFIG_CLEAN_FILES = VERSION
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libmarpa_la_DEPENDENCIES = $(LIBOBJS)
-am_libmarpa_la_OBJECTS = marpa_obs.lo marpa.lo marpa_avl.lo
+am_libmarpa_la_OBJECTS = marpa_obs.lo marpa.lo marpa_avl.lo \
+	marpa_ami.lo
 nodist_libmarpa_la_OBJECTS =
 libmarpa_la_OBJECTS = $(am_libmarpa_la_OBJECTS) \
 	$(nodist_libmarpa_la_OBJECTS)
@@ -268,13 +269,16 @@ AM_CFLAGS = $(WARNING_CFLAGS) $(MARPA_DEBUG_FLAG)
 AM_CPPFLAGS = $(WARNING_CPPFLAGS)
 ACLOCAL_AMFLAGS = -I m4
 noinst_LTLIBRARIES = libmarpa.la
-libmarpa_la_SOURCES = marpa_obs.c marpa.c marpa_obs.h private.h \
-    marpa_util.h marpa_api.h marpa.h marpa_avl.c marpa_avl.h
+libmarpa_la_SOURCES = marpa_obs.c marpa.c marpa_obs.h \
+    ami_private.h private.h \
+    marpa_util.h marpa_int.h marpa_api.h marpa.h \
+    marpa_avl.c marpa_avl.h \
+    marpa_ami.c marpa_ami.h
 
 nodist_libmarpa_la_SOURCES = marpa_config.h
 EXTRA_DIST = codes.h codes.c VERSION
 libmarpa_la_LIBADD = $(LIBOBJS)
-include_HEADERS = marpa.h marpa_api.h marpa_util.h
+include_HEADERS = marpa.h marpa_api.h marpa_avl.h marpa_ami.h marpa_obs.h marpa_int.h marpa_util.h
 nodist_include_HEADERS = marpa_config.h
 DISTCLEANFILES = marpa_config.h
 all: config.h
@@ -352,6 +356,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/marpa.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/marpa_ami.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/marpa_avl.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/marpa_obs.Plo@am__quote@
 
