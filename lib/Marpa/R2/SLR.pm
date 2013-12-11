@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_006';
+$VERSION        = '2.077_007';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -188,13 +188,13 @@ sub Marpa::R2::Scanless::R::rule_show {
 }
 
 sub Marpa::R2::Scanless::R::new {
-    my ( $class, $args ) = @_;
+    my ( $class, @args ) = @_;
 
     my $self = [];
     bless $self, $class;
 
     state $grammar_class = 'Marpa::R2::Scanless::G';
-    my $grammar = $args->{grammar};
+    my $grammar = $args[0]->{grammar};
     if ( not blessed $grammar or not $grammar->isa('Marpa::R2::Scanless::G') )
     {
         my $desc = 'undefined';
@@ -209,79 +209,55 @@ sub Marpa::R2::Scanless::R::new {
             'Marpa::R2::Scanless::R::new() called without a "grammar" argument'
         );
     } ## end if ( not blessed $grammar or not $grammar->isa(...))
+    delete $args[0]->{grammar};
 
     $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR] = $grammar;
-    $self->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE] =
-        $grammar->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE];
 
-    my $g1_recce_args = {};
-    $g1_recce_args->{too_many_earley_items} = -1;
-    $g1_recce_args->{trace_file_handle} = $self->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
-    ARG: for my $arg_name ( keys %{$args} ) {
-        my $value = $args->{$arg_name};
-        next ARG if $arg_name eq 'grammar';    # already handled
-        if ( $arg_name eq 'max_parses' ) {
-            $g1_recce_args->{$arg_name} = $value;
-            next ARG;
+    my %g1_recce_args = ();
+    for my $args (@args) {
+        my $ref_type = ref $args;
+        if ( not $ref_type ) {
+            Carp::croak(
+                "\$slr->set() expects args as ref to HASH; arg was non-reference"
+            );
         }
-        if ( $arg_name eq 'too_many_earley_items' ) {
-            if ( $value < 0 ) {
-                Marpa::R2::exception(
-                    q{The "too_many_earley_items" option must be greater than or equal to 0}
-                );
+        if ( $ref_type ne 'HASH' ) {
+            Carp::croak(
+                "\$slr->set() expects args as ref to HASH, got ref to $ref_type instead"
+            );
+        }
+        ARG: for my $arg_name ( keys %{$args} ) {
+            my $value = $args->{$arg_name};
+            if ( $arg_name eq 'ranking_method' ) {
+                delete $args->{$arg_name};
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
             }
-            $g1_recce_args->{$arg_name} = $value;
-            next ARG;
-        } ## end if ( $arg_name eq 'too_many_earley_items' )
-        if ( $arg_name eq 'trace_file_handle' ) {
-            $g1_recce_args->{$arg_name} = $value;
-            $self->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE] =
-                $value;
-            next ARG;
-        } ## end if ( $arg_name eq 'trace_file_handle' )
-        if ( $arg_name eq 'trace_lexer' ) {
-            $self->[Marpa::R2::Inner::Scanless::R::TRACE_LEXER] = $value;
-            next ARG;
-        }
-        if ( $arg_name eq 'semantics_package' ) {
-            $g1_recce_args->{$arg_name} = $value;
-            next ARG;
-        }
-        if ( $arg_name eq 'ranking_method' ) {
-            $g1_recce_args->{$arg_name} = $value;
-            next ARG;
-        }
-        if ( $arg_name eq 'trace_terminals' ) {
-            $self->[Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS] = $value;
-            next ARG;
-        }
-        if ( $arg_name eq 'trace_values' ) {
-            $g1_recce_args->{$arg_name} = $value;
-            next ARG;
-        }
-        if ( $arg_name eq 'trace_actions' ) {
-            $g1_recce_args->{$arg_name} = $value;
-            next ARG;
-        }
-        Marpa::R2::exception(
-            "$PACKAGE does not know one of options given to it:\n",
-            qq{   The options not recognized was "$arg_name"\n}
-        );
-    } ## end ARG: for my $arg_name ( keys %{$args} )
+        } ## end ARG: for my $arg_name ( keys %{$args} )
+    } ## end for my $args (@args)
+
+    my %default_g1_recce_args = ( too_many_earley_items => -1 );
+    my $grammar_trace_file_handle =
+        $grammar->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE];
+    $default_g1_recce_args{trace_file_handle} = $grammar_trace_file_handle
+        if defined $grammar_trace_file_handle;
+    my $common_g1_recce_args =
+        capture_g1_recce_args( $self, \%default_g1_recce_args, @args );
 
     $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR] = $grammar;
 
     my $thick_g1_grammar =
         $grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
-    $g1_recce_args->{grammar} = $thick_g1_grammar;
+    $g1_recce_args{grammar} = $thick_g1_grammar;
     my $thick_g1_recce =
         $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE] =
-        Marpa::R2::Recognizer->new($g1_recce_args);
+        Marpa::R2::Recognizer->new( \%g1_recce_args, $common_g1_recce_args );
 
     my $thin_self = Marpa::R2::Thin::SLR->new(
         $grammar->[Marpa::R2::Inner::Scanless::G::C],
         $thick_g1_recce->thin() );
-    my $too_many_earley_items = $g1_recce_args->{too_many_earley_items};
+    my $too_many_earley_items =
+        $common_g1_recce_args->{too_many_earley_items};
     $thin_self->earley_item_warning_threshold_set($too_many_earley_items)
         if $too_many_earley_items >= 0;
     $self->[Marpa::R2::Inner::Scanless::R::C]      = $thin_self;
@@ -292,61 +268,87 @@ sub Marpa::R2::Scanless::R::new {
 } ## end sub Marpa::R2::Scanless::R::new
 
 sub Marpa::R2::Scanless::R::set {
-    my ( $slr, $args ) = @_;
+    my ( $slr, @args ) = @_;
 
-    my $ref_type = ref $args;
-    if ( not $ref_type ) {
-        Carp::croak(
-            "\$slr->set() expects args as ref to HASH; arg was non-reference"
-        );
-    }
-    if ( $ref_type ne 'HASH' ) {
-        Carp::croak(
-            "\$slr->set() expects args as ref to HASH, got ref to $ref_type instead"
-        );
-    }
+    for my $args (@args) {
+        my $ref_type = ref $args;
+        if ( not $ref_type ) {
+            Carp::croak(
+                "\$slr->set() expects args as ref to HASH; arg was non-reference"
+            );
+        }
+        if ( $ref_type ne 'HASH' ) {
+            Carp::croak(
+                "\$slr->set() expects args as ref to HASH, got ref to $ref_type instead"
+            );
+        }
+    } ## end for my $args (@args)
 
     my $recce = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    ARG: for my $arg_name ( keys %{$args} ) {
-        my $value = $args->{$arg_name};
-        if ( $arg_name eq 'end' ) {
-            $recce->set( { $arg_name => $value } );
-            next ARG;
-        }
-        if ( $arg_name eq 'max_parses' ) {
-            $recce->set( { $arg_name => $value } );
-            next ARG;
-        }
-        if ( $arg_name eq 'trace_actions' ) {
-            $recce->set( { $arg_name => $value } );
-            next ARG;
-        }
-        if ( $arg_name eq 'trace_values' ) {
-            $recce->set( { $arg_name => $value } );
-            next ARG;
-        }
-        if ( $arg_name eq 'trace_values' ) {
-            $recce ->set( { $arg_name => $value } );
-            next ARG;
-        }
-        if ( $arg_name eq 'semantics_package' ) {
-            $recce ->set( { $arg_name => $value } );
-            next ARG;
-        }
-        if ( $arg_name eq 'trace_file_handle' ) {
-            $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE] = $value;
-            $recce ->set( { $arg_name => $value } );
-            next ARG;
-        } ## end if ( $arg_name eq 'trace_file_handle' )
-        Carp::croak(
-            '$slr->set does not know one of the options given to it:',
-            qq{\n   The options not recognized was "$arg_name"\n}
-        );
-    } ## end ARG: for my $arg_name ( keys %{$args} )
+    my $common_recce_args = capture_g1_recce_args( $slr, @args );
+    $recce->set($common_recce_args);
 
     return $slr;
 
 } ## end sub Marpa::R2::Scanless::R::set
+
+# Capture arguments to be passed on to the g1 recognizer
+# Includes only those whose processing is common to new()
+# and set()
+sub capture_g1_recce_args {
+    my ( $slr, @args ) = @_;
+    my %g1_recce_args = ();
+    for my $args (@args) {
+        ARG: for my $arg_name ( keys %{$args} ) {
+            my $value = $args->{$arg_name};
+            if ( $arg_name eq 'max_parses' ) {
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
+            }
+            if ( $arg_name eq 'too_many_earley_items' ) {
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
+            } ## end if ( $arg_name eq 'too_many_earley_items' )
+            if ( $arg_name eq 'semantics_package' ) {
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
+            }
+            if ( $arg_name eq 'end' ) {
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
+            }
+            if ( $arg_name eq 'trace_actions' ) {
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
+            }
+            if ( $arg_name eq 'trace_file_handle' ) {
+                $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE] =
+                    $value;
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
+            } ## end if ( $arg_name eq 'trace_file_handle' )
+            if ( $arg_name eq 'trace_lexers' ) {
+                $slr->[Marpa::R2::Inner::Scanless::R::TRACE_LEXERS] = $value;
+                next ARG;
+            }
+            if ( $arg_name eq 'trace_terminals' ) {
+                $slr->[Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS] =
+                    $value;
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
+            } ## end if ( $arg_name eq 'trace_terminals' )
+            if ( $arg_name eq 'trace_values' ) {
+                $g1_recce_args{$arg_name} = $value;
+                next ARG;
+            }
+            Marpa::R2::exception(
+                "$PACKAGE does not know one of options given to it:\n",
+                qq{   The options not recognized was "$arg_name"\n}
+            );
+        } ## end for my $arg_name ( keys %{$args} )
+    } ## end for my $args (@args)
+    return \%g1_recce_args;
+} ## end capture_g1_recce_args
 
 sub Marpa::R2::Scanless::R::thin {
     return $_[0]->[Marpa::R2::Inner::Scanless::R::C];
@@ -359,10 +361,11 @@ sub Marpa::R2::Scanless::R::trace {
     return $thin_slr->trace($level);
 } ## end sub Marpa::R2::Scanless::R::trace
 
-sub Marpa::R2::Scanless::R::trace_lexer {
+sub Marpa::R2::Scanless::R::trace_lexers {
     my ( $self, $level ) = @_;
+    my $thin_slr = $self->[Marpa::R2::Inner::Scanless::R::C];
     $level //= 1;
-    return $self->trace_lexer($level);
+    return $thin_slr->trace_lexers($level);
 }
 
 sub Marpa::R2::Scanless::R::error {
@@ -391,9 +394,9 @@ sub Marpa::R2::Scanless::R::read {
     my $thin_slr = $self->[Marpa::R2::Inner::Scanless::R::C];
     my $trace_terminals =
         $self->[Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS] // 0;
-    my $trace_lexer = $self->[Marpa::R2::Inner::Scanless::R::TRACE_LEXER] // 0;
+    my $trace_lexers = $self->[Marpa::R2::Inner::Scanless::R::TRACE_LEXERS] // 0;
     $thin_slr->trace_terminals($trace_terminals) if $trace_terminals;
-    $self->lexer_trace($trace_lexer)               if $trace_lexer;
+    $self->trace_lexers($trace_lexers)               if $trace_lexers;
 
     $thin_slr->string_set($p_string);
 
@@ -416,7 +419,7 @@ my $libmarpa_trace_event_handlers = {
 
     'g1 accepted lexeme' => sub {
         my ( $slr, $event ) = @_;
-        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme ) =
+        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme, $lexer_id ) =
             @{$event};
         my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
         my $raw_token_value =
@@ -427,17 +430,21 @@ my $libmarpa_trace_event_handlers = {
         my $thick_g1_recce =
             $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
         my $thick_g1_grammar = $thick_g1_recce->grammar();
-        my $g1_tracer        = $thick_g1_grammar->tracer();
-        say {$trace_file_handle} 'Accepted lexeme ',
-            input_range_describe( $slr, $lexeme_start_pos, $lexeme_end_pos-1 ),
+        my $slg              = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+        my $lexer_name =
+            $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+            ->[$lexer_id];
+        say {$trace_file_handle} qq{Lexer "$lexer_name" accepted lexeme },
+            input_range_describe( $slr, $lexeme_start_pos,
+            $lexeme_end_pos - 1 ),
             q{: },
             $thick_g1_grammar->symbol_in_display_form($g1_lexeme),
             qq{; value="$raw_token_value"}
             or Marpa::R2::exception("Could not say(): $ERRNO");
-    },
+        },
     'g1 unexpected lexeme' => sub {
         my ( $slr, $event ) = @_;
-        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme ) =
+        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme, $lexer_id ) =
             @{$event};
         my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
         my $raw_token_value =
@@ -448,14 +455,18 @@ my $libmarpa_trace_event_handlers = {
         my $thick_g1_recce =
             $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
         my $thick_g1_grammar = $thick_g1_recce->grammar();
-        my $g1_tracer        = $thick_g1_grammar->tracer();
-        say {$trace_file_handle} 'Rejected lexeme ',
-            input_range_describe( $slr, $lexeme_start_pos, $lexeme_end_pos-1 ),
+        my $slg              = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+        my $lexer_name =
+            $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+            ->[$lexer_id];
+        say {$trace_file_handle} qq{Lexer "$lexer_name" rejected lexeme },
+            input_range_describe( $slr, $lexeme_start_pos,
+            $lexeme_end_pos - 1 ),
             q{: },
             $thick_g1_grammar->symbol_in_display_form($g1_lexeme),
             qq{; value="$raw_token_value"}
             or Marpa::R2::exception("Could not say(): $ERRNO");
-    },
+        },
     'g1 duplicate lexeme' => sub {
         my ( $slr, $event ) = @_;
         my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme ) =
@@ -469,7 +480,6 @@ my $libmarpa_trace_event_handlers = {
         my $thick_g1_recce =
             $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
         my $thick_g1_grammar = $thick_g1_recce->grammar();
-        my $g1_tracer        = $thick_g1_grammar->tracer();
         say {$trace_file_handle}
             'Rejected as duplicate lexeme ',
             input_range_describe( $slr, $lexeme_start_pos, $lexeme_end_pos-1 ),
@@ -491,7 +501,6 @@ my $libmarpa_trace_event_handlers = {
         my $thick_g1_recce =
             $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
         my $thick_g1_grammar = $thick_g1_recce->grammar();
-        my $g1_tracer        = $thick_g1_grammar->tracer();
         say {$trace_file_handle}
             'Attempting to read lexeme ',
             input_range_describe( $slr, $lexeme_start_pos, $lexeme_end_pos-1 ),
@@ -588,6 +597,23 @@ my $libmarpa_trace_event_handlers = {
             qq{Lexer "$lexer_name" restarted recognizer at line $line, column $column}
             or Marpa::R2::exception("Could not say(): $ERRNO");
         },
+    'changing lexers' => sub {
+        my ( $slr, $event ) = @_;
+        my ( undef, undef, $position, $old_lexer_id, $new_lexer_id ) = @{$event};
+        my ( $line, $column ) = $slr->line_column($position);
+        my $trace_file_handle =
+            $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
+        my $slg = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+        my $old_lexer_name =
+            $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+            ->[$old_lexer_id];
+        my $new_lexer_name =
+            $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+            ->[$new_lexer_id];
+        say {$trace_file_handle}
+            qq{Changing lexers from "$old_lexer_name" to "$new_lexer_name" at line $line, column $column}
+            or Marpa::R2::exception("Could not say(): $ERRNO");
+        },
     'discarded lexeme' => sub {
         my ( $slr, $event ) = @_;
         my ( undef, undef, $lex_rule_id, $start, $end, $lexer_id ) = @{$event};
@@ -601,9 +627,13 @@ my $libmarpa_trace_event_handlers = {
             ( 0 .. $rule_length - 1 );
         my @rhs =
             map { $thick_lex_grammar->symbol_in_display_form($_) } @rhs_ids;
+        my $slg = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+        my $lexer_name =
+            $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+            ->[$lexer_id];
         my $trace_file_handle =
             $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
-        say {$trace_file_handle} 'Discarded lexeme ',
+        say {$trace_file_handle} qq{Lexer "$lexer_name" discarded lexeme },
             input_range_describe( $slr, $start, $end-1 ), q{: }, join q{ }, @rhs
             or Marpa::R2::exception("Could not say(): $ERRNO");
     },
@@ -756,9 +786,9 @@ sub Marpa::R2::Scanless::R::resume {
     my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
     my $trace_terminals =
         $slr->[Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS] // 0;
-    my $trace_lexer = $slr->[Marpa::R2::Inner::Scanless::R::TRACE_LEXER] // 0;
+    my $trace_lexers = $slr->[Marpa::R2::Inner::Scanless::R::TRACE_LEXERS] // 0;
     $thin_slr->trace_terminals($trace_terminals) if $trace_terminals;
-    $slr->lexer_trace($trace_lexer)               if $trace_lexer;
+    $slr->trace_lexers($trace_lexers)               if $trace_lexers;
 
     $thin_slr->pos_set( $start_pos, $length );
     $slr->[Marpa::R2::Inner::Scanless::R::EVENTS] = [];
@@ -772,7 +802,7 @@ sub Marpa::R2::Scanless::R::resume {
         my $pause =
             Marpa::R2::Inner::Scanless::convert_libmarpa_events($slr);
 
-        if ( $trace_lexer > 2 ) {
+        if ( $trace_lexers > 2 ) {
             my $stream_pos = $thin_slr->pos();
             my $trace_file_handle =
                 $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
@@ -786,22 +816,34 @@ sub Marpa::R2::Scanless::R::resume {
                 $lex_tracer->lexer_progress_report($slr),
                 qq{=== End of progress report at line $line, column $column\n},
                 or Marpa::R2::exception("Cannot print(): $ERRNO");
-        } ## end if ( $trace_lexer > 2 )
+        } ## end if ( $trace_lexers > 2 )
 
         last OUTER_READ if $pause;
         next OUTER_READ if $problem_code eq 'event';
         next OUTER_READ if $problem_code eq 'trace';
 
+        if ( $problem_code eq 'invalid char' ) {
+            my $codepoint = $thin_slr->codepoint();
+            my $lexer_id  = $thin_slr->current_lexer();
+            my $lexer_name =
+                $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+                ->[$lexer_id];
+            Marpa::R2::exception(
+                qq{Lexer "$lexer_name" failed at unacceptable character },
+                character_describe( chr $codepoint ) );
+        } ## end if ( $problem_code eq 'invalid char' )
+
         if ( $problem_code eq 'unregistered char' ) {
 
-            state $op_alternative = Marpa::R2::Thin::op('alternative');
+            state $op_alternative  = Marpa::R2::Thin::op('alternative');
+            state $op_invalid_char = Marpa::R2::Thin::op('invalid_char');
             state $op_earleme_complete =
                 Marpa::R2::Thin::op('earleme_complete');
 
             # Recover by registering character, if we can
             my $codepoint = $thin_slr->codepoint();
             my $character = chr($codepoint);
-            my $lexer_id     = $thin_slr->current_lexer();
+            my $lexer_id  = $thin_slr->current_lexer();
             my $character_class_table =
                 $slg->[Marpa::R2::Inner::Scanless::G::CHARACTER_CLASS_TABLES]
                 ->[$lexer_id];
@@ -812,16 +854,21 @@ sub Marpa::R2::Scanless::R::resume {
                 if ( $character =~ $re ) {
 
                     if ( $trace_terminals >= 2 ) {
-                        my $thick_lex_grammar = $slg->[
-                            Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]->[$lexer_id];
+                        my $thick_lex_grammar =
+                            $slg->[
+                            Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]
+                            ->[$lexer_id];
                         my $trace_file_handle = $slr->[
                             Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
                         my $char_desc = sprintf 'U+%04x', $codepoint;
                         if ( $character =~ m/[[:graph:]]+/ ) {
                             $char_desc .= qq{ '$character'};
                         }
+			my $lexer_name =
+			    $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+			    ->[$lexer_id];
                         say {$trace_file_handle}
-                            "Registering character $char_desc as symbol $symbol_id: ",
+                            qq{Lexer "$lexer_name" registering character $char_desc as symbol $symbol_id: },
                             $thick_lex_grammar->symbol_in_display_form(
                             $symbol_id)
                             or
@@ -831,11 +878,10 @@ sub Marpa::R2::Scanless::R::resume {
                 } ## end if ( $character =~ $re )
             } ## end for my $entry ( @{$character_class_table} )
 
-            my $lexer_name = $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]->[$lexer_id];
-            Marpa::R2::exception(
-                qq{Lexer "$lexer_name" failed at unacceptable character },
-                character_describe( chr $codepoint )
-            ) if not @ops;
+            if ( not @ops ) {
+                $thin_slr->char_register( $codepoint, $op_invalid_char );
+                next OUTER_READ;
+            }
             $thin_slr->char_register( $codepoint, @ops,
                 $op_earleme_complete );
             next OUTER_READ;
@@ -891,24 +937,25 @@ sub Marpa::R2::Scanless::R::read_problem {
     my $stream_status = 0;
     my $g1_status = 0;
     CODE_TO_PROBLEM: {
-        if ( $problem_code eq 'R0 exhausted before end' ) {
+        if ( $problem_code eq 'R1 exhausted before end' ) {
             my ($lexeme_start) = $thin_slr->lexeme_span();
             my ( $line, $column ) = $slr->line_column($lexeme_start);
             $problem =
                 "Parse exhausted, but lexemes remain, at line $line, column $column\n";
             last CODE_TO_PROBLEM;
-        } ## end if ( $problem_code eq 'R0 exhausted before end' )
+        }
+        if ( $problem_code eq 'SLIF loop' ) {
+            my ($lexeme_start) = $thin_slr->lexeme_span();
+            my ( $line, $column ) = $slr->line_column($lexeme_start);
+            $problem = "SLIF loops at line $line, column $column";
+            last CODE_TO_PROBLEM;
+	}
         if ( $problem_code eq 'no lexeme' ) {
             my ($lexeme_start) = $thin_slr->lexeme_span();
             my ( $line, $column ) = $slr->line_column($lexeme_start);
             $problem = "No lexeme found at line $line, column $column";
             last CODE_TO_PROBLEM;
         } ## end if ( $problem_code eq 'no lexeme' )
-        if ( $problem_code eq 'R0 read() problem' ) {
-            $problem = undef;    # let $stream_status do the work
-            $stream_status = $thin_slr->input_read_result();
-            last CODE_TO_PROBLEM;
-        }
         if ( $problem_code eq 'no lexemes accepted' ) {
             $problem_pos = $thin_slr->problem_pos();
             my ( $line, $column ) = $slr->line_column($problem_pos);
@@ -1003,7 +1050,7 @@ sub Marpa::R2::Scanless::R::read_problem {
             . Marpa::R2::escape_string( ${$p_string}, -50 ) . "\n";
     } ## end else [ if ($g1_status) ]
 
-    if ( $slr->[Marpa::R2::Inner::Scanless::R::TRACE_LEXER] ) {
+    if ( $slr->[Marpa::R2::Inner::Scanless::R::TRACE_LEXERS] ) {
         my $stream_pos = $thin_slr->pos();
         my $trace_file_handle =
             $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
@@ -1019,7 +1066,7 @@ sub Marpa::R2::Scanless::R::read_problem {
         $read_string_error .=
             qq{\n=== Progress report for lexer "$lexer_name" at line $line, column $column\n} .
             $lex_tracer->lexer_progress_report($slr);
-    } ## end if ( $slr->[Marpa::R2::Inner::Scanless::R::TRACE_LEXER...])
+    }
 
     $slr->[Marpa::R2::Inner::Scanless::R::READ_STRING_ERROR] =
         $read_string_error;
@@ -1370,6 +1417,18 @@ sub Marpa::R2::Scanless::R::line_column {
     $pos //= $thin_slr->pos();
     return $thin_slr->line_column($pos);
 } ## end sub Marpa::R2::Scanless::R::line_column
+
+sub Marpa::R2::Scanless::R::pos {
+    my ( $slr ) = @_;
+    my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
+    return $thin_slr->pos();
+}
+
+sub Marpa::R2::Scanless::R::input_length {
+    my ( $slr ) = @_;
+    my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
+    return $thin_slr->input_length();
+}
 
 # no return value documented
 sub Marpa::R2::Scanless::R::activate {

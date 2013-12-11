@@ -132,19 +132,19 @@ Marpa_Rank marpa_g_default_rank_set ( Marpa_Grammar g, Marpa_Rank rank);
 Marpa_Rank marpa_g_symbol_rank ( Marpa_Grammar g, Marpa_Symbol_ID sym_id);
 Marpa_Rank marpa_g_symbol_rank_set ( Marpa_Grammar g, Marpa_Symbol_ID sym_id, Marpa_Rank rank);
 int _marpa_g_rule_first_child_set ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int _marpa_g_isy_is_start ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
-int _marpa_g_isy_is_nulling ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
-int _marpa_g_isy_is_lhs ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
-Marpa_ISY_ID _marpa_g_xsy_nulling_isy ( Marpa_Grammar g, Marpa_Symbol_ID symid);
-Marpa_ISY_ID _marpa_g_xsy_isy ( Marpa_Grammar g, Marpa_Symbol_ID symid);
+int _marpa_g_nsy_is_start ( Marpa_Grammar g, Marpa_NSY_ID nsy_id);
+int _marpa_g_nsy_is_nulling ( Marpa_Grammar g, Marpa_NSY_ID nsy_id);
+int _marpa_g_nsy_is_lhs ( Marpa_Grammar g, Marpa_NSY_ID nsy_id);
+Marpa_NSY_ID _marpa_g_xsy_nulling_nsy ( Marpa_Grammar g, Marpa_Symbol_ID symid);
+Marpa_NSY_ID _marpa_g_xsy_nsy ( Marpa_Grammar g, Marpa_Symbol_ID symid);
 Marpa_Symbol_ID _marpa_g_symbol_proper_alias ( Marpa_Grammar g, Marpa_Symbol_ID symid);
 Marpa_Symbol_ID _marpa_g_symbol_null_alias ( Marpa_Grammar g, Marpa_Symbol_ID symid);
-int _marpa_g_isy_is_semantic ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
-Marpa_Rule_ID _marpa_g_source_xsy ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
-Marpa_Rule_ID _marpa_g_isy_lhs_xrl ( Marpa_Grammar g, Marpa_ISY_ID isy_id);
-int _marpa_g_isy_xrl_offset ( Marpa_Grammar g, Marpa_ISY_ID isy_id );
+int _marpa_g_nsy_is_semantic ( Marpa_Grammar g, Marpa_NSY_ID nsy_id);
+Marpa_Rule_ID _marpa_g_source_xsy ( Marpa_Grammar g, Marpa_NSY_ID nsy_id);
+Marpa_Rule_ID _marpa_g_nsy_lhs_xrl ( Marpa_Grammar g, Marpa_NSY_ID nsy_id);
+int _marpa_g_nsy_xrl_offset ( Marpa_Grammar g, Marpa_NSY_ID nsy_id );
 int _marpa_g_rule_is_keep_separation ( Marpa_Grammar g, Marpa_Rule_ID rule_id);
-int _marpa_g_isy_count ( Marpa_Grammar g);
+int _marpa_g_nsy_count ( Marpa_Grammar g);
 int _marpa_g_irl_count ( Marpa_Grammar g);
 Marpa_Symbol_ID _marpa_g_irl_lhs ( Marpa_Grammar g, Marpa_IRL_ID irl_id);
 int _marpa_g_irl_length ( Marpa_Grammar g, Marpa_IRL_ID irl_id);
@@ -158,7 +158,7 @@ Marpa_Rule_ID _marpa_g_source_xrl (Marpa_Grammar g, Marpa_IRL_ID irl_id);
 int _marpa_g_real_symbol_count (Marpa_Grammar g, Marpa_IRL_ID irl_id);
 Marpa_Rule_ID _marpa_g_irl_semantic_equivalent (Marpa_Grammar g, Marpa_IRL_ID irl_id);
 Marpa_Rank _marpa_g_irl_rank ( Marpa_Grammar g, Marpa_IRL_ID irl_id);
-Marpa_Rank _marpa_g_isy_rank ( Marpa_Grammar g, Marpa_IRL_ID isy_id);
+Marpa_Rank _marpa_g_nsy_rank ( Marpa_Grammar g, Marpa_IRL_ID nsy_id);
 int _marpa_g_AHFA_item_count (Marpa_Grammar g);
 Marpa_Rule_ID _marpa_g_AHFA_item_irl (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
 int _marpa_g_AHFA_item_position (Marpa_Grammar g, Marpa_AHFA_Item_ID item_id);
@@ -240,8 +240,8 @@ Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
 #define MARPA_ERR_DUPLICATE_AND_NODE 10
 #define MARPA_ERR_DUPLICATE_RULE 11
 #define MARPA_ERR_DUPLICATE_TOKEN 12
-#define MARPA_ERR_EIM_COUNT 13
-#define MARPA_ERR_EIM_ID_INVALID 14
+#define MARPA_ERR_YIM_COUNT 13
+#define MARPA_ERR_YIM_ID_INVALID 14
 #define MARPA_ERR_EVENT_IX_NEGATIVE 15
 #define MARPA_ERR_EVENT_IX_OOB 16
 #define MARPA_ERR_GRAMMAR_HAS_CYCLE 17
@@ -251,7 +251,7 @@ Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
 #define MARPA_ERR_INVALID_AIMID 21
 #define MARPA_ERR_INVALID_BOOLEAN 22
 #define MARPA_ERR_INVALID_IRLID 23
-#define MARPA_ERR_INVALID_ISYID 24
+#define MARPA_ERR_INVALID_NSYID 24
 #define MARPA_ERR_INVALID_LOCATION 25
 #define MARPA_ERR_INVALID_RULE_ID 26
 #define MARPA_ERR_INVALID_START_SYMBOL 27
@@ -272,8 +272,8 @@ Marpa_Nook_ID _marpa_v_nook ( Marpa_Value v);
 #define MARPA_ERR_NO_RULES 42
 #define MARPA_ERR_NO_START_SYMBOL 43
 #define MARPA_ERR_NO_TOKEN_EXPECTED_HERE 44
-#define MARPA_ERR_NO_TRACE_EIM 45
-#define MARPA_ERR_NO_TRACE_ES 46
+#define MARPA_ERR_NO_TRACE_YIM 45
+#define MARPA_ERR_NO_TRACE_YS 46
 #define MARPA_ERR_NO_TRACE_PIM 47
 #define MARPA_ERR_NO_TRACE_SRCL 48
 #define MARPA_ERR_NULLING_TERMINAL 49

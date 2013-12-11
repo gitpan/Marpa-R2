@@ -1,8 +1,8 @@
-/*1382:*/
-#line 16372 "./marpa.w"
+/*1383:*/
+#line 16396 "./marpa.w"
 
-/*1377:*/
-#line 16322 "./marpa.w"
+/*1378:*/
+#line 16346 "./marpa.w"
 
 /*
  * Copyright 2013 Jeffrey Kegler
@@ -26,15 +26,15 @@
  * It is not intended to be modified directly
  */
 
-/*:1377*/
-#line 16373 "./marpa.w"
+/*:1378*/
+#line 16397 "./marpa.w"
 
 
 #ifndef _MARPA_INT_H__
 #define _MARPA_INT_H__ 1
 
-/*1384:*/
-#line 16404 "./marpa.w"
+/*1385:*/
+#line 16428 "./marpa.w"
 
 
 #if     __GNUC__ >  2 || (__GNUC__ == 2 && __GNUC_MINOR__ >  4)
@@ -89,10 +89,10 @@
 # define alignof(type) (offsetof (struct { char __slot1; type __slot2; }, __slot2))
 #endif
 
-/*:1384*/
-#line 16378 "./marpa.w"
+/*:1385*/
+#line 16402 "./marpa.w"
 
 
 #endif 
 
-/*:1382*/
+/*:1383*/

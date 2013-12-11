@@ -1188,33 +1188,33 @@ PPCODE:
 }
 
 void
-_marpa_g_isy_rank( g_wrapper, isy_id )
+_marpa_g_nsy_rank( g_wrapper, nsy_id )
     G_Wrapper *g_wrapper;
-    Marpa_ISY_ID isy_id;
+    Marpa_NSY_ID nsy_id;
 PPCODE:
 {
   Marpa_Grammar self = g_wrapper->g;
-  int gp_result = _marpa_g_isy_rank(self, isy_id);
+  int gp_result = _marpa_g_nsy_rank(self, nsy_id);
   if ( gp_result == -1 ) { XSRETURN_UNDEF; }
   if ( gp_result < 0 && g_wrapper->throw ) {
-    croak( "Problem in g->_marpa_g_isy_rank(%d): %s",
-     isy_id, xs_g_error( g_wrapper ));
+    croak( "Problem in g->_marpa_g_nsy_rank(%d): %s",
+     nsy_id, xs_g_error( g_wrapper ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
 
 void
-_marpa_g_isy_is_semantic( g_wrapper, isy_id )
+_marpa_g_nsy_is_semantic( g_wrapper, nsy_id )
     G_Wrapper *g_wrapper;
-    Marpa_ISY_ID isy_id;
+    Marpa_NSY_ID nsy_id;
 PPCODE:
 {
   Marpa_Grammar self = g_wrapper->g;
-  int gp_result = _marpa_g_isy_is_semantic(self, isy_id);
+  int gp_result = _marpa_g_nsy_is_semantic(self, nsy_id);
   if ( gp_result == -1 ) { XSRETURN_UNDEF; }
   if ( gp_result < 0 && g_wrapper->throw ) {
-    croak( "Problem in g->_marpa_g_isy_is_semantic(%d): %s",
-     isy_id, xs_g_error( g_wrapper ));
+    croak( "Problem in g->_marpa_g_nsy_is_semantic(%d): %s",
+     nsy_id, xs_g_error( g_wrapper ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }

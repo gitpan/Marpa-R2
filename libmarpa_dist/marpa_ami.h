@@ -1,9 +1,3 @@
-/*24:*/
-#line 382 "./marpa_ami.w"
-
-/*22:*/
-#line 355 "./marpa_ami.w"
-
 /*
  * Copyright 2013 Jeffrey Kegler
  * This file is part of Marpa::R2.  Marpa::R2 is free software: you can
@@ -20,18 +14,21 @@
  * General Public License along with Marpa::R2.  If not, see
  * http://www.gnu.org/licenses/.
  */
+
 /*
  * DO NOT EDIT DIRECTLY
- * This file is written by ctangle
+ * This file is written by the Marpa build process
  * It is not intended to be modified directly
  */
 
-/*:22*/
-#line 383 "./marpa_ami.w"
+/*21:*/
+#line 352 "./marpa_ami.w"
 
 
 #ifndef _MARPA_AMI_H__
 #define _MARPA_AMI_H__ 1
+
+#include "marpa_util.h"
 
 #define marpa_new(type,count) ((type*) marpa_malloc((sizeof(type) *(count) ) ) ) 
 #define marpa_renew(type,p,count)  \
@@ -72,37 +69,34 @@ MARPA_DSTACK_INIT((this) ,type,MAX(4,1024/sizeof(this) ) )  \
 #define MARPA_DSTACK_RESIZE(this,type,new_size)  \
 (marpa_dstack_resize((this) ,sizeof(type) ,(new_size) ) ) 
 
-#line 388 "./marpa_ami.w"
+#line 359 "./marpa_ami.w"
 
-/*12:*/
-#line 309 "./marpa_ami.w"
+/*13:*/
+#line 310 "./marpa_ami.w"
 
 struct marpa_dstack_s;
 typedef struct marpa_dstack_s*MARPA_DSTACK;
-/*:12*/
-#line 389 "./marpa_ami.w"
+/*:13*/
+#line 360 "./marpa_ami.w"
+
+
+/*:21*/
+#line 1 "./marpa_ami.h.p5"
+static inline void * marpa_dstack_resize2( struct marpa_dstack_s* this, size_t type_bytes);
+static inline void * marpa_dstack_resize ( struct marpa_dstack_s *this, size_t type_bytes, int new_size);
+/*22:*/
+#line 363 "./marpa_ami.w"
+
 
 /*14:*/
-#line 314 "./marpa_ami.w"
-
-static inline void*marpa_dstack_resize2(struct marpa_dstack_s*,size_t);
-/*:14*//*17:*/
-#line 325 "./marpa_ami.w"
-
-static inline void*marpa_dstack_resize(struct marpa_dstack_s*,size_t,
-int);
-/*:17*/
-#line 390 "./marpa_ami.w"
-
-/*13:*/
-#line 312 "./marpa_ami.w"
+#line 313 "./marpa_ami.w"
 
 struct marpa_dstack_s{int t_count;int t_capacity;void*t_base;};
-/*:13*/
-#line 391 "./marpa_ami.w"
+/*:14*/
+#line 365 "./marpa_ami.w"
 
-/*6:*/
-#line 195 "./marpa_ami.w"
+/*7:*/
+#line 196 "./marpa_ami.w"
 
 static inline
 void marpa_free(void*p)
@@ -110,8 +104,8 @@ void marpa_free(void*p)
 free(p);
 }
 
-/*:6*//*7:*/
-#line 202 "./marpa_ami.w"
+/*:7*//*8:*/
+#line 203 "./marpa_ami.w"
 
 
 static inline
@@ -143,16 +137,16 @@ return newmem;
 return marpa_malloc(size);
 }
 
-/*:7*//*15:*/
-#line 316 "./marpa_ami.w"
+/*:8*//*15:*/
+#line 315 "./marpa_ami.w"
 
 static inline void*marpa_dstack_resize2(struct marpa_dstack_s*this,size_t type_bytes)
 {
 return marpa_dstack_resize(this,type_bytes,this->t_capacity*2);
 }
 
-/*:15*//*18:*/
-#line 328 "./marpa_ami.w"
+/*:15*//*17:*/
+#line 324 "./marpa_ami.w"
 
 static inline void*
 marpa_dstack_resize(struct marpa_dstack_s*this,size_t type_bytes,
@@ -166,10 +160,10 @@ this->t_base= marpa_realloc(this->t_base,new_size*type_bytes);
 }
 return this->t_base;
 }
-/*:18*/
-#line 392 "./marpa_ami.w"
+/*:17*/
+#line 366 "./marpa_ami.w"
 
 
 #endif 
 
-/*:24*/
+/*:22*/

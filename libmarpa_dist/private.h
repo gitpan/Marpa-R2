@@ -49,11 +49,11 @@ create_predicted_AHFA_state(
      AIM* item_list_working_buffer
      );
 static Marpa_Error_Code invalid_source_type_code(unsigned int type);
-static void earley_item_ambiguate (struct marpa_r * r, EIM item);
+static void earley_item_ambiguate (struct marpa_r * r, YIM item);
 static void
 postdot_items_create (RECCE r,
   Bit_Vector bv_ok_for_chain,
-  ES current_earley_set);
+  YS current_earley_set);
 static int report_item_cmp (
     const void* ap,
     const void* bp,
@@ -74,22 +74,22 @@ grammar_ref (GRAMMAR g);
 static inline void grammar_free(GRAMMAR g);
 static inline void symbol_add( GRAMMAR g, XSY symbol);
 static inline int xsy_id_is_valid(GRAMMAR g, XSYID xsy_id);
-static inline int isy_is_valid(GRAMMAR g, ISYID isyid);
+static inline int nsy_is_valid(GRAMMAR g, NSYID nsyid);
 static inline void
 rule_add (GRAMMAR g, RULE rule);
 static inline void event_new(GRAMMAR g, int type);
 static inline void int_event_new(GRAMMAR g, int type, int value);
 static inline XSY
 symbol_new (GRAMMAR g);
-static inline ISY symbol_alias_create(GRAMMAR g, XSY symbol);
-static inline ISY
-isy_start(GRAMMAR g);
-static inline ISY
-isy_new(GRAMMAR g, XSY source);
-static inline ISY
-semantic_isy_new(GRAMMAR g, XSY source);
-static inline ISY
-isy_clone(GRAMMAR g, XSY xsy);
+static inline NSY symbol_alias_create(GRAMMAR g, XSY symbol);
+static inline NSY
+nsy_start(GRAMMAR g);
+static inline NSY
+nsy_new(GRAMMAR g, XSY source);
+static inline NSY
+semantic_nsy_new(GRAMMAR g, XSY source);
+static inline NSY
+nsy_clone(GRAMMAR g, XSY xsy);
 static inline   XRL xrl_start (GRAMMAR g, const XSYID lhs, const XSYID * rhs, int length);
 static inline XRL xrl_finish(GRAMMAR g, XRL rule);
 static inline IRL
@@ -110,9 +110,9 @@ assign_AHFA_state (AHFA sought_state, MARPA_AVL_TREE duplicates);
 static inline AHFA to_ahfa_of_transition_get(TRANS transition);
 static inline int completion_count_of_transition_get(TRANS transition);
 static inline URTRANS transition_new(struct marpa_obstack *obstack, AHFA to_ahfa, int aim_ix);
-static inline TRANS* transitions_new(GRAMMAR g, int isy_count);
-static inline void transition_add(struct marpa_obstack *obstack, AHFA from_ahfa, ISYID isyid, AHFA to_ahfa);
-static inline void completion_count_inc(struct marpa_obstack *obstack, AHFA from_ahfa, ISYID isyid);
+static inline TRANS* transitions_new(GRAMMAR g, int nsy_count);
+static inline void transition_add(struct marpa_obstack *obstack, AHFA from_ahfa, NSYID nsyid, AHFA to_ahfa);
+static inline void completion_count_inc(struct marpa_obstack *obstack, AHFA from_ahfa, NSYID nsyid);
 static inline INPUT input_new (GRAMMAR g);
 static inline void
 input_unref (INPUT input);
@@ -123,51 +123,51 @@ static inline void
 recce_unref (RECCE r);
 static inline RECCE recce_ref (RECCE r);
 static inline void recce_free(struct marpa_r *r);
-static inline ES current_es_of_r(RECCE r);
-static inline ES
-earley_set_new( RECCE r, EARLEME id);
+static inline YS current_ys_of_r(RECCE r);
+static inline YS
+earley_set_new( RECCE r, JEARLEME id);
 static inline void trace_earley_item_clear(RECCE r);
-static inline EIM earley_item_create(const RECCE r,
-    const EIK_Object key);
-static inline EIM
-earley_item_assign (const RECCE r, const ES set, const ES origin,
+static inline YIM earley_item_create(const RECCE r,
+    const YIK_Object key);
+static inline YIM
+earley_item_assign (const RECCE r, const YS set, const YS origin,
 		    const AHFA state);
 static inline PIM*
-pim_isy_p_find (ES set, ISYID isyid);
-static inline PIM first_pim_of_es_by_isyid(ES set, ISYID isyid);
+pim_nsy_p_find (YS set, NSYID nsyid);
+static inline PIM first_pim_of_ys_by_nsyid(YS set, NSYID nsyid);
 static inline void
 completion_link_add (RECCE r,
-		EIM item,
-		EIM predecessor,
-		EIM cause);
+		YIM item,
+		YIM predecessor,
+		YIM cause);
 static inline void
 leo_link_add (RECCE r,
-		EIM item,
+		YIM item,
 		LIM predecessor,
-		EIM cause);
+		YIM cause);
 static inline void trace_source_link_clear(RECCE r);
 static inline int
 alternative_insertion_point (RECCE r, ALT new_alternative);
 static inline int alternative_cmp(const ALT_Const a, const ALT_Const b);
-static inline ALT alternative_pop(RECCE r, EARLEME earleme);
+static inline ALT alternative_pop(RECCE r, JEARLEME earleme);
 static inline int alternative_insert(RECCE r, ALT new_alternative);
 static inline void trigger_events(RECCE r);
-static inline void earley_set_update_items(RECCE r, ES set);
+static inline void earley_set_update_items(RECCE r, YS set);
 static inline void r_update_earley_sets(RECCE r);
 static inline void ur_node_stack_init(URS stack);
 static inline void ur_node_stack_reset(URS stack);
 static inline void ur_node_stack_destroy(URS stack);
 static inline UR ur_node_new(URS stack, UR prev);
 static inline void
-ur_node_push (URS stack, EIM earley_item, AEX aex);
+ur_node_push (URS stack, YIM earley_item, AEX aex);
 static inline UR
 ur_node_pop (URS stack);
 static inline int psia_test_and_set(
     struct marpa_obstack* obs,
-    struct s_bocage_setup_per_es* per_es_data,
-    EIM earley_item,
+    struct s_bocage_setup_per_ys* per_ys_data,
+    YIM earley_item,
     AEX ahfa_element_ix);
-static inline AEX lim_base_data_get(LIM leo_item, EIM* p_base);
+static inline AEX lim_base_data_get(LIM leo_item, YIM* p_base);
 static inline AIM base_aim_of_lim(LIM leo_item);
 static inline DAND draft_and_node_new(struct marpa_obstack *obs, OR predecessor, OR cause);
 static inline void draft_and_node_add(struct marpa_obstack *obs, OR parent, OR predecessor, OR cause);

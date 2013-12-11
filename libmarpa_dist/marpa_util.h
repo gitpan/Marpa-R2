@@ -1,8 +1,8 @@
-/*1383:*/
-#line 16389 "./marpa.w"
+/*1384:*/
+#line 16413 "./marpa.w"
 
-/*1377:*/
-#line 16322 "./marpa.w"
+/*1378:*/
+#line 16346 "./marpa.w"
 
 /*
  * Copyright 2013 Jeffrey Kegler
@@ -26,15 +26,15 @@
  * It is not intended to be modified directly
  */
 
-/*:1377*/
-#line 16390 "./marpa.w"
+/*:1378*/
+#line 16414 "./marpa.w"
 
 
 #ifndef _MARPA_UTIL_H__
 #define _MARPA_UTIL_H__ 1
 
-/*1353:*/
-#line 16031 "./marpa.w"
+/*1354:*/
+#line 16055 "./marpa.w"
 
 #define MARPA_OFF_DEBUG1(a)
 #define MARPA_OFF_DEBUG2(a, b)
@@ -42,8 +42,8 @@
 #define MARPA_OFF_DEBUG4(a, b, c, d)
 #define MARPA_OFF_DEBUG5(a, b, c, d, e)
 #define MARPA_OFF_ASSERT(expr)
-/*:1353*//*1362:*/
-#line 16088 "./marpa.w"
+/*:1354*//*1363:*/
+#line 16112 "./marpa.w"
 
 
 #ifndef MARPA_DEBUG
@@ -87,21 +87,21 @@
        (*_marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
 #endif
 
-/*:1362*/
-#line 16395 "./marpa.w"
+/*:1363*/
+#line 16419 "./marpa.w"
 
-/*1325:*/
-#line 15798 "./marpa.w"
+/*1326:*/
+#line 15822 "./marpa.w"
 
 extern void*(*const _marpa_out_of_memory)(void);
 
-/*:1325*//*1355:*/
-#line 16052 "./marpa.w"
+/*:1326*//*1356:*/
+#line 16076 "./marpa.w"
 
 extern int(*_marpa_debug_handler)(const char*,...);
 extern int _marpa_debug_level;
-/*:1355*//*1356:*/
-#line 16059 "./marpa.w"
+/*:1356*//*1357:*/
+#line 16083 "./marpa.w"
 
 #if MARPA_DEBUG >  0
 extern int _marpa_default_debug_handler(const char*format,...);
@@ -110,10 +110,10 @@ extern int _marpa_default_debug_handler(const char*format,...);
 #define MARPA_DEFAULT_DEBUG_HANDLER NULL
 #endif
 
-/*:1356*/
-#line 16396 "./marpa.w"
+/*:1357*/
+#line 16420 "./marpa.w"
 
 
 #endif 
 
-/*:1383*/
+/*:1384*/

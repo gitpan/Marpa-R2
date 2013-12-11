@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (4 December 2013) is for Libmarpa 5.177.106.
+This manual (10 December 2013) is for Libmarpa 5.177.107.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (4 December 2013) is for Libmarpa 5.177.106.
+This manual (10 December 2013) is for Libmarpa 5.177.107.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -3542,7 +3542,7 @@ codes::.
      same symbol ID and the same length.  Numeric value: 12.  Suggested
      message: "Duplicate token".
 
- -- Macro: int MARPA_ERR_EIM_COUNT
+ -- Macro: int MARPA_ERR_YIM_COUNT
      This error code indicates that an implementation-defined limit on
      the number of Earley items per Earley set was exceedeed.  This
      limit is different from the Earley item warning threshold, an
@@ -3987,7 +3987,7 @@ descriptions or suggested messages.
  -- Macro: int MARPA_ERR_DUPLICATE_AND_NODE
      Numeric value: 10.
 
- -- Macro: int MARPA_ERR_EIM_ID_INVALID
+ -- Macro: int MARPA_ERR_YIM_ID_INVALID
      Numeric value: 14.
 
  -- Macro: int MARPA_ERR_INTERNAL
@@ -4002,7 +4002,7 @@ descriptions or suggested messages.
  -- Macro: int MARPA_ERR_INVALID_IRLID
      Numeric value: 23.
 
- -- Macro: int MARPA_ERR_INVALID_ISYID
+ -- Macro: int MARPA_ERR_INVALID_NSYID
      Numeric value: 24.
 
  -- Macro: int MARPA_ERR_NOOKID_NEGATIVE
@@ -4023,13 +4023,13 @@ descriptions or suggested messages.
  -- Macro: int MARPA_ERR_NO_OR_NODES
      Numeric value: 40.
 
- -- Macro: int MARPA_ERR_NO_TRACE_ES
+ -- Macro: int MARPA_ERR_NO_TRACE_YS
      Numeric value: 46.
 
  -- Macro: int MARPA_ERR_NO_TRACE_PIM
      Numeric value: 47.
 
- -- Macro: int MARPA_ERR_NO_TRACE_EIM
+ -- Macro: int MARPA_ERR_NO_TRACE_YIM
      Numeric value: 45.
 
  -- Macro: int MARPA_ERR_NO_TRACE_SRCL
@@ -4723,106 +4723,106 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top485
-Node: Copying3755
-Node: About this document12186
-Node: How to read this document12403
-Node: Prerequisites12870
-Node: Parsing theory13469
-Node: About Libmarpa14157
-Node: Architecture15989
-Node: Major objects16195
-Node: Time objects17534
-Node: Reference counting18988
-Node: Numbered objects21041
-Node: Input21475
-Node: Earlemes21610
-Node: The traditional model22007
-Node: The earleme variables23295
-Node: The significances of the earleme variables25174
-Node: The initial earleme settings26800
-Node: The standard model of input27478
-Node: Ambiguous input29201
-Node: Variable length tokens30166
-Node: The generalized model31882
-Node: General rules for the earleme variables34224
-Node: Terminals35607
-Node: Semantics36457
-Node: How Libmarpa semantics work36632
-Node: Valued and unvalued symbols37779
-Node: Threads40193
-Node: Fatal Errors41451
-Node: Introduction to the external interface42046
-Node: About the overviews42397
-Node: Return values43233
-Node: Naming conventions45022
-Node: Static methods46136
-Node: Configuration methods47768
-Node: Grammar methods49455
-Node: Grammar overview49762
-Node: Grammar constructor50806
-Node: Grammar reference counting51659
-Node: Symbols52263
-Node: Rules63106
-Node: Sequences68130
-Node: Ranks72395
-Node: Grammar precomputation74638
-Ref: marpa_g_precompute74839
-Node: Recognizer methods79177
-Node: Recognizer overview79542
-Node: Recognizer constructor80272
-Node: Recognizer reference counting80826
-Node: Recognizer life cycle mutators81637
-Node: Location accessors89982
-Node: Other parse status methods94517
-Node: Untested recognizer methods98107
-Node: Progress reports101151
-Node: Bocage methods104722
-Node: Bocage overview104963
-Node: Bocage constructor105483
-Node: Bocage reference counting106137
-Node: Bocage accessor107038
-Node: Ordering methods107780
-Node: Ordering overview108051
-Node: Ordering constructor108655
-Node: Ordering reference counting109122
-Node: Order accessor110106
-Node: Non-default ordering110886
-Node: Tree methods112026
-Node: Tree overview112251
-Node: Tree constructor113078
-Node: Tree reference counting113733
-Node: Tree iteration114702
-Node: Value methods116010
-Node: Value overview116448
-Node: How to use the valuator117879
-Node: Advantages of step-driven valuation119850
-Node: Maintaining the stack123520
-Node: Sizing the stack125531
-Node: Initializing locations in the stack127311
-Node: Valuator constructor129507
-Node: Valuator reference counting130358
-Node: Registering semantics131343
-Node: Stepping through the valuator133277
-Node: Valuator steps by type134043
-Node: Basic step accessors135990
-Node: Other step accessors137856
-Node: Events139402
-Node: Events overview139591
-Node: Event methods140461
-Node: Event codes141646
-Node: Error methods macros and codes144915
-Node: Error methods145184
-Node: Error Macros146011
-Node: External error codes146378
-Node: Internal error codes168265
-Node: Design notes171806
-Node: Why so many time objects172241
-Node: Design of numbered objects173991
-Node: LHS Terminals175230
-Node: Work in Progress175923
-Node: Experimental methods176133
-Node: Untested methods176967
-Node: GNU Free Documentation License179228
+Node: Top486
+Node: Copying3757
+Node: About this document12188
+Node: How to read this document12405
+Node: Prerequisites12872
+Node: Parsing theory13471
+Node: About Libmarpa14159
+Node: Architecture15991
+Node: Major objects16197
+Node: Time objects17536
+Node: Reference counting18990
+Node: Numbered objects21043
+Node: Input21477
+Node: Earlemes21612
+Node: The traditional model22009
+Node: The earleme variables23297
+Node: The significances of the earleme variables25176
+Node: The initial earleme settings26802
+Node: The standard model of input27480
+Node: Ambiguous input29203
+Node: Variable length tokens30168
+Node: The generalized model31884
+Node: General rules for the earleme variables34226
+Node: Terminals35609
+Node: Semantics36459
+Node: How Libmarpa semantics work36634
+Node: Valued and unvalued symbols37781
+Node: Threads40195
+Node: Fatal Errors41453
+Node: Introduction to the external interface42048
+Node: About the overviews42399
+Node: Return values43235
+Node: Naming conventions45024
+Node: Static methods46138
+Node: Configuration methods47770
+Node: Grammar methods49457
+Node: Grammar overview49764
+Node: Grammar constructor50808
+Node: Grammar reference counting51661
+Node: Symbols52265
+Node: Rules63108
+Node: Sequences68132
+Node: Ranks72397
+Node: Grammar precomputation74640
+Ref: marpa_g_precompute74841
+Node: Recognizer methods79179
+Node: Recognizer overview79544
+Node: Recognizer constructor80274
+Node: Recognizer reference counting80828
+Node: Recognizer life cycle mutators81639
+Node: Location accessors89984
+Node: Other parse status methods94519
+Node: Untested recognizer methods98109
+Node: Progress reports101153
+Node: Bocage methods104724
+Node: Bocage overview104965
+Node: Bocage constructor105485
+Node: Bocage reference counting106139
+Node: Bocage accessor107040
+Node: Ordering methods107782
+Node: Ordering overview108053
+Node: Ordering constructor108657
+Node: Ordering reference counting109124
+Node: Order accessor110108
+Node: Non-default ordering110888
+Node: Tree methods112028
+Node: Tree overview112253
+Node: Tree constructor113080
+Node: Tree reference counting113735
+Node: Tree iteration114704
+Node: Value methods116012
+Node: Value overview116450
+Node: How to use the valuator117881
+Node: Advantages of step-driven valuation119852
+Node: Maintaining the stack123522
+Node: Sizing the stack125533
+Node: Initializing locations in the stack127313
+Node: Valuator constructor129509
+Node: Valuator reference counting130360
+Node: Registering semantics131345
+Node: Stepping through the valuator133279
+Node: Valuator steps by type134045
+Node: Basic step accessors135992
+Node: Other step accessors137858
+Node: Events139404
+Node: Events overview139593
+Node: Event methods140463
+Node: Event codes141648
+Node: Error methods macros and codes144917
+Node: Error methods145186
+Node: Error Macros146013
+Node: External error codes146380
+Node: Internal error codes168267
+Node: Design notes171808
+Node: Why so many time objects172243
+Node: Design of numbered objects173993
+Node: LHS Terminals175232
+Node: Work in Progress175925
+Node: Experimental methods176135
+Node: Untested methods176969
+Node: GNU Free Documentation License179230
 
 End Tag Table

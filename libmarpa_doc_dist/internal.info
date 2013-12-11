@@ -1,8 +1,8 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (4 December 2013) is for the internals of Libmarpa
-5.177.106.
+This manual (10 December 2013) is for the internals of Libmarpa
+5.177.107.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -18,8 +18,8 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (4 December 2013) is for the internals of Libmarpa
-5.177.106.
+This manual (10 December 2013) is for the internals of Libmarpa
+5.177.107.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -278,19 +278,19 @@ File: internal.info,  Node: Symbol internal methods,  Next: Rule internals,  Pre
      at some point, once I fully work out the implications of "first
      child" semantics.
 
- -- Function: int _marpa_g_isy_is_start ( Marpa_Grammar G, Marpa_ISY_ID
-          ISY_ID)
+ -- Function: int _marpa_g_nsy_is_start ( Marpa_Grammar G, Marpa_NSY_ID
+          NSY_ID)
 
- -- Function: int _marpa_g_isy_is_nulling ( Marpa_Grammar G,
-          Marpa_ISY_ID ISY_ID)
+ -- Function: int _marpa_g_nsy_is_nulling ( Marpa_Grammar G,
+          Marpa_NSY_ID NSY_ID)
 
- -- Function: int _marpa_g_isy_is_lhs ( Marpa_Grammar G, Marpa_ISY_ID
-          ISY_ID)
+ -- Function: int _marpa_g_nsy_is_lhs ( Marpa_Grammar G, Marpa_NSY_ID
+          NSY_ID)
 
- -- Function: Marpa_ISY_ID _marpa_g_xsy_nulling_isy ( Marpa_Grammar G,
+ -- Function: Marpa_NSY_ID _marpa_g_xsy_nulling_nsy ( Marpa_Grammar G,
           Marpa_Symbol_ID SYMID)
 
- -- Function: Marpa_ISY_ID _marpa_g_xsy_isy ( Marpa_Grammar G,
+ -- Function: Marpa_NSY_ID _marpa_g_xsy_nsy ( Marpa_Grammar G,
           Marpa_Symbol_ID SYMID)
 
  -- Function: Marpa_Symbol_ID _marpa_g_symbol_proper_alias (
@@ -299,17 +299,17 @@ File: internal.info,  Node: Symbol internal methods,  Next: Rule internals,  Pre
  -- Function: Marpa_Symbol_ID _marpa_g_symbol_null_alias (
           Marpa_Grammar G, Marpa_Symbol_ID SYMID)
 
- -- Function: int _marpa_g_isy_is_semantic ( Marpa_Grammar G,
-          Marpa_ISY_ID ISY_ID)
+ -- Function: int _marpa_g_nsy_is_semantic ( Marpa_Grammar G,
+          Marpa_NSY_ID NSY_ID)
 
  -- Function: Marpa_Rule_ID _marpa_g_source_xsy ( Marpa_Grammar G,
-          Marpa_ISY_ID ISY_ID)
+          Marpa_NSY_ID NSY_ID)
 
- -- Function: Marpa_Rule_ID _marpa_g_isy_lhs_xrl ( Marpa_Grammar G,
-          Marpa_ISY_ID ISY_ID)
+ -- Function: Marpa_Rule_ID _marpa_g_nsy_lhs_xrl ( Marpa_Grammar G,
+          Marpa_NSY_ID NSY_ID)
 
- -- Function: int _marpa_g_isy_xrl_offset ( Marpa_Grammar G,
-          Marpa_ISY_ID ISY_ID )
+ -- Function: int _marpa_g_nsy_xrl_offset ( Marpa_Grammar G,
+          Marpa_NSY_ID NSY_ID )
 
 
 File: internal.info,  Node: Rule internals,  Next: Grammar internals,  Prev: Symbol internal methods,  Up: Internal Interface
@@ -326,7 +326,7 @@ File: internal.info,  Node: Rule internals,  Next: Grammar internals,  Prev: Sym
      set, 0 if not.  Returns 0 if RULE_ID is not a sequence rule.  On
      failure, returns -2.
 
- -- Function: int _marpa_g_isy_count ( Marpa_Grammar G)
+ -- Function: int _marpa_g_nsy_count ( Marpa_Grammar G)
 
  -- Function: int _marpa_g_irl_count ( Marpa_Grammar G)
 
@@ -379,8 +379,8 @@ File: internal.info,  Node: Rule internals,  Next: Grammar internals,  Prev: Sym
  -- Function: Marpa_Rank _marpa_g_irl_rank ( Marpa_Grammar G,
           Marpa_IRL_ID IRL_ID)
 
- -- Function: Marpa_Rank _marpa_g_isy_rank ( Marpa_Grammar G,
-          Marpa_IRL_ID ISY_ID)
+ -- Function: Marpa_Rank _marpa_g_nsy_rank ( Marpa_Grammar G,
+          Marpa_IRL_ID NSY_ID)
 
 
 File: internal.info,  Node: Grammar internals,  Next: Recognizer internals,  Prev: Rule internals,  Up: Internal Interface
@@ -1142,18 +1142,18 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top512
-Node: Copying1403
-Node: About this document9839
-Node: Internal Interface10147
-Node: Symbol internal methods10915
-Node: Rule internals12589
-Node: Grammar internals15229
-Node: Recognizer internals16933
-Node: Bocage internals19807
-Node: Ordering internals22332
-Node: Tree internals22847
-Node: Valuator internals24855
-Node: GNU Free Documentation License25121
+Node: Top513
+Node: Copying1405
+Node: About this document9841
+Node: Internal Interface10149
+Node: Symbol internal methods10917
+Node: Rule internals12591
+Node: Grammar internals15231
+Node: Recognizer internals16935
+Node: Bocage internals19809
+Node: Ordering internals22334
+Node: Tree internals22849
+Node: Valuator internals24857
+Node: GNU Free Documentation License25123
 
 End Tag Table

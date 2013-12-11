@@ -24,7 +24,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_006';
+$VERSION        = '2.077_007';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 
@@ -190,7 +190,7 @@ use constant GRAMMAR => 1;
 use constant THICK_G1_RECCE => 2;
 use constant P_INPUT_STRING => 3;
 use constant TRACE_FILE_HANDLE => 4;
-use constant TRACE_LEXER => 5;
+use constant TRACE_LEXERS => 5;
 use constant TRACE_TERMINALS => 6;
 use constant READ_STRING_ERROR => 7;
 use constant EVENTS => 8;
