@@ -66,7 +66,7 @@
 #define MARPA_DEBUG5(a,b,c,d,e)  (_marpa_debug_level && \
     (*_marpa_debug_handler)((a),(b),(c),(d),(e))) 
 
-#define MARPA_ASSERT(expr) do { if LIKELY (expr) ; else \
+#define MARPA_ASSERT(expr) do { if _MARPA_LIKELY (expr) ; else \
        (*_marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
 #else 
 #define MARPA_DEBUG1(a) 
@@ -83,7 +83,7 @@
 
 #if MARPA_ENABLE_ASSERT
 #undef MARPA_ASSERT
-#define MARPA_ASSERT(expr) do { if LIKELY (expr) ; else \
+#define MARPA_ASSERT(expr) do { if _MARPA_LIKELY (expr) ; else \
        (*_marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
 #endif
 

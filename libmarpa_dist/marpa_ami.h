@@ -30,6 +30,14 @@
 
 #include "marpa_util.h"
 
+#if defined(__GNUC__) && (__GNUC__ >   2) && defined(__OPTIMIZE__)
+#define _MARPA_LIKELY(expr) (__builtin_expect ((expr), 1))
+#define _MARPA_UNLIKELY(expr) (__builtin_expect ((expr), 0))
+#else
+#define _MARPA_LIKELY(expr) (expr)
+#define _MARPA_UNLIKELY(expr) (expr)
+#endif
+
 #define marpa_new(type,count) ((type*) marpa_malloc((sizeof(type) *(count) ) ) ) 
 #define marpa_renew(type,p,count)  \
 ((type*) marpa_realloc((p) ,(sizeof(type) *(count) ) ) )  \
@@ -49,7 +57,7 @@ MARPA_DSTACK_INIT((this) ,type,MAX(4,1024/sizeof(this) ) )  \
 
 #define MARPA_DSTACK_CLEAR(this) ((this) .t_count= 0) 
 #define MARPA_DSTACK_PUSH(this,type) ( \
-(UNLIKELY((this) .t_count>=(this) .t_capacity)  \
+(_MARPA_UNLIKELY((this) .t_count>=(this) .t_capacity)  \
 ?marpa_dstack_resize2(&(this) ,sizeof(type) )  \
 :0) , \
 ((type*) (this) .t_base+(this) .t_count++)  \
@@ -69,7 +77,7 @@ MARPA_DSTACK_INIT((this) ,type,MAX(4,1024/sizeof(this) ) )  \
 #define MARPA_DSTACK_RESIZE(this,type,new_size)  \
 (marpa_dstack_resize((this) ,sizeof(type) ,(new_size) ) ) 
 
-#line 359 "./marpa_ami.w"
+#line 367 "./marpa_ami.w"
 
 /*13:*/
 #line 310 "./marpa_ami.w"
@@ -77,7 +85,7 @@ MARPA_DSTACK_INIT((this) ,type,MAX(4,1024/sizeof(this) ) )  \
 struct marpa_dstack_s;
 typedef struct marpa_dstack_s*MARPA_DSTACK;
 /*:13*/
-#line 360 "./marpa_ami.w"
+#line 368 "./marpa_ami.w"
 
 
 /*:21*/
@@ -85,7 +93,7 @@ typedef struct marpa_dstack_s*MARPA_DSTACK;
 static inline void * marpa_dstack_resize2( struct marpa_dstack_s* this, size_t type_bytes);
 static inline void * marpa_dstack_resize ( struct marpa_dstack_s *this, size_t type_bytes, int new_size);
 /*22:*/
-#line 363 "./marpa_ami.w"
+#line 371 "./marpa_ami.w"
 
 
 /*14:*/
@@ -93,7 +101,7 @@ static inline void * marpa_dstack_resize ( struct marpa_dstack_s *this, size_t t
 
 struct marpa_dstack_s{int t_count;int t_capacity;void*t_base;};
 /*:14*/
-#line 365 "./marpa_ami.w"
+#line 373 "./marpa_ami.w"
 
 /*7:*/
 #line 196 "./marpa_ami.w"
@@ -112,7 +120,7 @@ static inline
 void*marpa_malloc(size_t size)
 {
 void*newmem= malloc(size);
-if(UNLIKELY(!newmem)){(*_marpa_out_of_memory)();}
+if(_MARPA_UNLIKELY(!newmem)){(*_marpa_out_of_memory)();}
 return newmem;
 }
 
@@ -129,9 +137,9 @@ static inline
 void*
 marpa_realloc(void*p,size_t size)
 {
-if(LIKELY(p!=NULL)){
+if(_MARPA_LIKELY(p!=NULL)){
 void*newmem= realloc(p,size);
-if(UNLIKELY(!newmem))(*_marpa_out_of_memory)();
+if(_MARPA_UNLIKELY(!newmem))(*_marpa_out_of_memory)();
 return newmem;
 }
 return marpa_malloc(size);
@@ -161,7 +169,7 @@ this->t_base= marpa_realloc(this->t_base,new_size*type_bytes);
 return this->t_base;
 }
 /*:17*/
-#line 366 "./marpa_ami.w"
+#line 374 "./marpa_ami.w"
 
 
 #endif 

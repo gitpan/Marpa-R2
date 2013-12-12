@@ -2432,7 +2432,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2484,7 +2484,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2505,7 +2505,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2544,7 +2544,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2569,7 +2569,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2580,7 +2580,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -2591,7 +2591,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -2601,7 +2601,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -2627,7 +2627,7 @@ clear_error(g);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2653,7 +2653,7 @@ clear_error(g);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2664,7 +2664,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -2672,12 +2672,12 @@ return failure_indicator;
 /*:1332*/
 #line 951 "./marpa.w"
 
-if(UNLIKELY(rank<MINIMUM_RANK))
+if(_MARPA_UNLIKELY(rank<MINIMUM_RANK))
 {
 MARPA_ERROR(MARPA_ERR_RANK_TOO_LOW);
 return failure_indicator;
 }
-if(UNLIKELY(rank> MAXIMUM_RANK))
+if(_MARPA_UNLIKELY(rank> MAXIMUM_RANK))
 {
 MARPA_ERROR(MARPA_ERR_RANK_TOO_HIGH);
 return failure_indicator;
@@ -2700,7 +2700,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2726,7 +2726,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2809,7 +2809,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2953,7 +2953,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -2964,7 +2964,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -2974,7 +2974,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3002,7 +3002,7 @@ clear_error(g);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3013,7 +3013,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3023,7 +3023,7 @@ return failure_indicator;
 /*1336:*/
 #line 15890 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3051,7 +3051,7 @@ clear_error(g);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3062,7 +3062,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3073,7 +3073,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3083,7 +3083,7 @@ return failure_indicator;
 /*1336:*/
 #line 15890 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3091,12 +3091,12 @@ return failure_indicator;
 #line 1323 "./marpa.w"
 
 xsy= XSY_by_ID(xsy_id);
-if(UNLIKELY(rank<MINIMUM_RANK))
+if(_MARPA_UNLIKELY(rank<MINIMUM_RANK))
 {
 MARPA_ERROR(MARPA_ERR_RANK_TOO_LOW);
 return failure_indicator;
 }
-if(UNLIKELY(rank> MAXIMUM_RANK))
+if(_MARPA_UNLIKELY(rank> MAXIMUM_RANK))
 {
 MARPA_ERROR(MARPA_ERR_RANK_TOO_HIGH);
 return failure_indicator;
@@ -3121,7 +3121,7 @@ const int failure_indicator= -2;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3131,7 +3131,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3158,7 +3158,7 @@ const int failure_indicator= -2;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3168,7 +3168,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3176,12 +3176,12 @@ return-1;
 #line 1388 "./marpa.w"
 
 symbol= XSY_by_ID(xsy_id);
-if(UNLIKELY(value<0||value> 1))
+if(_MARPA_UNLIKELY(value<0||value> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
 }
-if(UNLIKELY(XSY_is_Valued_Locked(symbol)
+if(_MARPA_UNLIKELY(XSY_is_Valued_Locked(symbol)
 &&value!=XSY_is_Valued(symbol)))
 {
 MARPA_ERROR(MARPA_ERR_VALUED_IS_LOCKED);
@@ -3206,7 +3206,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3217,7 +3217,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3227,7 +3227,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3237,7 +3237,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3263,7 +3263,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3274,7 +3274,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3284,7 +3284,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3309,7 +3309,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3320,7 +3320,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3330,7 +3330,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3340,7 +3340,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3365,7 +3365,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3376,7 +3376,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3386,7 +3386,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3396,7 +3396,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3422,7 +3422,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3433,7 +3433,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3443,7 +3443,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3469,7 +3469,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3480,7 +3480,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3491,7 +3491,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3501,7 +3501,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3509,12 +3509,12 @@ return-1;
 #line 1510 "./marpa.w"
 
 symbol= XSY_by_ID(xsy_id);
-if(UNLIKELY(value<0||value> 1))
+if(_MARPA_UNLIKELY(value<0||value> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
 }
-if(UNLIKELY(XSY_is_Locked_Terminal(symbol))
+if(_MARPA_UNLIKELY(XSY_is_Locked_Terminal(symbol))
 &&XSY_is_Terminal(symbol)!=value)
 {
 MARPA_ERROR(MARPA_ERR_TERMINAL_IS_LOCKED);
@@ -3541,7 +3541,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3552,7 +3552,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3562,7 +3562,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3572,7 +3572,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3598,7 +3598,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3609,7 +3609,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3619,7 +3619,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3645,7 +3645,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3656,7 +3656,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3667,7 +3667,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3677,7 +3677,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3709,7 +3709,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3720,7 +3720,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3730,7 +3730,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3756,7 +3756,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3767,7 +3767,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3778,7 +3778,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3788,7 +3788,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3820,7 +3820,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3831,7 +3831,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3841,7 +3841,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3867,7 +3867,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -3878,7 +3878,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -3889,7 +3889,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3899,7 +3899,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3937,7 +3937,7 @@ const int failure_indicator= -2;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3947,7 +3947,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -3978,7 +3978,7 @@ const int failure_indicator= -2;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -3988,7 +3988,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -4109,7 +4109,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4135,7 +4135,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4146,7 +4146,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -4156,7 +4156,7 @@ return failure_indicator;
 /*1337:*/
 #line 15895 "./marpa.w"
 
-if(UNLIKELY(!nsy_is_valid(g,nsy_id))){
+if(_MARPA_UNLIKELY(!nsy_is_valid(g,nsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_NSYID);
 return failure_indicator;
 }
@@ -4181,7 +4181,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4192,7 +4192,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -4202,7 +4202,7 @@ return failure_indicator;
 /*1337:*/
 #line 15895 "./marpa.w"
 
-if(UNLIKELY(!nsy_is_valid(g,nsy_id))){
+if(_MARPA_UNLIKELY(!nsy_is_valid(g,nsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_NSYID);
 return failure_indicator;
 }
@@ -4227,7 +4227,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4238,7 +4238,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -4248,7 +4248,7 @@ return failure_indicator;
 /*1337:*/
 #line 15895 "./marpa.w"
 
-if(UNLIKELY(!nsy_is_valid(g,nsy_id))){
+if(_MARPA_UNLIKELY(!nsy_is_valid(g,nsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_NSYID);
 return failure_indicator;
 }
@@ -4275,7 +4275,7 @@ const int failure_indicator= -2;
 /*1337:*/
 #line 15895 "./marpa.w"
 
-if(UNLIKELY(!nsy_is_valid(g,nsy_id))){
+if(_MARPA_UNLIKELY(!nsy_is_valid(g,nsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_NSYID);
 return failure_indicator;
 }
@@ -4303,7 +4303,7 @@ const int failure_indicator= -2;
 /*1337:*/
 #line 15895 "./marpa.w"
 
-if(UNLIKELY(!nsy_is_valid(g,nsy_id))){
+if(_MARPA_UNLIKELY(!nsy_is_valid(g,nsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_NSYID);
 return failure_indicator;
 }
@@ -4329,7 +4329,7 @@ const int failure_indicator= -2;
 /*1337:*/
 #line 15895 "./marpa.w"
 
-if(UNLIKELY(!nsy_is_valid(g,nsy_id))){
+if(_MARPA_UNLIKELY(!nsy_is_valid(g,nsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_NSYID);
 return failure_indicator;
 }
@@ -4361,7 +4361,7 @@ NSY nsy;
 /*1337:*/
 #line 15895 "./marpa.w"
 
-if(UNLIKELY(!nsy_is_valid(g,nsy_id))){
+if(_MARPA_UNLIKELY(!nsy_is_valid(g,nsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_NSYID);
 return failure_indicator;
 }
@@ -4389,7 +4389,7 @@ const int failure_indicator= -2;
 /*1337:*/
 #line 15895 "./marpa.w"
 
-if(UNLIKELY(!nsy_is_valid(g,nsy_id))){
+if(_MARPA_UNLIKELY(!nsy_is_valid(g,nsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_NSYID);
 return failure_indicator;
 }
@@ -4584,7 +4584,7 @@ RULE rule;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4595,7 +4595,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -4603,12 +4603,12 @@ return failure_indicator;
 /*:1332*/
 #line 2124 "./marpa.w"
 
-if(UNLIKELY(length> MAX_RHS_LENGTH))
+if(_MARPA_UNLIKELY(length> MAX_RHS_LENGTH))
 {
 MARPA_ERROR(MARPA_ERR_RHS_TOO_LONG);
 return failure_indicator;
 }
-if(UNLIKELY(!xsy_id_is_valid(g,lhs_id)))
+if(_MARPA_UNLIKELY(!xsy_id_is_valid(g,lhs_id)))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
@@ -4618,7 +4618,7 @@ int rh_index;
 for(rh_index= 0;rh_index<length;rh_index++)
 {
 const XSYID rhs_id= rhs_ids[rh_index];
-if(UNLIKELY(!xsy_id_is_valid(g,rhs_id)))
+if(_MARPA_UNLIKELY(!xsy_id_is_valid(g,rhs_id)))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
@@ -4627,14 +4627,14 @@ return failure_indicator;
 }
 {
 const XSY lhs= XSY_by_ID(lhs_id);
-if(UNLIKELY(XSY_is_Sequence_LHS(lhs)))
+if(_MARPA_UNLIKELY(XSY_is_Sequence_LHS(lhs)))
 {
 MARPA_ERROR(MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE);
 return failure_indicator;
 }
 }
 rule= xrl_start(g,lhs_id,rhs_ids,length);
-if(UNLIKELY(_marpa_avl_insert(g->t_xrl_tree,rule)!=NULL))
+if(_MARPA_UNLIKELY(_marpa_avl_insert(g->t_xrl_tree,rule)!=NULL))
 {
 MARPA_ERROR(MARPA_ERR_DUPLICATE_RULE);
 marpa_obs_reject(g->t_xrl_obs);
@@ -4666,7 +4666,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4677,7 +4677,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -4691,26 +4691,26 @@ return failure_indicator;
 {
 if(separator_id!=-1)
 {
-if(UNLIKELY(!xsy_id_is_valid(g,separator_id)))
+if(_MARPA_UNLIKELY(!xsy_id_is_valid(g,separator_id)))
 {
 MARPA_ERROR(MARPA_ERR_BAD_SEPARATOR);
 goto FAILURE;
 }
 }
-if(UNLIKELY(!xsy_id_is_valid(g,lhs_id)))
+if(_MARPA_UNLIKELY(!xsy_id_is_valid(g,lhs_id)))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 goto FAILURE;
 }
 {
 const XSY lhs= XSY_by_ID(lhs_id);
-if(UNLIKELY(XSY_is_LHS(lhs)))
+if(_MARPA_UNLIKELY(XSY_is_LHS(lhs)))
 {
 MARPA_ERROR(MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE);
 goto FAILURE;
 }
 }
-if(UNLIKELY(!xsy_id_is_valid(g,rhs_id)))
+if(_MARPA_UNLIKELY(!xsy_id_is_valid(g,rhs_id)))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 goto FAILURE;
@@ -4802,7 +4802,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4813,7 +4813,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -4823,7 +4823,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -4853,7 +4853,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4864,7 +4864,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -4874,7 +4874,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -4907,7 +4907,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4918,7 +4918,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -4928,7 +4928,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -4956,7 +4956,7 @@ clear_error(g);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -4967,7 +4967,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -4977,7 +4977,7 @@ return failure_indicator;
 /*1340:*/
 #line 15913 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return failure_indicator;
 }
@@ -5005,7 +5005,7 @@ clear_error(g);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5016,7 +5016,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5027,7 +5027,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5037,7 +5037,7 @@ return failure_indicator;
 /*1340:*/
 #line 15913 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return failure_indicator;
 }
@@ -5045,12 +5045,12 @@ return failure_indicator;
 #line 2407 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
-if(UNLIKELY(rank<MINIMUM_RANK))
+if(_MARPA_UNLIKELY(rank<MINIMUM_RANK))
 {
 MARPA_ERROR(MARPA_ERR_RANK_TOO_LOW);
 return failure_indicator;
 }
-if(UNLIKELY(rank> MAXIMUM_RANK))
+if(_MARPA_UNLIKELY(rank> MAXIMUM_RANK))
 {
 MARPA_ERROR(MARPA_ERR_RANK_TOO_HIGH);
 return failure_indicator;
@@ -5075,7 +5075,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5086,7 +5086,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5096,7 +5096,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5123,7 +5123,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5134,7 +5134,7 @@ return failure_indicator;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5145,7 +5145,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5155,7 +5155,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5163,7 +5163,7 @@ return-1;
 #line 2454 "./marpa.w"
 
 xrl= XRL_by_ID(xrl_id);
-if(UNLIKELY(flag<0||flag> 1))
+if(_MARPA_UNLIKELY(flag<0||flag> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
@@ -5189,7 +5189,7 @@ XRL xrl;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5200,7 +5200,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5210,7 +5210,7 @@ return failure_indicator;
 /*1340:*/
 #line 15913 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return failure_indicator;
 }
@@ -5240,7 +5240,7 @@ XRL xrl;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5251,7 +5251,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5261,7 +5261,7 @@ return failure_indicator;
 /*1340:*/
 #line 15913 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return failure_indicator;
 }
@@ -5290,7 +5290,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5301,7 +5301,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5311,7 +5311,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5338,7 +5338,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5349,7 +5349,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5359,7 +5359,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5384,7 +5384,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5395,7 +5395,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5405,7 +5405,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5415,7 +5415,7 @@ return-1;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5441,7 +5441,7 @@ XRL xrl;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5452,7 +5452,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5462,7 +5462,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5489,7 +5489,7 @@ XRL xrl;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5500,7 +5500,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5510,7 +5510,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5537,7 +5537,7 @@ XRL xrl;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5548,7 +5548,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5558,7 +5558,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5585,7 +5585,7 @@ XRL xrl;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5596,7 +5596,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5606,7 +5606,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5633,7 +5633,7 @@ const int failure_indicator= -2;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -5643,7 +5643,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -5670,7 +5670,7 @@ const int failure_indicator= -2;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -5697,7 +5697,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5708,7 +5708,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5718,7 +5718,7 @@ return failure_indicator;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -5744,7 +5744,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5755,7 +5755,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5765,7 +5765,7 @@ return failure_indicator;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -5791,7 +5791,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -5802,7 +5802,7 @@ return failure_indicator;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5812,7 +5812,7 @@ return failure_indicator;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -5839,7 +5839,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5849,7 +5849,7 @@ return failure_indicator;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -5876,7 +5876,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5886,7 +5886,7 @@ return failure_indicator;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -5913,7 +5913,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5923,7 +5923,7 @@ return failure_indicator;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -5951,7 +5951,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -5961,7 +5961,7 @@ return failure_indicator;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -5990,7 +5990,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -6000,7 +6000,7 @@ return failure_indicator;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -6029,7 +6029,7 @@ const int failure_indicator= -2;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -6057,7 +6057,7 @@ const int failure_indicator= -2;
 /*1338:*/
 #line 15900 "./marpa.w"
 
-if(UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
+if(_MARPA_UNLIKELY(!IRLID_of_G_is_Valid(irl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_IRLID);
 return failure_indicator;
 }
@@ -6120,7 +6120,7 @@ Bit_Matrix reach_matrix= NULL;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -6132,7 +6132,7 @@ G_EVENTS_CLEAR(g);
 /*364:*/
 #line 3153 "./marpa.w"
 
-if(UNLIKELY(xrl_count<=0)){
+if(_MARPA_UNLIKELY(xrl_count<=0)){
 MARPA_ERROR(MARPA_ERR_NO_RULES);
 goto FAILURE;
 }
@@ -6143,7 +6143,7 @@ goto FAILURE;
 /*1332:*/
 #line 15867 "./marpa.w"
 
-if(UNLIKELY(G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_PRECOMPUTED);
 return failure_indicator;
 }
@@ -6155,17 +6155,17 @@ return failure_indicator;
 #line 3163 "./marpa.w"
 
 {
-if(UNLIKELY(start_xsy_id<0))
+if(_MARPA_UNLIKELY(start_xsy_id<0))
 {
 MARPA_ERROR(MARPA_ERR_NO_START_SYMBOL);
 goto FAILURE;
 }
-if(UNLIKELY(!xsy_id_is_valid(g,start_xsy_id)))
+if(_MARPA_UNLIKELY(!xsy_id_is_valid(g,start_xsy_id)))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_START_SYMBOL);
 goto FAILURE;
 }
-if(UNLIKELY(!XSY_is_LHS(XSY_by_ID(start_xsy_id))))
+if(_MARPA_UNLIKELY(!XSY_is_LHS(XSY_by_ID(start_xsy_id))))
 {
 MARPA_ERROR(MARPA_ERR_START_NOT_LHS);
 goto FAILURE;
@@ -6423,14 +6423,14 @@ xsy_id++)
 {
 XSY xsy= XSY_by_ID(xsy_id);
 XSY_is_Nullable(xsy)= 1;
-if(UNLIKELY(xsy->t_is_counted))
+if(_MARPA_UNLIKELY(xsy->t_is_counted))
 {
 counted_nullables++;
 int_event_new(g,MARPA_EVENT_COUNTED_NULLABLE,xsy_id);
 }
 }
 }
-if(UNLIKELY(counted_nullables))
+if(_MARPA_UNLIKELY(counted_nullables))
 {
 MARPA_ERROR(MARPA_ERR_COUNTED_NULLABLE);
 goto FAILURE;
@@ -6469,7 +6469,7 @@ symbol->t_is_productive= 1;
 /*376:*/
 #line 3415 "./marpa.w"
 
-if(UNLIKELY(!bv_bit_test(productive_v,(unsigned int)start_xsy_id)))
+if(_MARPA_UNLIKELY(!bv_bit_test(productive_v,(unsigned int)start_xsy_id)))
 {
 MARPA_ERROR(MARPA_ERR_UNPRODUCTIVE_START);
 goto FAILURE;
@@ -6519,7 +6519,7 @@ if(bv_is_empty(reaches_terminal_v))
 {
 const XSY symbol= XSY_by_ID(productive_id);
 XSY_is_Nulling(symbol)= 1;
-if(UNLIKELY(XSY_is_Terminal(symbol)))
+if(_MARPA_UNLIKELY(XSY_is_Terminal(symbol)))
 {
 nulling_terminal_found= 1;
 int_event_new(g,MARPA_EVENT_NULLING_TERMINAL,
@@ -6529,7 +6529,7 @@ productive_id);
 }
 }
 bv_free(reaches_terminal_v);
-if(UNLIKELY(nulling_terminal_found))
+if(_MARPA_UNLIKELY(nulling_terminal_found))
 {
 MARPA_ERROR(MARPA_ERR_NULLING_TERMINAL);
 goto FAILURE;
@@ -6586,7 +6586,7 @@ XRL_is_Nulling(xrl)= 0;
 
 
 
-if(UNLIKELY(!XSY_is_Productive(separator_xsy)))
+if(_MARPA_UNLIKELY(!XSY_is_Productive(separator_xsy)))
 {
 XRL_is_Productive(xrl)= XRL_is_Nullable(xrl);
 
@@ -6616,11 +6616,11 @@ for(rh_ix= 0;rh_ix<Length_of_XRL(xrl);rh_ix++)
 {
 const XSYID rhs_id= RHS_ID_of_XRL(xrl,rh_ix);
 const XSY rh_xsy= XSY_by_ID(rhs_id);
-if(LIKELY(!XSY_is_Nulling(rh_xsy)))
+if(_MARPA_LIKELY(!XSY_is_Nulling(rh_xsy)))
 is_nulling= 0;
-if(LIKELY(!XSY_is_Nullable(rh_xsy)))
+if(_MARPA_LIKELY(!XSY_is_Nullable(rh_xsy)))
 is_nullable= 0;
-if(UNLIKELY(!XSY_is_Productive(rh_xsy)))
+if(_MARPA_UNLIKELY(!XSY_is_Productive(rh_xsy)))
 is_productive= 0;
 }
 XRL_is_Nulling(xrl)= is_nulling;
@@ -6897,9 +6897,9 @@ XSYID xsy_id;
 for(xsy_id= 0;xsy_id<pre_census_xsy_count;xsy_id++)
 {
 const XSY xsy_to_clone= XSY_by_ID(xsy_id);
-if(UNLIKELY(!xsy_to_clone->t_is_accessible))
+if(_MARPA_UNLIKELY(!xsy_to_clone->t_is_accessible))
 continue;
-if(UNLIKELY(!xsy_to_clone->t_is_productive))
+if(_MARPA_UNLIKELY(!xsy_to_clone->t_is_productive))
 continue;
 NSY_of_XSY(xsy_to_clone)= nsy_clone(g,xsy_to_clone);
 if(XSY_is_Nulling(xsy_to_clone))
@@ -7917,7 +7917,7 @@ irl_finish(g,new_irl);
 
 {
 const XSY start_xsy= XSY_by_ID(start_xsy_id);
-if(LIKELY(!XSY_is_Nulling(start_xsy))){
+if(_MARPA_LIKELY(!XSY_is_Nulling(start_xsy))){
 /*428:*/
 #line 4447 "./marpa.w"
 {
@@ -9117,7 +9117,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9142,7 +9142,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9152,7 +9152,7 @@ return failure_indicator;
 /*1342:*/
 #line 15924 "./marpa.w"
 
-if(UNLIKELY(!aim_is_valid(g,item_id))){
+if(_MARPA_UNLIKELY(!aim_is_valid(g,item_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
 return failure_indicator;
 }
@@ -9177,7 +9177,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9187,7 +9187,7 @@ return failure_indicator;
 /*1342:*/
 #line 15924 "./marpa.w"
 
-if(UNLIKELY(!aim_is_valid(g,item_id))){
+if(_MARPA_UNLIKELY(!aim_is_valid(g,item_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
 return failure_indicator;
 }
@@ -9212,7 +9212,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9222,7 +9222,7 @@ return failure_indicator;
 /*1342:*/
 #line 15924 "./marpa.w"
 
-if(UNLIKELY(!aim_is_valid(g,item_id))){
+if(_MARPA_UNLIKELY(!aim_is_valid(g,item_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
 return failure_indicator;
 }
@@ -9247,7 +9247,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9257,7 +9257,7 @@ return failure_indicator;
 /*1342:*/
 #line 15924 "./marpa.w"
 
-if(UNLIKELY(!aim_is_valid(g,item_id))){
+if(_MARPA_UNLIKELY(!aim_is_valid(g,item_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
 return failure_indicator;
 }
@@ -9375,7 +9375,7 @@ AHFA state;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9385,7 +9385,7 @@ return failure_indicator;
 /*1343:*/
 #line 15929 "./marpa.w"
 
-if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
+if(_MARPA_UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
@@ -9414,7 +9414,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9424,7 +9424,7 @@ return failure_indicator;
 /*1343:*/
 #line 15929 "./marpa.w"
 
-if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
+if(_MARPA_UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
@@ -9460,7 +9460,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9470,7 +9470,7 @@ return failure_indicator;
 /*1343:*/
 #line 15929 "./marpa.w"
 
-if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
+if(_MARPA_UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
@@ -9498,7 +9498,7 @@ AHFA state;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9508,7 +9508,7 @@ return failure_indicator;
 /*1343:*/
 #line 15929 "./marpa.w"
 
-if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
+if(_MARPA_UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
@@ -9789,7 +9789,7 @@ const int max_results= max_ix/2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9799,7 +9799,7 @@ return failure_indicator;
 /*1343:*/
 #line 15929 "./marpa.w"
 
-if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
+if(_MARPA_UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
@@ -9838,7 +9838,7 @@ const int failure_indicator= -2;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -9848,7 +9848,7 @@ return failure_indicator;
 /*1343:*/
 #line 15929 "./marpa.w"
 
-if(UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
+if(_MARPA_UNLIKELY(!AHFA_state_id_is_valid(g,AHFA_state_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
 return failure_indicator;
 }
@@ -9939,7 +9939,7 @@ void*const failure_indicator= NULL;
 /*1333:*/
 #line 15873 "./marpa.w"
 
-if(UNLIKELY(!G_is_Precomputed(g))){
+if(_MARPA_UNLIKELY(!G_is_Precomputed(g))){
 MARPA_ERROR(MARPA_ERR_NOT_PRECOMPUTED);
 return failure_indicator;
 }
@@ -10239,7 +10239,7 @@ int ix= 0;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10250,7 +10250,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -10295,7 +10295,7 @@ NSY nsy;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10306,7 +10306,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -10316,7 +10316,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -10326,7 +10326,7 @@ return failure_indicator;
 /*1336:*/
 #line 15890 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return failure_indicator;
 }
@@ -10334,11 +10334,11 @@ return failure_indicator;
 #line 7050 "./marpa.w"
 
 xsy= XSY_by_ID(xsy_id);
-if(UNLIKELY(!XSY_is_Terminal(xsy))){
+if(_MARPA_UNLIKELY(!XSY_is_Terminal(xsy))){
 return 0;
 }
 nsy= NSY_of_XSY(xsy);
-if(UNLIKELY(!nsy))return 0;
+if(_MARPA_UNLIKELY(!nsy))return 0;
 return bv_bit_test(r->t_bv_nsyid_is_expected,ID_of_NSY(nsy));
 }
 
@@ -10368,7 +10368,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10379,7 +10379,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -10389,24 +10389,24 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
 /*:1335*/
 #line 7079 "./marpa.w"
 
-if(UNLIKELY(value<0||value> 1))
+if(_MARPA_UNLIKELY(value<0||value> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
 }
 xsy= XSY_by_ID(xsy_id);
-if(UNLIKELY(XSY_is_Nulling(xsy))){
+if(_MARPA_UNLIKELY(XSY_is_Nulling(xsy))){
 MARPA_ERROR(MARPA_ERR_SYMBOL_IS_NULLING);
 }
 nsy= NSY_of_XSY(xsy);
-if(UNLIKELY(!nsy)){
+if(_MARPA_UNLIKELY(!nsy)){
 MARPA_ERROR(MARPA_ERR_SYMBOL_IS_UNUSED);
 }
 nsyid= ID_of_NSY(nsy);
@@ -10441,7 +10441,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10452,7 +10452,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -10462,7 +10462,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -10515,7 +10515,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10526,7 +10526,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -10536,7 +10536,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -10589,7 +10589,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10600,7 +10600,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -10610,7 +10610,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -10663,7 +10663,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10697,7 +10697,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10708,7 +10708,7 @@ return failure_indicator;
 /*1344:*/
 #line 15938 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)!=R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)!=R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_STARTED);
 return failure_indicator;
 }
@@ -10741,7 +10741,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10776,7 +10776,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10787,7 +10787,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -10835,7 +10835,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10846,7 +10846,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -10894,7 +10894,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10905,7 +10905,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -10941,7 +10941,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -10952,7 +10952,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11026,7 +11026,7 @@ YS trace_earley_set= r->t_trace_earley_set;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11037,7 +11037,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11081,7 +11081,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11092,7 +11092,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11130,7 +11130,7 @@ YS earley_set;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11140,7 +11140,7 @@ return failure_indicator;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11186,7 +11186,7 @@ const GRAMMAR g= G_of_I(input);
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11196,7 +11196,7 @@ return failure_indicator;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11243,7 +11243,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11254,7 +11254,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11336,7 +11336,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11347,7 +11347,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11442,7 +11442,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11453,7 +11453,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11508,7 +11508,7 @@ const int count= ++YIM_Count_of_YS(set);
 
 if(count>=r->t_earley_item_warning_threshold)
 {
-if(UNLIKELY(count>=YIM_FATAL_THRESHOLD))
+if(_MARPA_UNLIKELY(count>=YIM_FATAL_THRESHOLD))
 {
 MARPA_FATAL(MARPA_ERR_YIM_COUNT);
 return failure_indicator;
@@ -11609,7 +11609,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11620,7 +11620,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11673,7 +11673,7 @@ YIM base_earley_item;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11684,7 +11684,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11733,7 +11733,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11744,7 +11744,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11835,7 +11835,7 @@ r->t_trace_postdot_item= NULL;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11846,7 +11846,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -11860,7 +11860,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -11870,7 +11870,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -11928,7 +11928,7 @@ r->t_trace_postdot_item= NULL;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -11939,7 +11939,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12017,7 +12017,7 @@ return failure_indicator;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12028,7 +12028,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12085,7 +12085,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12096,7 +12096,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12293,7 +12293,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12304,7 +12304,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12379,7 +12379,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12390,7 +12390,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12457,7 +12457,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12468,7 +12468,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12542,7 +12542,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12553,7 +12553,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12620,7 +12620,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12631,7 +12631,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12694,7 +12694,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12705,7 +12705,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12782,7 +12782,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12793,7 +12793,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12858,7 +12858,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12869,7 +12869,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -12930,7 +12930,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -12941,7 +12941,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -13003,7 +13003,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -13014,7 +13014,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -13164,7 +13164,7 @@ const int failure_indicator= -2;
 /*1344:*/
 #line 15938 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)!=R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)!=R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_STARTED);
 return failure_indicator;
 }
@@ -13334,12 +13334,12 @@ YS current_earley_set;
 const JEARLEME current_earleme= Current_Earleme_of_R(r);
 JEARLEME target_earleme;
 NSYID tkn_nsyid;
-if(UNLIKELY(Input_Phase_of_R(r)!=R_DURING_INPUT))
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)!=R_DURING_INPUT))
 {
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
 return MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT;
 }
-if(UNLIKELY(!xsy_id_is_valid(g,tkn_xsy_id)))
+if(_MARPA_UNLIKELY(!xsy_id_is_valid(g,tkn_xsy_id)))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return MARPA_ERR_INVALID_SYMBOL_ID;
@@ -13356,7 +13356,7 @@ if(length>=JEARLEME_THRESHOLD){
 MARPA_ERROR(MARPA_ERR_TOKEN_TOO_LONG);
 return MARPA_ERR_TOKEN_TOO_LONG;
 }
-if(value&&UNLIKELY(!lbv_bit_test(r->t_valued_terminal,tkn_xsy_id)))
+if(value&&_MARPA_UNLIKELY(!lbv_bit_test(r->t_valued_terminal,tkn_xsy_id)))
 {
 if(!XSY_is_Terminal(tkn)){
 MARPA_ERROR(MARPA_ERR_TOKEN_IS_NOT_TERMINAL);
@@ -13370,7 +13370,7 @@ lbv_bit_set(r->t_valued_locked,tkn_xsy_id);
 lbv_bit_set(r->t_valued_terminal,tkn_xsy_id);
 lbv_bit_set(r->t_valued,tkn_xsy_id);
 }
-if(!value&&UNLIKELY(!lbv_bit_test(r->t_unvalued_terminal,tkn_xsy_id)))
+if(!value&&_MARPA_UNLIKELY(!lbv_bit_test(r->t_unvalued_terminal,tkn_xsy_id)))
 {
 if(!XSY_is_Terminal(tkn)){
 MARPA_ERROR(MARPA_ERR_TOKEN_IS_NOT_TERMINAL);
@@ -13394,7 +13394,7 @@ lbv_bit_set(r->t_unvalued,tkn_xsy_id);
 
 {
 NSY tkn_nsy= NSY_by_XSYID(tkn_xsy_id);
-if(UNLIKELY(!tkn_nsy))
+if(_MARPA_UNLIKELY(!tkn_nsy))
 {
 MARPA_ERROR(MARPA_ERR_INACCESSIBLE_TOKEN);
 return MARPA_ERR_INACCESSIBLE_TOKEN;
@@ -13504,7 +13504,7 @@ JEARLEME return_value= -2;
 /*1346:*/
 #line 15948 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)!=R_DURING_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)!=R_DURING_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
 return failure_indicator;
 }
@@ -14527,7 +14527,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -14539,11 +14539,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -14557,7 +14557,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -14597,7 +14597,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -14609,11 +14609,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -14627,7 +14627,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -14667,7 +14667,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -14679,11 +14679,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -14697,7 +14697,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -14737,7 +14737,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -14749,11 +14749,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -14767,7 +14767,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -14807,7 +14807,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -14819,11 +14819,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -14837,7 +14837,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -14877,7 +14877,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -14889,11 +14889,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -14907,7 +14907,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -14947,7 +14947,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -14959,11 +14959,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -14977,7 +14977,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -15017,7 +15017,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -15029,11 +15029,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -15047,7 +15047,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -15088,7 +15088,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -15100,11 +15100,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -15118,7 +15118,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -15165,7 +15165,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -15177,11 +15177,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -15203,7 +15203,7 @@ OR or_node;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -15251,7 +15251,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -15263,11 +15263,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -15289,7 +15289,7 @@ OR or_node;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -15353,7 +15353,7 @@ const int failure_indicator= -2;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -15768,7 +15768,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -15779,7 +15779,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -15964,7 +15964,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -15975,7 +15975,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -16075,7 +16075,7 @@ const GRAMMAR g= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -16086,7 +16086,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -16094,7 +16094,7 @@ return failure_indicator;
 #line 12392 "./marpa.w"
 
 traverser= r->t_progress_report_traverser;
-if(UNLIKELY(!position||!origin)){
+if(_MARPA_UNLIKELY(!position||!origin)){
 MARPA_ERROR(MARPA_ERR_POINTER_ARG_NULL);
 return failure_indicator;
 }
@@ -16164,7 +16164,7 @@ INPUT input;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -16175,7 +16175,7 @@ return failure_indicator;
 /*1345:*/
 #line 15943 "./marpa.w"
 
-if(UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
+if(_MARPA_UNLIKELY(Input_Phase_of_R(r)==R_BEFORE_INPUT)){
 MARPA_ERROR(MARPA_ERR_RECCE_NOT_STARTED);
 return failure_indicator;
 }
@@ -16694,7 +16694,7 @@ const int or_node_id= OR_Count_of_B(b)++;
 OR*or_nodes_of_b= ORs_of_B(b);
 last_or_node= (OR)marpa_obs_alloc(OBS_of_B(b),sizeof(OR_Object));
 ID_of_OR(last_or_node)= or_node_id;
-if(UNLIKELY(or_node_id>=or_node_estimate))
+if(_MARPA_UNLIKELY(or_node_id>=or_node_estimate))
 {
 MARPA_ASSERT(0);
 or_node_estimate*= 2;
@@ -16753,7 +16753,7 @@ const int or_node_id= OR_Count_of_B(b)++;
 OR*or_nodes_of_b= ORs_of_B(b);
 last_or_node= (OR)marpa_obs_alloc(OBS_of_B(b),sizeof(OR_Object));
 ID_of_OR(last_or_node)= or_node_id;
-if(UNLIKELY(or_node_id>=or_node_estimate))
+if(_MARPA_UNLIKELY(or_node_id>=or_node_estimate))
 {
 MARPA_ASSERT(0);
 or_node_estimate*= 2;
@@ -16850,7 +16850,7 @@ const int or_node_id= OR_Count_of_B(b)++;
 OR*or_nodes_of_b= ORs_of_B(b);
 last_or_node= (OR)marpa_obs_alloc(OBS_of_B(b),sizeof(OR_Object));
 ID_of_OR(last_or_node)= or_node_id;
-if(UNLIKELY(or_node_id>=or_node_estimate))
+if(_MARPA_UNLIKELY(or_node_id>=or_node_estimate))
 {
 MARPA_ASSERT(0);
 or_node_estimate*= 2;
@@ -16905,7 +16905,7 @@ const int or_node_id= OR_Count_of_B(b)++;
 OR*or_nodes_of_b= ORs_of_B(b);
 last_or_node= (OR)marpa_obs_alloc(OBS_of_B(b),sizeof(OR_Object));
 ID_of_OR(last_or_node)= or_node_id;
-if(UNLIKELY(or_node_id>=or_node_estimate))
+if(_MARPA_UNLIKELY(or_node_id>=or_node_estimate))
 {
 MARPA_ASSERT(0);
 or_node_estimate*= 2;
@@ -17494,7 +17494,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -17529,7 +17529,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -17650,7 +17650,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -17685,7 +17685,7 @@ ORDER o;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -17816,7 +17816,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -17859,7 +17859,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -17904,7 +17904,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -17917,7 +17917,7 @@ if(O_is_Frozen(o))
 MARPA_ERROR(MARPA_ERR_ORDER_FROZEN);
 return failure_indicator;
 }
-if(UNLIKELY(count<0||count> 1))
+if(_MARPA_UNLIKELY(count<0||count> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
@@ -17957,7 +17957,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -18003,7 +18003,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -18278,7 +18278,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -18290,11 +18290,11 @@ return failure_indicator;
 #line 11338 "./marpa.w"
 
 {
-if(UNLIKELY(or_node_id>=OR_Count_of_B(b)))
+if(_MARPA_UNLIKELY(or_node_id>=OR_Count_of_B(b)))
 {
 return-1;
 }
-if(UNLIKELY(or_node_id<0))
+if(_MARPA_UNLIKELY(or_node_id<0))
 {
 MARPA_ERROR(MARPA_ERR_ORID_NEGATIVE);
 return failure_indicator;
@@ -18308,7 +18308,7 @@ return failure_indicator;
 
 {
 OR*const or_nodes= ORs_of_B(b);
-if(UNLIKELY(!or_nodes))
+if(_MARPA_UNLIKELY(!or_nodes))
 {
 MARPA_ERROR(MARPA_ERR_NO_OR_NODES);
 return failure_indicator;
@@ -18379,7 +18379,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -18546,7 +18546,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -18817,7 +18817,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -18878,7 +18878,7 @@ NOOK base_nook;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -18952,7 +18952,7 @@ NOOK base_nook;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19026,7 +19026,7 @@ NOOK base_nook;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19100,7 +19100,7 @@ NOOK base_nook;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19174,7 +19174,7 @@ NOOK base_nook;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19248,7 +19248,7 @@ NOOK base_nook;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19322,7 +19322,7 @@ NOOK base_nook;
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19390,7 +19390,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19518,7 +19518,7 @@ tree_unpause(T_of_V(v));
 #line 13950 "./marpa.w"
 
 {
-if(LIKELY(MARPA_DSTACK_IS_INITIALIZED(VStack_of_V(v))!=NULL))
+if(_MARPA_LIKELY(MARPA_DSTACK_IS_INITIALIZED(VStack_of_V(v))!=NULL))
 {
 MARPA_DSTACK_DESTROY(VStack_of_V(v));
 }
@@ -19586,7 +19586,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19594,7 +19594,7 @@ return failure_indicator;
 /*:1348*/
 #line 14064 "./marpa.w"
 
-if(UNLIKELY(!V_is_Active(v))){
+if(_MARPA_UNLIKELY(!V_is_Active(v))){
 MARPA_ERROR(MARPA_ERR_VALUATOR_INACTIVE);
 return failure_indicator;
 }
@@ -19651,7 +19651,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19659,8 +19659,8 @@ return failure_indicator;
 /*:1348*/
 #line 14086 "./marpa.w"
 
-if(UNLIKELY(V_is_Nulling(v)))return-1;
-if(UNLIKELY(!V_is_Active(v))){
+if(_MARPA_UNLIKELY(V_is_Nulling(v)))return-1;
+if(_MARPA_UNLIKELY(!V_is_Active(v))){
 MARPA_ERROR(MARPA_ERR_VALUATOR_INACTIVE);
 return failure_indicator;
 }
@@ -19718,7 +19718,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19729,7 +19729,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -19739,7 +19739,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -19768,7 +19768,7 @@ lbv_bit_set(Valued_Locked_BV_of_V(v),xsy_id);
 return value;
 }
 
-if(UNLIKELY(lbv_bit_test(Valued_Locked_BV_of_V(v),xsy_id))){
+if(_MARPA_UNLIKELY(lbv_bit_test(Valued_Locked_BV_of_V(v),xsy_id))){
 return failure_indicator;
 }
 lbv_bit_set(Valued_Locked_BV_of_V(v),xsy_id);
@@ -19830,7 +19830,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19838,7 +19838,7 @@ return failure_indicator;
 /*:1348*/
 #line 14158 "./marpa.w"
 
-if(UNLIKELY(value<0||value> 1))
+if(_MARPA_UNLIKELY(value<0||value> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
@@ -19846,7 +19846,7 @@ return failure_indicator;
 /*1334:*/
 #line 15878 "./marpa.w"
 
-if(UNLIKELY(XSYID_is_Malformed(xsy_id))){
+if(_MARPA_UNLIKELY(XSYID_is_Malformed(xsy_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_SYMBOL_ID);
 return failure_indicator;
 }
@@ -19856,7 +19856,7 @@ return failure_indicator;
 /*1335:*/
 #line 15885 "./marpa.w"
 
-if(UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
+if(_MARPA_UNLIKELY(!XSYID_of_G_Exists(xsy_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_SYMBOL_ID);
 return-1;
 }
@@ -19918,7 +19918,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19929,7 +19929,7 @@ return failure_indicator;
 xsy_count= XSY_Count_of_G(g);
 for(xsy_id= 0;xsy_id<xsy_count;xsy_id++)
 {
-if(UNLIKELY(!lbv_bit_test(XSY_is_Valued_BV_of_V(v),xsy_id)&&
+if(_MARPA_UNLIKELY(!lbv_bit_test(XSY_is_Valued_BV_of_V(v),xsy_id)&&
 lbv_bit_test(Valued_Locked_BV_of_V(v),xsy_id)))
 {
 return failure_indicator;
@@ -19990,7 +19990,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -19998,7 +19998,7 @@ return failure_indicator;
 /*:1348*/
 #line 14202 "./marpa.w"
 
-if(UNLIKELY(value<0||value> 1))
+if(_MARPA_UNLIKELY(value<0||value> 1))
 {
 MARPA_ERROR(MARPA_ERR_INVALID_BOOLEAN);
 return failure_indicator;
@@ -20006,7 +20006,7 @@ return failure_indicator;
 /*1341:*/
 #line 15919 "./marpa.w"
 
-if(UNLIKELY(XRLID_is_Malformed(xrl_id))){
+if(_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))){
 MARPA_ERROR(MARPA_ERR_INVALID_RULE_ID);
 return failure_indicator;
 }
@@ -20016,7 +20016,7 @@ return failure_indicator;
 /*1339:*/
 #line 15908 "./marpa.w"
 
-if(UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
+if(_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))){
 MARPA_ERROR(MARPA_ERR_NO_SUCH_RULE_ID);
 return-1;
 }
@@ -20222,7 +20222,7 @@ const GRAMMAR g UNUSED= G_of_I(input);
 /*1348:*/
 #line 15958 "./marpa.w"
 
-if(UNLIKELY(!IS_G_OK(g))){
+if(_MARPA_UNLIKELY(!IS_G_OK(g))){
 MARPA_ERROR(g->t_error);
 return failure_indicator;
 }
@@ -20560,7 +20560,7 @@ return bv_copy(bv_obs_shadow(obs,bv),bv);
 
 PRIVATE void bv_free(Bit_Vector vector)
 {
-if(LIKELY(vector!=NULL))
+if(_MARPA_LIKELY(vector!=NULL))
 {
 vector-= bv_hiddenwords;
 marpa_free(vector);

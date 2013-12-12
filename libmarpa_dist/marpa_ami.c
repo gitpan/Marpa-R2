@@ -22,7 +22,7 @@
  */
 
 /*23:*/
-#line 371 "./marpa_ami.w"
+#line 379 "./marpa_ami.w"
 
 
 #include "config.h"
@@ -46,13 +46,13 @@
 #define PRIVATE static inline
 
 /*:5*/
-#line 387 "./marpa_ami.w"
+#line 395 "./marpa_ami.w"
 
 
 #include "ami_private.h"
 
 /*:23*//*24:*/
-#line 394 "./marpa_ami.w"
+#line 402 "./marpa_ami.w"
 
 int _marpa_ami_dummy(void);
 int _marpa_ami_dummy(void){return 1;}
