@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_008';
+$VERSION        = '2.077_009';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -241,6 +241,7 @@ __DATA__
 
     :package=Marpa::R2::Internal::Glade
 
+    ID
     SYMCHES
     VISITED
     REGISTERED
@@ -293,6 +294,15 @@ __DATA__
     }
     NIDSET_BY_ID
     POWERSET_BY_ID
+
+    :package=Marpa::R2::Internal::ASF::Traverse
+
+    ASF
+    VALUES { Memoized values, by glade ID }
+    CODE { The anonymous subtroutine for traversal }
+    GLADE
+    SYMCH_IX
+    FACTORING_IX
 
     :package=Marpa::R2::Internal::Nidset
 

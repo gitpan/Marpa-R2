@@ -24,7 +24,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_008';
+$VERSION        = '2.077_009';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 
@@ -122,9 +122,10 @@ use constant ORIGIN => 2;
 use constant CURRENT => 3;
 
 package Marpa::R2::Internal::Glade;
-use constant SYMCHES => 0;
-use constant VISITED => 1;
-use constant REGISTERED => 2;
+use constant ID => 0;
+use constant SYMCHES => 1;
+use constant VISITED => 2;
+use constant REGISTERED => 3;
 
 package Marpa::R2::Internal::Choicepoint;
 use constant ASF => 0;
@@ -156,6 +157,14 @@ use constant INTSET_BY_KEY => 10;
 use constant NEXT_INTSET_ID => 11;
 use constant NIDSET_BY_ID => 12;
 use constant POWERSET_BY_ID => 13;
+
+package Marpa::R2::Internal::ASF::Traverse;
+use constant ASF => 0;
+use constant VALUES => 1;
+use constant CODE => 2;
+use constant GLADE => 3;
+use constant SYMCH_IX => 4;
+use constant FACTORING_IX => 5;
 
 package Marpa::R2::Internal::Nidset;
 use constant ID => 0;
