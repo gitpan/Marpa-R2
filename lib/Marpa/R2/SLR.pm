@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_009';
+$VERSION        = '2.077_010';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -419,8 +419,9 @@ my $libmarpa_trace_event_handlers = {
 
     'g1 accepted lexeme' => sub {
         my ( $slr, $event ) = @_;
-        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme, $lexer_id ) =
-            @{$event};
+        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme,
+            $lexer_id )
+            = @{$event};
         my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
         my $raw_token_value =
             $thin_slr->substring( $lexeme_start_pos,
@@ -441,11 +442,14 @@ my $libmarpa_trace_event_handlers = {
             $thick_g1_grammar->symbol_in_display_form($g1_lexeme),
             qq{; value="$raw_token_value"}
             or Marpa::R2::exception("Could not say(): $ERRNO");
-        },
-    'g1 unexpected lexeme' => sub {
+    },
+    'rejected lexeme' => sub {
         my ( $slr, $event ) = @_;
-        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme, $lexer_id ) =
-            @{$event};
+	# Necessary to check, because this one can be returned when not tracing
+	return if not $slr->[Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS];
+        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme,
+            $lexer_id )
+            = @{$event};
         my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
         my $raw_token_value =
             $thin_slr->substring( $lexeme_start_pos,
@@ -466,7 +470,35 @@ my $libmarpa_trace_event_handlers = {
             $thick_g1_grammar->symbol_in_display_form($g1_lexeme),
             qq{; value="$raw_token_value"}
             or Marpa::R2::exception("Could not say(): $ERRNO");
-        },
+    },
+    'outprioritized lexeme' => sub {
+        my ( $slr, $event ) = @_;
+        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme,
+            $lexer_id, $lexeme_priority, $required_priority )
+            = @{$event};
+        my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
+        my $raw_token_value =
+            $thin_slr->substring( $lexeme_start_pos,
+            $lexeme_end_pos - $lexeme_start_pos );
+        my $trace_file_handle =
+            $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
+        my $thick_g1_recce =
+            $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+        my $thick_g1_grammar = $thick_g1_recce->grammar();
+        my $slg              = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+        my $lexer_name =
+            $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+            ->[$lexer_id];
+        say {$trace_file_handle}
+            qq{Lexer "$lexer_name" outprioritized lexeme },
+            input_range_describe( $slr, $lexeme_start_pos,
+            $lexeme_end_pos - 1 ),
+            q{: },
+            $thick_g1_grammar->symbol_in_display_form($g1_lexeme),
+            qq{; value="$raw_token_value"; },
+            qq{priority was $lexeme_priority, but $required_priority was required}
+            or Marpa::R2::exception("Could not say(): $ERRNO");
+    },
     'g1 duplicate lexeme' => sub {
         my ( $slr, $event ) = @_;
         my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme ) =
@@ -482,7 +514,8 @@ my $libmarpa_trace_event_handlers = {
         my $thick_g1_grammar = $thick_g1_recce->grammar();
         say {$trace_file_handle}
             'Rejected as duplicate lexeme ',
-            input_range_describe( $slr, $lexeme_start_pos, $lexeme_end_pos-1 ),
+            input_range_describe( $slr, $lexeme_start_pos,
+            $lexeme_end_pos - 1 ),
             q{: },
             $thick_g1_grammar->symbol_in_display_form($g1_lexeme),
             qq{; value="$raw_token_value"}
@@ -503,7 +536,8 @@ my $libmarpa_trace_event_handlers = {
         my $thick_g1_grammar = $thick_g1_recce->grammar();
         say {$trace_file_handle}
             'Attempting to read lexeme ',
-            input_range_describe( $slr, $lexeme_start_pos, $lexeme_end_pos-1 ),
+            input_range_describe( $slr, $lexeme_start_pos,
+            $lexeme_end_pos - 1 ),
             q{: },
             $thick_g1_grammar->symbol_in_display_form($g1_lexeme),
             qq{; value="$raw_token_value"}
@@ -555,7 +589,7 @@ my $libmarpa_trace_event_handlers = {
         say {$trace_file_handle}
             qq{Lexer "$lexer_name" codepoint $char_desc accepted as $symbol_in_display_form at line $line, column $column}
             or Marpa::R2::exception("Could not say(): $ERRNO");
-        },
+    },
     'lexer rejected codepoint' => sub {
         my ( $slr, $event ) = @_;
         my ( undef, undef, $codepoint, $position, $token_id, $lexer_id ) =
@@ -565,8 +599,8 @@ my $libmarpa_trace_event_handlers = {
         push @char_desc, qq{"$char"}
             if $char =~ /[\p{IsGraph}]/xms;
         push @char_desc, ( sprintf '0x%04x', $codepoint );
-        my $char_desc   = join q{ }, @char_desc;
-        my $grammar     = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+        my $char_desc = join q{ }, @char_desc;
+        my $grammar = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
         my $thick_lex_grammar =
             $grammar->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]
             ->[$lexer_id];
@@ -582,7 +616,7 @@ my $libmarpa_trace_event_handlers = {
         say {$trace_file_handle}
             qq{Lexer "$lexer_name" codepoint $char_desc rejected as $symbol_in_display_form at line $line, column $column}
             or Marpa::R2::exception("Could not say(): $ERRNO");
-        },
+    },
     'lexer restarted recognizer' => sub {
         my ( $slr, $event ) = @_;
         my ( undef, undef, $position, $lexer_id ) = @{$event};
@@ -596,10 +630,11 @@ my $libmarpa_trace_event_handlers = {
         say {$trace_file_handle}
             qq{Lexer "$lexer_name" restarted recognizer at line $line, column $column}
             or Marpa::R2::exception("Could not say(): $ERRNO");
-        },
+    },
     'changing lexers' => sub {
         my ( $slr, $event ) = @_;
-        my ( undef, undef, $position, $old_lexer_id, $new_lexer_id ) = @{$event};
+        my ( undef, undef, $position, $old_lexer_id, $new_lexer_id ) =
+            @{$event};
         my ( $line, $column ) = $slr->line_column($position);
         my $trace_file_handle =
             $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
@@ -613,13 +648,15 @@ my $libmarpa_trace_event_handlers = {
         say {$trace_file_handle}
             qq{Changing lexers from "$old_lexer_name" to "$new_lexer_name" at line $line, column $column}
             or Marpa::R2::exception("Could not say(): $ERRNO");
-        },
+    },
     'discarded lexeme' => sub {
         my ( $slr, $event ) = @_;
-        my ( undef, undef, $lex_rule_id, $start, $end, $lexer_id ) = @{$event};
+        my ( undef, undef, $lex_rule_id, $start, $end, $lexer_id ) =
+            @{$event};
         my $grammar = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
         my $thick_lex_grammar =
-            $grammar->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]->[$lexer_id];
+            $grammar->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]
+            ->[$lexer_id];
         my $grammar_c = $thick_lex_grammar->[Marpa::R2::Internal::Grammar::C];
         my $rule_length = $grammar_c->rule_length($lex_rule_id);
         my @rhs_ids =
@@ -634,7 +671,8 @@ my $libmarpa_trace_event_handlers = {
         my $trace_file_handle =
             $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
         say {$trace_file_handle} qq{Lexer "$lexer_name" discarded lexeme },
-            input_range_describe( $slr, $start, $end-1 ), q{: }, join q{ }, @rhs
+            input_range_describe( $slr, $start, $end - 1 ), q{: }, join q{ },
+            @rhs
             or Marpa::R2::exception("Could not say(): $ERRNO");
     },
     'g1 pausing before lexeme' => sub {
@@ -649,7 +687,7 @@ my $libmarpa_trace_event_handlers = {
         my $trace_file_handle =
             $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
         say {$trace_file_handle} 'Paused before lexeme ',
-            input_range_describe( $slr, $start, $end-1 ), ": $lexeme_name"
+            input_range_describe( $slr, $start, $end - 1 ), ": $lexeme_name"
             or Marpa::R2::exception("Could not say(): $ERRNO");
     },
     'g1 pausing after lexeme' => sub {
@@ -664,7 +702,7 @@ my $libmarpa_trace_event_handlers = {
         my $trace_file_handle =
             $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
         say {$trace_file_handle} 'Paused after lexeme ',
-            input_range_describe( $slr, $start, $end-1 ), ": $lexeme_name"
+            input_range_describe( $slr, $start, $end - 1 ), ": $lexeme_name"
             or Marpa::R2::exception("Could not say(): $ERRNO");
     },
     'ignored lexeme' => sub {
@@ -678,7 +716,7 @@ my $libmarpa_trace_event_handlers = {
         my $trace_file_handle =
             $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
         say {$trace_file_handle} 'Ignored lexeme ',
-            input_range_describe( $slr, $start, $end-1 ), ": $lexeme_name"
+            input_range_describe( $slr, $start, $end - 1 ), ": $lexeme_name"
             or Marpa::R2::exception("Could not say(): $ERRNO");
     },
 };
@@ -951,15 +989,55 @@ sub Marpa::R2::Scanless::R::read_problem {
             last CODE_TO_PROBLEM;
 	}
         if ( $problem_code eq 'no lexeme' ) {
-            my ($lexeme_start) = $thin_slr->lexeme_span();
-            my ( $line, $column ) = $slr->line_column($lexeme_start);
-            $problem = "No lexeme found at line $line, column $column";
-            last CODE_TO_PROBLEM;
-        } ## end if ( $problem_code eq 'no lexeme' )
-        if ( $problem_code eq 'no lexemes accepted' ) {
             $problem_pos = $thin_slr->problem_pos();
             my ( $line, $column ) = $slr->line_column($problem_pos);
-            $problem = "No lexemes accepted at line $line, column $column";
+	    my $lexer_name;
+	    my $rejected_count = 0 ;
+	    my @details = ();
+            EVENT: for my $event ( $thin_slr->events() ) {
+                my ( $event_type, $trace_event_type, $lexeme_start_pos,
+                    $lexeme_end_pos, $g1_lexeme, $lexer_id )
+                    = @{$event};
+                next EVENT
+                    if $event_type ne q{'trace}
+                    or $trace_event_type ne 'rejected lexeme';
+                $rejected_count++;
+                if ( $rejected_count > 5 ) {
+                    my $omitted = $rejected_count - 5;
+                    push @details,
+                        "  [$omitted rejected lexemes omitted from listing]";
+                }
+                my $thin_slr = $slr->[Marpa::R2::Inner::Scanless::R::C];
+                my $raw_token_value =
+                    $thin_slr->substring( $lexeme_start_pos,
+                    $lexeme_end_pos - $lexeme_start_pos );
+                my $trace_file_handle =
+                    $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
+                my $thick_g1_recce =
+                    $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+                my $thick_g1_grammar = $thick_g1_recce->grammar();
+                my $slg = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+                $lexer_name =
+                    $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]
+                    ->[$lexer_id];
+                push @details,
+                    qq{  Rejected lexeme #$rejected_count: }
+                    . $thick_g1_grammar->symbol_in_display_form($g1_lexeme)
+                    . qq{; value="$raw_token_value"; length = }
+                    . ( $lexeme_end_pos - $lexeme_start_pos );
+            } ## end EVENT: for my $event ( $thin_slr->events() )
+            my @problem = ();
+            if ($rejected_count) {
+                push @problem,
+                    "No lexemes accepted at line $line, column $column",
+                    qq{  Lexer "$lexer_name" rejected $rejected_count lexeme(s)},
+                    @details;
+            } ## end if ($rejected_count)
+            else {
+                push @problem,
+                    "No lexeme found at line $line, column $column";
+            }
+            $problem = join "\n", @problem;
             last CODE_TO_PROBLEM;
         } ## end if ( $problem_code eq 'no lexemes accepted' )
         $problem = 'Unrecognized problem code: ' . $problem_code;
