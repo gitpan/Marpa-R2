@@ -18,44 +18,23 @@
 # is Penn Treebank's syntactic bracketing tags.  For details, see
 # http://www.cis.upenn.edu/~treebank/
 
-# This example originally came from Ralf Muschall.  Ruslan Shvedov
-# reworked my implementation, converting it to the SLIF and
-# Penn Treebank.  Ruslan and Ralf clearly know English grammar better than
-# most of us native speakers.
-
-# 'time', 'fruit', and 'flies' can be nouns or verbs, 'like' can be
-# a preposition or a verb.  This creates syntactic ambiguity shown 
-# in the parse results.
-
-# Modifier nouns are not tagged or lexed as adjectives (JJ), because
-# "Nouns that are used as modifiers, whether in isolation or in sequences,
-# should be tagged as nouns (NN, NNS) rather than as adjectives (JJ)."
-# -- ftp://ftp.cis.upenn.edu/pub/treebank/doc/tagguide.ps.gz
-
-# The saying "time flies like an arrow; fruit flies like a banana"
-# is attributed to Groucho Marx, but there is no reason to believe
-# he ever said it.  Apparently, the saying
-# first appeared on the Usenet on net.jokes in 1982.
-# I've documented this whole thing on Wikipedia:
-# http://en.wikipedia.org/wiki/Time_flies_like_an_arrow
-#
-# The permalink is:
-# http://en.wikipedia.org/w/index.php?title=Time_flies_like_an_arrow&oldid=311163283
-
 use 5.010;
 use strict;
 use warnings;
 use English qw( -no_match_vars );
 
-use Test::More tests => 2;
+use Test::More tests => 4;
 use lib 'inc';
 use Marpa::R2::Test;
 use Marpa::R2;
 
-my $grammar = Marpa::R2::Scanless::G->new(
-    {   bless_package => 'PennTags',
-        source => \(<<'END_OF_SOURCE'),
-        
+# Marpa::R2::Display
+# name: ASF synopsis grammar
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
+
+my $dsl = <<'END_OF_SOURCE';
+
 :default ::= action => [values] bless => ::lhs
 lexeme default = action => [value] bless => ::name
 
@@ -85,10 +64,18 @@ NNS  ~ 'shoots' | 'leaves'
 VBZ ~ 'eats' | 'shoots' | 'leaves'
 
 END_OF_SOURCE
-    }
-);
 
-my $expected = <<'EOS';
+# Marpa::R2::Display::End
+
+my $grammar = Marpa::R2::Scanless::G->new(
+    { bless_package => 'PennTags', source => \$dsl, } );
+
+# Marpa::R2::Display
+# name: ASF synopsis output
+# start-after-line: END_OF_OUTPUT
+# end-before-line: '^END_OF_OUTPUT$'
+
+my $full_expected = <<'END_OF_OUTPUT';
 (S (NP (DT a) (NN panda))
    (VP (VBZ eats) (NP (NNS shoots) (CC and) (NNS leaves)))
    (. .))
@@ -98,11 +85,16 @@ my $expected = <<'EOS';
 (S (NP (DT a) (NN panda))
    (VP (VP (VBZ eats)) (VP (VBZ shoots)) (CC and) (VP (VBZ leaves)))
    (. .))
-EOS
+END_OF_OUTPUT
 
-my $sentence = <<END_OF_SENTENCE;
-a panda eats shoots and leaves.
-END_OF_SENTENCE
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: ASF synopsis input
+
+my $sentence = 'a panda eats shoots and leaves.';
+
+# Marpa::R2::Display::End
 
 my @actual = ();
 
@@ -116,75 +108,200 @@ while ( defined( my $value_ref = $recce->value() ) ) {
 }
 
 Marpa::R2::Test::is( ( join "\n", sort @actual ) . "\n",
-    $expected, 'Ambiguous English sentence using value()' );
+    $full_expected, 'Ambiguous English sentence using value()' );
 
-$recce->series_restart();
-my $asf = Marpa::R2::ASF->new( { slr=>$recce } );
-my $raw_actual = $asf->traverse(
-    sub {
-        # This routine converts the glade into a list of Penn-tagged elements.  It is called recursively.
-        my ($glade)     = @_;
-        my $rule_id     = $glade->rule_id();
-        my $symbol_id   = $glade->symbol_id();
-        my $symbol_name = $grammar->symbol_name($symbol_id);
+# Marpa::R2::Display
+# name: ASF synopsis code
 
-        # A token is a single choice, and we know enough to fully Penn-tag it
-        if ( not defined $rule_id ) {
-            my $literal = $glade->literal();
-            my $symbol_description =
-                $symbol_name eq 'period' ? q{.} : $symbol_name;
-            return ["($symbol_description $literal)"];
-        } ## end if ( not defined $rule_id )
+my $panda_grammar = Marpa::R2::Scanless::G->new( { source => \$dsl } );
+my $panda_recce = Marpa::R2::Scanless::R->new( { grammar => $panda_grammar } );
+$panda_recce->read( \$sentence );
+my $asf = Marpa::R2::ASF->new( { slr=>$panda_recce } );
+my $full_result = $asf->traverse( {}, \&full_traverser );
+my $pruned_result = $asf->traverse( {}, \&pruning_traverser );
 
-        # Our result will be a list of choices
-        my @return_value = ();
+# Marpa::R2::Display::End
 
-        CHOICE: while (1) {
+# Marpa::R2::Display
+# name: ASF synopsis full traverser code
 
-            # The results at each position are a list of choices, so
-            # to produce a new result list, we need to take a Cartesian
-            # product of all the choices
-            my $length = $glade->rh_length();
-            my @results = ( [] );
-            for my $rh_ix ( 0 .. $length - 1 ) {
-                my @new_results = ();
-                for my $old_result (@results) {
-                    for my $new_value ( @{ $glade->rh_value($rh_ix) } ) {
-                        push @new_results, [ @{$old_result}, $new_value ];
-                    }
+sub full_traverser {
+
+    # This routine converts the glade into a list of Penn-tagged elements.  It is called recursively.
+    my ($glade, $scratch)     = @_;
+    my $rule_id     = $glade->rule_id();
+    my $symbol_id   = $glade->symbol_id();
+    my $symbol_name = $panda_grammar->symbol_name($symbol_id);
+
+    # A token is a single choice, and we know enough to fully Penn-tag it
+    if ( not defined $rule_id ) {
+        my $literal = $glade->literal();
+        my $penn_tag = penn_tag($symbol_name);
+        return ["($penn_tag $literal)"];
+    } ## end if ( not defined $rule_id )
+
+    # Our result will be a list of choices
+    my @return_value = ();
+
+    CHOICE: while (1) {
+
+        # The results at each position are a list of choices, so
+        # to produce a new result list, we need to take a Cartesian
+        # product of all the choices
+        my $length = $glade->rh_length();
+        my @results = ( [] );
+        for my $rh_ix ( 0 .. $length - 1 ) {
+            my @new_results = ();
+            for my $old_result (@results) {
+                my $child_value = $glade->rh_value($rh_ix);
+                for my $new_value ( @{ $child_value } ) {
+                    push @new_results, [ @{$old_result}, $new_value ];
                 }
-                @results = @new_results;
-            } ## end for my $rh_ix ( 0 .. $length - 1 )
-
-            # Special case for the start rule
-            if ( $symbol_name eq '[:start]' ) {
-                return [ map { join q{}, @{$_} } @results ];
             }
+            @results = @new_results;
+        } ## end for my $rh_ix ( 0 .. $length - 1 )
 
-            # Now we a list of choices, as a list of lists.  Each sub list
-            # is a list of Penn-tagged elements, which we need to join into
-            # a single Penn-tagged element.  The result will be to collapse
-            # one level of lists, and leave us with a list of Penn-tagged
-            # elements
-            my $join_ws = q{ };
-            $join_ws = qq{\n   } if $symbol_name eq 'S';
-            push @return_value,
-                map { "($symbol_name " . ( join $join_ws, @{$_} ) . ')' }
-                @results;
-
-            # Look at the next alternative in this glade, or end the
-            # loop if there is none
-            last CHOICE if not defined $glade->next();
-
-        } ## end CHOICE: while (1)
-
-        # Return the list of Penn-tagged elements for this glade
-        return \@return_value;
+        # Special case for the start rule
+        if ( $symbol_name eq '[:start]' ) {
+            return [ map { join q{}, @{$_} } @results ];
         }
-);
 
-my $actual =  join "\n", (sort @{$raw_actual}), q{};
-Marpa::R2::Test::is(  $actual, $expected, 'Ambiguous English sentence using ASF' );
+        # Now we a list of choices, as a list of lists.  Each sub list
+        # is a list of Penn-tagged elements, which we need to join into
+        # a single Penn-tagged element.  The result will be to collapse
+        # one level of lists, and leave us with a list of Penn-tagged
+        # elements
+        my $join_ws = q{ };
+        $join_ws = qq{\n   } if $symbol_name eq 'S';
+        push @return_value,
+            map { '(' . penn_tag($symbol_name) . q{ } . ( join $join_ws, @{$_} ) . ')' }
+            @results;
+
+        # Look at the next alternative in this glade, or end the
+        # loop if there is none
+        last CHOICE if not defined $glade->next();
+
+    } ## end CHOICE: while (1)
+
+    # Return the list of Penn-tagged elements for this glade
+    return \@return_value;
+} ## end sub full_traverser
+
+# Marpa::R2::Display::End
+
+my $cooked_result =  join "\n", (sort @{$full_result}), q{};
+Marpa::R2::Test::is( $cooked_result, $full_expected,
+    'Ambiguous English sentence using ASF' );
+
+# Marpa::R2::Display
+# name: ASF synopsis pruning traverser code
+
+sub penn_tag {
+   my ($symbol_name) = @_;
+   return q{.} if $symbol_name eq 'period';
+   return $symbol_name;
+}
+
+sub pruning_traverser {
+
+    # This routine converts the glade into a list of Penn-tagged elements.  It is called recursively.
+    my ($glade, $scratch)     = @_;
+    my $rule_id     = $glade->rule_id();
+    my $symbol_id   = $glade->symbol_id();
+    my $symbol_name = $panda_grammar->symbol_name($symbol_id);
+
+    # A token is a single choice, and we know enough to fully Penn-tag it
+    if ( not defined $rule_id ) {
+        my $literal = $glade->literal();
+        my $penn_tag = penn_tag($symbol_name);
+        return "($penn_tag $literal)";
+    }
+
+    my $length = $glade->rh_length();
+    my @return_value = map { $glade->rh_value($_) } 0 .. $length - 1;
+
+    # Special case for the start rule
+    return (join q{ }, @return_value) . "\n" if  $symbol_name eq '[:start]' ;
+
+    my $join_ws = q{ };
+    $join_ws = qq{\n   } if $symbol_name eq 'S';
+    my $penn_tag = penn_tag($symbol_name);
+    return "($penn_tag " . ( join $join_ws, @return_value ) . ')';
+
+}
+
+# Marpa::R2::Display::End
+
+# Marpa::R2::Display
+# name: ASF pruned synopsis output
+# start-after-line: END_OF_OUTPUT
+# end-before-line: '^END_OF_OUTPUT$'
+
+my $pruned_expected = <<'END_OF_OUTPUT';
+(S (NP (DT a) (NN panda))
+   (VP (VBZ eats) (NP (NNS shoots) (CC and) (NNS leaves)))
+   (. .))
+END_OF_OUTPUT
+
+# Marpa::R2::Display::End
+
+Marpa::R2::Test::is( $pruned_result, $pruned_expected,
+    'Ambiguous English sentence using ASF: pruned' );
+
+my $located_actual = $asf->traverse( {}, \&located_traverser );
+
+sub located_traverser {
+
+    # This routine converts the glade into a list of Penn-tagged elements.  It is called recursively.
+    my ($glade, $scratch)     = @_;
+    my $rule_id     = $glade->rule_id();
+    my $symbol_id   = $glade->symbol_id();
+    my $symbol_name = $panda_grammar->symbol_name($symbol_id);
+
+    # A token is a single choice, and we know enough to fully Penn-tag it
+    if ( not defined $rule_id ) {
+        my $literal = $glade->literal();
+        my $penn_tag = penn_tag($symbol_name);
+        return "($penn_tag $literal)";
+    }
+
+    my $rh_length = $glade->rh_length();
+    my @return_value = map { $glade->rh_value($_) } 0 .. $rh_length - 1;
+
+    # Special case for the start rule
+    return (join q{ }, @return_value) . "\n" if  $symbol_name eq '[:start]' ;
+
+# Marpa::R2::Display::Start
+# name: ASF span() traverser method example
+
+    my ( $start, $length ) = $glade->span();
+    my $end = $start + $length - 1;
+
+# Marpa::R2::Display::End
+
+    my $location = q{@};
+    $location .= $start >= $end ? $start : "$start-$end";
+    my $join_ws = q{ };
+    $join_ws = qq{\n   } if $symbol_name eq 'S';
+    return "($symbol_name$location " . ( join $join_ws, @return_value ) . ')';
+    my $penn_tag = penn_tag($symbol_name);
+    return "($penn_tag$location " . ( join $join_ws, @return_value ) . ')';
+
+}
+
+# name: ASF located synopsis output
+# start-after-line: END_OF_OUTPUT
+# end-before-line: '^END_OF_OUTPUT$'
+
+my $located_expected = <<'END_OF_OUTPUT';
+(S@0-30 (NP@0-6 (DT a) (NN panda))
+   (VP@8-29 (VBZ eats) (NP@13-29 (NNS shoots) (CC and) (NNS leaves)))
+   (. .))
+END_OF_OUTPUT
+
+# Marpa::R2::Display::End
+
+Marpa::R2::Test::is(  $located_actual, $located_expected, 'Located Penn tag example' );
 
 package PennTags;
 
