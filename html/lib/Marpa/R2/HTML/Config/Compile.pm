@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_011';
+$VERSION        = '2.077_012';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -621,7 +621,7 @@ sub compile {
         # read other tokens
         TOKEN_TYPE: for my $t (@terminals) {
             next TOKEN_TYPE if not $string =~ m/\G($t->[1])/gcxms;
-	    # say join " ", $t->[0], '->', $1;
+            # say join " ", $t->[0], '->', $1;
             if ( not defined $recce->read( $t->[0], $1 ) ) {
                 die_on_read_problem( $recce, $t, $1, $string, pos $string );
             }

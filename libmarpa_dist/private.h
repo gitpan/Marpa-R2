@@ -30,9 +30,9 @@ static int sym_rule_cmp(
     const void* bp,
     void *param  UNUSED);
 static int cmp_by_aimid (const void* ap,
-	const void* bp);
+        const void* bp);
 static int cmp_by_postdot_and_aimid (const void* ap,
-	const void* bp);
+        const void* bp);
 static int AHFA_state_cmp(
     const void* ap,
     const void* bp,
@@ -111,7 +111,9 @@ static inline AHFA to_ahfa_of_transition_get(TRANS transition);
 static inline int completion_count_of_transition_get(TRANS transition);
 static inline URTRANS transition_new(struct marpa_obstack *obstack, AHFA to_ahfa, int aim_ix);
 static inline TRANS* transitions_new(GRAMMAR g, int nsy_count);
-static inline void transition_add(struct marpa_obstack *obstack, AHFA from_ahfa, NSYID nsyid, AHFA to_ahfa);
+static inline void
+transition_add (struct marpa_obstack *obstack, AHFA from_ahfa, NSYID nsyid,
+                AHFA to_ahfa);
 static inline void completion_count_inc(struct marpa_obstack *obstack, AHFA from_ahfa, NSYID nsyid);
 static inline INPUT input_new (GRAMMAR g);
 static inline void
@@ -131,20 +133,20 @@ static inline YIM earley_item_create(const RECCE r,
     const YIK_Object key);
 static inline YIM
 earley_item_assign (const RECCE r, const YS set, const YS origin,
-		    const AHFA state);
+                    const AHFA state);
 static inline PIM*
 pim_nsy_p_find (YS set, NSYID nsyid);
 static inline PIM first_pim_of_ys_by_nsyid(YS set, NSYID nsyid);
 static inline void
 completion_link_add (RECCE r,
-		YIM item,
-		YIM predecessor,
-		YIM cause);
+                YIM item,
+                YIM predecessor,
+                YIM cause);
 static inline void
 leo_link_add (RECCE r,
-		YIM item,
-		LIM predecessor,
-		YIM cause);
+                YIM item,
+                LIM predecessor,
+                YIM cause);
 static inline void trace_source_link_clear(RECCE r);
 static inline int
 alternative_insertion_point (RECCE r, ALT new_alternative);
@@ -243,7 +245,8 @@ static inline unsigned int
 bv_count (Bit_Vector v);
 static inline void
 rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym);
-static inline Bit_Matrix matrix_buffer_create(void *buffer, unsigned int rows, unsigned int columns);
+static inline Bit_Matrix
+matrix_buffer_create (void *buffer, unsigned int rows, unsigned int columns);
 static inline size_t matrix_sizeof(unsigned int rows, unsigned int columns);
 static inline Bit_Matrix matrix_obs_create(
   struct marpa_obstack *obs,

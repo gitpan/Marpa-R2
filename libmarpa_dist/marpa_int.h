@@ -1,8 +1,8 @@
 /*1383:*/
-#line 16396 "./marpa.w"
+#line 16461 "./marpa.w"
 
 /*1378:*/
-#line 16346 "./marpa.w"
+#line 16411 "./marpa.w"
 
 /*
  * Copyright 2013 Jeffrey Kegler
@@ -27,14 +27,14 @@
  */
 
 /*:1378*/
-#line 16397 "./marpa.w"
+#line 16462 "./marpa.w"
 
 
 #ifndef _MARPA_INT_H__
 #define _MARPA_INT_H__ 1
 
 /*1385:*/
-#line 16428 "./marpa.w"
+#line 16493 "./marpa.w"
 
 
 #if     __GNUC__ >  2 || (__GNUC__ == 2 && __GNUC_MINOR__ >  4)
@@ -61,9 +61,9 @@
 
 
 #if defined(__GNUC__) && (__GNUC__ < 3) && !defined(__cplusplus)
-#  define STRLOC __FILE__ ":" STRINGIFY (__LINE__) ":" __PRETTY_FUNCTION__ "()"
+#  define STRLOC        __FILE__ ":" STRINGIFY (__LINE__) ":" __PRETTY_FUNCTION__ "()"
 #else
-#  define STRLOC __FILE__ ":" STRINGIFY (__LINE__)
+#  define STRLOC        __FILE__ ":" STRINGIFY (__LINE__)
 #endif
 
 
@@ -82,7 +82,7 @@
 #endif
 
 /*:1385*/
-#line 16402 "./marpa.w"
+#line 16467 "./marpa.w"
 
 
 #endif 
