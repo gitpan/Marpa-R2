@@ -21,7 +21,7 @@ use warnings;
 no warnings qw(recursion);
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_013';
+$VERSION        = '2.077_014';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -343,6 +343,11 @@ sub Marpa::R2::ASF::new {
                     $arg_hash->{$arg};
                 next ARG;
             }
+            if ( $arg eq 'factoring_max' ) {
+                $asf->[Marpa::R2::Internal::ASF::FACTORING_MAX] =
+                    $arg_hash->{$arg};
+                next ARG;
+            }
             Marpa::R2::exception(
                 qq{Unknown named arg to $asf->new(): "$arg"});
         } ## end ARG: for my $arg ( keys %{$arg_hash} )
@@ -352,6 +357,7 @@ sub Marpa::R2::ASF::new {
         q{The "slr" named argument must be specified with the Marpa::R2::ASF::new method}
     ) if not defined $slr;
     $asf->[Marpa::R2::Internal::ASF::SLR] = $slr;
+    $asf->[Marpa::R2::Internal::ASF::FACTORING_MAX] //= 42;
 
     my $recce = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
 
@@ -828,6 +834,8 @@ sub glade_id_factors {
 sub glade_obtain {
     my ( $asf, $glade_id ) = @_;
 
+    my $factoring_max = $asf->[Marpa::R2::Internal::ASF::FACTORING_MAX];
+
     my $glades = $asf->[Marpa::R2::Internal::ASF::GLADES];
     my $glade  = $glades->[$glade_id];
     if (   not defined $glade
@@ -922,12 +930,12 @@ sub glade_obtain {
             my $factoring = glade_id_factors($choicepoint);
 
             FACTOR: while ( defined $factoring ) {
-                if ( scalar @factorings > 42 ) {
+                if ( scalar @factorings > $factoring_max ) {
 
                     # update factorings omitted flag
                     $factorings[1] = 1;
                     last FACTORINGS_LOOP;
-                } ## end if ( scalar @factorings > 42 )
+                }
                 my @factoring = ();
                 for (
                     my $item_ix = $#{$factoring};
@@ -1409,6 +1417,8 @@ sub Marpa::R2::Internal::ASF::Traverse::rh_value {
     my $factoring = $factorings[$factoring_ix];
     return if $rh_ix > $#{$factoring};
     my $downglade_id = $factoring->[$rh_ix];
+    my $memoized_value = $traverser->[Marpa::R2::Internal::ASF::Traverse::VALUES]->[$downglade_id];
+    return $memoized_value if defined $memoized_value;
     my $asf = $traverser->[Marpa::R2::Internal::ASF::Traverse::ASF];
     my $downglade    = glade_obtain( $asf, $downglade_id );
     my $blessing     = ref $traverser;

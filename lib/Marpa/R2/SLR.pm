@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_013';
+$VERSION        = '2.077_014';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -193,71 +193,22 @@ sub Marpa::R2::Scanless::R::new {
     my $self = [];
     bless $self, $class;
 
-    state $grammar_class = 'Marpa::R2::Scanless::G';
-    my $grammar = $args[0]->{grammar};
-    if ( not blessed $grammar or not $grammar->isa('Marpa::R2::Scanless::G') )
-    {
-        my $desc = 'undefined';
-        if ( defined $grammar ) {
-            my $ref_type = ref $grammar;
-            $desc = $ref_type ? "a ref to $ref_type" : 'not a ref';
-        }
-        Marpa::R2::exception(
-            qq{'grammar' name argument to scanless_r->new() is $desc\n},
-            "  It should be a ref to $grammar_class\n" );
-        Marpa::R2::exception(
-            'Marpa::R2::Scanless::R::new() called without a "grammar" argument'
-        );
-    } ## end if ( not blessed $grammar or not $grammar->isa(...))
-    delete $args[0]->{grammar};
+    my $g1_recce_args =
+        Marpa::R2::Internal::Scanless::R::set( $self, "new", @args );
+    my $too_many_earley_items = $g1_recce_args->{too_many_earley_items};
 
-    $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR] = $grammar;
-
-    my %g1_recce_args = ();
-    for my $args (@args) {
-        my $ref_type = ref $args;
-        if ( not $ref_type ) {
-            Carp::croak(
-                "\$slr->set() expects args as ref to HASH; arg was non-reference"
-            );
-        }
-        if ( $ref_type ne 'HASH' ) {
-            Carp::croak(
-                "\$slr->set() expects args as ref to HASH, got ref to $ref_type instead"
-            );
-        }
-        ARG: for my $arg_name ( keys %{$args} ) {
-            my $value = $args->{$arg_name};
-            if ( $arg_name eq 'ranking_method' ) {
-                delete $args->{$arg_name};
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            }
-        } ## end ARG: for my $arg_name ( keys %{$args} )
-    } ## end for my $args (@args)
-
-    my %default_g1_recce_args = ( too_many_earley_items => -1 );
-    my $grammar_trace_file_handle =
-        $grammar->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE];
-    $default_g1_recce_args{trace_file_handle} = $grammar_trace_file_handle
-        if defined $grammar_trace_file_handle;
-    my $common_g1_recce_args =
-        capture_g1_recce_args( $self, \%default_g1_recce_args, @args );
-
-    $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR] = $grammar;
+    my $slg = $self->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
 
     my $thick_g1_grammar =
-        $grammar->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
-    $g1_recce_args{grammar} = $thick_g1_grammar;
+        $slg->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
+    $g1_recce_args->{grammar} = $thick_g1_grammar;
     my $thick_g1_recce =
         $self->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE] =
-        Marpa::R2::Recognizer->new( \%g1_recce_args, $common_g1_recce_args );
+        Marpa::R2::Recognizer->new($g1_recce_args);
 
-    my $thin_self = Marpa::R2::Thin::SLR->new(
-        $grammar->[Marpa::R2::Inner::Scanless::G::C],
+    my $thin_self =
+        Marpa::R2::Thin::SLR->new( $slg->[Marpa::R2::Inner::Scanless::G::C],
         $thick_g1_recce->thin() );
-    my $too_many_earley_items =
-        $common_g1_recce_args->{too_many_earley_items};
     $thin_self->earley_item_warning_threshold_set($too_many_earley_items)
         if $too_many_earley_items >= 0;
     $self->[Marpa::R2::Inner::Scanless::R::C]      = $thin_self;
@@ -269,86 +220,141 @@ sub Marpa::R2::Scanless::R::new {
 
 sub Marpa::R2::Scanless::R::set {
     my ( $slr, @args ) = @_;
-
-    for my $args (@args) {
-        my $ref_type = ref $args;
-        if ( not $ref_type ) {
-            Carp::croak(
-                "\$slr->set() expects args as ref to HASH; arg was non-reference"
-            );
-        }
-        if ( $ref_type ne 'HASH' ) {
-            Carp::croak(
-                "\$slr->set() expects args as ref to HASH, got ref to $ref_type instead"
-            );
-        }
-    } ## end for my $args (@args)
-
-    my $recce = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
-    my $common_recce_args = capture_g1_recce_args( $slr, @args );
-    $recce->set($common_recce_args);
-
+    my $naif_recce_args =
+        Marpa::R2::Internal::Scanless::R::set( $slr, "set", @args );
+    my $naif_recce = $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
+    $naif_recce->set($naif_recce_args);
     return $slr;
-
 } ## end sub Marpa::R2::Scanless::R::set
 
-# Capture arguments to be passed on to the g1 recognizer
-# Includes only those whose processing is common to new()
-# and set()
-sub capture_g1_recce_args {
-    my ( $slr, @args ) = @_;
-    my %g1_recce_args = ();
-    for my $args (@args) {
-        ARG: for my $arg_name ( keys %{$args} ) {
-            my $value = $args->{$arg_name};
-            if ( $arg_name eq 'max_parses' ) {
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            }
-            if ( $arg_name eq 'too_many_earley_items' ) {
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            } ## end if ( $arg_name eq 'too_many_earley_items' )
-            if ( $arg_name eq 'semantics_package' ) {
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            }
-            if ( $arg_name eq 'end' ) {
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            }
-            if ( $arg_name eq 'trace_actions' ) {
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            }
-            if ( $arg_name eq 'trace_file_handle' ) {
-                $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE] =
-                    $value;
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            } ## end if ( $arg_name eq 'trace_file_handle' )
-            if ( $arg_name eq 'trace_lexers' ) {
-                $slr->[Marpa::R2::Inner::Scanless::R::TRACE_LEXERS] = $value;
-                next ARG;
-            }
-            if ( $arg_name eq 'trace_terminals' ) {
-                $slr->[Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS] =
-                    $value;
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            } ## end if ( $arg_name eq 'trace_terminals' )
-            if ( $arg_name eq 'trace_values' ) {
-                $g1_recce_args{$arg_name} = $value;
-                next ARG;
-            }
-            Marpa::R2::exception(
-                "$PACKAGE does not know one of options given to it:\n",
-                qq{   The options not recognized was "$arg_name"\n}
+# The context flag indicates whether this set is called directly by the user
+# or is for series reset or the constructor.  "Context" flags of this kind
+# are much decried practice, and for good reason, but in this case
+# I think it is justified.
+# This logic really needs to be all in one place, and so a flag
+# to trigger the minor differences needed by the various calling
+# contexts is a small price to pay.
+sub Marpa::R2::Internal::Scanless::R::set {
+
+    my ( $slr, $method, @hash_ref_args ) = @_;
+
+    # These NAIF recce args are allowed in all contexts
+    state $common_naif_recce_args = {
+        map { ( $_, 1 ); }
+            qw(end max_parses semantics_package too_many_earley_items
+            trace_actions trace_file_handle trace_lexers trace_terminals trace_values)
+    };
+    state $set_method_args =
+        { map { ( $_, 1 ); } keys %{$common_naif_recce_args} };
+    state $new_method_args = {
+        map { ( $_, 1 ); } qw(grammar ranking_method),
+        keys %{$set_method_args}
+    };
+    state $series_restart_method_args =
+        { map { ( $_, 1 ); } keys %{$common_naif_recce_args} };
+
+    for my $args (@hash_ref_args) {
+        my $ref_type = ref $args;
+        if ( not $ref_type ) {
+            Marpa::R2::exception( q{$slr->}
+                    . $method
+                    . qq{() expects args as ref to HASH; got non-reference instead}
             );
-        } ## end for my $arg_name ( keys %{$args} )
-    } ## end for my $args (@args)
-    return \%g1_recce_args;
-} ## end capture_g1_recce_args
+        } ## end if ( not $ref_type )
+        if ( $ref_type ne 'HASH' ) {
+            Marpa::R2::exception( q{$slr->}
+                    . $method
+                    . qq{() expects args as ref to HASH, got ref to $ref_type instead}
+            );
+        } ## end if ( $ref_type ne 'HASH' )
+    } ## end for my $args (@hash_ref_args)
+
+    my %flat_args = ();
+    for my $hash_ref (@hash_ref_args) {
+        ARG: for my $arg_name ( keys %{$hash_ref} ) {
+            $flat_args{$arg_name} = $hash_ref->{$arg_name};
+        }
+    }
+    my $ok_args = $set_method_args;
+    $ok_args = $new_method_args            if $method eq 'new';
+    $ok_args = $series_restart_method_args if $method eq 'series_restart';
+    my @bad_args = grep { not $ok_args->{$_} } keys %flat_args;
+    if ( scalar @bad_args ) {
+        Marpa::R2::exception(
+            q{Bad named argument(s) to $slr->}
+                . $method
+                . q{() method: }
+                . join q{ },
+            @bad_args
+        );
+    } ## end if ( scalar @bad_args )
+
+if ( $method eq 'new' ) {
+    state $arg_name  = 'grammar';
+    state $slg_class = 'Marpa::R2::Scanless::G';
+    my $slg = $flat_args{$arg_name};
+    Marpa::R2::exception(
+        qq{Marpa::R2::Scanless::R::new() called without a "$arg_name" argument}
+    ) if not defined $slg;
+    if ( not blessed $slg or not $slg->isa($slg_class) ) {
+        my $ref_type = ref $slg;
+        my $desc = $ref_type ? "a ref to $ref_type" : 'not a ref';
+        Marpa::R2::exception(
+            qq{'$arg_name' name argument to scanless_r->new() is $desc\n},
+            "  It should be a ref to $slg_class\n" );
+    } ## end if ( not blessed $slg or not $slg->isa($slg_class) )
+
+    $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR] = $slg;
+
+} ## end if ( $method eq 'new' )
+
+    # A bit hack-ish, but some named args are copies straight to an member of
+    # the Scanless::R class, so this maps named args to the index of the array
+    # that holds the members.
+    state $copy_arg_to_index = {
+        trace_file_handle => Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE,
+        trace_lexers      => Marpa::R2::Inner::Scanless::R::TRACE_LEXERS,
+        trace_terminals   => Marpa::R2::Inner::Scanless::R::TRACE_TERMINALS,
+    };
+
+    ARG: for my $arg_name ( keys %flat_args ) {
+        my $index = $copy_arg_to_index->{$arg_name};
+        next ARG if not defined $index;
+        my $value = $flat_args{$arg_name};
+        $slr->[$index] = $value;
+    } ## end ARG: for my $arg_name ( keys %flat_args )
+
+    # Trace file handle can never be undefined
+    if (not defined $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE] )
+    {
+        my $slg = $slr->[Marpa::R2::Inner::Scanless::R::GRAMMAR];
+        $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE] =
+            $slg->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE];
+    } ## end if ( not defined $slr->[...])
+
+    # These NAIF recce args, when applicable, are simply copies of the the
+    # SLIF args of the same name
+    state $copyable_naif_recce_args = {
+        map { ( $_, 1 ); }
+            qw(end max_parses semantics_package too_many_earley_items ranking_method
+            trace_actions trace_file_handle trace_lexers trace_terminals trace_values)
+    };
+
+    # Prune flat args of all those named args which are NOT to be copied
+    # into the NAIF recce args
+    for my $arg_name ( keys %flat_args ) {
+        delete $flat_args{$arg_name} if not $copyable_naif_recce_args->{$arg_name};
+    }
+
+    # In the new method, a few items must always be set in the NAIF recce args
+    if ( $method eq 'new' ) {
+        $flat_args{too_many_earley_items} //= -1;
+        $flat_args{trace_file_handle} //= $slr->[Marpa::R2::Inner::Scanless::R::TRACE_FILE_HANDLE];
+    }
+
+    return \%flat_args;
+
+} ## end sub Marpa::R2::Internal::Scanless::R::set
 
 sub Marpa::R2::Scanless::R::thin {
     return $_[0]->[Marpa::R2::Inner::Scanless::R::C];
@@ -1264,7 +1270,8 @@ sub Marpa::R2::Scanless::R::series_restart {
     my $thick_g1_recce =
         $slr->[Marpa::R2::Inner::Scanless::R::THICK_G1_RECCE];
     $thick_g1_recce->reset_evaluation();
-    $thick_g1_recce->set( @args );
+    my $g1_recce_args = Marpa::R2::Internal::Scanless::R::set($slr, "series_restart", @args );
+    $thick_g1_recce->set( $g1_recce_args );
     return 1;
 }
 
