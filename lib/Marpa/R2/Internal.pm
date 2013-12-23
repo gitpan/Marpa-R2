@@ -24,7 +24,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_014';
+$VERSION        = '2.077_015';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 
@@ -175,7 +175,7 @@ package Marpa::R2::Internal::Powerset;
 use constant ID => 0;
 use constant NIDSET_IDS => 1;
 
-package Marpa::R2::Inner::Scanless::G;
+package Marpa::R2::Internal::Scanless::G;
 use constant C => 0;
 use constant THICK_LEX_GRAMMARS => 1;
 use constant THICK_G1_GRAMMAR => 2;
@@ -183,18 +183,16 @@ use constant CHARACTER_CLASS_TABLES => 3;
 use constant LEXER_BY_NAME => 4;
 use constant LEXER_NAME_BY_ID => 5;
 use constant MASK_BY_RULE_ID => 6;
-use constant G1_ARGS => 7;
-use constant DEFAULT_G1_START_ACTION => 8;
-use constant COMPLETION_EVENT_BY_ID => 9;
-use constant NULLED_EVENT_BY_ID => 10;
-use constant PREDICTION_EVENT_BY_ID => 11;
-use constant LEXEME_EVENT_BY_ID => 12;
-use constant TRACE_FILE_HANDLE => 13;
-use constant BLESS_PACKAGE => 14;
-use constant SYMBOL_IDS_BY_EVENT_NAME_AND_TYPE => 15;
-use constant CACHE_RULEIDS_BY_LHS_NAME => 16;
+use constant DEFAULT_G1_START_ACTION => 7;
+use constant COMPLETION_EVENT_BY_ID => 8;
+use constant NULLED_EVENT_BY_ID => 9;
+use constant PREDICTION_EVENT_BY_ID => 10;
+use constant LEXEME_EVENT_BY_ID => 11;
+use constant TRACE_FILE_HANDLE => 12;
+use constant SYMBOL_IDS_BY_EVENT_NAME_AND_TYPE => 13;
+use constant CACHE_RULEIDS_BY_LHS_NAME => 14;
 
-package Marpa::R2::Inner::Scanless::R;
+package Marpa::R2::Internal::Scanless::R;
 use constant C => 0;
 use constant GRAMMAR => 1;
 use constant THICK_G1_RECCE => 2;

@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_014';
+$VERSION        = '2.077_015';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -315,7 +315,7 @@ __DATA__
     ID
     NIDSET_IDS
 
-    :package=Marpa::R2::Inner::Scanless::G
+    :package=Marpa::R2::Internal::Scanless::G
 
     C { The thin version of this object }
 
@@ -326,20 +326,18 @@ __DATA__
     LEXER_NAME_BY_ID
     MASK_BY_RULE_ID
 
-    G1_ARGS
     DEFAULT_G1_START_ACTION
     COMPLETION_EVENT_BY_ID
     NULLED_EVENT_BY_ID
     PREDICTION_EVENT_BY_ID
     LEXEME_EVENT_BY_ID
     TRACE_FILE_HANDLE
-    BLESS_PACKAGE
     SYMBOL_IDS_BY_EVENT_NAME_AND_TYPE
 
     { This saves a lot of time at points }
     CACHE_RULEIDS_BY_LHS_NAME
 
-    :package=Marpa::R2::Inner::Scanless::R
+    :package=Marpa::R2::Internal::Scanless::R
 
     C { The thin version of this object }
 

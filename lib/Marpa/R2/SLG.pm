@@ -20,165 +20,185 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.077_014';
+$VERSION        = '2.077_015';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
 ## use critic
 
-package Marpa::R2::Inner::Scanless::G;
+package Marpa::R2::Internal::Scanless::G;
 
 use Scalar::Util 'blessed';
 use English qw( -no_match_vars );
 
 # names of packages for strings
 our $PACKAGE = 'Marpa::R2::Scanless::G';
-our $TRACE_FILE_HANDLE;
 
 sub Marpa::R2::Internal::Scanless::meta_grammar {
 
-    my $self = bless [], 'Marpa::R2::Scanless::G';
-    $self->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE] = \*STDERR;
-    $self->[Marpa::R2::Inner::Scanless::G::BLESS_PACKAGE] =
-        'Marpa::R2::Internal::MetaAST_Nodes';
+    my $meta_slg = bless [], 'Marpa::R2::Scanless::G';
     state $hashed_metag = Marpa::R2::Internal::MetaG::hashed_grammar();
-    $self->_hash_to_runtime($hashed_metag);
+    Marpa::R2::Internal::Scanless::G::hash_to_runtime( $meta_slg,
+        $hashed_metag,
+        { bless_package => 'Marpa::R2::Internal::MetaAST_Nodes' } );
 
     my $thick_g1_grammar =
-        $self->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
+        $meta_slg->[Marpa::R2::Internal::Scanless::G::THICK_G1_GRAMMAR];
     my @mask_by_rule_id;
     $mask_by_rule_id[$_] = $thick_g1_grammar->_rule_mask($_)
         for $thick_g1_grammar->rule_ids();
-    $self->[Marpa::R2::Inner::Scanless::G::MASK_BY_RULE_ID] =
+    $meta_slg->[Marpa::R2::Internal::Scanless::G::MASK_BY_RULE_ID] =
         \@mask_by_rule_id;
 
-    return $self;
+    return $meta_slg;
 
 } ## end sub Marpa::R2::Internal::Scanless::meta_grammar
 
 sub Marpa::R2::Scanless::G::new {
-    my ( $class, $args ) = @_;
+    my ( $class, @hash_ref_args ) = @_;
 
-    my $self = [];
-    bless $self, $class;
+    my $slg = [];
+    bless $slg, $class;
 
-    $self->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE]       = *STDERR;
-    $self->[Marpa::R2::Inner::Scanless::G::CACHE_RULEIDS_BY_LHS_NAME] = {};
-
-    my $ref_type = ref $args;
-    if ( not $ref_type ) {
-        Carp::croak(
-            "$PACKAGE expects args as ref to HASH; arg was non-reference");
-    }
-    if ( $ref_type ne 'HASH' ) {
-        Carp::croak(
-            "$PACKAGE expects args as ref to HASH, got ref to $ref_type instead"
-        );
-    }
-
-    # Other possible grammar options:
-    # actions
-    # default_empty_action
-    # default_rank
-    # inaccessible_ok
-    # symbols
-    # terminals
-    # unproductive_ok
-    # warnings
-
-    my $rules_source;
-    $self->[Marpa::R2::Inner::Scanless::G::G1_ARGS] = {};
-    ARG: for my $arg_name ( keys %{$args} ) {
-        my $value = $args->{$arg_name};
-        if ( $arg_name eq 'action_object' ) {
-            $self->[Marpa::R2::Inner::Scanless::G::G1_ARGS]->{$arg_name} =
-                $value;
-            next ARG;
-        }
-        if ( $arg_name eq 'bless_package' ) {
-            $self->[Marpa::R2::Inner::Scanless::G::BLESS_PACKAGE] = $value;
-            next ARG;
-        }
-        if ( $arg_name eq 'default_action' ) {
-            $self->[Marpa::R2::Inner::Scanless::G::G1_ARGS]->{$arg_name} =
-                $value;
-            next ARG;
-        }
-        if ( $arg_name eq 'source' ) {
-            $rules_source = $value;
-            next ARG;
-        }
-        $self->set( { $arg_name => $value });
-        next ARG;
-    } ## end ARG: for my $arg_name ( keys %{$args} )
-
-    if ( not defined $rules_source ) {
-        Marpa::R2::exception(
-            'Marpa::R2::Scanless::G::new() called without a "source" argument'
-        );
-    }
-
-    $ref_type = ref $rules_source;
-    if ( $ref_type ne 'SCALAR' ) {
-        Marpa::R2::exception(
-            qq{Marpa::R2::Scanless::G::new() type of "source" argument is "$ref_type"},
-            "  It must be a ref to a string\n"
-        );
-    } ## end if ( $ref_type ne 'SCALAR' )
-    my $ast = Marpa::R2::Internal::MetaAST->new( $rules_source );
+    my ($dsl, $g1_args) = Marpa::R2::Internal::Scanless::G::set ( $slg, 'new', @hash_ref_args );
+    my $ast = Marpa::R2::Internal::MetaAST->new( $dsl );
     my $hashed_ast = $ast->ast_to_hash();
-    $self->_hash_to_runtime($hashed_ast);
-
-    return $self;
-
+    Marpa::R2::Internal::Scanless::G::hash_to_runtime($slg, $hashed_ast, $g1_args);
+    return $slg;
 } ## end sub Marpa::R2::Scanless::G::new
 
 sub Marpa::R2::Scanless::G::set {
-    my ( $slg, $args ) = @_;
+    my ( $slg, @hash_ref_args ) = @_;
+    Marpa::R2::Internal::Scanless::G::set ( $slg, 'set', @hash_ref_args );
+    return $slg;
+}
 
-    my $ref_type = ref $args;
-    if ( not $ref_type ) {
-        Carp::croak(
-            "\$slg->set() expects args as ref to HASH; arg was non-reference"
-        );
-    }
-    if ( $ref_type ne 'HASH' ) {
-        Carp::croak(
-            "\$slg->set() expects args as ref to HASH, got ref to $ref_type instead"
-        );
-    }
+# The context flag indicates whether this ::set() is called directly by the user;
+# is for the external constructor; or is for the internal ("meta") constructor.
+# "Context" flags of this kind
+# are much decried practice, and for good reason, but in this case
+# I think it is justified.
+# This logic really needs to be all in one place, and so a flag
+# to trigger the minor differences needed by the various calling
+# contexts is a small price to pay.
+sub Marpa::R2::Internal::Scanless::G::set {
+    my ( $slg, $method, @hash_ref_args ) = @_;
 
     # Other possible grammar options:
-    # actions
     # default_rank
     # inaccessible_ok
-    # symbols
-    # terminals
     # unproductive_ok
     # warnings
 
-    ARG: for my $arg_name ( keys %{$args} ) {
-        my $value = $args->{$arg_name};
-        if ( $arg_name eq 'trace_file_handle' ) {
-            $slg->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE] = $value;
-            $slg->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR]
-                ->set( { $arg_name => $value } );
-            $slg->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]->[0]
-                ->set( { $arg_name => $value } );
-            next ARG;
-        } ## end if ( $arg_name eq 'trace_file_handle' )
-        Carp::croak(
-            '$slg->set does not know one of the options given to it:',
-            qq{\n   The options not recognized was "$arg_name"\n}
+    state $copy_to_g1_args =
+        { map { ( $_, 1 ); }
+            qw(trace_file_handle action_object default_action bless_package) };
+    state $set_method_args =
+        { map { ( $_, 1 ); } qw(trace_file_handle) };
+    state $new_method_args = {
+        map { ( $_, 1 ); } qw(source), keys %{$copy_to_g1_args}
+    };
+    for my $args (@hash_ref_args) {
+        my $ref_type = ref $args;
+        if ( not $ref_type ) {
+            Marpa::R2::exception( q{$slr->}
+                    . $method
+                    . qq{() expects args as ref to HASH; got non-reference instead}
+            );
+        } ## end if ( not $ref_type )
+        if ( $ref_type ne 'HASH' ) {
+            Marpa::R2::exception( q{$slr->}
+                    . $method
+                    . qq{() expects args as ref to HASH, got ref to $ref_type instead}
+            );
+        } ## end if ( $ref_type ne 'HASH' )
+    } ## end for my $args (@hash_ref_args)
+
+    my %flat_args = ();
+    for my $hash_ref (@hash_ref_args) {
+        ARG: for my $arg_name ( keys %{$hash_ref} ) {
+            $flat_args{$arg_name} = $hash_ref->{$arg_name};
+        }
+    }
+
+    my $ok_args = $set_method_args;
+    $ok_args = $new_method_args if $method eq 'new';
+    my @bad_args = grep { not $ok_args->{$_} } keys %flat_args;
+    if ( scalar @bad_args ) {
+        Marpa::R2::exception(
+            q{Bad named argument(s) to $slr->}
+                . $method
+                . q{() method: }
+                . join q{ },
+            @bad_args
         );
-    } ## end ARG: for my $arg_name ( keys %{$args} )
+    } ## end if ( scalar @bad_args )
 
-    return $slg;
+    my $dsl;
+    if ( $method eq 'new' ) {
+        state $arg_name = 'source';
+        $dsl = $flat_args{$arg_name};
+        Marpa::R2::exception(
+            qq{Marpa::R2::Scanless::G::new() called without a "$arg_name" argument}
+        ) if not defined $dsl;
+        my $ref_type = ref $dsl;
+        if ( $ref_type ne 'SCALAR' ) {
+            my $desc = $ref_type ? "a ref to $ref_type" : 'not a ref';
+            Marpa::R2::exception(
+                qq{'$arg_name' name argument to Marpa::R2::Scanless::G->new() is $desc\n},
+                "  It should be a ref to a string\n"
+            );
+        } ## end if ( $ref_type ne 'SCALAR' )
+    } ## end if ( $method eq 'new' )
 
-} ## end sub Marpa::R2::Scanless::G::set
+    # A bit hack-ish, but some named args will be copies straight to a member of
+    # the Scanless::G class, so this maps named args to the index of the array
+    # that holds the members.
+    state $copy_arg_to_index = {
+        trace_file_handle => Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE
+    };
 
-sub Marpa::R2::Scanless::G::_hash_to_runtime {
-    my ( $slg, $hashed_source ) = @_;
+    ARG: for my $arg_name ( keys %flat_args ) {
+        my $index = $copy_arg_to_index->{$arg_name};
+        next ARG if not defined $index;
+        my $value = $flat_args{$arg_name};
+        $slg->[$index] = $value;
+    } ## end ARG: for my $arg_name ( keys %flat_args )
+
+    # Trace file handle needs to be populated downwards
+    if ( defined( my $trace_file_handle = $flat_args{trace_file_handle} ) ) {
+        GRAMMAR:
+        for my $naif_grammar (
+            $slg->[Marpa::R2::Internal::Scanless::G::THICK_G1_GRAMMAR],
+            @{ $slg->[Marpa::R2::Internal::Scanless::G::THICK_LEX_GRAMMARS] }
+            )
+        {
+            next GRAMMAR if not defined $naif_grammar;
+            $naif_grammar->set( { trace_file_handle => $trace_file_handle } );
+        } ## end GRAMMAR: for my $naif_grammar ( $slg->[...])
+    } ## end if ( defined( my $trace_file_handle = $flat_args{...}))
+
+    if ( $method eq 'new' ) {
+
+        # Prune flat args of all those named args which are NOT to be copied
+        # into the NAIF recce args
+        for my $arg_name ( keys %flat_args ) {
+            delete $flat_args{$arg_name}
+                if not $copy_to_g1_args->{$arg_name};
+        }
+
+        # trace file handle must always be defined
+        $slg->[Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE] //= \*STDERR;
+
+        return ($dsl, \%flat_args);
+    } ## end if ( $method eq 'new' )
+
+    return;
+
+} ## end sub Marpa::R2::Internal::Scanless::G::set
+
+sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
+    my ( $slg, $hashed_source, $g1_args ) = @_;
 
     # Pre-lexer G1 processing
 
@@ -187,14 +207,12 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
         if not defined $start_lhs;
     Marpa::R2::Internal::MetaAST::start_rule_create( $hashed_source, $start_lhs );
 
-    $slg->[Marpa::R2::Inner::Scanless::G::DEFAULT_G1_START_ACTION] =
+    $slg->[Marpa::R2::Internal::Scanless::G::CACHE_RULEIDS_BY_LHS_NAME] = {};
+    $slg->[Marpa::R2::Internal::Scanless::G::DEFAULT_G1_START_ACTION] =
         $hashed_source->{'default_g1_start_action'};
 
-    my $g1_args = $slg->[Marpa::R2::Inner::Scanless::G::G1_ARGS];
-    $g1_args->{trace_file_handle} =
-        $slg->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE] // \*STDERR;
-    $g1_args->{bless_package} =
-        $slg->[Marpa::R2::Inner::Scanless::G::BLESS_PACKAGE];
+    $slg->[Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE] = $g1_args->{trace_file_handle} // \*STDERR;
+
     $g1_args->{rules}   = $hashed_source->{rules}->{G1};
     $g1_args->{symbols} = $hashed_source->{symbols}->{G1};
     state $g1_target_symbol = '[:start]';
@@ -205,12 +223,12 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     my $g1_thin          = $g1_tracer->grammar();
 
     my $symbol_ids_by_event_name_and_type = {};
-    $slg->[Marpa::R2::Inner::Scanless::G::SYMBOL_IDS_BY_EVENT_NAME_AND_TYPE]
+    $slg->[Marpa::R2::Internal::Scanless::G::SYMBOL_IDS_BY_EVENT_NAME_AND_TYPE]
         = $symbol_ids_by_event_name_and_type;
 
     my $completion_events_by_name = $hashed_source->{completion_events};
     my $completion_events_by_id =
-        $slg->[Marpa::R2::Inner::Scanless::G::COMPLETION_EVENT_BY_ID] = [];
+        $slg->[Marpa::R2::Internal::Scanless::G::COMPLETION_EVENT_BY_ID] = [];
     for my $symbol_name ( keys %{$completion_events_by_name} ) {
         my $event_name = $completion_events_by_name->{$symbol_name};
         my $symbol_id  = $g1_tracer->symbol_by_name($symbol_name);
@@ -222,7 +240,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
         # Must be done before precomputation
         $g1_thin->symbol_is_completion_event_set( $symbol_id, 1 );
-        $slg->[Marpa::R2::Inner::Scanless::G::COMPLETION_EVENT_BY_ID]
+        $slg->[Marpa::R2::Internal::Scanless::G::COMPLETION_EVENT_BY_ID]
             ->[$symbol_id] = $completion_events_by_name->{$symbol_name};
         push
             @{ $symbol_ids_by_event_name_and_type->{$event_name}->{completion}
@@ -231,7 +249,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
     my $nulled_events_by_name = $hashed_source->{nulled_events};
     my $nulled_events_by_id =
-        $slg->[Marpa::R2::Inner::Scanless::G::NULLED_EVENT_BY_ID] = [];
+        $slg->[Marpa::R2::Internal::Scanless::G::NULLED_EVENT_BY_ID] = [];
     for my $symbol_name ( keys %{$nulled_events_by_name} ) {
         my $event_name = $nulled_events_by_name->{$symbol_name};
         my $symbol_id  = $g1_tracer->symbol_by_name($symbol_name);
@@ -243,7 +261,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
         # Must be done before precomputation
         $g1_thin->symbol_is_nulled_event_set( $symbol_id, 1 );
-        $slg->[Marpa::R2::Inner::Scanless::G::NULLED_EVENT_BY_ID]
+        $slg->[Marpa::R2::Internal::Scanless::G::NULLED_EVENT_BY_ID]
             ->[$symbol_id] = $nulled_events_by_name->{$symbol_name};
         push @{ $symbol_ids_by_event_name_and_type->{$event_name}->{nulled} },
             $symbol_id;
@@ -251,7 +269,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
     my $prediction_events_by_name = $hashed_source->{prediction_events};
     my $prediction_events_by_id =
-        $slg->[Marpa::R2::Inner::Scanless::G::PREDICTION_EVENT_BY_ID] = [];
+        $slg->[Marpa::R2::Internal::Scanless::G::PREDICTION_EVENT_BY_ID] = [];
     for my $symbol_name ( keys %{$prediction_events_by_name} ) {
         my $event_name = $prediction_events_by_name->{$symbol_name};
         my $symbol_id  = $g1_tracer->symbol_by_name($symbol_name);
@@ -263,7 +281,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
         # Must be done before precomputation
         $g1_thin->symbol_is_prediction_event_set( $symbol_id, 1 );
-        $slg->[Marpa::R2::Inner::Scanless::G::PREDICTION_EVENT_BY_ID]
+        $slg->[Marpa::R2::Internal::Scanless::G::PREDICTION_EVENT_BY_ID]
             ->[$symbol_id] = $prediction_events_by_name->{$symbol_name};
         push
             @{ $symbol_ids_by_event_name_and_type->{$event_name}->{prediction}
@@ -271,7 +289,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     } ## end for my $symbol_name ( keys %{$prediction_events_by_name...})
 
     my $lexeme_events_by_id =
-        $slg->[Marpa::R2::Inner::Scanless::G::LEXEME_EVENT_BY_ID] = [];
+        $slg->[Marpa::R2::Internal::Scanless::G::LEXEME_EVENT_BY_ID] = [];
 
     if (defined(
             my $precompute_error =
@@ -383,7 +401,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
         my %lex_args = ();
         $lex_args{trace_file_handle} =
-            $slg->[Marpa::R2::Inner::Scanless::G::TRACE_FILE_HANDLE]
+            $slg->[Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE]
             // \*STDERR;
         $lex_args{start}        = $lex_start_symbol_name;
         $lex_args{'_internal_'} = 1;
@@ -462,7 +480,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
     my $thick_L0 = $thick_grammar_by_lexer_name{'L0'};
     my $thin_L0 = $thick_L0->[Marpa::R2::Internal::Grammar::C];
-    my $thin_slg   = $slg->[Marpa::R2::Inner::Scanless::G::C] =
+    my $thin_slg   = $slg->[Marpa::R2::Internal::Scanless::G::C] =
         Marpa::R2::Thin::SLG->new( $thin_L0, $g1_tracer->grammar() );
 
     # Relies on default lexer being given number zero
@@ -551,7 +569,7 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
     # Second phase of G1 processing
 
     $thin_slg->precompute();
-    $slg->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR] =
+    $slg->[Marpa::R2::Internal::Scanless::G::THICK_G1_GRAMMAR] =
         $thick_g1_grammar;
     for my $lexer_name (@lexer_names) {
         my $lexer_id = $lexer_id_by_name{$lexer_name};
@@ -561,13 +579,13 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
             : $lexer_name;
         my $character_class_table =
             $character_class_table_by_lexer_name{$lexer_name};
-        $slg->[Marpa::R2::Inner::Scanless::G::LEXER_NAME_BY_ID]->[$lexer_id]
+        $slg->[Marpa::R2::Internal::Scanless::G::LEXER_NAME_BY_ID]->[$lexer_id]
             = $external_lexer_name;
-        $slg->[Marpa::R2::Inner::Scanless::G::LEXER_BY_NAME]
+        $slg->[Marpa::R2::Internal::Scanless::G::LEXER_BY_NAME]
             ->{$external_lexer_name} = $lexer_id;
-        $slg->[Marpa::R2::Inner::Scanless::G::CHARACTER_CLASS_TABLES]
+        $slg->[Marpa::R2::Internal::Scanless::G::CHARACTER_CLASS_TABLES]
             ->[$lexer_id] = $character_class_table;
-        $slg->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]->[$lexer_id]
+        $slg->[Marpa::R2::Internal::Scanless::G::THICK_LEX_GRAMMARS]->[$lexer_id]
             = $thick_grammar_by_lexer_name{$lexer_name};
     } ## end for my $lexer_name (@lexer_names)
 
@@ -622,24 +640,24 @@ sub Marpa::R2::Scanless::G::_hash_to_runtime {
 
     } ## end APPLY_DEFAULT_LEXEME_ADVERBS:
 
-    return 1;
+    return $slg;
 
-} ## end sub Marpa::R2::Scanless::G::_hash_to_runtime
+}
 
 sub thick_subgrammar_by_name {
     my ( $slg, $subgrammar ) = @_;
     $subgrammar //= 'G1';
-    return $slg->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR]
+    return $slg->[Marpa::R2::Internal::Scanless::G::THICK_G1_GRAMMAR]
         if $subgrammar eq 'G1';
 
     # Allow G0 as legacy synonym for L0
     $subgrammar = 'L0' if $subgrammar eq 'G0';
 
     my $lexer_id =
-        $slg->[Marpa::R2::Inner::Scanless::G::LEXER_BY_NAME]->{$subgrammar};
+        $slg->[Marpa::R2::Internal::Scanless::G::LEXER_BY_NAME]->{$subgrammar};
     Marpa::R2::exception(qq{No lexer named "$subgrammar"})
         if not defined $lexer_id;
-    return $slg->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]
+    return $slg->[Marpa::R2::Internal::Scanless::G::THICK_LEX_GRAMMARS]
         ->[$lexer_id];
 } ## end sub thick_subgrammar_by_name
 
@@ -830,7 +848,7 @@ sub Marpa::R2::Scanless::G::show_symbols {
 
 sub Marpa::R2::Scanless::G::show_dotted_rule {
     my ( $slg, $rule_id, $dot_position ) = @_;
-    my $grammar =  $slg->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
+    my $grammar =  $slg->[Marpa::R2::Internal::Scanless::G::THICK_G1_GRAMMAR];
     my $tracer  = $grammar->tracer();
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my ( $lhs, @rhs ) =
@@ -853,7 +871,7 @@ sub Marpa::R2::Scanless::G::show_dotted_rule {
 
 sub Marpa::R2::Scanless::G::rule {
     my ( $slg, @args ) = @_;
-    return $slg->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR]
+    return $slg->[Marpa::R2::Internal::Scanless::G::THICK_G1_GRAMMAR]
         ->rule(@args);
 }
 
@@ -879,7 +897,7 @@ sub Marpa::R2::Scanless::G::g0_rule_ids {
 
 sub Marpa::R2::Scanless::G::g0_rule {
     my ( $slg, @args ) = @_;
-    return $slg->[Marpa::R2::Inner::Scanless::G::THICK_LEX_GRAMMARS]->[0]
+    return $slg->[Marpa::R2::Internal::Scanless::G::THICK_LEX_GRAMMARS]->[0]
         ->rule(@args);
 }
 
@@ -887,7 +905,7 @@ sub Marpa::R2::Scanless::G::g0_rule {
 
 sub Marpa::R2::Scanless::G::thick_g1_grammar {
     my ($slg) = @_;
-    return $slg->[Marpa::R2::Inner::Scanless::G::THICK_G1_GRAMMAR];
+    return $slg->[Marpa::R2::Internal::Scanless::G::THICK_G1_GRAMMAR];
 }
 
 1;

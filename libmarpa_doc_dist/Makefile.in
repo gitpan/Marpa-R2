@@ -74,7 +74,6 @@ PSS = api.ps internal.ps
 HTMLS = api.html internal.html
 TEXINFOS = api.texi internal.texi
 TEXI2DVI = texi2dvi
-TEXI2PDF = $(TEXI2DVI) --pdf --batch
 MAKEINFOHTML = $(MAKEINFO) --html
 AM_MAKEINFOHTMLFLAGS = $(AM_MAKEINFOFLAGS)
 DVIPS = dvips
@@ -208,6 +207,7 @@ ACLOCAL_AMFLAGS = -I m4
 info_TEXINFOS = api.texi internal.texi
 api_TEXINFOS = fdl-1.3.texi lgpl-3.0.texi
 internal_TEXINFOS = fdl-1.3.texi lgpl-3.0.texi
+TEXI2PDF = texi2pdf --pdf --batch --quiet
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 

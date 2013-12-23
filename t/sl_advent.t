@@ -15,15 +15,15 @@
 # http://www.gnu.org/licenses/.
 
 # This example is from a Perl 6 advent blog post
-# (Day 18 2103) by Dwarring, adapted to Marpa by Jean-Damien
+# (Day 18 2013) by Dwarring, adapted to Marpa by Jean-Damien
 # Durand.
 
 use 5.010;
 use strict;
 use warnings;
 use English qw( -no_match_vars );
-use open ':std', ':encoding(utf8)';
 use utf8;
+use open ':std', ':encoding(utf8)';
 
 use Test::More tests => 54;
 use lib 'inc';
@@ -126,9 +126,10 @@ for my $test_data (@tests) {
             my $length = length $input;
 
             my %played = ();
-            my $pos = eval { $re->read( \$input ) };
-            return $@ if $@;
-            do {
+            my $pos;
+            my $eval_ok = eval { $pos = $re->read( \$input ); 1 };
+            while ( $eval_ok and $pos < $length ) {
+
                 # In our example there is a single event: no need to ask Marpa what it is
                 my ( $start, $length ) =
                     $re->g1_location_to_span( $re->current_g1_location() );
@@ -138,15 +139,15 @@ for my $test_data (@tests) {
                     $actual_value  = "Duplicate card " . $card;
                     last PROCESSING;
                 }
-                eval { $pos = $re->resume() };
-                if ($EVAL_ERROR) {
-                    $actual_result = "Parse failed before end";
-                    $actual_value  = $EVAL_ERROR;
-                    $actual_value
-                        =~ s/ ^ Marpa::R2 \s+ exception \s+ at \s .* \z//xms;
-                    last PROCESSING;
-                } ## end if ($EVAL_ERROR)
-            } while ( $pos < $length );
+                $eval_ok = eval { $pos = $re->resume(); 1 };
+            } ## end while ( $eval_ok and $pos < $length )
+            if ( not $eval_ok ) {
+                $actual_result = "Parse failed before end";
+                $actual_value  = $EVAL_ERROR;
+                $actual_value
+                    =~ s/ ^ Marpa::R2 \s+ exception \s+ at \s .* \z//xms;
+                last PROCESSING;
+            } ## end if ( not $eval_ok )
 
             my $value_ref = $re->value();
             my $last_hand;
