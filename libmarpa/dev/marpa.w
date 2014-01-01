@@ -37,7 +37,7 @@
   \vfill}
 \def\botofcontents{\vfill
 \noindent
-@i copyright_page_license.w
+@i ../shared/copyright_page_license.w
 \bigskip
 \leftline{\sc\today\ at \hours} % timestamps the contents page
 }
@@ -124,27 +124,41 @@
 
 @** License.
 \bigskip\noindent
-@i copyright_page_license.w
+@i ../shared/copyright_page_license.w
 
 @** About this document.
-This document is very much under construction,
-enough so that readers may question why I make it
-available at all.  Two reasons:
-\li Despite its problems, it is the best way to read the source code
-at this point.
-\li Since it is essential to changing the code, not making it available
-could be seen to violate the spirit of the open source.
-@ This will eventually become a real book describing the
-code.
-Much rewriting and reorganization is needed for that
-to happen.
-\par
-Marpa is a very unusual C library -- no system calls, no floating
+The original intent was that this document would evolve
+toward a book describing the code, in roughly the same form as those that
+Don Knuth produces using this system.
+But in fact this document has evolved into
+very heavily commented source code.
+There are lots and lots of notes,
+many quite detailed,
+but little thought is being given to the overall
+``structure'' that a book would need.
+Maybe someday.
+@ One focus is on those sections which have caused the most trouble --
+I make it a habit to think the ideas through and record my thoughts
+here.  That means that those sections which never cause me any problems
+are very lightly documented.
+@ A second focus is on matters that are unlikely to emerge from
+the code itself.
+The matters include
+\li Alternative implementations, and the reasons they
+might be worse and/or better;
+\li Analysis of time and space complexity;
+\li Where needed, proofs of correctness; and
+\li Other mathematical or theoretical considerations.
+@ This document and this way of documenting has proved invaluable for me
+in keeping up what has become a mass of complex code.
+I fear, though, it is less helpful for any other reader, even
+a technically very savvy one.
+
+@ Marpa is a very unusual C library -- no system calls, no floating
 point and almost no arithmetic.  A lot of data structures
 and pointer twiddling.
 I have found that a lot of good coding practices in other
 contexts are not in this one.
-\par
 @ As one example, I intended to fully to avoid abbreviations.
 This is good practice -- in most cases all abbreviations save is
 some typing, at a very high cost in readability.
@@ -155,11 +169,11 @@ $$|To_AHFA_of_YIM_by_NSYID|$$
 that is pretty incomprehensible.
 But is
 $$Aycock\_Horspool\_FA\_To\_State\_of\_Earley\_Item\_by\_Internal\_Symbol\_ID$$,
-(where the FA must still be abbreviated to allow the line to fit into 80 characters)
+where "Finite Automaton" must still be abbreviated as "FA"
+to allow the line to fit into 80 characters,
 really any better?
-\par
 My experience say no.
-I have a lot of practice coming back to pages of both, cold, 
+@ I have a lot of practice coming back to pages of both, cold, 
 and trying to figure them out.
 Both are daunting, but the abbreviations are more elegant, and look
 better on the page, while unabbreviated names routinely pose almost insoluble
@@ -179,18 +193,11 @@ way through.
 Thus the code is highly inconsistent in this respect.
 At the moment,
 that's true of a lot of my other coding conventions.
-\par
-To summarize, the reader who has not yet been scared off,
-needs to be aware that the coding conventions are not yet
-consistent internally, and not yet consistent with their
+@ The reader
+should be aware that the coding conventions may not be
+consistent internally, or
+consistent with their
 documentation.
-@
-The Cweb is being written along with the code.
-If the code works right off the bat, its accompanying text
-will be a first draft.
-The more trouble I had understanding an issue,
-and writing the code,
-the more thorough the documentation.
 
 @** Design.
 @*0 Layers.
@@ -575,7 +582,7 @@ prototypes, look at
 
 @** The public header file.
 @*0 Version constants.
-@<Global variables@> =
+@<Global constant variables@> =
 const unsigned int marpa_major_version = MARPA_MAJOR_VERSION;
 const unsigned int marpa_minor_version = MARPA_MINOR_VERSION;
 const unsigned int marpa_micro_version = MARPA_MICRO_VERSION;
@@ -607,30 +614,6 @@ marpa_version (unsigned int* version)
   *version = MARPA_MICRO_VERSION;
   return 0;
 }
-
-@*0 Header file.
-These and other globals may need
-special variable declarations so that they
-will be exported properly for Windows dlls.
-In Glib, this is done with |GLIB_VAR|.
-similar to
-@<Body of public header file@> =
-extern const unsigned int marpa_major_version;@/
-extern const unsigned int marpa_minor_version;@/
-extern const unsigned int marpa_micro_version;@/
-extern const unsigned int marpa_interface_age;@/
-extern const unsigned int marpa_binary_age;@#
-#define MARPA_CHECK_VERSION(major,minor,micro) @| \
-    @[ (MARPA_MAJOR_VERSION > (major) \
-        @| || (MARPA_MAJOR_VERSION == (major) && MARPA_MINOR_VERSION > (minor)) \
-        @| || (MARPA_MAJOR_VERSION == (major) && MARPA_MINOR_VERSION == (minor) \
-        @|  && MARPA_MICRO_VERSION >= (micro)))
-        @]@#
-@<Public defines@>@;
-@<Public incomplete structures@>@;
-@<Public typedefs@>@;
-@<Public structures@>@;
-@<Public function prototypes@>@;
 
 @** Config (C) code.
 @ @<Public structures@> =
@@ -684,7 +667,7 @@ Marpa_Grammar marpa_g_new (Marpa_Config* configuration)
         configuration->t_error = MARPA_ERR_I_AM_NOT_OK;
         return NULL;
     }
-    g = marpa_malloc(sizeof(struct marpa_g));
+    g = my_malloc(sizeof(struct marpa_g));
     /* \comment Set |t_is_ok| to a bad value, just in case */
     g->t_is_ok = 0;
     @<Initialize grammar elements@>@;
@@ -739,7 +722,7 @@ PRIVATE
 void grammar_free(GRAMMAR g)
 {
     @<Destroy grammar elements@>@;
-    marpa_free(g);
+    my_free(g);
 }
 
 @*0 The grammar's symbol list.
@@ -1173,6 +1156,10 @@ cilar_init(&(g)->t_cilar);
 cilar_destroy(&(g)->t_cilar);
 
 @*0 The "is OK" word.
+@ {\bf To Do}: @^To Do@>
+I probably should delete this.
+I don't use it in the SLIF.
+@ 
 The grammar needs a flag for a fatal error.
 This is an |int| for defensive coding reasons.
 Since I am paying the code of an |int|,
@@ -3679,7 +3666,7 @@ Change so that this runs only if there are prediction events.
   XRLID xrlid;
   int nullable_xsy_count = 0;   /* Use this to make sure we
                                    have enough CILAR buffer space */
-  void* matrix_buffer = marpa_malloc(matrix_sizeof(
+  void* matrix_buffer = my_malloc(matrix_sizeof(
      (unsigned int) pre_census_xsy_count,
                        (unsigned int) pre_census_xsy_count)); /* This
   matrix is large and very temporary, so it does not go on the obstack */
@@ -3717,7 +3704,7 @@ Change so that this runs only if there are prediction events.
       Nulled_XSYIDs_of_XSYID (xsyid) = 
         cil_bv_add(&g->t_cilar, bv_nullifications_by_to_xsy);
     }
-    marpa_free(matrix_buffer);
+    my_free(matrix_buffer);
 }
 
 @** The sequence rewrite.
@@ -4763,7 +4750,7 @@ I test that |g->t_AHFA_items| is non-zero.
 @ @<Initialize grammar elements@> =
 g->t_AHFA_items = NULL;
 @ @<Destroy grammar elements@> =
-     marpa_free(g->t_AHFA_items);
+     my_free(g->t_AHFA_items);
 
 @ Check that AHFA item ID is in valid range.
 @<Function definitions@> =
@@ -5007,7 +4994,7 @@ AHFA item as its new, final ID.
     {
       Sort_Key_of_AIM (sort_array[item_id]) = item_id;
     }
-  marpa_free (sort_array);
+  my_free (sort_array);
 }
 
 @** AHFA state (AHFA) code.
@@ -5139,10 +5126,6 @@ PRIVATE void AHFA_initialize(AHFA ahfa)
 
 @*0 Complete symbols container.
 @
-Simple completions are those which can be determined directly from the AHFA state ID,
-with knowing the history of the parse.
-Completion events are completions of symbols which have been set up
-for completion events.
 Direct completion events are the completion events
 that are direct results of the rules contained in the current AHFA state.
 Indirect completion events include all possible completions,
@@ -5701,11 +5684,11 @@ You can get the AIM from the AEX, but not vice versa.
 }
 
 @ @<Free locals for creating AHFA states@> =
-   marpa_free(irl_by_sort_key);
+   my_free(irl_by_sort_key);
     @<Free duplicates data structures@>@;
 
 @ @<Free duplicates data structures@> =
-marpa_free(singleton_duplicates);
+my_free(singleton_duplicates);
 _marpa_avl_destroy(duplicates);
 
 @ @<Construct initial AHFA states@> =
@@ -6158,7 +6141,7 @@ with |S2| on its LHS.
     @<Populate |irl_by_sort_key|@>@/
     @<Populate |sort_key_by_irl_id| with second pass value@>@/
     @<Populate the prediction matrix@>@/
-    marpa_free(sort_key_by_irl_id);
+    my_free(sort_key_by_irl_id);
 }
 
 @ For creating prediction AHFA states, we need to have an ordering of rules
@@ -6757,7 +6740,7 @@ struct s_input {
 @ @<Function definitions@> =
 PRIVATE INPUT input_new (GRAMMAR g)
 {
-  INPUT input = marpa_malloc (sizeof(struct s_input));
+  INPUT input = my_malloc (sizeof(struct s_input));
   TOK_Obs_of_I (input) = marpa_obs_init;
   @<Initialize input elements@>@;
   return input;
@@ -6800,7 +6783,7 @@ guarantee that it is safe to destroy it.
 PRIVATE void input_free(INPUT input)
 {
     marpa_obs_free(TOK_Obs_of_I(input));
-    marpa_free( input);
+    my_free( input);
 }
 
 @*0 Token obstack.
@@ -6859,7 +6842,7 @@ Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
     @<Return |NULL| on failure@>@;
     @<Fail if not precomputed@>@;
     nsy_count = NSY_Count_of_G(g);
-    r = marpa_malloc(sizeof(struct marpa_r));
+    r = my_malloc(sizeof(struct marpa_r));
     @<Initialize recognizer obstack@>@;
     @<Initialize recognizer elements@>@;
    return r;
@@ -6911,7 +6894,7 @@ void recce_free(struct marpa_r *r)
     @<Destroy recognizer elements@>@;
     grammar_unref(g);
     @<Destroy recognizer obstack@>@;
-    marpa_free( r);
+    my_free( r);
 }
 
 @*0 Base objects.
@@ -11042,7 +11025,7 @@ union u_or_node {
 };
 typedef union u_or_node OR_Object;
 
-@ @<Global variables@> =
+@ @<Global constant variables@> =
 static const int dummy_or_node_type = DUMMY_OR_NODE;
 static const OR dummy_or_node = (OR)&dummy_or_node_type;
 
@@ -11071,9 +11054,9 @@ Top_ORID_of_B(b) = -1;
 {
   OR* or_nodes = ORs_of_B (b);
   AND and_nodes = ANDs_of_B (b);
-  marpa_free (or_nodes);
+  my_free (or_nodes);
   ORs_of_B (b) = NULL;
-  marpa_free (and_nodes);
+  my_free (and_nodes);
   ANDs_of_B (b) = NULL;
 }
 
@@ -12243,7 +12226,7 @@ struct marpa_progress_item {
 @ A dummy progress report item to allow the macros to
 produce error reports without having to use a ternary,
 and getting into issues of evaluation the argument twice.
-@<Global variables@> =
+@<Global constant variables@> =
 static const struct marpa_progress_item progress_report_not_ready = { -2, -2, -2 };
 
 @
@@ -12858,7 +12841,7 @@ Marpa_Order marpa_o_new(Marpa_Bocage b)
     @<Unpack bocage objects@>@;
     ORDER o;
     @<Fail if fatal error@>@;
-    o = marpa_malloc(sizeof(*o));
+    o = my_malloc(sizeof(*o));
     B_of_O(o) = b;
     bocage_ref(b);
     @<Pre-initialize order elements@>@;
@@ -12911,7 +12894,7 @@ PRIVATE void order_free(ORDER o)
   @<Unpack order objects@>@;
   bocage_unref(b);
   marpa_obs_free(OBS_of_O(o));
-  marpa_free( o);
+  my_free( o);
 }
 
 @ @<Unpack order objects@> =
@@ -13142,7 +13125,7 @@ int marpa_o_rank( Marpa_Order o)
         @<Sort |work_or_node| for "rank by rule"@>@;
       or_node_id++;
     }
-   marpa_free(rank_by_and_id);
+   my_free(rank_by_and_id);
 }
 
 @ An insertion sort is used here, which is
@@ -13335,7 +13318,7 @@ Marpa_Tree marpa_t_new(Marpa_Order o)
     TREE t;
     @<Unpack order objects@>@;
     @<Fail if fatal error@>@;
-    t = marpa_malloc(sizeof(*t));
+    t = my_malloc(sizeof(*t));
     O_of_T(t) = o;
     order_ref(o);
     O_is_Frozen(o) = 1;
@@ -13409,7 +13392,7 @@ PRIVATE void tree_free(TREE t)
 {
     order_unref(O_of_T(t));
     tree_exhaust(t);
-    marpa_free( t);
+    my_free( t);
 }
 
 @*0 Tree pause counting.
@@ -14627,7 +14610,7 @@ typedef Bit_Vector_Word* Bit_Vector;
 @d BV_BITS(bv) *(bv-3)
 @d BV_SIZE(bv) *(bv-2)
 @d BV_MASK(bv) *(bv-1)
-@<Global variables@> =
+@<Global constant variables@> =
 static const unsigned int bv_wordbits = lbv_wordbits;
 static const unsigned int bv_modmask = lbv_wordbits - 1u;
 static const unsigned int bv_hiddenwords = 3;
@@ -14660,7 +14643,7 @@ PRIVATE Bit_Vector bv_create(unsigned int bits)
 {
     unsigned int size = bv_bits_to_size(bits);
     unsigned int bytes = (size + bv_hiddenwords) * sizeof(Bit_Vector_Word);
-    unsigned int* addr = (Bit_Vector) marpa_malloc0((size_t) bytes);
+    unsigned int* addr = (Bit_Vector) my_malloc0((size_t) bytes);
     *addr++ = bits;
     *addr++ = size;
     *addr++ = bv_bits_to_unused_mask(bits);
@@ -14746,7 +14729,7 @@ PRIVATE void bv_free(Bit_Vector vector)
     if (_MARPA_LIKELY(vector != NULL))
     {
         vector -= bv_hiddenwords;
-        marpa_free(vector);
+        my_free(vector);
     }
 }
 
@@ -15280,7 +15263,7 @@ set up, in which case they can be made very fast.
 @d FSTACK_PUSH(stack) ((stack).t_base+stack.t_count++)
 @d FSTACK_POP(stack) ((stack).t_count <= 0 ? NULL : (stack).t_base+(--(stack).t_count))
 @d FSTACK_IS_INITIALIZED(stack) ((stack).t_base)
-@d FSTACK_DESTROY(stack) (marpa_free((stack).t_base))
+@d FSTACK_DESTROY(stack) (my_free((stack).t_base))
 
 @*0 Dynamic queues.
 This is simply a dynamic stack extended with a second
@@ -15752,7 +15735,7 @@ PRIVATE void psar_destroy(const PSAR psar)
         PSL *owner = psl->t_owner;
         if (owner)
           *owner = NULL;
-        marpa_free ( psl);
+        my_free ( psl);
         psl = next_psl;
       }
 }
@@ -15760,7 +15743,7 @@ PRIVATE void psar_destroy(const PSAR psar)
 PRIVATE PSL psl_new(const PSAR psar)
 {
      int i;
-     PSL new_psl = marpa_malloc(Sizeof_PSL(psar));
+     PSL new_psl = my_malloc(Sizeof_PSL(psar));
      new_psl->t_next = NULL;
      new_psl->t_prev = NULL;
      new_psl->t_owner = NULL;
@@ -15861,30 +15844,6 @@ PRIVATE PSL psl_alloc(const PSAR psar)
     psar->t_first_free_psl = next_psl;
     return free_psl;
 }
-
-@** Memory allocation.
-
-@*0 Memory allocation failures.
-@ By default,
-a memory allocation failure
-inside the Marpa library is a fatal error.
-At some point I may allow this to be reset.
-What else an application can do is not at all clear,
-which is why the usual practice 
-is to treatment memory allocation errors are
-fatal, irrecoverable problems.
-These functions all return |void*| in order
-to avoid compiler warnings about void returns.
-@<Function definitions@> =
-PRIVATE_NOT_INLINE void*
-_marpa_default_out_of_memory(void)
-{
-    abort();
-}
-void* (* const _marpa_out_of_memory)(void) = _marpa_default_out_of_memory;
-
-@ @<Utility variables@> =
-extern void* (* const _marpa_out_of_memory)(void);
 
 @*0 Obstacks.
 |libmarpa| uses the system malloc,
@@ -16106,116 +16065,72 @@ serious internal problems,
 memory allocation failures,
 and debugging.
 
-@<Public typedefs@> =
+@** Memory allocation.
+
+@ Most of the memory allocation logic is in other
+documents.
+Here is its potentially public interface,
+the configurable
+failure handler.
+By default,
+a memory allocation failure
+inside the Marpa library is a fatal error.
+@ The default handler can be changed, but this
+is not documented for two reasons.
+First, it is not tested.
+Second,
+What else an application can do is not at all clear.
+Nearly universal practice
+is to treatment memory allocation errors are
+fatal, irrecoverable problems.
+These functions all return |void*| in order
+to avoid compiler warnings about void returns.
+@<Function definitions@> =
+PRIVATE_NOT_INLINE void*
+marpa__default_out_of_memory(void)
+{
+    abort();
+}
+void* (* const marpa__out_of_memory)(void) = marpa__default_out_of_memory;
+
+@ @<Debugging variable declarations@> =
+extern void* (* const marpa__out_of_memory)(void);
+
+@ @<Public typedefs@> =
 typedef const char* Marpa_Message_ID;
 
-@** Debugging.
-The |MARPA_DEBUG| flag enables intrusive debugging logic.
-``Intrusive" debugging includes things which would
-be annoying in production, such as detailed messages about
-internal matters on |STDERR|.
-|MARPA_DEBUG| is expected to be defined in the |CFLAGS|.
-|MARPA_DEBUG| implies |MARPA_ENABLE_ASSERT|, but not
-vice versa.
-@<Debug macros@> =
-#define MARPA_OFF_DEBUG1(a)
-#define MARPA_OFF_DEBUG2(a, b)
-#define MARPA_OFF_DEBUG3(a, b, c)
-#define MARPA_OFF_DEBUG4(a, b, c, d)
-#define MARPA_OFF_DEBUG5(a, b, c, d, e)
-#define MARPA_OFF_ASSERT(expr)
-@ Returns int so that it can be portably used
-in a logically-anded expression.
-@<Debug function definitions@> =
-int _marpa_default_debug_handler (const char *format, ...)
+@** Debugging functions.
+Much of the debugging logic is in other documents.
+Here is the public interface, which allows resetting the
+debug handler and the debug level,
+as well as functions which are targeted at debugging the
+data structures describes in this document.
+@<Debugging variable declarations@> =
+extern int marpa__default_debug_handler (const char *format, ...);
+extern int (*marpa__debug_handler)(const char*, ...);
+extern int marpa__debug_level;
+
+@ @<Function definitions@> =
+void marpa_debug_handler_set( int (*debug_handler)(const char*, ...) )
 {
-   va_list args;
-   va_start (args, format);
-   vfprintf (stderr, format, args);
-   va_end (args);
-   putc('\n', stderr);
-   return 1;
+    marpa__debug_handler = debug_handler;
+}
+
+@ @<Function definitions@> =
+void marpa_debug_level_set( int level )
+{
+    marpa__debug_level = level;
 }
 
 
-@ @<Utility variables@> =
-extern int (*_marpa_debug_handler)(const char*, ...);
-extern int _marpa_debug_level;
 @ For thread-safety, these are for debugging only.
 Even in debugging, while not actually initialized constants,
 they are intended to be set very early
 and left unchanged.
-@<Utility variables@> =
-#if MARPA_DEBUG > 0
-extern int _marpa_default_debug_handler (const char *format, ...);
-#define MARPA_DEFAULT_DEBUG_HANDLER _marpa_default_debug_handler
-#else
-#define MARPA_DEFAULT_DEBUG_HANDLER NULL
-#endif
-
-@ @<Global variables@> =
-int (*_marpa_debug_handler)(const char*, ...) =
-    MARPA_DEFAULT_DEBUG_HANDLER;
-int _marpa_debug_level = 0;
-
-@ @<Public function prototypes@> =
-void marpa_debug_handler_set( int (*debug_handler)(const char*, ...) );
-@ @<Function definitions@> =
-void marpa_debug_handler_set( int (*debug_handler)(const char*, ...) )
-{
-    _marpa_debug_handler = debug_handler;
-}
-
-@ @<Public function prototypes@> =
-void marpa_debug_level_set( int level );
-@ @<Function definitions@> =
-void marpa_debug_level_set( int level )
-{
-    _marpa_debug_level = level;
-}
-
-@ @<Debug macros@> =
-
-#ifndef MARPA_DEBUG
-#define MARPA_DEBUG 0
-#endif
-
-#if MARPA_DEBUG
-
-#undef MARPA_ENABLE_ASSERT
-#define MARPA_ENABLE_ASSERT 1
-
-#define MARPA_DEBUG1(a) @[ (_marpa_debug_level && \
-    (*_marpa_debug_handler)(a)) @]
-#define MARPA_DEBUG2(a,b) @[ (_marpa_debug_level && \
-    (*_marpa_debug_handler)((a),(b))) @]
-#define MARPA_DEBUG3(a,b,c) @[ (_marpa_debug_level && \
-    (*_marpa_debug_handler)((a),(b),(c))) @]
-#define MARPA_DEBUG4(a,b,c,d) @[ (_marpa_debug_level && \
-    (*_marpa_debug_handler)((a),(b),(c),(d))) @]
-#define MARPA_DEBUG5(a,b,c,d,e) @[ (_marpa_debug_level && \
-    (*_marpa_debug_handler)((a),(b),(c),(d),(e))) @]
-
-#define MARPA_ASSERT(expr) do { if _MARPA_LIKELY (expr) ; else \
-       (*_marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
-#else /* if not |MARPA_DEBUG| */
-#define MARPA_DEBUG1(a) @[@]
-#define MARPA_DEBUG2(a, b) @[@]
-#define MARPA_DEBUG3(a, b, c) @[@]
-#define MARPA_DEBUG4(a, b, c, d) @[@]
-#define MARPA_DEBUG5(a, b, c, d, e) @[@]
-#define MARPA_ASSERT(exp) @[@]
-#endif
-
-#ifndef MARPA_ENABLE_ASSERT
-#define MARPA_ENABLE_ASSERT 0
-#endif
-
-#if MARPA_ENABLE_ASSERT
-#undef MARPA_ASSERT
-#define MARPA_ASSERT(expr) do { if _MARPA_LIKELY (expr) ; else \
-       (*_marpa_debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
-#endif
+@ @<Global debugging variables@> =
+int (*marpa__debug_handler)(const char*, ...) =
+    marpa__default_debug_handler;
+int marpa__debug_level = 0;
 
 @*0 Earley item tag.
 A function to print a descriptive tag for
@@ -16340,52 +16255,16 @@ not intended to be edited directly.
 So I add such a comment.
 
 @*0 |marpa.c| layout.
-@q This is a hack to get the @>
-@q license language nearer the top of the files. @>
-@ The physical structure of the |marpa.c| file
-\tenpoint
-@c
-@=/*@>@/
-@= * Copyright 2013 Jeffrey Kegler@>@/
-@= * This file is part of Marpa::R2.  Marpa::R2 is free software: you can@>@/
-@= * redistribute it and/or modify it under the terms of the GNU Lesser@>@/
-@= * General Public License as published by the Free Software Foundation,@>@/
-@= * either version 3 of the License, or (at your option) any later version.@>@/
-@= *@>@/
-@= * Marpa::R2 is distributed in the hope that it will be useful,@>@/
-@= * but WITHOUT ANY WARRANTY; without even the implied warranty of@>@/
-@= * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU@>@/
-@= * Lesser General Public License for more details.@>@/
-@= *@>@/
-@= * You should have received a copy of the GNU Lesser@>@/
-@= * General Public License along with Marpa::R2.  If not, see@>@/
-@= * http://www.gnu.org/licenses/.@>@/
-@= */@>@/
-@=/*@>@/
-@= * DO NOT EDIT DIRECTLY@>@/
-@= * This file is written by ctangle@>@/
-@= * It is not intended to be modified directly@>@/
-@= */@>@/
 
-@ \twelvepoint @c
+@ @(marpa.c.p10@> =
+
 #include "config.h"
 #include "marpa.h"
-#include "marpa_int.h"
-#include <stddef.h>
-#include <limits.h>
-#include <string.h>
-#include <stdlib.h>
 
 #ifndef MARPA_DEBUG
 #define MARPA_DEBUG 0
 #endif
 
-#if MARPA_DEBUG
-#include <stdarg.h>
-#include <stdio.h>
-#endif
-
-#include "marpa_util.h"
 #include "marpa_ami.h"
 @h
 #include "marpa_obs.h"
@@ -16394,147 +16273,49 @@ So I add such a comment.
 @<Private typedefs@>@;
 @<Private utility structures@>@;
 @<Private structures@>@;
-@<Global variables@>@;
+
+@ To preserve thread-safety,
+global variables are either constants,
+or used strictly for debugging.
+@(marpa.c.p10@> =
+@<Global constant variables@>@;
+
+@ @(marpa.c.p10@> =
 @<Recognizer structure@>@;
 @<Source object structure@>@;
 @<Earley item structure@>@;
 @<Bocage structure@>@;
-#include "private.h"
+
+@ @(marpa.c.p50@> =
+@<Debugging variable declarations@>@;
 #if MARPA_DEBUG
 @<Debug function prototypes@>@;
 @<Debug function definitions@>@;
 #endif
+@<Global debugging variables@>@;
 @<Function definitions@>@;
 
-@ This is the license language for the header files.
-\tenpoint
-@<Header license language@> =
-@=/*@>@/
-@= * Copyright 2013 Jeffrey Kegler@>@/
-@= * This file is part of Marpa::R2.  Marpa::R2 is free software: you can@>@/
-@= * redistribute it and/or modify it under the terms of the GNU Lesser@>@/
-@= * General Public License as published by the Free Software Foundation,@>@/
-@= * either version 3 of the License, or (at your option) any later version.@>@/
-@= *@>@/
-@= * Marpa::R2 is distributed in the hope that it will be useful,@>@/
-@= * but WITHOUT ANY WARRANTY; without even the implied warranty of@>@/
-@= * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU@>@/
-@= * Lesser General Public License for more details.@>@/
-@= *@>@/
-@= * You should have received a copy of the GNU Lesser@>@/
-@= * General Public License along with Marpa::R2.  If not, see@>@/
-@= * http://www.gnu.org/licenses/.@>@/
-@= */@>@/
-@=/*@>@/
-@= * DO NOT EDIT DIRECTLY@>@/
-@= * This file is written by ctangle@>@/
-@= * It is not intended to be modified directly@>@/
-@= */@>@/
+@*0 Public header file.
+@ Our portion of the public header file.
+@ @(marpa.h.p50@> =
+extern const unsigned int marpa_major_version;
+extern const unsigned int marpa_minor_version;
+extern const unsigned int marpa_micro_version;
+extern const unsigned int marpa_interface_age;
+extern const unsigned int marpa_binary_age;
 
-@ \twelvepoint
+#define MARPA_CHECK_VERSION(major,minor,micro) @| \
+    @[ (MARPA_MAJOR_VERSION > (major) \
+        @| || (MARPA_MAJOR_VERSION == (major) && MARPA_MINOR_VERSION > (minor)) \
+        @| || (MARPA_MAJOR_VERSION == (major) && MARPA_MINOR_VERSION == (minor) \
+        @|  && MARPA_MICRO_VERSION >= (micro)))
+        @]@#
 
-@*0 |marpa.h| layout.
-@ The physical structure of the |marpa.h| file
-\tenpoint
-@ @(marpa.h@> =
-@<Header license language@>@;
-
-#ifndef _MARPA_H__
-#define _MARPA_H__ 1
-#include "marpa_config.h"
-
-@<Body of public header file@>
-
-#include "marpa_api.h"
-#endif /* |_MARPA_H__| */
-
-@*0 |marpa_int.h| layout.
-This contains ``internal'' declarations
-and definitions.
-They allow themselves to intrude on the namespace reserved
-for the application and non-Marpa libraries.
-This makes them suitable only for source files
-in which the namespace is fully controlled
-by the Libmarpa implementor.
-They cannot be used in ``friend'' libraries.
-\tenpoint
-@(marpa_int.h@> =
-@<Header license language@>@;
-
-#ifndef _MARPA_INT_H__
-#define _MARPA_INT_H__ 1
-
-@<Internal macros@>
-
-#endif /* |_MARPA__INT_H__| */
-
-@*0 |marpa_util.h| layout.
-This contains ``utility'' declarations,
-which are in an ill-defined area, such
-as error handling.
-They should be namespace-safe for friend libraries,
-but may be unsuitable for them for other reasons.
-\tenpoint
-@(marpa_util.h@> =
-@<Header license language@>@;
-
-#ifndef _MARPA_UTIL_H__
-#define _MARPA_UTIL_H__ 1
-
-@<Debug macros@>
-@<Utility variables@>
-
-#endif /* |_MARPA_UTIL_H__| */
-
-@** Miscellaneous compiler defines.
-Various defines to
-control the compiler behavior
-in various ways or which are otherwise useful.
-@<Internal macros@> =
-
-#if     __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#define UNUSED __attribute__((__unused__))
-#else
-#define UNUSED
-#endif
-
-#if defined (__GNUC__) && defined (__STRICT_ANSI__)
-#  undef inline
-#  define inline __inline__
-#endif
-
-#undef      MAX
-#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
-
-#undef      CLAMP
-#define CLAMP(x, low, high)  (((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
-
-#undef STRINGIFY_ARG
-#define STRINGIFY_ARG(contents)       #contents
-#undef STRINGIFY
-#define STRINGIFY(macro_or_string)        STRINGIFY_ARG (macro_or_string)
-
-/* A string identifying the current code position */
-#if defined(__GNUC__) && (__GNUC__ < 3) && !defined(__cplusplus)
-#  define STRLOC        __FILE__ ":" STRINGIFY (__LINE__) ":" __PRETTY_FUNCTION__ "()"
-#else
-#  define STRLOC        __FILE__ ":" STRINGIFY (__LINE__)
-#endif
-
-/* Provide a string identifying the current function, non-concatenatable */
-#if defined (__GNUC__)
-#  define STRFUNC     ((const char*) (__PRETTY_FUNCTION__))
-#elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 19901L
-#  define STRFUNC     ((const char*) (__func__))
-#else
-#  define STRFUNC     ((const char*) ("???"))
-#endif
-
-#if defined __GNUC__
-# define alignof(type) (__alignof__(type))
-#else
-# define alignof(type) (offsetof (struct { char __slot1; type __slot2; }, __slot2))
-#endif
+@<Public defines@>@;
+@<Public incomplete structures@>@;
+@<Public typedefs@>@;
+@<Public structures@>@;
+@<Debugging variable declarations@>@;
 
 @** Index.
 

@@ -1,8 +1,8 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (25 December 2013) is for the internals of Libmarpa
-5.178.100.
+This manual (31 December 2013) is for the internals of Libmarpa
+5.179.101.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -18,8 +18,8 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (25 December 2013) is for the internals of Libmarpa
-5.178.100.
+This manual (31 December 2013) is for the internals of Libmarpa
+5.179.101.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -48,6 +48,7 @@ Internal Interface
 * Ordering internals::
 * Tree internals::
 * Valuator internals::
+* Debugging methods::
 
 
 File: internal.info,  Node: Copying,  Next: About this document,  Prev: Top,  Up: Top
@@ -263,6 +264,7 @@ be included below, but all applications should treat these methods as
 * Ordering internals::
 * Tree internals::
 * Valuator internals::
+* Debugging methods::
 
 
 File: internal.info,  Node: Symbol internal methods,  Next: Rule internals,  Prev: Internal Interface,  Up: Internal Interface
@@ -644,7 +646,7 @@ be thought of as a pun on both "node" and "fork".
      Return the is-predecessor bit for NOOK_ID.
 
 
-File: internal.info,  Node: Valuator internals,  Prev: Tree internals,  Up: Internal Interface
+File: internal.info,  Node: Valuator internals,  Next: Debugging methods,  Prev: Tree internals,  Up: Internal Interface
 
 2.8 Valuator internals
 ======================
@@ -652,6 +654,17 @@ File: internal.info,  Node: Valuator internals,  Prev: Tree internals,  Up: Inte
  -- Function: int _marpa_v_trace ( Marpa_Value V, int FLAG)
 
  -- Function: Marpa_Nook_ID _marpa_v_nook ( Marpa_Value V)
+
+
+File: internal.info,  Node: Debugging methods,  Prev: Valuator internals,  Up: Internal Interface
+
+2.9 Debugging methods
+=====================
+
+ -- Function: void marpa_debug_level_set ( int LEVEL )
+
+ -- Function: void marpa_debug_handler_set ( int (*DEBUG_HANDLER)(const
+          char*, ...) )
 
 
 File: internal.info,  Node: GNU Free Documentation License,  Prev: Internal Interface,  Up: Top
@@ -1143,17 +1156,18 @@ permit their use in free software.
 
 Tag Table:
 Node: Top513
-Node: Copying1405
-Node: About this document9841
-Node: Internal Interface10149
-Node: Symbol internal methods10917
-Node: Rule internals12591
-Node: Grammar internals15231
-Node: Recognizer internals16935
-Node: Bocage internals19809
-Node: Ordering internals22334
-Node: Tree internals22849
-Node: Valuator internals24857
-Node: GNU Free Documentation License25123
+Node: Copying1427
+Node: About this document9863
+Node: Internal Interface10171
+Node: Symbol internal methods10961
+Node: Rule internals12635
+Node: Grammar internals15275
+Node: Recognizer internals16979
+Node: Bocage internals19853
+Node: Ordering internals22378
+Node: Tree internals22893
+Node: Valuator internals24901
+Node: Debugging methods25193
+Node: GNU Free Documentation License25492
 
 End Tag Table

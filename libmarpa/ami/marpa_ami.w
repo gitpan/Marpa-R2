@@ -37,7 +37,7 @@
   \vfill}
 \def\botofcontents{\vfill
 \noindent
-@i copyright_page_license.w
+@i ../shared/copyright_page_license.w
 \bigskip
 \leftline{\sc\today\ at \hours} % timestamps the contents page
 }
@@ -124,7 +124,7 @@
 
 @** License.
 \bigskip\noindent
-@i copyright_page_license.w
+@i ../shared/copyright_page_license.w
 
 @** Introduction.
 @*0 About this library.
@@ -185,7 +185,7 @@ used in a private function.
 libmarpa wrappers the standard memory functions
 to provide more convenient behaviors.
 \li The allocators do not return on failed memory allocations.
-\li |marpa_realloc| is equivalent to |marpa_malloc| if called with
+\li |my_realloc| is equivalent to |my_malloc| if called with
 a |NULL| pointer.  (This is the GNU C library behavior.)
 @ {\bf To Do}: @^To Do@>
 For the moment, the memory allocators are hard-wired to
@@ -195,7 +195,7 @@ these choices.
 
 @<Friend static inline functions@> =
 static inline
-void marpa_free (void *p)
+void my_free (void *p)
 {
   free (p);
 }
@@ -203,38 +203,38 @@ void marpa_free (void *p)
 @ @<Friend static inline functions@> =
 
 static inline
-void* marpa_malloc(size_t size)
+void* my_malloc(size_t size)
 {
     void *newmem = malloc(size);
-    if (_MARPA_UNLIKELY(!newmem)) { (*_marpa_out_of_memory)(); }
+    if (_MARPA_UNLIKELY(!newmem)) { (*marpa__out_of_memory)(); }
     return newmem;
 }
 
 static inline
 void*
-marpa_malloc0(size_t size)
+my_malloc0(size_t size)
 {
-    void* newmem = marpa_malloc(size);
+    void* newmem = my_malloc(size);
     memset (newmem, 0, size);
     return newmem;
 }
 
 static inline
 void*
-marpa_realloc(void *p, size_t size)
+my_realloc(void *p, size_t size)
 {
    if (_MARPA_LIKELY(p != NULL)) {
         void *newmem = realloc(p, size);
-        if (_MARPA_UNLIKELY(!newmem)) (*_marpa_out_of_memory)();
+        if (_MARPA_UNLIKELY(!newmem)) (*marpa__out_of_memory)();
         return newmem;
    }
-   return marpa_malloc(size);
+   return my_malloc(size);
 }
 
 @
-@d marpa_new(type, count) ((type *)marpa_malloc((sizeof(type)*(count))))
+@d marpa_new(type, count) ((type *)my_malloc((sizeof(type)*(count))))
 @d marpa_renew(type, p, count) 
-    ((type *)marpa_realloc((p), (sizeof(type)*(count))))
+    ((type *)my_realloc((p), (sizeof(type)*(count))))
 
 @** Dynamic stacks.
 |libmarpa| uses stacks and worklists extensively.
@@ -304,7 +304,7 @@ resizings unnecessary.
 The |MARPA_STOLEN_DSTACK_DATA_FREE| macro is intended
 to help the ``thief" container
 deallocate the data it now has ``stolen".
-@d MARPA_STOLEN_DSTACK_DATA_FREE(data) (marpa_free(data))
+@d MARPA_STOLEN_DSTACK_DATA_FREE(data) (my_free(data))
 @d MARPA_DSTACK_DESTROY(this) MARPA_STOLEN_DSTACK_DATA_FREE(this.t_base)
 @s MARPA_DSTACK int
 @<Friend incomplete structures@> =
@@ -330,10 +330,133 @@ marpa_dstack_resize (struct marpa_dstack_s *this, size_t type_bytes,
     {                           /* We do not shrink the stack
                                    in this method */
       this->t_capacity = new_size;
-      this->t_base = marpa_realloc (this->t_base, new_size * type_bytes);
+      this->t_base = my_realloc (this->t_base, new_size * type_bytes);
     }
   return this->t_base;
 }
+
+@** Debugging.
+The |MARPA_DEBUG| flag enables intrusive debugging logic.
+``Intrusive" debugging includes things which would
+be annoying in production, such as detailed messages about
+internal matters on |STDERR|.
+|MARPA_DEBUG| is expected to be defined in the |CFLAGS|.
+|MARPA_DEBUG| implies |MARPA_ENABLE_ASSERT|, but not
+vice versa.
+@<Debug macros@> =
+#define MARPA_OFF_DEBUG1(a)
+#define MARPA_OFF_DEBUG2(a, b)
+#define MARPA_OFF_DEBUG3(a, b, c)
+#define MARPA_OFF_DEBUG4(a, b, c, d)
+#define MARPA_OFF_DEBUG5(a, b, c, d, e)
+#define MARPA_OFF_ASSERT(expr)
+@ Returns int so that it can be portably used
+in a logically-anded expression.
+@<Function definitions@> =
+int marpa__default_debug_handler (const char *format, ...)
+{
+   va_list args;
+   va_start (args, format);
+   vfprintf (stderr, format, args);
+   va_end (args);
+   putc('\n', stderr);
+   return 1;
+}
+
+
+@ @<Debug macros@> =
+
+#ifndef MARPA_DEBUG
+#define MARPA_DEBUG 0
+#endif
+
+#if MARPA_DEBUG
+
+#undef MARPA_ENABLE_ASSERT
+#define MARPA_ENABLE_ASSERT 1
+
+#define MARPA_DEBUG1(a) @[ (marpa__debug_level && \
+    (*marpa__debug_handler)(a)) @]
+#define MARPA_DEBUG2(a,b) @[ (marpa__debug_level && \
+    (*marpa__debug_handler)((a),(b))) @]
+#define MARPA_DEBUG3(a,b,c) @[ (marpa__debug_level && \
+    (*marpa__debug_handler)((a),(b),(c))) @]
+#define MARPA_DEBUG4(a,b,c,d) @[ (marpa__debug_level && \
+    (*marpa__debug_handler)((a),(b),(c),(d))) @]
+#define MARPA_DEBUG5(a,b,c,d,e) @[ (marpa__debug_level && \
+    (*marpa__debug_handler)((a),(b),(c),(d),(e))) @]
+
+#define MARPA_ASSERT(expr) do { if _MARPA_LIKELY (expr) ; else \
+       (*marpa__debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
+#else /* if not |MARPA_DEBUG| */
+#define MARPA_DEBUG1(a) @[@]
+#define MARPA_DEBUG2(a, b) @[@]
+#define MARPA_DEBUG3(a, b, c) @[@]
+#define MARPA_DEBUG4(a, b, c, d) @[@]
+#define MARPA_DEBUG5(a, b, c, d, e) @[@]
+#define MARPA_ASSERT(exp) @[@]
+#endif
+
+#ifndef MARPA_ENABLE_ASSERT
+#define MARPA_ENABLE_ASSERT 0
+#endif
+
+#if MARPA_ENABLE_ASSERT
+#undef MARPA_ASSERT
+#define MARPA_ASSERT(expr) do { if _MARPA_LIKELY (expr) ; else \
+       (*marpa__debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
+#endif
+
+@*0 Internal macros.
+@<Internal macros@> =
+
+#if     __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#define UNUSED __attribute__((__unused__))
+#else
+#define UNUSED
+#endif
+
+#if defined (__GNUC__) && defined (__STRICT_ANSI__)
+#  undef inline
+#  define inline __inline__
+#endif
+
+#undef Dim
+#define Dim(x) (sizeof(x)/sizeof(*x))
+
+#undef      MAX
+#define MAX(a, b)  (((a) > (b)) ? (a) : (b))
+
+#undef      CLAMP
+#define CLAMP(x, low, high)  (((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
+
+#undef STRINGIFY_ARG
+#define STRINGIFY_ARG(contents)       #contents
+#undef STRINGIFY
+#define STRINGIFY(macro_or_string)        STRINGIFY_ARG (macro_or_string)
+
+/* A string identifying the current code position */
+#if defined(__GNUC__) && (__GNUC__ < 3) && !defined(__cplusplus)
+#  define STRLOC        __FILE__ ":" STRINGIFY (__LINE__) ":" __PRETTY_FUNCTION__ "()"
+#else
+#  define STRLOC        __FILE__ ":" STRINGIFY (__LINE__)
+#endif
+
+/* Provide a string identifying the current function, non-concatenatable */
+#if defined (__GNUC__)
+#  define STRFUNC     ((const char*) (__PRETTY_FUNCTION__))
+#elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 19901L
+#  define STRFUNC     ((const char*) (__func__))
+#else
+#  define STRFUNC     ((const char*) ("???"))
+#endif
+
+#if defined __GNUC__
+# define alignof(type) (__alignof__(type))
+#else
+# define alignof(type) (offsetof (struct { char __slot1; type __slot2; }, __slot2))
+#endif
+
 @** File layout.  
 @ The output files are written in pieces,
 with the license prepended,
@@ -349,12 +472,10 @@ not intended to be edited directly.
 So I add such a comment.
 
 @*0 |marpa_ami.h| layout, first piece.
-@(marpa_ami.h.p1@> =
+@(marpa_ami.h.p10@> =
 
 #ifndef _MARPA_AMI_H__
 #define _MARPA_AMI_H__ 1
-
-#include "marpa_util.h"
 
 #if defined(__GNUC__) && (__GNUC__ >  2) && defined(__OPTIMIZE__)
 #define _MARPA_LIKELY(expr) (__builtin_expect ((expr), 1))
@@ -364,11 +485,14 @@ So I add such a comment.
 #define _MARPA_UNLIKELY(expr) (expr)
 #endif
 
+@<Debug macros@>
+@<Internal macros@>
+
 @h
 @<Friend incomplete structures@>@;
 
 @*0 |marpa_ami.h| layout, last piece.
-@(marpa_ami.h.p9@> =
+@(marpa_ami.h.p90@> =
 
 @<Friend structures@>@;
 @<Friend static inline functions@>@;
@@ -376,32 +500,38 @@ So I add such a comment.
 #endif /* |_MARPA_AMI_H__| */
 
 @*0 |marpa_ami.c| layout.
-@(marpa_ami.c.p1@> =
+@ These C90 headers
+are needed for the default debug handler.
+This is strictly C90 and is always compiled in.
+We don't want to require applications to obey
+the |MARPA_DEBUG| flag and compile conditionally.
+This means that
+applications must be allowed to set the debug level
+and handler, even when debugging is not compiled in,
+and they will be meaningless.
+@(marpa_ami.c.p10@> =
 
+#include <stdarg.h>
+#include <stdio.h>
+
+@ @(marpa_ami.c.p10@> =
 #include "config.h"
-#include "marpa.h"
-#include <stddef.h>
-#include <limits.h>
-#include <string.h>
-#include <stdlib.h>
 
 #ifndef MARPA_DEBUG
 #define MARPA_DEBUG 0
 #endif
 
-#include "marpa_int.h"
+#include "marpa.h"
 #include "marpa_ami.h"
 
 @<Private macros@>@;
 
-#include "ami_private.h"
-
 @ The .c file has no contents at the moment, so just in
 case, I include a dummy function.  Once there are other contents,
 it should be deleted.
-@(marpa_ami.c.p1@> =
-int _marpa_ami_dummy(void);
-int _marpa_ami_dummy(void) { return 1 ; }
+@(marpa_ami.c.p50@> =
+
+@<Function definitions@>@;
 
 @** Index.
 

@@ -13,7 +13,7 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-.PHONY: install docs
+.PHONY: install docs sources
 
 # Order matters -- configure.ac must be first
 DOC_SOURCE_FILES = \
@@ -36,64 +36,50 @@ CONFIGURE_FILES = \
 
 STAGE_FILES = \
     $(CONFIGURE_FILES) \
-    stage/codes.c \
-    stage/codes.h \
-    stage/marpa.c \
-    stage/marpa.h \
-    stage/marpa_api.h \
-    stage/marpa_util.h \
-    stage/marpa_int.h \
-    stage/marpa_obs.c \
-    stage/marpa_obs.h \
-    stage/marpa_ami.h \
-    stage/marpa_ami.c \
-    stage/marpa_avl.h \
-    stage/private.h \
-    stage/ami_private.h \
-    stage/marpa_avl.c \
-    stage/NEWS \
-    stage/VERSION.in \
-    stage/README \
+    stage/AUTHORS \
     stage/ChangeLog \
     stage/COPYING.LESSER \
-    stage/AUTHORS
+    stage/marpa_ami.c \
+    stage/marpa_ami.h \
+    stage/marpa_avl.c \
+    stage/marpa_avl.h \
+    stage/marpa.c \
+    stage/marpa_codes.c \
+    stage/marpa.h \
+    stage/marpa_obs.c \
+    stage/marpa_obs.h \
+    stage/marpa_slif.c \
+    stage/marpa_slif.h \
+    stage/marpa_tavl.c \
+    stage/marpa_tavl.h \
+    stage/NEWS \
+    stage/README \
+    stage/VERSION.in
 
 dummy:
 	@echo install is the main target
 
-doc/configure.ac: dev/doc_dist/configure.ac
+doc/configure.ac: ac_doc/configure.ac
 	test -d doc || mkdir doc
 	cp $? $@
 
-doc/Makefile.am: dev/doc_dist/Makefile.am
+doc/Makefile.am: ac_doc/Makefile.am
 	cp $? $@
 
-stage/configure.ac: dev/dist/configure.ac
+stage/configure.ac: ac/configure.ac
 	test -d stage || mkdir stage
 	cp $? $@
 
-stage/Makefile.am: dev/dist/Makefile.am
-	cp $? $@
-
-stage/codes.c: dev/codes.c
-	cp $? $@
-
-stage/codes.h: dev/codes.h
+stage/Makefile.am: ac/Makefile.am
 	cp $? $@
 
 stage/marpa.c: dev/marpa.c
 	cp $? $@
 
-stage/marpa.h: dev/marpa.h
+stage/marpa.h: public/marpa.h
 	cp $? $@
 
-stage/marpa_api.h: dev/marpa_api.h
-	cp $? $@
-
-stage/marpa_int.h: dev/marpa_int.h
-	cp $? $@
-
-stage/marpa_util.h: dev/marpa_util.h
+stage/marpa_slif.h: public/marpa_slif.h
 	cp $? $@
 
 stage/marpa_obs.c: obs/marpa_obs.c
@@ -105,6 +91,12 @@ stage/marpa_obs.h: obs/marpa_obs.h
 stage/marpa_ami.c: ami/marpa_ami.c
 	cp $? $@
 
+stage/marpa_codes.c: public/marpa_codes.c
+	cp $? $@
+
+stage/marpa_slif.c: slif/marpa_slif.c
+	cp $? $@
+
 stage/marpa_ami.h: ami/marpa_ami.h
 	cp $? $@
 
@@ -114,49 +106,49 @@ stage/marpa_avl.c: avl/marpa_avl.c
 stage/marpa_avl.h: avl/marpa_avl.h
 	cp $? $@
 
-stage/private.h: dev/private.h
+stage/marpa_tavl.h: tavl/marpa_tavl.h
 	cp $? $@
 
-stage/ami_private.h: ami/ami_private.h
+stage/marpa_tavl.c: tavl/marpa_tavl.c
 	cp $? $@
 
-stage/README: dev/dist/README
+stage/README: ac/README
 	cp $? $@
 
-stage/VERSION.in: dev/dist/VERSION.in
+stage/VERSION.in: ac/VERSION.in
 	cp $? $@
 
-stage/NEWS: dev/dist/NEWS
+stage/NEWS: ac/NEWS
 	cp $? $@
 
-stage/AUTHORS: dev/dist/AUTHORS
+stage/AUTHORS: ac/AUTHORS
 	cp $? $@
 
-stage/COPYING.LESSER: dev/dist/COPYING.LESSER
+stage/COPYING.LESSER: ac/COPYING.LESSER
 	cp $? $@
 
-stage/ChangeLog: dev/dist/ChangeLog
+stage/ChangeLog: ac/ChangeLog
 	cp $? $@
 
-doc/README: dev/doc_dist/README
+doc/README: ac_doc/README
 	cp $? $@
 
-doc/NEWS: dev/doc_dist/NEWS
+doc/NEWS: ac_doc/NEWS
 	cp $? $@
 
-doc/AUTHORS: dev/doc_dist/AUTHORS
+doc/AUTHORS: ac_doc/AUTHORS
 	cp $? $@
 
-doc/COPYING.LESSER: dev/doc_dist/COPYING.LESSER
+doc/COPYING.LESSER: ac_doc/COPYING.LESSER
 	cp $? $@
 
-doc/ChangeLog: dev/doc_dist/ChangeLog
+doc/ChangeLog: ac_doc/ChangeLog
 	cp $? $@
 
-doc/fdl-1.3.texi: dev/doc_dist/fdl-1.3.texi
+doc/fdl-1.3.texi: ac_doc/fdl-1.3.texi
 	cp $? $@
 
-doc/lgpl-3.0.texi: dev/doc_dist/lgpl-3.0.texi
+doc/lgpl-3.0.texi: ac_doc/lgpl-3.0.texi
 	cp $? $@
 
 doc/api.texi: dev/api.texi
@@ -185,13 +177,16 @@ doc/internal.pdf: doc/Makefile doc/internal.texi
 doc/internal.html/index.html: doc/Makefile doc/internal.texi
 	cd doc && make html
 
-install: dev_sources ami_sources stage/stamp-h1 doc/stamp-h1
+install: sources stage/stamp-h1 doc/stamp-h1
 
-dev_sources:
-	cd dev && make
+MAKEABLE_DIR = ami dev slif tavl public
+CLEANABLE_DIR = $(MAKEABLE_DIR)
 
-ami_sources:
-	cd ami && make
+sources:
+	for d in $(MAKEABLE_DIR); do (cd $$d; make); done
+
+clean:
+	for d in $(CLEANABLE_DIR); do (cd $$d; make clean); done
 
 stage/stamp-h1: stage/Makefile $(STAGE_FILES)
 	(cd stage; make dist)

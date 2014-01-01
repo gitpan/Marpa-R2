@@ -21,22 +21,23 @@
  * It is not intended to be modified directly
  */
 
-/*23:*/
-#line 379 "./marpa_ami.w"
+/*28:*/
+#line 512 "./marpa_ami.w"
 
+
+#include <stdarg.h> 
+#include <stdio.h> 
+
+/*:28*//*29:*/
+#line 517 "./marpa_ami.w"
 
 #include "config.h"
-#include "marpa.h"
-#include <stddef.h> 
-#include <limits.h> 
-#include <string.h> 
-#include <stdlib.h> 
 
 #ifndef MARPA_DEBUG
 #define MARPA_DEBUG 0
 #endif
 
-#include "marpa_int.h"
+#include "marpa.h"
 #include "marpa_ami.h"
 
 /*5:*/
@@ -46,15 +47,33 @@
 #define PRIVATE static inline
 
 /*:5*/
-#line 395 "./marpa_ami.w"
+#line 527 "./marpa_ami.w"
 
 
-#include "ami_private.h"
+/*:29*/
 
-/*:23*//*24:*/
-#line 402 "./marpa_ami.w"
+#line 1 "./marpa_ami.c.p40"
 
-int _marpa_ami_dummy(void);
-int _marpa_ami_dummy(void){return 1;}
+/*30:*/
+#line 532 "./marpa_ami.w"
 
-/*:24*/
+
+/*19:*/
+#line 355 "./marpa_ami.w"
+
+int marpa__default_debug_handler(const char*format,...)
+{
+va_list args;
+va_start(args,format);
+vfprintf(stderr,format,args);
+va_end(args);
+putc('\n',stderr);
+return 1;
+}
+
+
+/*:19*/
+#line 534 "./marpa_ami.w"
+
+
+/*:30*/

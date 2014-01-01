@@ -43,17 +43,28 @@ CTANGLE = ctangle -p
 
 all: marpa.pdf sources
 
-sources: marpa.c marpa.h marpa_int.h marpa_util.h marpa_api.h codes.h codes.c private.h
+sources: marpa.c marpa.h.p50 marpa.h.p80 marpa.h.p80
 
-marpa.h marpa.c: copyright_page_license.w marpa.w
+C_LANGUAGE_PREAMBLE = ../shared/license.c ../shared/do_not_edit.c
+MARPA_C_PIECES = $(C_LANGUAGE_PREAMBLE) marpa.c.p10 marpa.c.p40 marpa.c.p50
+
+marpa.c: $(MARPA_C_PIECES)
+	cat $(MARPA_C_PIECES) > $@
+
+marpa.h.p50 marpa.c.p10 marpa.c.p50: ../shared/copyright_page_license.w marpa.w
 	$(CTANGLE) marpa.w
 
-codes.c codes.h marpa_api.h: api.texi internal.texi texi2code.pl
+marpa.h.p80: api.texi internal.texi
 	cat api.texi internal.texi | \
-	  perl texi2code.pl marpa_api.h codes.h codes.c
+	  perl ../bin/texi2proto.pl > marpa.h.p80
 
-private.h: marpa.w w2private_h.pl
-	perl w2private_h.pl private.h < marpa.w
+CPPWRAP = perl ../bin/cppwrap.pl
+
+marpa.c.p40: marpa.w
+	perl w2private_h.pl < $? | $(CPPWRAP) $@ > $@
+
+cwebmac.tex: ../shared/cwebmac.tex
+	cp $? $@
 
 marpa.pdf: marpa.tex cwebmac.tex
 
@@ -68,3 +79,10 @@ update_texi:
 	    -f texinfo-every-node-update \
 	    -f texinfo-all-menus-update \
 	    -f save-buffer -kill
+
+CLEAN_FILES = marpa.c marpa.c.p10 marpa.c.p40 marpa.c.p50 \
+  marpa.h.p50 marpa.h.p80 \
+  marpa.idx marpa.log marpa.pdf marpa.scn marpa.tex marpa.toc
+
+clean:
+	rm -f $(CLEAN_FILES)

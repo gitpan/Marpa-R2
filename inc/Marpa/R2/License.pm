@@ -282,41 +282,51 @@ my %files_by_type = (
     'html/t/no_tang.html'                    => \&ignored,
     'html/t/test.html'                       => \&ignored,
     'libmarpa/VERSION'                       => \&trivial,
-    'libmarpa/ami/do_not_edit.c'                    => \&trivial,
-    'libmarpa/ami/internal.texi'          => \&license_problems_in_fdl_file,
+    'libmarpa/shared/do_not_edit.c'                    => \&trivial,
+    'libmarpa/public/marpa_codes.c.p10' => \&trivial,
+    'libmarpa/public/marpa_slif.h.p20' => \&trivial,
+    'libmarpa/public/marpa.h.p10' => \&trivial,
+    'libmarpa/public/marpa.h.p90' => \&trivial,
     'libmarpa/dev/README'                    => \&trivial,
     'libmarpa/dev/VERSION.in'                => \&trivial,
-    'libmarpa/dev/api.texi'                 => \&license_problems_in_fdl_file,
-    'libmarpa/dev/dist/VERSION.in'          => \&trivial,
+    'libmarpa/ac/VERSION.in'          => \&trivial,
     'libmarpa_dist/VERSION'                 => \&trivial,
     'libmarpa_dist/VERSION.in'              => \&trivial,
-    'libmarpa/dev/too_long.pl' => \&trivial,
-    'libmarpa/dev/copyright_page_license.w' => \&copyright_page,
-    'libmarpa/dev/cwebmac.tex' =>
+    'libmarpa/bin/too_long.pl' => \&trivial,
+    'libmarpa/shared/copyright_page_license.w' => \&copyright_page,
+    'libmarpa/shared/cwebmac.tex' =>
         \&ignored,    # originally from Cweb, leave it alone
-    'libmarpa/dev/doc_dist/fdl-1.3.texi'  => \&ignored,
-    'libmarpa/dev/doc_dist/lgpl-3.0.texi' => \&ignored,
-    'libmarpa/dev/internal.texi'          => \&license_problems_in_fdl_file,
+    'libmarpa/ac_doc/fdl-1.3.texi'  => \&ignored,
+    'libmarpa/ac_doc/lgpl-3.0.texi' => \&ignored,
     'libmarpa/stage/config.h.in' =>
         check_tag( 'Generated from configure.ac by autoheader', 250 ),
     'libmarpa/test/Makefile'       => \&trivial,
     'libmarpa/test/README'         => \&trivial,
     'libmarpa/test/dev/install-sh' => \&check_X_copyright,
-    'libmarpa_doc_dist/api.texi'   => \&license_problems_in_fdl_file,
     'libmarpa_doc_dist/fdl-1.3.texi' =>
         \&ignored,    ## GNU license text, leave it alone
-    'libmarpa_doc_dist/internal.texi'  => \&license_problems_in_fdl_file,
     'libmarpa_doc_dist/lgpl-3.0.texi'  => \&ignored,
     'libmarpa_doc_dist/version.texi'   => \&trivial,
     'libmarpa_doc_dist/version_i.texi' => \&trivial,
     'my_suppressions'                  => \&trivial,
     't/etc/wall_proof.txt'             => \&cc_a_nd,
     'xs/ppport.h' => \&ignored,    # copied from CPAN, just leave it alone
+    'libmarpa/tavl/README' => \&trivial,
+
+    # Leave Pfaff's licensing as is
+    'libmarpa_dist/marpa_tavl.c' => \&ignored,
+    'libmarpa_dist/marpa_tavl.h' => \&ignored,
+    'libmarpa/tavl/marpa_tavl.c' => \&ignored,
+    'libmarpa/tavl/marpa_tavl.h' => \&ignored,
+    'libmarpa/tavl/README.Pfaff' => \&ignored,
+    'libmarpa/tavl/tavl-test.c' => \&ignored,
+    'libmarpa/tavl/test.c' => \&ignored,
+    'libmarpa/tavl/test.h' => \&ignored,
 );
 
 # Common files in the GNU distributions
 for my $distlib (
-    qw(libmarpa/dev/doc_dist libmarpa/dev/dist libmarpa_dist libmarpa_doc_dist)
+    qw(libmarpa/ac_doc libmarpa/ac libmarpa_dist libmarpa_doc_dist)
     )
 {
     $files_by_type{"$distlib/AUTHORS"}   = \&trivial;
@@ -365,6 +375,10 @@ sub file_type {
         if $filepart =~ /[.] (t|pl|pm|PL) \z /xms;
     return \&license_problems_in_perl_file
         if $filepart eq 'typemap';
+    return \&license_problems_in_fdl_file
+        if $filepart eq 'internal.texi';
+    return \&license_problems_in_fdl_file
+        if $filepart eq 'api.texi';
     return \&license_problems_in_pod_file if $filepart =~ /[.]pod \z/xms;
     return \&license_problems_in_c_file
         if $filepart =~ /[.] (xs|c|h) \z /xms;
