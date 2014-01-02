@@ -21,9 +21,11 @@
  * It is not intended to be modified directly
  */
 
-/*61:*/
-#line 679 "./marpa_slif.w"
+/*60:*/
+#line 676 "./marpa_slif.w"
 
+
+#include "config.h"
 
 #ifndef MARPA_DEBUG
 #define MARPA_DEBUG 0
@@ -40,7 +42,7 @@
 #define PRIVATE static inline
 
 /*:5*/
-#line 689 "./marpa_slif.w"
+#line 688 "./marpa_slif.w"
 
 /*23:*/
 #line 225 "./marpa_slif.w"
@@ -48,7 +50,7 @@
 typedef Marpa_SLR SLR;
 
 /*:23*/
-#line 690 "./marpa_slif.w"
+#line 689 "./marpa_slif.w"
 
 /*22:*/
 #line 219 "./marpa_slif.w"
@@ -91,10 +93,10 @@ Marpa_Op t_ops[1];
 };
 
 /*:37*/
-#line 691 "./marpa_slif.w"
+#line 690 "./marpa_slif.w"
 
 
-/*:61*/
+/*:60*/
 
 #line 1 "./marpa_slif.c-ops"
 static struct op_data_s op_by_name_object[] = {
@@ -158,8 +160,8 @@ cmp_per_codepoint_key( const void* a, const void* b, void* param UNUSED);
 static inline void
 per_codepoint_data_destroy(void *p, void* param UNUSED);
 
-/*62:*/
-#line 693 "./marpa_slif.w"
+/*61:*/
+#line 692 "./marpa_slif.w"
 
 
 /*25:*/
@@ -397,7 +399,7 @@ return MARPA_DSTACK_INDEX(slr->t_lexeme_dstack,union marpa_slr_event_s,i);
 }
 
 /*:57*/
-#line 695 "./marpa_slif.w"
+#line 694 "./marpa_slif.w"
 
 
-/*:62*/
+/*:61*/

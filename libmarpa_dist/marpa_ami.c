@@ -22,16 +22,21 @@
  */
 
 /*28:*/
-#line 512 "./marpa_ami.w"
+#line 504 "./marpa_ami.w"
+
+
+#include "config.h"
+
+/*:28*//*29:*/
+#line 517 "./marpa_ami.w"
 
 
 #include <stdarg.h> 
 #include <stdio.h> 
 
-/*:28*//*29:*/
-#line 517 "./marpa_ami.w"
+/*:29*//*30:*/
+#line 522 "./marpa_ami.w"
 
-#include "config.h"
 
 #ifndef MARPA_DEBUG
 #define MARPA_DEBUG 0
@@ -47,15 +52,15 @@
 #define PRIVATE static inline
 
 /*:5*/
-#line 527 "./marpa_ami.w"
+#line 531 "./marpa_ami.w"
 
 
-/*:29*/
+/*:30*/
 
 #line 1 "./marpa_ami.c.p40"
 
-/*30:*/
-#line 532 "./marpa_ami.w"
+/*31:*/
+#line 536 "./marpa_ami.w"
 
 
 /*19:*/
@@ -73,7 +78,7 @@ return 1;
 
 
 /*:19*/
-#line 534 "./marpa_ami.w"
+#line 538 "./marpa_ami.w"
 
 
-/*:30*/
+/*:31*/

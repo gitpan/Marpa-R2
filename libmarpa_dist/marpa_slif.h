@@ -21,8 +21,8 @@
  * It is not intended to be modified directly
  */
 
-/*63:*/
-#line 698 "./marpa_slif.w"
+/*62:*/
+#line 697 "./marpa_slif.w"
 
 
 #ifndef _MARPA_SLIF_H__
@@ -57,7 +57,7 @@
 #define MARPA_SLREV_TYPE(event) ((event) ->t_header.t_event_type)  \
 
 
-#line 705 "./marpa_slif.w"
+#line 704 "./marpa_slif.w"
 
 /*15:*/
 #line 192 "./marpa_slif.w"
@@ -70,7 +70,7 @@ typedef unsigned int Marpa_Codepoint;
 typedef int Marpa_Op;
 
 /*:33*/
-#line 706 "./marpa_slif.w"
+#line 705 "./marpa_slif.w"
 
 /*7:*/
 #line 161 "./marpa_slif.w"
@@ -95,7 +95,7 @@ typedef struct marpa_slr_s*Marpa_SLR;
 union marpa_slr_event_s;
 
 /*:43*/
-#line 707 "./marpa_slif.w"
+#line 706 "./marpa_slif.w"
 
 /*8:*/
 #line 163 "./marpa_slif.w"
@@ -320,7 +320,7 @@ int t_current_lexer_ix;
 };
 
 /*:45*/
-#line 708 "./marpa_slif.w"
+#line 707 "./marpa_slif.w"
 
 /*9:*/
 #line 170 "./marpa_slif.w"
@@ -339,11 +339,11 @@ extern const struct marpa_step_type_description_s
 marpa_step_type_description[];
 
 /*:19*/
-#line 709 "./marpa_slif.w"
+#line 708 "./marpa_slif.w"
 
 
 #endif 
-/*:63*/
+/*:62*/
 
 #line 1 "./marpa_slif.h.p80"
 Marpa_SLR marpa__slr_new (void);

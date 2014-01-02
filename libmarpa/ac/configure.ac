@@ -25,7 +25,7 @@ m4_define(marpa_configure_in)
 
 m4_define([marpa_major_version], [5])
 m4_define([marpa_minor_version], [179])
-m4_define([marpa_micro_version], [101])
+m4_define([marpa_micro_version], [102])
 m4_define([marpa_interface_age], [100])
 m4_define([marpa_binary_age],
           [m4_eval(100 * marpa_minor_version + marpa_micro_version)])
@@ -189,6 +189,14 @@ AC_SUBST(WARNING_CPPFLAGS)
 AC_ARG_VAR(MARPA_DEBUG_FLAG,[Marpa debugging])
 AC_TYPE_UINTMAX_T
 AC_TYPE_INTMAX_T
+
+AC_CHECK_SIZEOF([int])
+if test "$ac_cv_sizeof_int" -lt 4; then
+    AC_MSG_ERROR(
+        [Marpa requires that int be at least 32 bits -- on this system that is not the case])
+fi
+
+
 AC_C_INLINE
 
 AC_CONFIG_FILES( [Makefile])
