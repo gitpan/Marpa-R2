@@ -479,6 +479,7 @@ static void lexer_destroy(Lexer *lexer)
     Safefree(lexer->per_codepoint_array[i]);
   }
   SvREFCNT_dec (lexer->g_sv);
+  Safefree(lexer);
 }
 
 /* Static lexer methods */
@@ -2274,7 +2275,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 179
-#define EXPECTED_LIBMARPA_MICRO 102
+#define EXPECTED_LIBMARPA_MICRO 103
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -4812,6 +4813,7 @@ PPCODE:
           lexer_destroy (lexer);
         }
     }
+  Safefree (slg->lexers);
   SvREFCNT_dec (slg->g1_sv);
   Safefree (slg->symbol_g_properties);
   Safefree (slg);

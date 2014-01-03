@@ -48,7 +48,11 @@ typedef union
   intmax_t t_uimax;
 /* According to the autoconf manual, long double is provided by
    all non-obsolescent C compilers. */
-  long double t_d;
+  long double t_ld;
+  /* In some configurations, for historic reasons, double's require
+   * stricter alignment than long double's.
+   */
+  double t_d;
   void *t_p;
 } worst_aligned_object;
 
@@ -74,17 +78,16 @@ typedef union
 
 struct marpa_obstack    /* control current object in current chunk */
 {
-  long chunk_size;              /* preferred size to allocate chunks in */
   struct marpa_obstack_chunk *chunk;    /* address of current struct obstack_chunk */
   char *object_base;            /* address of object we are building */
   char *next_free;              /* where to add next char to current object */
-  char *chunk_limit;            /* address of char after current chunk */
+  int minimum_chunk_size;              /* preferred size to allocate chunks in */
 };
 
 struct marpa_obstack_chunk_header               /* Lives at front of each chunk. */
 {
-  char *limit;                  /* 1 past end of this chunk */
   struct marpa_obstack_chunk* prev;     /* address of prior chunk or NULL */
+  int size;                  /* 1 past end of this chunk */
 };
 
 struct marpa_obstack_chunk
@@ -115,8 +118,6 @@ void _marpa_obs_free (struct marpa_obstack *__obstack);
 
 /* Size for allocating ordinary chunks.  */
 
-#define marpa_obstack_chunk_size(h) ((h)->chunk_size)
-
 /* Pointer to next byte not yet allocated in current chunk.  */
 
 #define marpa_obstack_next_free(h)      ((h)->next_free)
@@ -135,7 +136,7 @@ void _marpa_obs_free (struct marpa_obstack *__obstack);
   ((h)->next_free = (h)->object_base)
 
 # define marpa_obstack_room(h)          \
- (unsigned) ((h)->chunk_limit - (h)->next_free)
+ ((h)->chunk->header.size - ((h)->next_free - (char*)((h)->chunk)))
 
 #define marpa_obs_new(h, type, count) \
     ((type *)marpa_obs_aligned((h), (sizeof(type)*(count)), ALIGNOF(type)))
@@ -144,14 +145,20 @@ void _marpa_obs_free (struct marpa_obstack *__obstack);
 static inline void
 marpa_obs_start (struct marpa_obstack *h, int length, int alignment)
 {
-  if (MARPA_OBSTACK_DEBUG
-      || h->chunk_limit - h->next_free < length + alignment - 1)
+  if (!MARPA_OBSTACK_DEBUG)
     {
-      _marpa_obs_newchunk (h, length);
+      int offset = h->next_free - (char *) (h->chunk);
+      offset = ALIGN_UP (offset, alignment);
+      if (offset + length <= h->chunk->header.size)
+	{
+	  h->object_base = (char *) (h->chunk) + offset;
+	  h->next_free = h->object_base + length;
+	  return;
+	}
     }
-  h->next_free =
-    ALIGN_POINTER ((char *) h->chunk, (h->next_free + length),
-		   alignment);
+  _marpa_obs_newchunk (h, length);
+  h->object_base = ALIGN_POINTER ((char *) h->chunk, h->object_base, alignment);
+  h->next_free = h->object_base + length;
 }
 
 static inline void

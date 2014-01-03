@@ -44,11 +44,8 @@
      WORST_MALLOC_ROUNDING.  So we prepare for it to do that.
      */
 #define MALLOC_OVERHEAD ( ALIGN_UP(12, WORST_MALLOC_ROUNDING) + ALIGN_UP(4, WORST_MALLOC_ROUNDING))
-
 #define MINIMUM_CHUNK_SIZE (sizeof(struct marpa_obstack_chunk))
-
-/* We align the size down so that alignment up will not increase it . */
-#define DEFAULT_CHUNK_SIZE ALIGN_DOWN(4096 - MALLOC_OVERHEAD, DEFAULT_ALIGNMENT)
+#define DEFAULT_CHUNK_SIZE (4096 - MALLOC_OVERHEAD)
 
 struct marpa_obstack * _marpa_obs_begin ( int size)
 {
@@ -64,17 +61,14 @@ struct marpa_obstack * _marpa_obs_begin ( int size)
   if (MARPA_OBSTACK_DEBUG) size = 0;
 
   size = MAX ((int)MINIMUM_CHUNK_SIZE, size);
-  size = ALIGN_UP(size, DEFAULT_ALIGNMENT);
   chunk = my_malloc (size);
   h = &chunk->contents.obstack_header;
 
   h->chunk = chunk;
-  h->chunk_size = size;
 
-  h->next_free = h->object_base = 
-    ALIGN_POINTER ((char *) chunk, ((char *)h + sizeof(*h)), DEFAULT_ALIGNMENT);
-    /* The first object can go after the obstack header, suitably aligned */
-  h->chunk_limit = chunk->header.limit = (char *) chunk + h->chunk_size;
+    /* The first object can go after the obstack header */
+  h->next_free = h->object_base = ((char *)h + sizeof(*h));
+  chunk->header.size = h->minimum_chunk_size = size;
   chunk->header.prev = 0;
   return h;
 }
@@ -96,51 +90,23 @@ _marpa_obs_newchunk (struct marpa_obstack *h, int length)
 
   /* Compute size for new chunk.
    * Make sure there is enough room for |length|
-   * for adjusting alignment.
+   * after adjusting alignment.
    */
-  new_size = MINIMUM_CHUNK_SIZE + length + 2* DEFAULT_ALIGNMENT;
-  if (!MARPA_OBSTACK_DEBUG && new_size < h->chunk_size) {
-    new_size = h->chunk_size;
+  new_size = length + offsetof(struct marpa_obstack_chunk, contents) + DEFAULT_ALIGNMENT;
+  if (!MARPA_OBSTACK_DEBUG && new_size < h->minimum_chunk_size) {
+    new_size = h->minimum_chunk_size;
   }
 
   /* Allocate and initialize the new chunk.  */
   new_chunk = my_malloc( new_size);
   h->chunk = new_chunk;
   new_chunk->header.prev = old_chunk;
-  new_chunk->header.limit = h->chunk_limit = (char *) new_chunk + new_size;
+  new_chunk->header.size = new_size;
 
-  /* Compute an aligned object_base in the new chunk */
-  object_base =
-    ALIGN_POINTER ((char *) new_chunk, new_chunk->contents.contents, DEFAULT_ALIGNMENT);
+  object_base = new_chunk->contents.contents;
 
   h->object_base = object_base;
   h->next_free = h->object_base;
-}
-
-/* Return nonzero if object OBJ has been allocated from obstack H.
-   This is here for debugging.
-   If you use it in a program, you are probably losing.  */
-
-/* Suppress -Wmissing-prototypes warning.  We don't want to declare this in
-   obstack.h because it is just for debugging.  */
-int _marpa_obs_allocated_p (struct marpa_obstack *h, void *obj);
-
-int
-_marpa_obs_allocated_p (struct marpa_obstack *h, void *obj)
-{
-  struct marpa_obstack_chunk *lp;       /* below addr of any objects in this chunk */
-  struct marpa_obstack_chunk *plp;      /* point to previous chunk if any */
-
-  lp = (h)->chunk;
-  /* We use >= rather than > since the object cannot be exactly at
-     the beginning of the chunk but might be an empty object exactly
-     at the end of an adjacent chunk.  */
-  while (lp != 0 && ((void *) lp >= obj || (void *) (lp)->header.limit < obj))
-    {
-      plp = lp->header.prev;
-      lp = plp;
-    }
-  return lp != 0;
 }
 
 /* Free everything in H.  */
@@ -169,7 +135,7 @@ _marpa_obs_memory_used (struct marpa_obstack *h)
 
   for (lp = h->chunk; lp != 0; lp = lp->header.prev)
     {
-      nbytes += lp->header.limit - (char *) lp;
+      nbytes += lp->header.size;
     }
   return nbytes;
 }
