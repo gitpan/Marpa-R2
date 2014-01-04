@@ -506,9 +506,11 @@ INLINEHOOK
             }
             close(CONFIG_H);
             $ac = Config::AutoConf->new();
-            if ($ac->check_sizeof_type('int') < 4) {
+            my $sizeof_int = $ac->check_sizeof_type('int');
+            if ($sizeof_int < 4) {
                 die "Marpa requires that int be at least 32 bits -- on this system that is not the case";
             }
+
             $ac->check_stdc_headers;
             $ac->check_default_headers();
             $ac->check_type('unsigned long long int');
@@ -524,6 +526,8 @@ INLINEHOOK
             my $memset = $ac->lang_call('', 'memset');
             $ac->msg_checking('memset');
             my $rc = $ac->compile_if_else($memset);
+            $ac->msg_result($rc ? 'yes' : 'no');
+
             $ac->define_var('HAVE_MEMSET', $ac->compile_if_else($memset));
             $ac->define_var('PACKAGE', "\"libmarpa\"");
             $ac->define_var('PACKAGE_BUGREPORT', "\"http://rt.cpan.org/NoAuth/Bugs.html?Dist=Marpa\"");
@@ -533,7 +537,6 @@ INLINEHOOK
             $ac->define_var('PACKAGE_URL', "\"\"");
             $ac->define_var('PACKAGE_VERSION', "\"$libmarpa_version\"");
             $ac->define_var('PACKAGE_STRING', "\"$libmarpa_version\"");
-            $ac->msg_result($rc ? 'yes' : 'no');
             $ac->write_config_h('config_from_autoconf.h');
         }
         if (! -r 'marpa_config.h') {

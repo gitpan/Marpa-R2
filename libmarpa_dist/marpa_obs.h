@@ -31,34 +31,16 @@
 #define MARPA_OBSTACK_DEBUG 0
 #endif
 
-#ifdef HAVE_INTTYPES_H
-# include <inttypes.h>
+/* Suppress 'unnamed type definition in parentheses' warning
+   in #define ALIGNOF(type) below 
+   under MS C compiler older than .NET 2003 */
+#if defined(_MSC_VER) && _MSC_VER >= 1310 && !defined(__cplusplus)
+#pragma warning(disable:4116)
 #endif
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
-
-/* Determine default alignment.  */
-typedef union
-{
-/* intmax_t is guaranteed by AUTOCONF's AC_TYPE_INTMAX_T.
-    Similarly, for uintmax_t.
-*/
-  uintmax_t t_imax;
-  intmax_t t_uimax;
-/* According to the autoconf manual, long double is provided by
-   all non-obsolescent C compilers. */
-  long double t_ld;
-  /* In some configurations, for historic reasons, double's require
-   * stricter alignment than long double's.
-   */
-  double t_d;
-  void *t_p;
-} worst_aligned_object;
 
 #define ALIGNOF(type) offsetof (struct { char c; type member; }, member)
-#define DEFAULT_ALIGNMENT ALIGNOF(worst_aligned_object)
-#define WORST_MALLOC_ROUNDING (sizeof (worst_aligned_object))
+
+extern const int marpa__biggest_alignment;
 
 /* If B is the base of an object addressed by P, return the result of
    aligning P to the next multiple of A + 1.  B and P must be of type
@@ -101,14 +83,11 @@ struct marpa_obstack_chunk
 
 /* Declare the external functions we use; they are in obstack.c.  */
 
-extern void _marpa_obs_newchunk (struct marpa_obstack *, int);
+extern void marpa__obs_newchunk (struct marpa_obstack *, int);
 
-extern struct marpa_obstack* _marpa_obs_begin (int);
+extern struct marpa_obstack* marpa__obs_begin (int);
 
-extern int _marpa_obs_memory_used (struct marpa_obstack *);
-#define marpa_obstack_memory_used(h) _marpa_obs_memory_used (h)
-
-void _marpa_obs_free (struct marpa_obstack *__obstack);
+void marpa__obs_free (struct marpa_obstack *__obstack);
 
 /* Pointer to beginning of object being allocated or to be allocated next.
    Note that this might not be the final address of the object
@@ -124,12 +103,12 @@ void _marpa_obs_free (struct marpa_obstack *__obstack);
 
 /* Mask specifying low bits that should be clear in address of an object.  */
 
-#define marpa_obs_init  _marpa_obs_begin (0)
+#define marpa_obs_init  marpa__obs_begin (0)
 
 # define marpa_obstack_object_size(h) \
  (unsigned) ((h)->next_free - (h)->object_base)
 
-# define marpa_obs_free(h)      (_marpa_obs_free((h)))
+# define marpa_obs_free(h)      (marpa__obs_free((h)))
 
 /* Reject any object being built, as if it never existed */
 # define marpa_obs_reject(h) \
@@ -156,7 +135,7 @@ marpa_obs_start (struct marpa_obstack *h, int length, int alignment)
 	  return;
 	}
     }
-  _marpa_obs_newchunk (h, length);
+  marpa__obs_newchunk (h, length);
   h->object_base = ALIGN_POINTER ((char *) h->chunk, h->object_base, alignment);
   h->next_free = h->object_base + length;
 }
@@ -164,7 +143,7 @@ marpa_obs_start (struct marpa_obstack *h, int length, int alignment)
 static inline void
 marpa_obs_reserve (struct marpa_obstack *h, int length)
 {
-  marpa_obs_start(h, length, DEFAULT_ALIGNMENT);
+  marpa_obs_start(h, length, marpa__biggest_alignment);
 }
 
 static inline
@@ -183,7 +162,7 @@ marpa_obs_aligned (struct marpa_obstack *h, int length, int alignment)
 }
 
 #define marpa_obs_alloc(h, length) \
-    (marpa_obs_aligned((h), (length), DEFAULT_ALIGNMENT))
+    (marpa_obs_aligned((h), (length), marpa__biggest_alignment))
 
 /* "Confirm", which is to set at its final value,
  * the size of a reserved object, currently being built.

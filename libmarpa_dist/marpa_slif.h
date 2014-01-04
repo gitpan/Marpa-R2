@@ -359,7 +359,7 @@ union marpa_slr_event_s * marpa__slr_lexeme_push( Marpa_SLR slr );
 int marpa__slr_lexeme_count( Marpa_SLR slr );
 union marpa_slr_event_s * marpa__slr_lexeme_entry( Marpa_SLR slr, int i );
 int marpa__slif_op_id (const char* op_name );
-const char* marpa__slif_op_name (int op_id );
+const char* marpa__slif_op_name (Marpa_Op op_id );
 
 
 #line 1 "./marpa_slif.h-ops"
