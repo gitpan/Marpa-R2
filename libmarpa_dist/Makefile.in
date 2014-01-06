@@ -53,10 +53,9 @@ host_triplet = @host@
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(include_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
-	$(srcdir)/VERSION.in $(srcdir)/config.h.in \
-	$(top_srcdir)/configure AUTHORS COPYING.LESSER ChangeLog \
-	INSTALL NEWS config.guess config.sub depcomp install-sh \
-	ltmain.sh missing
+	$(srcdir)/config.h.in $(top_srcdir)/configure AUTHORS \
+	COPYING.LESSER ChangeLog INSTALL NEWS config.guess config.sub \
+	depcomp install-sh ltmain.sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
 	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
@@ -68,15 +67,13 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
-CONFIG_CLEAN_FILES = VERSION
+CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libmarpa_la_DEPENDENCIES = $(LIBOBJS)
 am_libmarpa_la_OBJECTS = marpa.lo marpa_obs.lo marpa_avl.lo \
 	marpa_tavl.lo marpa_ami.lo marpa_codes.lo marpa_slif.lo
-nodist_libmarpa_la_OBJECTS =
-libmarpa_la_OBJECTS = $(am_libmarpa_la_OBJECTS) \
-	$(nodist_libmarpa_la_OBJECTS)
+libmarpa_la_OBJECTS = $(am_libmarpa_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -90,7 +87,7 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(libmarpa_la_SOURCES) $(nodist_libmarpa_la_SOURCES)
+SOURCES = $(libmarpa_la_SOURCES)
 DIST_SOURCES = $(libmarpa_la_SOURCES)
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
@@ -119,8 +116,8 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-am__installdirs = "$(DESTDIR)$(includedir)" "$(DESTDIR)$(includedir)"
-HEADERS = $(include_HEADERS) $(nodist_include_HEADERS)
+am__installdirs = "$(DESTDIR)$(includedir)"
+HEADERS = $(include_HEADERS)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -176,20 +173,9 @@ LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
-LT_AGE = @LT_AGE@
-LT_CURRENT = @LT_CURRENT@
-LT_CURRENT_MINUS_AGE = @LT_CURRENT_MINUS_AGE@
-LT_RELEASE = @LT_RELEASE@
-LT_REVISION = @LT_REVISION@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
-MARPA_BINARY_AGE = @MARPA_BINARY_AGE@
 MARPA_DEBUG_FLAG = @MARPA_DEBUG_FLAG@
-MARPA_INTERFACE_AGE = @MARPA_INTERFACE_AGE@
-MARPA_MAJOR_VERSION = @MARPA_MAJOR_VERSION@
-MARPA_MICRO_VERSION = @MARPA_MICRO_VERSION@
-MARPA_MINOR_VERSION = @MARPA_MINOR_VERSION@
-MARPA_VERSION = @MARPA_VERSION@
 MKDIR_P = @MKDIR_P@
 NM = @NM@
 NMEDIT = @NMEDIT@
@@ -276,15 +262,12 @@ libmarpa_la_SOURCES = marpa.c marpa.h \
     marpa_ami.c marpa_ami.h \
     marpa_codes.c marpa_slif.c
 
-nodist_libmarpa_la_SOURCES = marpa_config.h
 EXTRA_DIST = VERSION
 libmarpa_la_LIBADD = $(LIBOBJS)
 include_HEADERS = marpa.h \
   marpa_avl.h marpa_tavl.h marpa_ami.h \
   marpa_slif.h marpa_obs.h
 
-nodist_include_HEADERS = marpa_config.h
-DISTCLEANFILES = marpa_config.h
 TEXI2PDF = texi2pdf --pdf --batch --quiet
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -340,8 +323,6 @@ $(srcdir)/config.h.in:  $(am__configure_deps)
 
 distclean-hdr:
 	-rm -f config.h stamp-h1
-VERSION: $(top_builddir)/config.status $(srcdir)/VERSION.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
 
 clean-noinstLTLIBRARIES:
 	-test -z "$(noinst_LTLIBRARIES)" || rm -f $(noinst_LTLIBRARIES)
@@ -413,24 +394,6 @@ install-includeHEADERS: $(include_HEADERS)
 uninstall-includeHEADERS:
 	@$(NORMAL_UNINSTALL)
 	@list='$(include_HEADERS)'; test -n "$(includedir)" || list=; \
-	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(includedir)'; $(am__uninstall_files_from_dir)
-install-nodist_includeHEADERS: $(nodist_include_HEADERS)
-	@$(NORMAL_INSTALL)
-	test -z "$(includedir)" || $(MKDIR_P) "$(DESTDIR)$(includedir)"
-	@list='$(nodist_include_HEADERS)'; test -n "$(includedir)" || list=; \
-	for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; \
-	done | $(am__base_list) | \
-	while read files; do \
-	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(includedir)'"; \
-	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(includedir)" || exit $$?; \
-	done
-
-uninstall-nodist_includeHEADERS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(nodist_include_HEADERS)'; test -n "$(includedir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(includedir)'; $(am__uninstall_files_from_dir)
 
@@ -652,7 +615,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(LTLIBRARIES) $(HEADERS) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(includedir)" "$(DESTDIR)$(includedir)"; do \
+	for dir in "$(DESTDIR)$(includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -681,7 +644,6 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
-	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -710,7 +672,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-includeHEADERS install-nodist_includeHEADERS
+install-data-am: install-includeHEADERS
 
 install-dvi: install-dvi-am
 
@@ -758,7 +720,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-includeHEADERS uninstall-nodist_includeHEADERS
+uninstall-am: uninstall-includeHEADERS
 
 .MAKE: all install-am install-strip
 
@@ -772,13 +734,12 @@ uninstall-am: uninstall-includeHEADERS uninstall-nodist_includeHEADERS
 	install install-am install-data install-data-am install-dvi \
 	install-dvi-am install-exec install-exec-am install-html \
 	install-html-am install-includeHEADERS install-info \
-	install-info-am install-man install-nodist_includeHEADERS \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags uninstall uninstall-am \
-	uninstall-includeHEADERS uninstall-nodist_includeHEADERS
+	install-info-am install-man install-pdf install-pdf-am \
+	install-ps install-ps-am install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags uninstall uninstall-am uninstall-includeHEADERS
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

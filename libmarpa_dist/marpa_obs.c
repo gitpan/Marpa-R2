@@ -37,64 +37,10 @@
 # include <stdint.h>
 #endif
 
-/* Default alignment is now determined by AUTOCONF, but this structure
- * is used to calculate an maximum sizeof for a set of types. */
-typedef union
-{
-/* intmax_t is guaranteed by AUTOCONF's AC_TYPE_INTMAX_T.
-    Similarly, for uintmax_t.
-*/
-  uintmax_t t_imax;
-  intmax_t t_uimax;
-/* According to the autoconf manual, long double is provided by
-   all non-obsolescent C compilers. */
-  long double t_ld;
-  /* In some configurations, for historic reasons, double's require
-   * stricter alignment than long double's.
-   */
-  double t_d;
-  void *t_p;
-} worst_object;
-
-/* If we have a hint available from GCC, and it is bigger than
- * what we calculate, we use that */
-#if defined(__GNUC__) && defined(__BIGGEST_ALIGNMENT__)
-const int marpa__biggest_alignment = MAX(ALIGNOF(worst_object), __BIGGEST_ALIGNMENT__);
-#else
-const int marpa__biggest_alignment = ALIGNOF(worst_object);
-#endif
-
-/* Comments from the original obstack code:
-
-   "Default size is what GNU malloc can fit in a 4096-byte block."
-
-    "12 is sizeof (mhead) and 4 is EXTRA from GNU malloc.
-    Use the values for range checking, because if range checking is off,
-    the extra bytes won't be missed terribly, but if range checking is on
-    and we used a larger request, a whole extra 4096 bytes would be
-    allocated."
-
-    "These number are irrelevant to the new GNU malloc.  I suspect it is
-     less sensitive to the size of the request."
-   
-    I should investigate sometime what is a good number for a malloc
-    request.  Perhaps, as the quoted comment suggests, any sufficiently
-    large number is now as good as any other.
-
+/* This estimate of malloc's overhead is the one used in Linus Torvald's slab
+ * allocator in git.  I assume that it assumes a 64-bit architecture.
  */
-
-/* From the original obstack code:
-   "If malloc were really smart, it would round addresses to DEFAULT_ALIGNMENT.
-   But in fact it might be less smart and round addresses to as much as
-   DEFAULT_ROUNDING.  So we prepare for it to do that."
-
-   Here DEFAULT_ROUNDING is renamed to WORST_MALLOC_ROUNDING.
-   I am not clear how necessary this is, but this is a fudge factor, so I suppose
-   it is OK to fudge, as long as you're erring on the conservative side.
-   */
-#define WORST_MALLOC_ROUNDING (sizeof (worst_object))
-#define MALLOC_OVERHEAD ( ALIGN_UP(12, WORST_MALLOC_ROUNDING) + ALIGN_UP(4, WORST_MALLOC_ROUNDING))
-#define MINIMUM_CHUNK_SIZE (sizeof(struct marpa_obstack_chunk))
+#define MALLOC_OVERHEAD 32
 #define DEFAULT_CHUNK_SIZE (4096 - MALLOC_OVERHEAD)
 
 struct marpa_obstack *
@@ -102,26 +48,30 @@ marpa__obs_begin (int size)
 {
   struct marpa_obstack_chunk *chunk;	/* points to new chunk */
   struct marpa_obstack *h;	/* points to new obstack */
-  /* Just enough room for the chunk and obstack headers */
+  char *object_base;
+  char *chunk_base;
 
-  if (MARPA_OBSTACK_DEBUG)
-    {
-      /* Use the minimum size if we are debugging */
-      size = MINIMUM_CHUNK_SIZE;
-    }
-  else
-    {
-      size = MAX ((int)DEFAULT_CHUNK_SIZE, size);
-    }
-  chunk = my_malloc (size);
-  h = &chunk->contents.obstack_header;
+  /* We ignore |size| if it specifies less than the default */
+  size = MAX ((int)DEFAULT_CHUNK_SIZE, size);
+  chunk_base = my_malloc (size);
 
-  h->chunk = chunk;
-
-  /* The first object can go after the obstack header */
-  h->next_free = h->object_base = ((char *) h + sizeof (*h));
-  chunk->header.size = h->minimum_chunk_size = size;
+  /* The chunk header goes at the beginning */
+  chunk = (struct marpa_obstack_chunk*)chunk_base;
+  chunk->header.size = size;
   chunk->header.prev = 0;
+
+  /* Put the header of the obstack itself after the header of its first
+     chunk. */
+  object_base = chunk_base + sizeof(chunk->header);
+  object_base = ALIGN_POINTER (chunk_base, object_base, ALIGNOF (struct marpa_obstack));
+  h = (struct marpa_obstack *)object_base;
+  h->chunk = chunk;
+  h->minimum_chunk_size = size;
+
+  /* Set the obstack to "idle" with the pointer just after the
+     obstack header */
+  object_base += sizeof(*h);
+  h->next_free = h->object_base = object_base;
   return h;
 }
 
@@ -130,24 +80,29 @@ marpa__obs_begin (int size)
    to the current object, or a new object of length LENGTH allocated.
    Unlike original GNU obstacks, does *NOT*
    copy any partial object from the end of the old chunk
-   to the beginning of the new one.  */
+   to the beginning of the new one.
 
-void
-marpa__obs_newchunk (struct marpa_obstack *h, int length)
+   In this implementation, we know the next object we will
+   need, and |length| and |alignment| represent that object.
+   We start the new object, and return its base addess.
+   */
+
+void*
+marpa__obs_newchunk (struct marpa_obstack *h, int length, int alignment)
 {
   struct marpa_obstack_chunk *old_chunk = h->chunk;
   struct marpa_obstack_chunk *new_chunk;
   long  new_size;
-  char *object_base;
+  const int contents_offset = offsetof(struct marpa_obstack_chunk, contents);
+  const int aligned_contents_offset = ALIGN_UP(contents_offset, alignment);
+  const int space_needed_for_alignment = aligned_contents_offset - contents_offset;
 
   /* Compute size for new chunk.
    * Make sure there is enough room for |length|
    * after adjusting alignment.
    */
-  new_size = length + offsetof(struct marpa_obstack_chunk, contents) + marpa__biggest_alignment;
-  if (!MARPA_OBSTACK_DEBUG && new_size < h->minimum_chunk_size) {
-    new_size = h->minimum_chunk_size;
-  }
+  new_size = contents_offset + space_needed_for_alignment + length;
+  new_size = MAX(new_size, h->minimum_chunk_size);
 
   /* Allocate and initialize the new chunk.  */
   new_chunk = my_malloc( new_size);
@@ -155,10 +110,9 @@ marpa__obs_newchunk (struct marpa_obstack *h, int length)
   new_chunk->header.prev = old_chunk;
   new_chunk->header.size = new_size;
 
-  object_base = new_chunk->contents.contents;
-
-  h->object_base = object_base;
-  h->next_free = h->object_base;
+  h->object_base =  (char *)new_chunk + contents_offset + space_needed_for_alignment;
+  h->next_free = h->object_base + length;
+  return h->object_base;
 }
 
 /* Free everything in H.  */

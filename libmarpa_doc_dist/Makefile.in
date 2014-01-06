@@ -49,11 +49,10 @@ POST_UNINSTALL = :
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(api_TEXINFOS) \
 	$(internal_TEXINFOS) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/config.h.in $(srcdir)/stamp-1 \
-	$(srcdir)/stamp-vti $(srcdir)/version.texi \
-	$(srcdir)/version_i.texi $(top_srcdir)/configure AUTHORS \
-	COPYING.LESSER ChangeLog INSTALL NEWS install-sh mdate-sh \
-	missing texinfo.tex
+	$(srcdir)/Makefile.in $(srcdir)/stamp-1 $(srcdir)/stamp-vti \
+	$(srcdir)/version.texi $(srcdir)/version_i.texi \
+	$(top_srcdir)/configure AUTHORS COPYING.LESSER ChangeLog \
+	INSTALL NEWS install-sh mdate-sh missing texinfo.tex
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -61,7 +60,6 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
-CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 SOURCES =
@@ -139,18 +137,7 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LTLIBOBJS = @LTLIBOBJS@
-LT_AGE = @LT_AGE@
-LT_CURRENT = @LT_CURRENT@
-LT_CURRENT_MINUS_AGE = @LT_CURRENT_MINUS_AGE@
-LT_RELEASE = @LT_RELEASE@
-LT_REVISION = @LT_REVISION@
 MAKEINFO = @MAKEINFO@
-MARPA_BINARY_AGE = @MARPA_BINARY_AGE@
-MARPA_INTERFACE_AGE = @MARPA_INTERFACE_AGE@
-MARPA_MAJOR_VERSION = @MARPA_MAJOR_VERSION@
-MARPA_MICRO_VERSION = @MARPA_MICRO_VERSION@
-MARPA_MINOR_VERSION = @MARPA_MINOR_VERSION@
-MARPA_VERSION = @MARPA_VERSION@
 MKDIR_P = @MKDIR_P@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
@@ -208,8 +195,7 @@ info_TEXINFOS = api.texi internal.texi
 api_TEXINFOS = fdl-1.3.texi lgpl-3.0.texi
 internal_TEXINFOS = fdl-1.3.texi lgpl-3.0.texi
 TEXI2PDF = texi2pdf --pdf --batch --quiet
-all: config.h
-	$(MAKE) $(AM_MAKEFLAGS) all-am
+all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .dvi .html .info .pdf .ps .texi
@@ -247,21 +233,6 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
 $(am__aclocal_m4_deps):
-
-config.h: stamp-h1
-	@if test ! -f $@; then rm -f stamp-h1; else :; fi
-	@if test ! -f $@; then $(MAKE) $(AM_MAKEFLAGS) stamp-h1; else :; fi
-
-stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
-	@rm -f stamp-h1
-	cd $(top_builddir) && $(SHELL) ./config.status config.h
-$(srcdir)/config.h.in:  $(am__configure_deps) 
-	($(am__cd) $(top_srcdir) && $(AUTOHEADER))
-	rm -f stamp-h1
-	touch $@
-
-distclean-hdr:
-	-rm -f config.h stamp-h1
 
 .texi.info:
 	restore=: && backupdir="$(am__leading_dot)am$$$$" && \
@@ -630,7 +601,7 @@ distcleancheck: distclean
 	       exit 1; } >&2
 check-am: all-am
 check: check-am
-all-am: Makefile $(INFO_DEPS) config.h
+all-am: Makefile $(INFO_DEPS)
 installdirs:
 	for dir in "$(DESTDIR)$(infodir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
@@ -672,7 +643,7 @@ clean-am: clean-aminfo clean-generic mostlyclean-am
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -f Makefile
-distclean-am: clean-am distclean-generic distclean-hdr
+distclean-am: clean-am distclean-generic
 
 dvi: dvi-am
 
@@ -820,20 +791,19 @@ ps-am: $(PSS)
 uninstall-am: uninstall-dvi-am uninstall-html-am uninstall-info-am \
 	uninstall-pdf-am uninstall-ps-am
 
-.MAKE: all install-am install-strip
+.MAKE: install-am install-strip
 
 .PHONY: all all-am am--refresh check check-am clean clean-aminfo \
 	clean-generic dist dist-all dist-bzip2 dist-gzip dist-info \
 	dist-lzip dist-lzma dist-shar dist-tarZ dist-xz dist-zip \
-	distcheck distclean distclean-generic distclean-hdr \
-	distcleancheck distdir distuninstallcheck dvi dvi-am html \
-	html-am info info-am install install-am install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
-	maintainer-clean-1 maintainer-clean-aminfo \
+	distcheck distclean distclean-generic distcleancheck distdir \
+	distuninstallcheck dvi dvi-am html html-am info info-am \
+	install install-am install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-1 maintainer-clean-aminfo \
 	maintainer-clean-generic maintainer-clean-vti mostlyclean \
 	mostlyclean-1 mostlyclean-aminfo mostlyclean-generic \
 	mostlyclean-vti pdf pdf-am ps ps-am uninstall uninstall-am \

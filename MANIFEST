@@ -42,12 +42,13 @@ author.t/spelling_exceptions.list
 author.t/tidy.t
 author.t/tidy1
 c_to_dist.sh
-dovg.sh
 etc/.gitignore
 etc/Makefile
 etc/check_license.pl
 etc/check_links.pl
 etc/compile_for_debug.sh
+etc/dovg.sh
+etc/my_suppressions
 etc/reserved_check.sh
 g/config/default.txt
 html/.gitignore
@@ -118,7 +119,6 @@ libmarpa/ac/ChangeLog
 libmarpa/ac/Makefile.am
 libmarpa/ac/NEWS
 libmarpa/ac/README
-libmarpa/ac/VERSION.in
 libmarpa/ac/configure.ac
 libmarpa/ac_doc/AUTHORS
 libmarpa/ac_doc/COPYING.LESSER
@@ -151,6 +151,8 @@ libmarpa/obs/marpa_obs.c
 libmarpa/obs/marpa_obs.h
 libmarpa/public/.gitignore
 libmarpa/public/Makefile
+libmarpa/public/VERSION
+libmarpa/public/marpa.h-version
 libmarpa/public/marpa.h.p10
 libmarpa/public/marpa.h.p90
 libmarpa/public/marpa_codes.c.p10
@@ -187,7 +189,6 @@ libmarpa_dist/Makefile.in
 libmarpa_dist/NEWS
 libmarpa_dist/README
 libmarpa_dist/VERSION
-libmarpa_dist/VERSION.in
 libmarpa_dist/aclocal.m4
 libmarpa_dist/config.guess
 libmarpa_dist/config.h.in
@@ -208,13 +209,13 @@ libmarpa_dist/marpa_ami.c
 libmarpa_dist/marpa_ami.h
 libmarpa_dist/marpa_avl.c
 libmarpa_dist/marpa_avl.h
-libmarpa_dist/marpa_tavl.c
-libmarpa_dist/marpa_tavl.h
 libmarpa_dist/marpa_codes.c
 libmarpa_dist/marpa_obs.c
 libmarpa_dist/marpa_obs.h
 libmarpa_dist/marpa_slif.c
 libmarpa_dist/marpa_slif.h
+libmarpa_dist/marpa_tavl.c
+libmarpa_dist/marpa_tavl.h
 libmarpa_dist/missing
 libmarpa_dist/stamp-h1
 libmarpa_doc_dist/AUTHORS
@@ -228,7 +229,6 @@ libmarpa_doc_dist/README
 libmarpa_doc_dist/aclocal.m4
 libmarpa_doc_dist/api.info
 libmarpa_doc_dist/api.texi
-libmarpa_doc_dist/config.h.in
 libmarpa_doc_dist/configure
 libmarpa_doc_dist/configure.ac
 libmarpa_doc_dist/fdl-1.3.texi
@@ -246,7 +246,6 @@ libmarpa_doc_dist/version.texi
 libmarpa_doc_dist/version_i.texi
 meta/Makefile
 meta/make_internal_pm.pl
-my_suppressions
 pod/ASF.pod
 pod/Acknowledgements.pod
 pod/Advanced/Bibliography.pod

@@ -2032,8 +2032,7 @@ PRIVATE
   XRL xrl;
   const int sizeof_xrl = offsetof (struct s_xrl, t_symbols) +
     (length + 1) * sizeof (xrl->t_symbols[0]);
-  marpa_obs_start (g->t_xrl_obs, sizeof_xrl, ALIGNOF(XRL));
-  xrl = marpa_obs_base (g->t_xrl_obs);
+  xrl = marpa_obs_start (g->t_xrl_obs, sizeof_xrl, ALIGNOF(XRL));
   Length_of_XRL (xrl) = length;
   xrl->t_symbols[0] = lhs;
   XSY_is_LHS (XSY_by_ID (lhs)) = 1;
@@ -2073,7 +2072,10 @@ irl_start(GRAMMAR g, int length)
   IRL irl;
   const int sizeof_irl = offsetof (struct s_irl, t_nsyid_array) +
     (length + 1) * sizeof (irl->t_nsyid_array[0]);
-  irl = marpa_obs_alloc (g->t_obs, sizeof_irl);
+
+  /* Needs to be aligned as an IRL */
+  irl = marpa__obs_alloc (g->t_obs, sizeof_irl, ALIGNOF(IRL_Object));
+
   ID_of_IRL(irl) = MARPA_DSTACK_LENGTH((g)->t_irl_stack);
   Length_of_IRL(irl) = length;
   @<Initialize IRL elements@>@;
@@ -2721,6 +2723,8 @@ struct s_irl {
   @<Bit aligned IRL elements@>@;
   @<Final IRL elements@>@/
 };
+typedef struct s_irl IRL_Object;
+
 @ @<Public typedefs@> =
 typedef int Marpa_IRL_ID;
 @ @<Private typedefs@> =
@@ -5599,8 +5603,11 @@ NEXT_AHFA_STATE:;
                 offsetof (struct s_transition,
                           t_aex) +
                 completion_count * sizeof (transitions[0]->t_aex[0]);
+
+              /* Needs to be aligned as a TRANS */
               TRANS new_transition =
-                marpa_obs_alloc (g->t_obs, sizeof_transition);
+                marpa__obs_alloc (g->t_obs, sizeof_transition, ALIGNOF(TRANS_Object));
+
               LV_To_AHFA_of_TRANS (new_transition) =
                 To_AHFA_of_TRANS (working_transition);
               LV_Completion_Count_of_TRANS (new_transition) = 0;
@@ -5696,7 +5703,7 @@ _marpa_avl_destroy(duplicates);
   NSYID *postdot_nsyidary;
   AIM start_item;
   NSYID postdot_nsyid;
-  AIM *item_list = marpa_obs_alloc (g->t_obs, sizeof (AIM));
+  AIM *item_list = marpa_obs_new (g->t_obs, AIM, 1);
   /* The start item is the initial item for the start rule */
   start_item = First_AIM_of_IRL(start_irl);
   item_list[0] = start_item;
@@ -5708,7 +5715,7 @@ _marpa_avl_destroy(duplicates);
   TRANSs_of_AHFA (p_initial_state) = transitions_new (g, nsy_count);
   Postdot_NSY_Count_of_AHFA (p_initial_state) = 1;
   postdot_nsyidary = Postdot_NSYIDAry_of_AHFA (p_initial_state) =
-    marpa_obs_alloc (g->t_obs, sizeof (NSYID));
+    marpa_obs_new (g->t_obs, NSYID, 1);
   postdot_nsyid = Postdot_NSYID_of_AIM (start_item);
   *postdot_nsyidary = postdot_nsyid;
   Completion_CIL_of_AHFA(p_initial_state) =
@@ -5767,7 +5774,7 @@ a start rule completion, and it is a
     AHFA_initialize(p_new_state);
     singleton_duplicates[working_aim_id] = p_new_state;
     new_state_item_list = p_new_state->t_items =
-        marpa_obs_alloc (g->t_obs, sizeof (AIM));
+        marpa_obs_new (g->t_obs, AIM, 1);
     new_state_item_list[0] = working_aim_p;
     p_new_state->t_item_count = 1;
     AHFA_is_Predicted(p_new_state) = 0;
@@ -5778,7 +5785,7 @@ a start rule completion, and it is a
     if (postdot_nsyid >= 0)
       {
         NSYID* p_postdot_nsyidary = Postdot_NSYIDAry_of_AHFA(p_new_state) =
-          marpa_obs_alloc (g->t_obs, sizeof (NSYID));
+          marpa_obs_new (g->t_obs, NSYID, 1);
         Completion_CIL_of_AHFA(p_new_state)
           = cil_empty (&g->t_cilar);
         Postdot_NSY_Count_of_AHFA(p_new_state) = 1;
@@ -5841,7 +5848,7 @@ be if written 100\% using indexes.
         memoizations@> =
   const RULEID irl_count = IRL_Count_of_G(g);
   AIM* const item_list_working_buffer
-    = marpa_obs_alloc(obs_precompute, irl_count*sizeof(AIM));
+    = marpa_obs_new(obs_precompute, AIM, irl_count);
   const NSYID nsy_count = NSY_Count_of_G(g);
   const XSYID xsy_count = XSY_Count_of_G(g);
   IRLID** irl_list_x_lh_nsy = NULL;
@@ -5947,7 +5954,7 @@ of minimum sizes.
   {
       int i;
       AIM* const final_aim_list = p_new_state->t_items =
-          marpa_obs_alloc( g->t_obs, no_of_items_in_new_state * sizeof (AIM));
+          marpa_obs_new( g->t_obs, AIM, no_of_items_in_new_state);
       for (i = 0; i < no_of_items_in_new_state; i++) {
           final_aim_list[i] = item_list_working_buffer[i];
       }
@@ -5992,8 +5999,7 @@ for discovered state with 2+ items@> =
     {
       unsigned int min, max, start;
       NSYID *p_nsyid = Postdot_NSYIDAry_of_AHFA (p_new_state) =
-        marpa_obs_alloc (g->t_obs,
-                          no_of_postdot_nsys * sizeof (NSYID));
+        marpa_obs_new (g->t_obs, NSYID, no_of_postdot_nsys );
       for (start = 0; bv_scan (per_ahfa_postdot_v, start, &min, &max);
            start = max + 2)
         {
@@ -6287,7 +6293,7 @@ create_predicted_AHFA_state(
   {
     int i;
     AIM *const final_aim_list = p_new_state->t_items =
-      marpa_obs_alloc (g->t_obs, no_of_items_in_new_state * sizeof (AIM));
+      marpa_obs_new (g->t_obs, AIM, no_of_items_in_new_state );
     for (i = 0; i < no_of_items_in_new_state; i++)
       {
         final_aim_list[i] = item_list_working_buffer[i];
@@ -6319,8 +6325,7 @@ create_predicted_AHFA_state(
   {
     unsigned int min, max, start;
     NSYID *p_nsyid = Postdot_NSYIDAry_of_AHFA(p_new_state) =
-      marpa_obs_alloc (g->t_obs,
-                     no_of_postdot_nsys * sizeof (NSYID));
+      marpa_obs_new (g->t_obs, NSYID, no_of_postdot_nsys );
     for (start = 0; bv_scan (postdot_v, start, &min, &max); start = max + 2)
       {
         NSYID postdot_nsyid;
@@ -6399,11 +6404,16 @@ struct s_ur_transition {
     AHFA t_to_ahfa;
     int t_completion_count;
 };
+typedef struct s_ur_transition URTRANS_Object;
+
+@ @<Private structures@> =
 struct s_transition {
     struct s_ur_transition t_ur;
     AEX t_leo_base_aex;
     AEX t_aex[1];
 };
+typedef struct s_transition TRANS_Object;
+
 @ @d TRANSs_of_AHFA(ahfa) ((ahfa)->t_transitions)
 @<Widely aligned AHFA state elements@> =
     TRANS* t_transitions;
@@ -6425,7 +6435,7 @@ PRIVATE
 URTRANS transition_new(struct marpa_obstack *obstack, AHFA to_ahfa, int aim_ix)
 {
      URTRANS transition;
-     transition = marpa_obs_alloc (obstack, sizeof (transition[0]));
+     transition = marpa_obs_new (obstack, URTRANS_Object, 1);
      transition->t_to_ahfa = to_ahfa;
      transition->t_completion_count = aim_ix;
      return transition;
@@ -7428,6 +7438,7 @@ struct s_earley_set {
     int t_postdot_sym_count;
     @<Int aligned Earley set elements@>@;
 };
+typedef struct s_earley_set YS_Object;
 
 @*0 Earley item container.
 @d YIM_Count_of_YS(set) ((set)->t_yim_count)
@@ -7554,7 +7565,7 @@ earley_set_new( RECCE r, JEARLEME id)
 {
   YSK_Object key;
   YS set;
-  set = marpa_obs_alloc (r->t_obs, sizeof (*set));
+  set = marpa_obs_new (r->t_obs, YS_Object, 1);
   key.t_earleme = id;
   set->t_key = key;
   set->t_postdot_ary = NULL;
@@ -8127,6 +8138,7 @@ union u_postdot_item {
     LIM_Object t_leo;
     YIX_Object t_earley;
 };
+typedef union u_postdot_item PIM_Object;
 typedef union u_postdot_item* PIM;
 
 @ This function searches for the
@@ -8367,6 +8379,7 @@ struct s_source_link {
     SRCL t_next;
     struct s_source t_source;
 };
+typedef struct s_source_link SRCL_Object;
 
 @ @<Source object structure@>= 
 struct s_ambiguous_source {
@@ -8440,7 +8453,7 @@ tkn_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
+  new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
   new_link->t_next = LV_First_Token_SRCL_of_YIM (item);
   new_link->t_source.t_predecessor = predecessor;
   TOK_of_Source(new_link->t_source) = tkn;
@@ -8519,7 +8532,7 @@ completion_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
+  new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
   new_link->t_next = LV_First_Completion_SRCL_of_YIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -8548,7 +8561,7 @@ leo_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
+  new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
   new_link->t_next = LV_First_Leo_SRCL_of_YIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -8593,7 +8606,7 @@ void earley_item_ambiguate (struct marpa_r * r, YIM item)
 }
 
 @ @<Ambiguate token source@> = {
-  SRCL new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
+  SRCL new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
   *new_link = *SRCL_of_YIM(item);
   LV_First_Leo_SRCL_of_YIM (item) = NULL;
   LV_First_Completion_SRCL_of_YIM (item) = NULL;
@@ -8601,7 +8614,7 @@ void earley_item_ambiguate (struct marpa_r * r, YIM item)
 }
 
 @ @<Ambiguate completion source@> = {
-  SRCL new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
+  SRCL new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
   *new_link = *SRCL_of_YIM(item);
   LV_First_Leo_SRCL_of_YIM (item) = NULL;
   LV_First_Completion_SRCL_of_YIM (item) = new_link;
@@ -8609,7 +8622,7 @@ void earley_item_ambiguate (struct marpa_r * r, YIM item)
 }
 
 @ @<Ambiguate Leo source@> = {
-  SRCL new_link = marpa_obs_alloc (r->t_obs, sizeof (*new_link));
+  SRCL new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
   *new_link = *SRCL_of_YIM(item);
   LV_First_Leo_SRCL_of_YIM (item) = new_link;
   LV_First_Completion_SRCL_of_YIM (item) = NULL;
@@ -9479,19 +9492,20 @@ altered by the attempt.
 {
   TOK tkn;
   ALT_Object alternative;
-  struct marpa_obstack * const tkn_obstack = TOK_Obs_of_I (input);
+  struct marpa_obstack *const tkn_obstack = TOK_Obs_of_I (input);
   if (value)
     {
-      marpa_obs_reserve (TOK_Obs_of_I (input), sizeof (*tkn));
-      tkn = marpa_obs_base (tkn_obstack);
+      tkn =
+	marpa_obs_start (TOK_Obs_of_I (input), sizeof (*tkn), ALIGNOF (TOK));
       NSYID_of_TOK (tkn) = tkn_nsyid;
       Type_of_TOK (tkn) = VALUED_TOKEN_OR_NODE;
       Value_of_TOK (tkn) = value;
     }
   else
     {
-      marpa_obs_reserve (TOK_Obs_of_I (input), sizeof (tkn->t_unvalued));
-      tkn = marpa_obs_base (tkn_obstack);
+      tkn =
+	marpa_obs_start (TOK_Obs_of_I (input), sizeof (tkn->t_unvalued),
+			 ALIGNOF (struct s_token_unvalued));
       NSYID_of_TOK (tkn) = tkn_nsyid;
       Type_of_TOK (tkn) = UNVALUED_TOKEN_OR_NODE;
     }
@@ -9503,7 +9517,7 @@ altered by the attempt.
   if (alternative_insert (r, &alternative) < 0)
     {
       marpa_obs_reject (tkn_obstack);
-      MARPA_ERROR(MARPA_ERR_DUPLICATE_TOKEN);
+      MARPA_ERROR (MARPA_ERR_DUPLICATE_TOKEN);
       return MARPA_ERR_DUPLICATE_TOKEN;
     }
   tkn = marpa_obs_finish (tkn_obstack);
@@ -10046,7 +10060,10 @@ At this point there are no Leo items.
           PIM old_pim = NULL;
           PIM new_pim;
           NSYID nsyid;
-          new_pim = marpa_obs_alloc (r->t_obs, sizeof (YIX_Object));
+
+          /* Need to be aligned for a PIM */
+          new_pim = marpa__obs_alloc (r->t_obs, sizeof (YIX_Object), ALIGNOF(PIM_Object));
+
           nsyid = postdot_nsyidary[nsy_ix];
           Postdot_NSYID_of_PIM(new_pim) = nsyid;
           YIM_of_PIM(new_pim) = earley_item;
@@ -10109,7 +10126,7 @@ That may become its actual value,
 once it is populated.
 @<Create a new, unpopulated, LIM@> = {
     LIM new_lim;
-    new_lim = marpa_obs_alloc(r->t_obs, sizeof(*new_lim));
+    new_lim = marpa_obs_new(r->t_obs, LIM_Object, 1);
     Postdot_NSYID_of_LIM(new_lim) = nsyid;
     YIM_of_PIM(new_lim) = NULL;
     Predecessor_LIM_of_LIM(new_lim) = NULL;
@@ -10414,8 +10431,7 @@ of the base YIM.
 @ @<Copy PIM workarea to postdot item array@> = {
     PIM *postdot_array
         = current_earley_set->t_postdot_ary
-        = marpa_obs_alloc (r->t_obs,
-               current_earley_set->t_postdot_sym_count * sizeof (PIM));
+        = marpa_obs_new (r->t_obs, PIM, current_earley_set->t_postdot_sym_count );
     unsigned int min, max, start;
     int postdot_array_ix = 0;
     for (start = 0; bv_scan (r->t_bv_pim_symbols, start, &min, &max); start = max + 2) {
@@ -10565,12 +10581,16 @@ struct s_ur_node_stack {
    UR t_base;
    UR t_top;
 };
+
+@ @<Private structures@> =
 struct s_ur_node {
    UR t_prev;
    UR t_next;
    YIM t_earley_item;
    AEX t_aex;
 };
+typedef struct s_ur_node UR_Object;
+
 @ @d URS_of_R(r) (&(r)->t_ur_node_stack)
 @<Widely aligned recognizer elements@> =
 struct s_ur_node_stack t_ur_node_stack;
@@ -10608,7 +10628,7 @@ PRIVATE void ur_node_stack_destroy(URS stack)
 PRIVATE UR ur_node_new(URS stack, UR prev)
 {
     UR new_ur_node;
-    new_ur_node = marpa_obs_alloc(stack->t_obs, sizeof(new_ur_node[0]));
+    new_ur_node = marpa_obs_new(stack->t_obs, UR_Object, 1);
     Next_UR_of_UR(new_ur_node) = 0;
     Prev_UR_of_UR(new_ur_node) = prev;
     return new_ur_node;
@@ -10709,7 +10729,7 @@ MARPA_ASSERT(ahfa_element_ix < aim_count_of_item)@;
     if (!nodes_by_aex) {
         AEX aex;
         nodes_by_aex = nodes_by_item[item_ordinal] =
-            marpa_obs_alloc(obs, aim_count_of_item*sizeof(OR));
+            marpa_obs_new(obs, OR, aim_count_of_item);
         for (aex = 0; aex < aim_count_of_item; aex++) {
             nodes_by_aex[aex] = NULL;
         }
@@ -11177,7 +11197,7 @@ or arranging to test it.
 {
   const int or_node_id = OR_Count_of_B (b)++;
   OR *or_nodes_of_b = ORs_of_B (b);
-  last_or_node = (OR)marpa_obs_alloc (OBS_of_B(b), sizeof(OR_Object));
+  last_or_node = (OR)marpa_obs_new (OBS_of_B(b), OR_Object, 1);
   ID_of_OR(last_or_node) = or_node_id;
   if (_MARPA_UNLIKELY(or_node_id >= or_node_estimate))
     {
@@ -11611,7 +11631,7 @@ typedef struct s_draft_and_node DAND_Object;
 PRIVATE
 DAND draft_and_node_new(struct marpa_obstack *obs, OR predecessor, OR cause)
 {
-    DAND draft_and_node = marpa_obs_alloc (obs, sizeof(DAND_Object));
+    DAND draft_and_node = marpa_obs_new (obs, DAND_Object, 1);
     Predecessor_OR_of_DAND(draft_and_node) = predecessor;
     Cause_OR_of_DAND(draft_and_node) = cause;
     MARPA_ASSERT(cause != NULL);
@@ -12607,8 +12627,7 @@ struct s_bocage_setup_per_ys* per_ys_data = NULL;
   unsigned int earley_set_count = YS_Count_of_R (r);
   count_of_earley_items_in_parse = 0;
   per_ys_data =
-    marpa_obs_alloc (bocage_setup_obs,
-                   sizeof (struct s_bocage_setup_per_ys) * earley_set_count);
+    marpa_obs_new (bocage_setup_obs, struct s_bocage_setup_per_ys, earley_set_count);
   for (ix = 0; ix < earley_set_count; ix++)
     {
       const YS_Const earley_set = YS_of_R_by_Ord (r, ix);
@@ -12617,7 +12636,7 @@ struct s_bocage_setup_per_ys* per_ys_data = NULL;
         {
           struct s_bocage_setup_per_ys *per_ys = per_ys_data + ix;
           OR ** const per_yim_yixes = per_ys->t_aexes_by_item =
-            marpa_obs_alloc (bocage_setup_obs, sizeof (OR *) * item_count);
+            marpa_obs_new (bocage_setup_obs, OR *, item_count);
           unsigned int item_ordinal;
           per_ys->t_or_psl = NULL;
           per_ys->t_and_psl = NULL;
@@ -13060,8 +13079,7 @@ int marpa_o_rank( Marpa_Order o)
       const ANDID last_and_node_id =
         (first_and_node_id + and_count_of_or) - 1;
       ANDID *const order_base =
-        (marpa_obs_reserve (obs, sizeof (ANDID) * (and_count_of_or + 1)),
-         marpa_obs_base (obs));
+        marpa_obs_start (obs, sizeof (ANDID) * (and_count_of_or + 1), ALIGNOF(ANDID));
       ANDID *order = order_base + 1;
       ANDID and_node_id;
       bocage_was_reordered = 1;
@@ -13152,7 +13170,7 @@ and code-size savings in exchange for the space.
     {
       const ANDID first_and_node_id = First_ANDID_of_OR (work_or_node);
       ANDID *const order_base =
-        marpa_obs_alloc (obs, sizeof (ANDID) * (and_count_of_or + 1));
+        marpa_obs_new (obs, ANDID, and_count_of_or + 1);
       ANDID *order = order_base + 1;
       int nodes_inserted_so_far;
       bocage_was_reordered = 1;
@@ -13184,7 +13202,7 @@ and code-size savings in exchange for the space.
   obs = OBS_of_O (o) = marpa_obs_init;
   o->t_and_node_orderings =
     and_node_orderings =
-    marpa_obs_alloc (obs, sizeof (ANDID *) * and_count_of_r);
+    marpa_obs_new (obs, ANDID*, and_count_of_r);
   for (and_id = 0; and_id < and_count_of_r; and_id++)
     {
       and_node_orderings[and_id] = (ANDID *) NULL;
@@ -14656,11 +14674,11 @@ This is offset from the |malloc|'d space,
 by |bv_hiddenwords|.
 @<Function definitions@> =
 PRIVATE Bit_Vector
-bv_obs_create (struct marpa_obstack *obs, unsigned int bits)
+bv_obs_create (struct marpa_obstack *obs, LBW bits)
 {
-  unsigned int size = bv_bits_to_size (bits);
-  unsigned int bytes = (size + bv_hiddenwords) * sizeof (Bit_Vector_Word);
-  unsigned int *addr = (Bit_Vector) marpa_obs_alloc (obs, (size_t) bytes);
+  LBW size = bv_bits_to_size (bits);
+  LBW bytes = (size + bv_hiddenwords) * sizeof (Bit_Vector_Word);
+  LBW *addr = (Bit_Vector) marpa__obs_alloc (obs, (size_t) bytes, ALIGNOF(LBW));
   *addr++ = bits;
   *addr++ = size;
   *addr++ = bv_bits_to_unused_mask (bits);
@@ -14693,8 +14711,8 @@ This call allocates a new vector, which must be |free|'d.
 PRIVATE
 Bit_Vector bv_copy(Bit_Vector bv_to, Bit_Vector bv_from)
 {
-    unsigned int *p_to = bv_to;
-    const unsigned int bits = BV_BITS(bv_to);
+    LBW *p_to = bv_to;
+    const LBW bits = BV_BITS(bv_to);
     if (bits > 0)
     {
         int count = BV_SIZE(bv_to);
@@ -14735,7 +14753,7 @@ PRIVATE void bv_free(Bit_Vector vector)
 @<Function definitions@> =
 PRIVATE void bv_fill(Bit_Vector bv)
 {
-    unsigned int size = BV_SIZE(bv);
+    LBW size = BV_SIZE(bv);
     if (size <= 0) return;
     while (size--) *bv++ = ~0u;
     --bv;
@@ -14746,7 +14764,7 @@ PRIVATE void bv_fill(Bit_Vector bv)
 @<Function definitions@> =
 PRIVATE void bv_clear(Bit_Vector bv)
 {
-    unsigned int size = BV_SIZE(bv);
+    LBW size = BV_SIZE(bv);
     if (size <= 0) return;
     while (size--) *bv++ = 0u;
 }
@@ -14758,29 +14776,29 @@ than an interval clear, at the expense of often
 clearing more bits than were requested.
 In some situations clearing the extra bits is OK.
 @ @<Function definitions@> =
-PRIVATE void bv_over_clear(Bit_Vector bv, unsigned int bit)
+PRIVATE void bv_over_clear(Bit_Vector bv, LBW bit)
 {
-    unsigned int length = bit/bv_wordbits+1;
+    LBW length = bit/bv_wordbits+1;
     while (length--) *bv++ = 0u;
 }
 
 @*0 Set a boolean vector bit.
 @ @<Function definitions@> =
-PRIVATE void bv_bit_set(Bit_Vector vector, unsigned int bit)
+PRIVATE void bv_bit_set(Bit_Vector vector, LBW bit)
 {
     *(vector+(bit/bv_wordbits)) |= (bv_lsb << (bit%bv_wordbits));
 }
 
 @*0 Clear a boolean vector bit.
 @<Function definitions@> =
-PRIVATE void bv_bit_clear(Bit_Vector vector, unsigned int bit)
+PRIVATE void bv_bit_clear(Bit_Vector vector, LBW bit)
 {
     *(vector+(bit/bv_wordbits)) &= ~ (bv_lsb << (bit%bv_wordbits));
 }
 
 @*0 Test a boolean vector bit.
 @<Function definitions@> =
-PRIVATE int bv_bit_test(Bit_Vector vector, unsigned int bit)
+PRIVATE int bv_bit_test(Bit_Vector vector, LBW bit)
 {
     return (*(vector+(bit/bv_wordbits)) & (bv_lsb << (bit%bv_wordbits))) != 0u;
 }
@@ -14792,10 +14810,10 @@ so that the return value is 1 if the call had no effect,
 zero otherwise.
 @<Function definitions@> =
 PRIVATE int
-bv_bit_test_then_set (Bit_Vector vector, unsigned int bit)
+bv_bit_test_then_set (Bit_Vector vector, LBW bit)
 {
   Bit_Vector addr = vector + (bit / bv_wordbits);
-  unsigned int mask = bv_lsb << (bit % bv_wordbits);
+  LBW mask = bv_lsb << (bit % bv_wordbits);
   if ((*addr & mask) != 0u)
     return 1;
   *addr |= mask;
@@ -14807,7 +14825,7 @@ bv_bit_test_then_set (Bit_Vector vector, unsigned int bit)
 PRIVATE
 int bv_is_empty(Bit_Vector addr)
 {
-    unsigned int  size = BV_SIZE(addr);
+    LBW  size = BV_SIZE(addr);
     int r = 1;
     if (size > 0) {
         *(addr+size-1) &= BV_MASK(addr);
@@ -14820,8 +14838,8 @@ int bv_is_empty(Bit_Vector addr)
 @<Function definitions@>=
 PRIVATE void bv_not(Bit_Vector X, Bit_Vector Y)
 {
-    unsigned int size = BV_SIZE(X);
-    unsigned int mask = BV_MASK(X);
+    LBW size = BV_SIZE(X);
+    LBW mask = BV_MASK(X);
     while (size-- > 0) *X++ = ~*Y++;
     *(--X) &= mask;
 }
@@ -14830,8 +14848,8 @@ PRIVATE void bv_not(Bit_Vector X, Bit_Vector Y)
 @<Function definitions@>=
 PRIVATE void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
 {
-    unsigned int size = BV_SIZE(X);
-    unsigned int mask = BV_MASK(X);
+    LBW size = BV_SIZE(X);
+    LBW mask = BV_MASK(X);
     while (size-- > 0) *X++ = *Y++ & *Z++;
     *(--X) &= mask;
 }
@@ -14840,8 +14858,8 @@ PRIVATE void bv_and(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
 @<Function definitions@>=
 PRIVATE void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
 {
-    unsigned int size = BV_SIZE(X);
-    unsigned int mask = BV_MASK(X);
+    LBW size = BV_SIZE(X);
+    LBW mask = BV_MASK(X);
     while (size-- > 0) *X++ = *Y++ | *Z++;
     *(--X) &= mask;
 }
@@ -14850,8 +14868,8 @@ PRIVATE void bv_or(Bit_Vector X, Bit_Vector Y, Bit_Vector Z)
 @<Function definitions@>=
 PRIVATE void bv_or_assign(Bit_Vector X, Bit_Vector Y)
 {
-    unsigned int size = BV_SIZE(X);
-    unsigned int mask = BV_MASK(X);
+    LBW size = BV_SIZE(X);
+    LBW mask = BV_MASK(X);
     while (size-- > 0) *X++ |= *Y++;
     *(--X) &= mask;
 }
@@ -14859,14 +14877,13 @@ PRIVATE void bv_or_assign(Bit_Vector X, Bit_Vector Y)
 @*0 Scan a boolean vector.
 @<Function definitions@>=
 PRIVATE_NOT_INLINE
-int bv_scan(Bit_Vector bv, unsigned int start,
-                                    unsigned int* min, unsigned int* max)
+int bv_scan(Bit_Vector bv, LBW start, LBW* min, LBW* max)
 {
-    unsigned int  size = BV_SIZE(bv);
-    unsigned int  mask = BV_MASK(bv);
-    unsigned int  offset;
-    unsigned int  bitmask;
-    unsigned int  value;
+    LBW  size = BV_SIZE(bv);
+    LBW  mask = BV_MASK(bv);
+    LBW  offset;
+    LBW  bitmask;
+    LBW  value;
     int empty;
 
     if (size == 0) return 0;
@@ -14877,8 +14894,8 @@ int bv_scan(Bit_Vector bv, unsigned int start,
     *(bv+size-1) &= mask;
     bv += offset;
     size -= offset;
-    bitmask = (unsigned int)1 << (start & bv_modmask);
-    mask = ~ (bitmask | (bitmask - (unsigned int)1));
+    bitmask = (LBW)1 << (start & bv_modmask);
+    mask = ~ (bitmask | (bitmask - (LBW)1));
     value = *bv++;
     if ((value & bitmask) == 0)
     {
@@ -14930,11 +14947,11 @@ int bv_scan(Bit_Vector bv, unsigned int start,
 
 @*0 Count the bits in a boolean vector.
 @<Function definitions@>=
-PRIVATE unsigned int
+PRIVATE LBW
 bv_count (Bit_Vector v)
 {
-  unsigned int start, min, max;
-  unsigned int count = 0;
+  LBW start, min, max;
+  LBW count = 0;
   for (start = 0; bv_scan (v, start, &min, &max); start = max + 2)
     {
       count += max - min + 1;
@@ -14981,13 +14998,13 @@ The orignal vector is destroyed.
 PRIVATE void
 rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
 {
-  unsigned int min, max, start = 0;
+  LBW min, max, start = 0;
   Marpa_Symbol_ID *end_of_stack = NULL;
   FSTACK_DECLARE (stack, XSYID) @;
   FSTACK_INIT (stack, XSYID, XSY_Count_of_G (g));
   while (bv_scan (bv, start, &min, &max))
     {
-      unsigned int xsy_id;
+      LBW xsy_id;
       for (xsy_id = min; xsy_id <= max; xsy_id++)
         {
           *(FSTACK_PUSH (stack)) = xsy_id;
@@ -15009,7 +15026,7 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
 
           const int is_sequence = XRL_is_Sequence (rule);
 
-          if (bv_bit_test (bv, (unsigned int) lhs_id))
+          if (bv_bit_test (bv, (LBW) lhs_id))
             goto NEXT_RULE;
           rule_length = Length_of_XRL (rule);
 
@@ -15021,7 +15038,7 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
           for (rh_ix = 0; rh_ix < rule_length; rh_ix++)
             {
               if (!bv_bit_test
-                  (bv, (unsigned int) RHS_ID_of_XRL (rule, rh_ix)))
+                  (bv, (LBW) RHS_ID_of_XRL (rule, rh_ix)))
                 goto NEXT_RULE;
             }
 
@@ -15034,7 +15051,7 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
               XSYID separator_id = Separator_of_XRL (rule);
               if (separator_id >= 0)
                 {
-                  if (!bv_bit_test (bv, (unsigned int) separator_id))
+                  if (!bv_bit_test (bv, (LBW) separator_id))
                     goto NEXT_RULE;
                 }
             }
@@ -15042,7 +15059,7 @@ rhs_closure (GRAMMAR g, Bit_Vector bv, XRLID ** xrl_list_x_rh_sym)
           /* If I am here, the bits for the RHS symbols are all
            * set, but the one for the LHS symbol is not.
            */
-          bv_bit_set (bv, (unsigned int) lhs_id);
+          bv_bit_set (bv, (LBW) lhs_id);
           *(FSTACK_PUSH (stack)) = lhs_id;
         NEXT_RULE:;
         }
@@ -15077,6 +15094,7 @@ struct s_bit_matrix {
     Bit_Vector_Word t_row_data[1];
 };
 typedef struct s_bit_matrix* Bit_Matrix;
+typedef struct s_bit_matrix Bit_Matrix_Object;
 
 @*0 Create a boolean matrix.
 @ Here the pointer returned is the actual start of the
@@ -15085,16 +15103,16 @@ This is {\bf not} the case with vectors, whose pointer is offset for
 the ``hidden words".
 @<Function definitions@> =
 PRIVATE Bit_Matrix
-matrix_buffer_create (void *buffer, unsigned int rows, unsigned int columns)
+matrix_buffer_create (void *buffer, LBW rows, LBW columns)
 {
-    unsigned int row;
-    const unsigned int bv_data_words = bv_bits_to_size(columns);
-    const unsigned int bv_mask = bv_bits_to_unused_mask(columns);
+    LBW row;
+    const LBW bv_data_words = bv_bits_to_size(columns);
+    const LBW bv_mask = bv_bits_to_unused_mask(columns);
 
     Bit_Matrix matrix_addr = buffer;
     matrix_addr->t_row_count = rows;
     for (row = 0; row < rows; row++) {
-        const unsigned int row_start = row*(bv_data_words+bv_hiddenwords);
+        const LBW row_start = row*(bv_data_words+bv_hiddenwords);
         Bit_Vector_Word* p_current_word = matrix_addr->t_row_data + row_start;
         int data_word_counter = bv_data_words;
         *p_current_word++ = columns;
@@ -15107,10 +15125,10 @@ matrix_buffer_create (void *buffer, unsigned int rows, unsigned int columns)
 
 @*0 Size a boolean matrix in bytes.
 @ @<Function definitions@> =
-PRIVATE size_t matrix_sizeof(unsigned int rows, unsigned int columns)
+PRIVATE size_t matrix_sizeof(LBW rows, LBW columns)
 {
-  const unsigned int bv_data_words = bv_bits_to_size (columns);
-  const unsigned int row_bytes =
+  const LBW bv_data_words = bv_bits_to_size (columns);
+  const LBW row_bytes =
     (bv_data_words + bv_hiddenwords) * sizeof (Bit_Vector_Word);
   return offsetof (struct s_bit_matrix, t_row_data) +(rows) * row_bytes;
 }
@@ -15119,11 +15137,12 @@ PRIVATE size_t matrix_sizeof(unsigned int rows, unsigned int columns)
 @ @<Function definitions@> =
 PRIVATE Bit_Matrix matrix_obs_create(
   struct marpa_obstack *obs,
-  unsigned int rows,
-  unsigned int columns)
+  LBW rows,
+  LBW columns)
 {
+  /* Needs to be aligned as a |Bit_Matrix_Object| */
   Bit_Matrix matrix_addr =
-    marpa_obs_alloc (obs, matrix_sizeof (rows, columns));
+    marpa__obs_alloc (obs, matrix_sizeof (rows, columns), ALIGNOF(Bit_Matrix_Object));
   return matrix_buffer_create (matrix_addr, rows, columns);
 }
 
@@ -15135,7 +15154,7 @@ PRIVATE void matrix_clear(Bit_Matrix matrix)
     int row_ix;
     const int row_count = matrix->t_row_count;
     Bit_Vector row0 = matrix->t_row_data + bv_hiddenwords;
-    unsigned int words_per_row = BV_SIZE(row0)+bv_hiddenwords;
+    LBW words_per_row = BV_SIZE(row0)+bv_hiddenwords;
     row_ix=0; row = row0;
     while (row_ix < row_count) {
         bv_clear(row);
@@ -15167,16 +15186,16 @@ If it is changed, the vector should be cloned.
 There is a bit of arithmetic, to deal with the
 hidden words offset.
 @<Function definitions@> =
-PRIVATE Bit_Vector matrix_row(Bit_Matrix matrix, unsigned int row)
+PRIVATE Bit_Vector matrix_row(Bit_Matrix matrix, LBW row)
 {
     Bit_Vector row0 = matrix->t_row_data + bv_hiddenwords;
-    unsigned int words_per_row = BV_SIZE(row0)+bv_hiddenwords;
+    LBW words_per_row = BV_SIZE(row0)+bv_hiddenwords;
     return row0 + row*words_per_row;
 }
 
 @*0 Set a boolean matrix bit.
 @ @<Function definitions@> =
-PRIVATE void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int column)
+PRIVATE void matrix_bit_set(Bit_Matrix matrix, LBW row, LBW column)
 {
     Bit_Vector vector = matrix_row(matrix, row);
     bv_bit_set(vector, column);
@@ -15184,7 +15203,7 @@ PRIVATE void matrix_bit_set(Bit_Matrix matrix, unsigned int row, unsigned int co
 
 @*0 Clear a boolean matrix bit.
 @ @<Function definitions@> =
-PRIVATE void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int column)
+PRIVATE void matrix_bit_clear(Bit_Matrix matrix, LBW row, LBW column)
 {
     Bit_Vector vector = matrix_row(matrix, row);
     bv_bit_clear(vector, column);
@@ -15192,7 +15211,7 @@ PRIVATE void matrix_bit_clear(Bit_Matrix matrix, unsigned int row, unsigned int 
 
 @*0 Test a boolean matrix bit.
 @ @<Function definitions@> =
-PRIVATE int matrix_bit_test(Bit_Matrix matrix, unsigned int row, unsigned int column)
+PRIVATE int matrix_bit_test(Bit_Matrix matrix, LBW row, LBW column)
 {
     Bit_Vector vector = matrix_row(matrix, row);
     return bv_bit_test(vector, column);
@@ -15211,16 +15230,16 @@ $O(n^3)$ where the matrix is $n$x$n$.
 @<Function definitions@> =
 PRIVATE_NOT_INLINE void transitive_closure(Bit_Matrix matrix)
 {
-  unsigned int size = matrix_columns (matrix);
-  unsigned int outer_row;
+  LBW size = matrix_columns (matrix);
+  LBW outer_row;
   for (outer_row = 0; outer_row < size; outer_row++)
     {
       Bit_Vector outer_row_v = matrix_row (matrix, outer_row);
-      unsigned int column;
+      LBW column;
       for (column = 0; column < size; column++)
         {
           Bit_Vector inner_row_v = matrix_row (matrix, column);
-          if (bv_bit_test (inner_row_v, (unsigned int) outer_row))
+          if (bv_bit_test (inner_row_v, (LBW) outer_row))
             {
               bv_or_assign (inner_row_v, outer_row_v);
             }
@@ -15438,7 +15457,7 @@ so its current contents will be destroyed.
 @<Function definitions@> =
 PRIVATE CIL cil_bv_add(CILAR cilar, Bit_Vector bv)
 {
-  unsigned int min, max, start = 0;
+  LBW min, max, start = 0;
   cil_buffer_clear (cilar);
   for (start = 0; bv_scan (bv, start, &min, &max); start = max + 2)
     {
