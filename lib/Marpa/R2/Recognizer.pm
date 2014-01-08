@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_006';
+$VERSION        = '2.079_007';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -669,9 +669,9 @@ sub Marpa::R2::Recognizer::alternative {
         {
             Marpa::R2::exception('alternative(): value must be undef or ref');
         } ## end if ( $ref_type ne 'SCALAR' and $ref_type ne 'REF' and...)
-        $value_ix = scalar @{$token_values};
         my $value = ${$value_ref};
         last SET_VALUE_IX if not defined $value;
+        $value_ix = scalar @{$token_values};
         push @{$token_values}, $value;
     } ## end SET_VALUE_IX:
     $length //= 1;

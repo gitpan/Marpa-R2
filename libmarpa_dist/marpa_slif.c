@@ -22,7 +22,7 @@
  */
 
 /*60:*/
-#line 676 "./marpa_slif.w"
+#line 687 "./marpa_slif.w"
 
 
 #include "config.h"
@@ -42,7 +42,7 @@
 #define PRIVATE static inline
 
 /*:5*/
-#line 688 "./marpa_slif.w"
+#line 699 "./marpa_slif.w"
 
 /*23:*/
 #line 225 "./marpa_slif.w"
@@ -50,7 +50,7 @@
 typedef Marpa_SLR SLR;
 
 /*:23*/
-#line 689 "./marpa_slif.w"
+#line 700 "./marpa_slif.w"
 
 /*22:*/
 #line 219 "./marpa_slif.w"
@@ -62,7 +62,7 @@ struct marpa_slr_s{
 struct tavl_table*t_per_codepoint_tavl;
 
 /*:39*//*46:*/
-#line 596 "./marpa_slif.w"
+#line 607 "./marpa_slif.w"
 
 MARPA_DSTACK_DECLARE(t_event_dstack);
 MARPA_DSTACK_DECLARE(t_lexeme_dstack);
@@ -93,7 +93,7 @@ Marpa_Op t_ops[1];
 };
 
 /*:37*/
-#line 690 "./marpa_slif.w"
+#line 701 "./marpa_slif.w"
 
 
 /*:60*/
@@ -161,7 +161,7 @@ static inline void
 per_codepoint_data_destroy(void *p, void* param UNUSED);
 
 /*61:*/
-#line 692 "./marpa_slif.w"
+#line 703 "./marpa_slif.w"
 
 
 /*25:*/
@@ -170,7 +170,7 @@ per_codepoint_data_destroy(void *p, void* param UNUSED);
 Marpa_SLR marpa__slr_new(void)
 {
 /*58:*/
-#line 672 "./marpa_slif.w"
+#line 683 "./marpa_slif.w"
 void*const failure_indicator UNUSED= NULL;
 
 /*:58*/
@@ -191,7 +191,7 @@ slr->t_per_codepoint_tavl= marpa__tavl_create(cmp_per_codepoint_key,NULL);
 }
 
 /*:40*//*47:*/
-#line 600 "./marpa_slif.w"
+#line 611 "./marpa_slif.w"
 
 {
 MARPA_DSTACK_INIT(slr->t_event_dstack,union marpa_slr_event_s,
@@ -256,7 +256,7 @@ marpa__tavl_destroy(slr->t_per_codepoint_tavl,per_codepoint_data_destroy);
 }
 
 /*:42*//*48:*/
-#line 609 "./marpa_slif.w"
+#line 620 "./marpa_slif.w"
 
 {
 MARPA_DSTACK_DESTROY(slr->t_event_dstack);
@@ -325,7 +325,7 @@ my_free(p);
 }
 
 /*:41*//*49:*/
-#line 615 "./marpa_slif.w"
+#line 626 "./marpa_slif.w"
 
 void marpa__slr_event_clear(Marpa_SLR slr)
 {
@@ -334,7 +334,7 @@ slr->t_count_of_deleted_events= 0;
 }
 
 /*:49*//*50:*/
-#line 622 "./marpa_slif.w"
+#line 633 "./marpa_slif.w"
 
 int marpa__slr_event_count(Marpa_SLR slr)
 {
@@ -343,7 +343,7 @@ return event_count-slr->t_count_of_deleted_events;
 }
 
 /*:50*//*51:*/
-#line 629 "./marpa_slif.w"
+#line 640 "./marpa_slif.w"
 
 int marpa__slr_event_max_index(Marpa_SLR slr)
 {
@@ -351,7 +351,7 @@ return MARPA_DSTACK_LENGTH(slr->t_event_dstack)-1;
 }
 
 /*:51*//*52:*/
-#line 635 "./marpa_slif.w"
+#line 646 "./marpa_slif.w"
 
 union marpa_slr_event_s*marpa__slr_event_push(Marpa_SLR slr)
 {
@@ -359,7 +359,7 @@ return MARPA_DSTACK_PUSH(slr->t_event_dstack,union marpa_slr_event_s);
 }
 
 /*:52*//*53:*/
-#line 641 "./marpa_slif.w"
+#line 652 "./marpa_slif.w"
 
 union marpa_slr_event_s*marpa__slr_event_entry(Marpa_SLR slr,int i)
 {
@@ -367,7 +367,7 @@ return MARPA_DSTACK_INDEX(slr->t_event_dstack,union marpa_slr_event_s,i);
 }
 
 /*:53*//*54:*/
-#line 647 "./marpa_slif.w"
+#line 658 "./marpa_slif.w"
 
 void marpa__slr_lexeme_clear(Marpa_SLR slr)
 {
@@ -375,7 +375,7 @@ MARPA_DSTACK_CLEAR(slr->t_lexeme_dstack);
 }
 
 /*:54*//*55:*/
-#line 653 "./marpa_slif.w"
+#line 664 "./marpa_slif.w"
 
 int marpa__slr_lexeme_count(Marpa_SLR slr)
 {
@@ -383,7 +383,7 @@ return MARPA_DSTACK_LENGTH(slr->t_lexeme_dstack);
 }
 
 /*:55*//*56:*/
-#line 659 "./marpa_slif.w"
+#line 670 "./marpa_slif.w"
 
 union marpa_slr_event_s*marpa__slr_lexeme_push(Marpa_SLR slr)
 {
@@ -391,7 +391,7 @@ return MARPA_DSTACK_PUSH(slr->t_lexeme_dstack,union marpa_slr_event_s);
 }
 
 /*:56*//*57:*/
-#line 665 "./marpa_slif.w"
+#line 676 "./marpa_slif.w"
 
 union marpa_slr_event_s*marpa__slr_lexeme_entry(Marpa_SLR slr,int i)
 {
@@ -399,7 +399,7 @@ return MARPA_DSTACK_INDEX(slr->t_lexeme_dstack,union marpa_slr_event_s,i);
 }
 
 /*:57*/
-#line 694 "./marpa_slif.w"
+#line 705 "./marpa_slif.w"
 
 
 /*:61*/

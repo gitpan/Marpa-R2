@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_006';
+$VERSION        = '2.079_007';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -146,6 +146,12 @@ sub Marpa::R2::Internal::Scanless::G::set {
             my $desc = $ref_type ? "a ref to $ref_type" : 'not a ref';
             Marpa::R2::exception(
                 qq{'$arg_name' name argument to Marpa::R2::Scanless::G->new() is $desc\n},
+                "  It should be a ref to a string\n"
+            );
+        } ## end if ( $ref_type ne 'SCALAR' )
+        if ( not defined ${$dsl} ) {
+            Marpa::R2::exception(
+                qq{'$arg_name' name argument to Marpa::R2::Scanless::G->new() is a ref to a an undef\n},
                 "  It should be a ref to a string\n"
             );
         } ## end if ( $ref_type ne 'SCALAR' )
@@ -523,6 +529,11 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
         if ( defined( my $value = $declarations->{priority} ) ) {
             $thin_slg->g1_lexeme_priority_set( $g1_lexeme_id, $value );
         }
+
+        if ( defined( my $value = $declarations->{forgiving} ) ) {
+            $thin_slg->g1_lexeme_forgiving_set( $g1_lexeme_id, $value );
+        }
+
         my $pause_value = $declarations->{pause};
         if ( defined $pause_value ) {
             $thin_slg->g1_lexeme_pause_set( $g1_lexeme_id, $pause_value );

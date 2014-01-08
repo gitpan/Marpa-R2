@@ -25,11 +25,15 @@ m4_define(marpa_configure_in)
 
 m4_define([marpa_major_version], [5])
 m4_define([marpa_minor_version], [179])
-m4_define([marpa_micro_version], [106])
+m4_define([marpa_micro_version], [107])
 m4_define([marpa_version],
           [marpa_major_version.marpa_minor_version.marpa_micro_version])
 
 AC_INIT([libmarpa],[marpa_version],[http://rt.cpan.org/NoAuth/Bugs.html?Dist=Marpa])
+
+# The safety check of the next line is as suggested by autoscan
+AC_CONFIG_SRCDIR([marpa_ami.h])
+
 AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([])
@@ -40,15 +44,22 @@ AC_CONFIG_HEADERS([config.h])
 LT_INIT([])
 
 # Checks for programs.
+# The following were suggested by autoscan
+AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CPP
+AC_PROG_INSTALL
 AC_PROG_LN_S
+AC_PROG_MAKE_SET
+
+# Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([inttypes.h stddef.h stdint.h stdlib.h string.h limits.h])
-AC_CHECK_FUNCS([memset])
+# The following were suggested by autoscan
+AC_CHECK_HEADERS([stddef.h stdlib.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
+AC_C_INLINE
 AC_TYPE_SIZE_T
 
 if test x"$GCC" = xyes; then
@@ -106,7 +117,9 @@ if test x"$ac_cv_type_unsigned_long_long_int" != xyes; then
         [Marpa requires an unsigned long long type -- this compiler does not have one])
 fi
 
-AC_C_INLINE
+# Checks for library functions.
+# The following were suggested by autoscan
+AC_CHECK_FUNCS([memset])
 
 AC_CONFIG_FILES( [Makefile])
 AC_OUTPUT

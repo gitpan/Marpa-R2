@@ -22,7 +22,7 @@
  */
 
 /*62:*/
-#line 697 "./marpa_slif.w"
+#line 708 "./marpa_slif.w"
 
 
 #ifndef _MARPA_SLIF_H__
@@ -52,12 +52,13 @@
 #define MARPA_SLRTR_LEXEME_IGNORED 21
 #define MARPA_SLREV_DELETED 22
 #define MARPA_SLRTR_LEXEME_ACCEPTABLE 23
-#define MARPA_SLRTR_LEXEME_OUTPRIORITIZED 24 \
+#define MARPA_SLRTR_LEXEME_OUTPRIORITIZED 24
+#define MARPA_SLRTR_LEXEME_FORGIVEN 25 \
 
 #define MARPA_SLREV_TYPE(event) ((event) ->t_header.t_event_type)  \
 
 
-#line 704 "./marpa_slif.w"
+#line 715 "./marpa_slif.w"
 
 /*15:*/
 #line 192 "./marpa_slif.w"
@@ -70,7 +71,7 @@ typedef unsigned int Marpa_Codepoint;
 typedef int Marpa_Op;
 
 /*:33*/
-#line 705 "./marpa_slif.w"
+#line 716 "./marpa_slif.w"
 
 /*7:*/
 #line 161 "./marpa_slif.w"
@@ -95,7 +96,7 @@ typedef struct marpa_slr_s*Marpa_SLR;
 union marpa_slr_event_s;
 
 /*:43*/
-#line 706 "./marpa_slif.w"
+#line 717 "./marpa_slif.w"
 
 /*8:*/
 #line 163 "./marpa_slif.w"
@@ -124,7 +125,7 @@ Marpa_Step_Type step_type;
 const char*name;
 };
 /*:18*//*45:*/
-#line 402 "./marpa_slif.w"
+#line 403 "./marpa_slif.w"
 
 union marpa_slr_event_s
 {
@@ -229,6 +230,16 @@ int t_start_of_lexeme;
 int t_end_of_lexeme;
 int t_lexeme;
 int t_current_lexer_ix;
+}
+t_trace_lexeme_forgiven;
+
+struct
+{
+int event_type;
+int t_start_of_lexeme;
+int t_end_of_lexeme;
+int t_lexeme;
+int t_current_lexer_ix;
 int t_priority;
 int t_required_priority;
 }t_trace_lexeme_acceptable;
@@ -320,7 +331,7 @@ int t_current_lexer_ix;
 };
 
 /*:45*/
-#line 707 "./marpa_slif.w"
+#line 718 "./marpa_slif.w"
 
 /*9:*/
 #line 170 "./marpa_slif.w"
@@ -339,7 +350,7 @@ extern const struct marpa_step_type_description_s
 marpa_step_type_description[];
 
 /*:19*/
-#line 708 "./marpa_slif.w"
+#line 719 "./marpa_slif.w"
 
 
 #endif 
