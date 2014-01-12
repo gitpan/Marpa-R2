@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_007';
+$VERSION        = '2.079_008';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1035,21 +1035,21 @@ sub Marpa::R2::Scanless::R::read_problem {
             $problem_pos = $thin_slr->problem_pos();
             my ( $line, $column ) = $slr->line_column($problem_pos);
             my $lexer_name;
-            my $rejected_count = 0 ;
             my @details = ();
-            EVENT: for my $event ( $thin_slr->events() ) {
+            my %rejections = ();
+            my @events = $thin_slr->events() ;
+            if (scalar @events > 100) {
+               my $omitted = scalar @events - 100;
+               push @details, "  [there were $omitted events -- only the first 100 were examined]";
+               $#events = 99;
+            }
+            EVENT: for my $event ( @events ) {
                 my ( $event_type, $trace_event_type, $lexeme_start_pos,
                     $lexeme_end_pos, $g1_lexeme, $lexer_id )
                     = @{$event};
                 next EVENT
                     if $event_type ne q{'trace}
                     or $trace_event_type ne 'rejected lexeme';
-                $rejected_count++;
-                if ( $rejected_count > 5 ) {
-                    my $omitted = $rejected_count - 5;
-                    push @details,
-                        "  [$omitted rejected lexemes omitted from listing]";
-                }
                 my $thin_slr = $slr->[Marpa::R2::Internal::Scanless::R::C];
                 my $raw_token_value =
                     $thin_slr->substring( $lexeme_start_pos,
@@ -1063,18 +1063,33 @@ sub Marpa::R2::Scanless::R::read_problem {
                 $lexer_name =
                     $slg->[Marpa::R2::Internal::Scanless::G::LEXER_NAME_BY_ID]
                     ->[$lexer_id];
-                push @details,
-                    qq{  Rejected lexeme #$rejected_count: }
-                    . $thick_g1_grammar->symbol_in_display_form($g1_lexeme)
+
+                # Different internal symbols may have the same external "display form",
+                # which in naive reporting logic would result in many identical messages,
+                # confusing the user.  This logic makes sure that identical rejection
+                # reports are not repeated, even when they have different causes
+                # internally.
+
+                $rejections{
+                    $thick_g1_grammar->symbol_in_display_form($g1_lexeme)
                     . qq{; value="$raw_token_value"; length = }
-                    . ( $lexeme_end_pos - $lexeme_start_pos );
+                    . ( $lexeme_end_pos - $lexeme_start_pos )} = 1;
             } ## end EVENT: for my $event ( $thin_slr->events() )
             my @problem = ();
-            if ($rejected_count) {
+            my @rejections = keys %rejections;
+            if (scalar @rejections) {
+                my $rejection_count = scalar @rejections;
                 push @problem,
-                    "No lexemes accepted at line $line, column $column",
-                    qq{  Lexer "$lexer_name" rejected $rejected_count lexeme(s)},
-                    @details;
+                    "No lexemes accepted at line $line, column $column";
+                REJECTION: for my $i (0 .. 5) {
+                    my $rejection = $rejections[$i];
+                    last REJECTION if not defined $rejection;
+                    push @problem, qq{  Rejected lexeme #$i: $rejection};
+                }
+                if ($rejection_count > 5) {
+                   push @problem, "  [there were $rejection_count rejection messages -- only the first 5 are shown]";
+                }
+                push @problem, @details;
             } ## end if ($rejected_count)
             else {
                 push @problem,
@@ -1316,6 +1331,8 @@ sub Marpa::R2::Scanless::R::series_restart {
 
 # Given a list of G1 locations, return the minimum span in the input string
 # that includes them all
+# Caller must ensure that there is an input, which is not the case
+# when the parse is initialized.
 sub g1_locations_to_input_range {
     my ( $slr, @g1_locations ) = @_;
     my $thin_slr = $slr->[Marpa::R2::Internal::Scanless::R::C];
@@ -1409,29 +1426,36 @@ sub Marpa::R2::Scanless::R::show_progress {
                     $origin_desc = $origins[0] . q{...} . $origins[-1];
                 }
 
-                my $input_range = input_range_describe(
-                    $slr, g1_locations_to_input_range(
-                        $slr, $current_earleme, @origins
-                    )
-                );
-
                 my $rhs_length = $grammar_c->rule_length($rule_id);
-                my $item_text;
+                my @item_text;
 
                 if ( $position >= $rhs_length ) {
-                    $item_text .= "F$rule_id";
+                    push @item_text, "F$rule_id";
                 }
                 elsif ($position) {
-                    $item_text .= "R$rule_id:$position";
+                    push @item_text, "R$rule_id:$position";
                 }
                 else {
-                    $item_text .= "P$rule_id";
+                    push @item_text, "P$rule_id";
                 }
-                $item_text .= " x$origins_count" if $origins_count > 1;
-                $item_text .= q{ @} . $origin_desc . q{-} . $current_earleme . q{ } . $input_range . q{ };
-                $item_text
-                    .= $slg->show_dotted_rule( $rule_id, $position );
-                $text .= $item_text . "\n";
+                push @item_text, "x$origins_count" if $origins_count > 1;
+                push @item_text, q{@} . $origin_desc . q{-} . $current_earleme;
+
+                if ( $current_earleme > 0 ) {
+                    my $input_range = input_range_describe(
+                        $slr,
+                        g1_locations_to_input_range(
+                            $slr, $current_earleme, @origins
+                        )
+                    );
+                    push @item_text, $input_range;
+                }  else {
+                    push @item_text, 'L0c0';
+                }
+
+                push @item_text,
+                    $slg->show_dotted_rule( $rule_id, $position );
+                $text .= ( join q{ }, @item_text ) . "\n";
             } ## end for my $position ( sort { $a <=> $b } keys %{...})
         } ## end for my $rule_id ( sort { $a <=> $b } keys ...)
 

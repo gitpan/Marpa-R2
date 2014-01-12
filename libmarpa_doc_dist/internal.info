@@ -1,7 +1,8 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (7 January 2014) is for the internals of Libmarpa 5.179.107.
+This manual (11 January 2014) is for the internals of Libmarpa
+5.179.108.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -17,7 +18,8 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (7 January 2014) is for the internals of Libmarpa 5.179.107.
+This manual (11 January 2014) is for the internals of Libmarpa
+5.179.108.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -361,11 +363,11 @@ File: internal.info,  Node: Rule internals,  Next: Grammar internals,  Prev: Sym
  -- Function: int _marpa_g_irl_is_virtual_rhs (Marpa_Grammar G,
           Marpa_IRL_ID IRL_ID)
 
- -- Function: `unsigned int' _marpa_g_virtual_start (Marpa_Grammar G,
+ -- Function: `int' _marpa_g_virtual_start (Marpa_Grammar G,
           Marpa_IRL_ID IRL_ID)
 
- -- Function: `unsigned int' _marpa_g_virtual_end (Marpa_Grammar G,
-          Marpa_IRL_ID IRL_ID)
+ -- Function: `int' _marpa_g_virtual_end (Marpa_Grammar G, Marpa_IRL_ID
+          IRL_ID)
 
  -- Function: Marpa_Rule_ID _marpa_g_source_xrl (Marpa_Grammar G,
           Marpa_IRL_ID IRL_ID)
@@ -659,7 +661,7 @@ File: internal.info,  Node: Debugging methods,  Prev: Valuator internals,  Up: I
 2.9 Debugging methods
 =====================
 
- -- Function: void marpa_debug_level_set ( int LEVEL )
+ -- Function: int marpa_debug_level_set ( int LEVEL )
 
  -- Function: void marpa_debug_handler_set ( int (*DEBUG_HANDLER)(const
           char*, ...) )
@@ -1153,19 +1155,19 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top511
-Node: Copying1423
-Node: About this document9859
-Node: Internal Interface10167
-Node: Symbol internal methods10957
-Node: Rule internals12631
-Node: Grammar internals15271
-Node: Recognizer internals16975
-Node: Bocage internals19849
-Node: Ordering internals22374
-Node: Tree internals22889
-Node: Valuator internals24897
-Node: Debugging methods25189
-Node: GNU Free Documentation License25488
+Node: Top512
+Node: Copying1425
+Node: About this document9861
+Node: Internal Interface10169
+Node: Symbol internal methods10959
+Node: Rule internals12633
+Node: Grammar internals15255
+Node: Recognizer internals16959
+Node: Bocage internals19833
+Node: Ordering internals22358
+Node: Tree internals22873
+Node: Valuator internals24881
+Node: Debugging methods25173
+Node: GNU Free Documentation License25471
 
 End Tag Table

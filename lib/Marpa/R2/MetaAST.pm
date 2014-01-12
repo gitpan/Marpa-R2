@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_007';
+$VERSION        = '2.079_008';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -468,6 +468,10 @@ sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_default_statement::evaluate {
             next ADVERB;
         }
         if ( $key eq 'bless' ) {
+            $parse->{lexeme_default_adverbs}->{$key} = $value;
+            next ADVERB;
+        }
+        if ( $key eq 'forgiving' ) {
             $parse->{lexeme_default_adverbs}->{$key} = $value;
             next ADVERB;
         }
@@ -971,14 +975,6 @@ sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_rule::evaluate {
         my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
         die
             qq{"event" adverb not allowed without "pause" adverb in lexeme rule"\n},
-            "  Location was line $line, column $column\n",
-            '  Rule was ', $parse->substring( $start, $length ), "\n";
-    } ## end if ( exists $declarations{'event'} and not exists $declarations...)
-    if ( exists $declarations{'forgiving'} and exists $declarations{'pause'} )
-    {
-        my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
-        die
-            qq{"forgiving" adverb not allowed with "pause" adverb in lexeme rule"\n},
             "  Location was line $line, column $column\n",
             '  Rule was ', $parse->substring( $start, $length ), "\n";
     } ## end if ( exists $declarations{'event'} and not exists $declarations...)

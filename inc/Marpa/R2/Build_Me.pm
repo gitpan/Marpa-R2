@@ -250,7 +250,7 @@ sub process_xs {
     if ( $self->config('ccname') eq 'gcc' ) {
         ## -W instead of -Wextra is case the GCC is pre 3.0.0
         ## -Winline omitted because too noisy
-        push @new_ccflags, qw( -Wall -Wno-unused-variable -W
+        push @new_ccflags, qw( -Wall -W -ansi
             -Wpointer-arith -Wstrict-prototypes -Wwrite-strings
             -Wmissing-declarations );
         push @new_ccflags, '-Wdeclaration-after-statement' if gcc_is_at_least('3.4.6');
@@ -436,9 +436,8 @@ sub do_libmarpa {
         if ( defined $ENV{LIBMARPA_CFLAGS} ) {
             $ENV{CFLAGS} = $ENV{LIBMARPA_CFLAGS};
         }
-        push @debug_flags, '-DMARPA_DEBUG';
+        push @debug_flags, '-DMARPA_DEBUG=1';
         push @debug_flags, '-fno-inline', '-Wno-inline' if ($self->config('cc') eq 'gcc');
-        push @debug_flags, '-DMARPA_OBSTACK_DEBUG';
         push @configure_command_args,
             'MARPA_DEBUG_FLAG=' . ( join q{ }, @debug_flags );
     } ## end if ( defined $self->args('Marpa-debug') )

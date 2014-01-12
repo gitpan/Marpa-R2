@@ -232,9 +232,9 @@ my_realloc(void *p, size_t size)
 }
 
 @
-@d marpa_new(type, count) ((type *)my_malloc((sizeof(type)*(count))))
+@d marpa_new(type, count) ((type *)my_malloc((sizeof(type)*((size_t)(count)))))
 @d marpa_renew(type, p, count) 
-    ((type *)my_realloc((p), (sizeof(type)*(count))))
+    ((type *)my_realloc((p), (sizeof(type)*((size_t)(count)))))
 
 @** Dynamic stacks.
 |libmarpa| uses stacks and worklists extensively.
@@ -313,7 +313,7 @@ typedef struct marpa_dstack_s* MARPA_DSTACK;
 @ @<Friend structures@> =
 struct marpa_dstack_s { int t_count; int t_capacity; void * t_base; };
 @ @<Friend static inline functions@> =
-static inline void * marpa_dstack_resize2(struct marpa_dstack_s* this, size_t type_bytes)
+static inline void * marpa_dstack_resize2(struct marpa_dstack_s* this, int type_bytes)
 {
     return marpa_dstack_resize(this, type_bytes, this->t_capacity*2);
 }
@@ -323,14 +323,14 @@ static inline void * marpa_dstack_resize2(struct marpa_dstack_s* this, size_t ty
   (marpa_dstack_resize((this), sizeof(type), (new_size)))
 @ @<Friend static inline functions@> =
 static inline void *
-marpa_dstack_resize (struct marpa_dstack_s *this, size_t type_bytes,
+marpa_dstack_resize (struct marpa_dstack_s *this, int type_bytes,
                      int new_size)
 {
   if (new_size > this->t_capacity)
     {                           /* We do not shrink the stack
                                    in this method */
       this->t_capacity = new_size;
-      this->t_base = my_realloc (this->t_base, new_size * type_bytes);
+      this->t_base = my_realloc (this->t_base, (size_t)new_size * (size_t)type_bytes);
     }
   return this->t_base;
 }
@@ -370,31 +370,20 @@ int marpa__default_debug_handler (const char *format, ...)
 #define MARPA_DEBUG 0
 #endif
 
-#if MARPA_DEBUG
-
-#undef MARPA_ENABLE_ASSERT
-#define MARPA_ENABLE_ASSERT 1
-
-#define MARPA_DEBUG1(a) @[ (marpa__debug_level && \
+#define MARPA_DEBUG1(a) @[ (MARPA_DEBUG && marpa__debug_level && \
     (*marpa__debug_handler)(a)) @]
-#define MARPA_DEBUG2(a,b) @[ (marpa__debug_level && \
+#define MARPA_DEBUG2(a,b) @[ (MARPA_DEBUG && marpa__debug_level && \
     (*marpa__debug_handler)((a),(b))) @]
-#define MARPA_DEBUG3(a,b,c) @[ (marpa__debug_level && \
+#define MARPA_DEBUG3(a,b,c) @[ (MARPA_DEBUG && marpa__debug_level && \
     (*marpa__debug_handler)((a),(b),(c))) @]
-#define MARPA_DEBUG4(a,b,c,d) @[ (marpa__debug_level && \
+#define MARPA_DEBUG4(a,b,c,d) @[ (MARPA_DEBUG && marpa__debug_level && \
     (*marpa__debug_handler)((a),(b),(c),(d))) @]
-#define MARPA_DEBUG5(a,b,c,d,e) @[ (marpa__debug_level && \
+#define MARPA_DEBUG5(a,b,c,d,e) @[ (MARPA_DEBUG && marpa__debug_level && \
     (*marpa__debug_handler)((a),(b),(c),(d),(e))) @]
 
-#define MARPA_ASSERT(expr) do { if _MARPA_LIKELY (expr) ; else \
-       (*marpa__debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
-#else /* if not |MARPA_DEBUG| */
-#define MARPA_DEBUG1(a) @[@]
-#define MARPA_DEBUG2(a, b) @[@]
-#define MARPA_DEBUG3(a, b, c) @[@]
-#define MARPA_DEBUG4(a, b, c, d) @[@]
-#define MARPA_DEBUG5(a, b, c, d, e) @[@]
-#define MARPA_ASSERT(exp) @[@]
+#if MARPA_DEBUG
+#undef MARPA_ENABLE_ASSERT
+#define MARPA_ENABLE_ASSERT 1
 #endif
 
 #ifndef MARPA_ENABLE_ASSERT
@@ -405,6 +394,8 @@ int marpa__default_debug_handler (const char *format, ...)
 #undef MARPA_ASSERT
 #define MARPA_ASSERT(expr) do { if _MARPA_LIKELY (expr) ; else \
        (*marpa__debug_handler) ("%s: assertion failed %s", STRLOC, #expr); } while (0);
+#else /* if not |MARPA_DEBUG| */
+#define MARPA_ASSERT(exp) @[@]
 #endif
 
 @*0 Internal macros.
@@ -457,6 +448,12 @@ int marpa__default_debug_handler (const char *format, ...)
 # define alignof(type) (offsetof (struct { char __slot1; type __slot2; }, __slot2))
 #endif
 
+@** Internal typdefs.
+@<Internal typedefs@> =
+typedef unsigned int BITFIELD;
+@<Internal macros@>
+#define Boolean(value) ((value) ? 1 : 0)
+
 @** File layout.  
 @ The output files are written in pieces,
 with the license prepended,
@@ -487,6 +484,7 @@ So I add such a comment.
 
 @<Debug macros@>
 @<Internal macros@>
+@<Internal typedefs@>
 
 @h
 @<Friend incomplete structures@>@;

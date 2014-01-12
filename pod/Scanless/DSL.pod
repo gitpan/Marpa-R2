@@ -635,9 +635,12 @@ lexeme adverbs.
 It only changes the defaults for lexemes,
 and does not affect rules.
 Only the defaults for
-the L<C<action>|/"action"> and L<C<bless>|/"bless"> adverbs
+the L<C<action>|/"action">,
+L<C<bless>|/"bless">,
+and L<C<forgiving>|/"forgiving">
+adverbs
 can be specified in a lexeme default statement.
-Only one lexeme default statement is allowed in a file.
+Only one lexeme default statement is allowed in a grammar.
 
 =head2 Named event statement
 
@@ -824,6 +827,69 @@ for the L<named event statement|"Named event statement">.
 It is a fatal error to specify the C<event> adverb
 if the L<C<pause>|/"pause"> adverb is not also specified.
 
+=head2 forgiving
+
+=for Marpa::R2::Display
+name: forgiving adverb example
+partial: 1
+normalize-whitespace: 1
+
+    :lexeme ~ value forgiving => 1
+
+=for Marpa::R2::Display::End
+
+The C<forgiving> adverb applies only to lexemes.
+Its value is a boolean.
+If the boolean is set it indicates that a token
+is "forgiving".  The default value is 0,
+which indicates that a token is not forgiving.
+
+If a token is forgiving it becomes
+an exception to the usually strict
+"longest tokens match" discipline.
+The usual 
+"longest tokens match" discipline
+dictates that,
+if one or more lexemes are found that
+are the longest match,
+but none of them are acceptable to G1,
+the parse fails.
+This failure occurs even if shorter lexemes would have been
+acceptable to G1, and would have allowed the parse to
+continue.
+
+If all of the longest matching lexemes are "forgiving",
+then their rejection by G1 does B<not>,
+by itself,
+cause the parse to fail.
+Instead, Marpa continues
+the search for acceptable
+or discardable tokens, looking for shorter ones.
+Marpa will search for tokens of decreasing length,
+until
+
+=over 4
+
+=item * the token length decreases below one, or
+
+=item * a token is found which is acceptable to G1, or
+
+=item * a discardable token is found, or
+
+=item * a unforgiving token is found and rejected.
+
+=back
+
+Marking a token "forgiving" is not without some risk.
+The lexing might repeatedly scan a very long token, only to reject it
+and back up most of that distance to accept a much shorter token.
+If this happens, the time required to parse may become quadratic in the
+length of the input.
+It is for this reaason that "forgiving" is not the default.
+Nonetheless, marking a single token, or a small number of them,
+forgiving, can allow a parser to be written more compactly or
+elegantly than would be the case otherwise.
+ 
 =head2 null-ranking
 
 =for Marpa::R2::Display
@@ -1040,9 +1106,11 @@ see L<the document on parse order|Marpa::R2::Semantics::Order>.
 =head2 separator
 
 The C<separator> keyword is only valid for a quantified right side,
-and its value must be a symbol of the grammar.
-If specified, that symbol must separate items of the sequence.
-A separator symbol may not be nullable.
+and its value must be a single symbol --
+either a single symbol name,
+or a character class.
+If specified, the separator must separate items of the sequence.
+A separator may not be nullable.
 
 =head1 Precedence
 
