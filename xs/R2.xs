@@ -2285,7 +2285,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 179
-#define EXPECTED_LIBMARPA_MICRO 108
+#define EXPECTED_LIBMARPA_MICRO 109
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -4102,46 +4102,6 @@ PPCODE:
     } else {
         XPUSHs( sv_2mortal( newSViv(count) ) );
     }
-}
-
- # In scalar context, returns the count
-void
-_marpa_g_AHFA_state_transitions( g_wrapper, AHFA_state_id )
-    G_Wrapper *g_wrapper;
-    Marpa_AHFA_State_ID AHFA_state_id;
-PPCODE:
-{
-  int result_count;
-  int *buffer;
-  Marpa_Grammar g = g_wrapper->g;
-  const int highest_symbol_id = marpa_g_highest_symbol_id(g);
-  const int symbol_count = highest_symbol_id+1;
-  if (highest_symbol_id < 0)
-    {
-      if (!g_wrapper->throw) { XSRETURN_UNDEF; }
-      croak ("failure in marpa_g_highest_symbol_id: %s", xs_g_error (g_wrapper));
-    };
-  Newx( buffer, 2 * symbol_count, int);
-  result_count =
-    _marpa_g_AHFA_state_transitions (g, AHFA_state_id, buffer, 2*symbol_count*sizeof(int));
-  if (result_count < 0)
-    {
-        Safefree(buffer);
-      croak ("Problem in g->_marpa_g_AHFA_state_transitions(): %s", xs_g_error (g_wrapper));
-    }
-  if (GIMME == G_ARRAY)
-    {
-      int ix;
-      for (ix = 0; ix < result_count*2; ix++)
-        {
-          XPUSHs (sv_2mortal (newSViv (buffer[ix] )));
-        }
-    }
-  else
-    {
-      XPUSHs (sv_2mortal (newSViv (result_count)));
-    }
-    Safefree(buffer);
 }
 
  # -1 is a valid return value, and -2 indicates an error

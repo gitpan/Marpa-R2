@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_008';
+$VERSION        = '2.079_009';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1070,8 +1070,8 @@ sub Marpa::R2::Scanless::R::read_problem {
                 # reports are not repeated, even when they have different causes
                 # internally.
 
-                $rejections{
-                    $thick_g1_grammar->symbol_in_display_form($g1_lexeme)
+                $rejections{qq{Lexer "} . $lexer_name . q{"; }
+                    . $thick_g1_grammar->symbol_in_display_form($g1_lexeme)
                     . qq{; value="$raw_token_value"; length = }
                     . ( $lexeme_end_pos - $lexeme_start_pos )} = 1;
             } ## end EVENT: for my $event ( $thin_slr->events() )
