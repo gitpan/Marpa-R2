@@ -33,7 +33,7 @@
 
 #define MARPA_MAJOR_VERSION 5
 #define MARPA_MINOR_VERSION 179
-#define MARPA_MICRO_VERSION 109
+#define MARPA_MICRO_VERSION 110
 
 #line 1 "./marpa.h-err"
 #define MARPA_ERROR_COUNT 95
@@ -159,7 +159,7 @@
 #define MARPA_STEP_INTERNAL2 6
 #define MARPA_STEP_INITIAL 7
 
-/*1377:*/
+/*1373:*/
 #line 16183 "./marpa.w"
 
 extern const unsigned int marpa_major_version;
@@ -188,7 +188,7 @@ extern const unsigned int marpa_binary_age;
 #line 2578 "./marpa.w"
 
 #define MARPA_PROPER_SEPARATION  0x2
-/*:291*//*1173:*/
+/*:291*//*1169:*/
 #line 13756 "./marpa.w"
 
 #define marpa_v_step_type(v) ((v)->t_step_type)
@@ -209,7 +209,7 @@ extern const unsigned int marpa_binary_age;
 #define marpa_v_token_start_es_id(v) ((v)->t_token_start_ys_id)
 #define marpa_v_es_id(v) ((v)->t_ys_id)
 
-/*:1173*/
+/*:1169*/
 #line 16197 "./marpa.w"
 
 /*46:*/
@@ -218,37 +218,37 @@ extern const unsigned int marpa_binary_age;
 struct marpa_g;
 struct marpa_avl_table;
 typedef struct marpa_g*Marpa_Grammar;
-/*:46*//*607:*/
-#line 6568 "./marpa.w"
+/*:46*//*603:*/
+#line 6519 "./marpa.w"
 
 struct marpa_r;
 typedef struct marpa_r*Marpa_Recognizer;
 typedef Marpa_Recognizer Marpa_Recce;
-/*:607*//*1045:*/
+/*:603*//*1041:*/
 #line 12335 "./marpa.w"
 
 struct marpa_bocage;
 typedef struct marpa_bocage*Marpa_Bocage;
-/*:1045*//*1083:*/
+/*:1041*//*1079:*/
 #line 12668 "./marpa.w"
 
 struct marpa_order;
 typedef struct marpa_order*Marpa_Order;
-/*:1083*//*1084:*/
+/*:1079*//*1080:*/
 #line 12671 "./marpa.w"
 
 typedef Marpa_Order ORDER;
-/*:1084*//*1120:*/
+/*:1080*//*1116:*/
 #line 13129 "./marpa.w"
 
 struct marpa_tree;
 typedef struct marpa_tree*Marpa_Tree;
-/*:1120*//*1168:*/
+/*:1116*//*1164:*/
 #line 13712 "./marpa.w"
 
 struct marpa_value;
 typedef struct marpa_value*Marpa_Value;
-/*:1168*/
+/*:1164*/
 #line 16198 "./marpa.w"
 
 /*91:*/
@@ -280,45 +280,45 @@ typedef int Marpa_Rule_ID;
 #line 2730 "./marpa.w"
 
 typedef int Marpa_IRL_ID;
-/*:319*//*455:*/
-#line 4820 "./marpa.w"
+/*:319*//*456:*/
+#line 4830 "./marpa.w"
 
 typedef int Marpa_AHFA_Item_ID;
-/*:455*//*498:*/
-#line 5213 "./marpa.w"
+/*:456*//*503:*/
+#line 5243 "./marpa.w"
 
 typedef int Marpa_AHFA_State_ID;
-/*:498*//*673:*/
-#line 7154 "./marpa.w"
+/*:503*//*669:*/
+#line 7105 "./marpa.w"
 typedef int Marpa_Earleme;
-/*:673*//*675:*/
-#line 7158 "./marpa.w"
+/*:669*//*671:*/
+#line 7109 "./marpa.w"
 typedef int Marpa_Earley_Set_ID;
-/*:675*//*715:*/
-#line 7578 "./marpa.w"
+/*:671*//*711:*/
+#line 7528 "./marpa.w"
 typedef int Marpa_Earley_Item_ID;
-/*:715*//*936:*/
-#line 10759 "./marpa.w"
+/*:711*//*932:*/
+#line 10758 "./marpa.w"
 
 typedef int Marpa_Or_Node_ID;
-/*:936*//*1012:*/
+/*:932*//*1008:*/
 #line 11865 "./marpa.w"
 
 typedef int Marpa_And_Node_ID;
-/*:1012*//*1154:*/
+/*:1008*//*1150:*/
 #line 13573 "./marpa.w"
 
 typedef int Marpa_Nook_ID;
-/*:1154*//*1209:*/
+/*:1150*//*1205:*/
 #line 14129 "./marpa.w"
 
 typedef int Marpa_Step_Type;
-/*:1209*//*1353:*/
+/*:1205*//*1349:*/
 #line 15980 "./marpa.w"
 
 typedef const char*Marpa_Message_ID;
 
-/*:1353*/
+/*:1349*/
 #line 16199 "./marpa.w"
 
 /*43:*/
@@ -339,7 +339,7 @@ Marpa_Event_Type t_type;
 int t_value;
 };
 typedef struct marpa_event Marpa_Event;
-/*:110*//*1033:*/
+/*:110*//*1029:*/
 #line 12092 "./marpa.w"
 
 struct marpa_progress_item{
@@ -348,7 +348,7 @@ int t_position;
 int t_origin;
 };
 
-/*:1033*//*1172:*/
+/*:1029*//*1168:*/
 #line 13742 "./marpa.w"
 
 struct marpa_value{
@@ -363,26 +363,26 @@ Marpa_Earley_Set_ID t_token_start_ys_id;
 Marpa_Earley_Set_ID t_rule_start_ys_id;
 Marpa_Earley_Set_ID t_ys_id;
 };
-/*:1172*/
+/*:1168*/
 #line 16200 "./marpa.w"
 
-/*1352:*/
+/*1348:*/
 #line 15977 "./marpa.w"
 
 extern void*(*const marpa__out_of_memory)(void);
 
-/*:1352*//*1354:*/
+/*:1348*//*1350:*/
 #line 15989 "./marpa.w"
 
 extern int marpa__default_debug_handler(const char*format,...);
 extern int(*marpa__debug_handler)(const char*,...);
 extern int marpa__debug_level;
 
-/*:1354*/
+/*:1350*/
 #line 16201 "./marpa.w"
 
 
-/*:1377*/
+/*:1373*/
 
 #line 1 "./marpa.h.p80"
 Marpa_Error_Code marpa_check_version (unsigned int required_major, unsigned int required_minor, unsigned int required_micro );
