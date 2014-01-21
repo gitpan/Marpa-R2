@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (17 January 2014) is for Libmarpa 5.179.110.
+This manual (20 January 2014) is for Libmarpa 5.179.111.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (17 January 2014) is for Libmarpa 5.179.110.
+This manual (20 January 2014) is for Libmarpa 5.179.111.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -2837,7 +2837,7 @@ instructions to the application on how to manipulate the stack.  To
 iterate through this series of instructions, use the `marpa_v_step()'
 method.
 
-   `marpa_v_step()' returns the type of step.  Most step types has
+   `marpa_v_step()' returns the type of step.  Most step types have
 values associated with them.  To access these values use the methods
 described in the section *note Basic step accessors::.  How to perform
 the steps is described in the sections *note How to use the valuator::
@@ -3579,9 +3579,8 @@ codes::.
      "Grammar has cycle".
 
  -- Macro: int MARPA_ERR_INACCESSIBLE_TOKEN
-     This error code indicates that indicates that the token symbol is
-     an inaccessible symbol -- one which cannot be reached from the
-     start symbol.
+     This error code indicates that the token symbol is an inaccessible
+     symbol -- one which cannot be reached from the start symbol.
 
      Since the inaccessibility of a symbol is a property of the grammar,
      this error code typically indicates an application error.
@@ -4795,34 +4794,34 @@ Node: Tree reference counting113733
 Node: Tree iteration114702
 Node: Value methods116010
 Node: Value overview116448
-Node: How to use the valuator117879
-Node: Advantages of step-driven valuation119850
-Node: Maintaining the stack123520
-Node: Sizing the stack125531
-Node: Initializing locations in the stack127311
-Node: Valuator constructor129507
-Node: Valuator reference counting130358
-Node: Registering semantics131343
-Node: Stepping through the valuator133277
-Node: Valuator steps by type134043
-Node: Basic step accessors135990
-Node: Other step accessors137856
-Node: Events139402
-Node: Events overview139591
-Node: Event methods140461
-Node: Event codes141646
-Node: Error methods macros and codes144915
-Node: Error methods145184
-Node: Error Macros146011
-Node: External error codes146378
-Node: Internal error codes168265
-Node: Design notes171806
-Node: Why so many time objects172241
-Node: Design of numbered objects173991
-Node: LHS Terminals175230
-Node: Work in Progress175923
-Node: Experimental methods176133
-Node: Untested methods176967
-Node: GNU Free Documentation License179228
+Node: How to use the valuator117880
+Node: Advantages of step-driven valuation119851
+Node: Maintaining the stack123521
+Node: Sizing the stack125532
+Node: Initializing locations in the stack127312
+Node: Valuator constructor129508
+Node: Valuator reference counting130359
+Node: Registering semantics131344
+Node: Stepping through the valuator133278
+Node: Valuator steps by type134044
+Node: Basic step accessors135991
+Node: Other step accessors137857
+Node: Events139403
+Node: Events overview139592
+Node: Event methods140462
+Node: Event codes141647
+Node: Error methods macros and codes144916
+Node: Error methods145185
+Node: Error Macros146012
+Node: External error codes146379
+Node: Internal error codes168246
+Node: Design notes171787
+Node: Why so many time objects172222
+Node: Design of numbered objects173972
+Node: LHS Terminals175211
+Node: Work in Progress175904
+Node: Experimental methods176114
+Node: Untested methods176948
+Node: GNU Free Documentation License179209
 
 End Tag Table

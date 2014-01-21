@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_010';
+$VERSION        = '2.079_011';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -271,6 +271,9 @@ __DATA__
       both structures from being freed, and create a memory leak. }
 
     SLR { The underlying SLR }
+    LEXEME_RESOLUTIONS
+    RULE_RESOLUTIONS
+
     FACTORING_MAX
     RULE_BLESSINGS
     SYMBOL_BLESSINGS
@@ -301,6 +304,7 @@ __DATA__
     ASF
     VALUES { Memoized values, by glade ID }
     CODE { The anonymous subtroutine for traversal }
+    PER_TRAVERSE_OBJECT { a "scratch" object for the traversal }
     GLADE
     SYMCH_IX
     FACTORING_IX
