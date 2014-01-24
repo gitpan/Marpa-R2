@@ -817,7 +817,6 @@ int _marpa_g_irl_count(Marpa_Grammar g) {
 @ Internal accessor to find a rule by its id.
 @d XRL_by_ID(id) (*MARPA_DSTACK_INDEX((g)->t_xrl_stack, XRL, (id)))
 @d IRL_by_ID(id) (*MARPA_DSTACK_INDEX((g)->t_irl_stack, IRL, (id)))
-@d RULE_by_ID(g, id) (XRL_by_ID(id))
 
 @ Adds the rule to the list of rules kept by the Grammar
 object.
@@ -2685,7 +2684,6 @@ int marpa_g_rule_is_productive(Marpa_Grammar g, Marpa_Rule_ID xrl_id)
 }
 
 @*0 Is XRL used?.
-Is the rule used in computing the AHFA sets?
 @d XRL_is_Used(rule) ((rule)->t_is_used)
 @<Bit aligned rule elements@> = BITFIELD t_is_used:1;
 @ Initialize to not used, because that's easier to debug.
@@ -2788,10 +2786,10 @@ int _marpa_g_irl_length(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
 }
 
 @ An IRL is a unit rule (that is, a rule of length one,
-not counting nullable symbols) if and only if its AIM
-count is 2 -- the predicted AIM and the final AIM.
+not counting nullable symbols) if and only if its AHM
+count is 2 -- the predicted AHM and the final AHM.
 @d IRL_is_Unit_Rule(irl) ((irl)->t_aim_count == 2)
-@d AIM_Count_of_IRL(irl) ((irl)->t_aim_count)
+@d AHM_Count_of_IRL(irl) ((irl)->t_aim_count)
 @<Int aligned IRL elements@> = int t_aim_count;
 
 @*0 IRL has virtual LHS?.
@@ -2971,17 +2969,17 @@ Marpa_Rank _marpa_g_irl_rank(
     return Rank_of_IRL(IRL_by_ID(irl_id));
 }
 
-@*0 First AIM.
-This is the first AHFA item for a rule.
+@*0 First AHM.
+This is the first AHM for a rule.
 There may not be one, in which case it is |NULL|.
 Currently, this is not used after grammar precomputation,
 and there may be an optimization here.
 Perhaps later Marpa objects {\bf should}
 be using it.
-@d First_AIM_of_IRL(irl) ((irl)->t_first_aim)
-@<Widely aligned IRL elements@> = AIM t_first_aim;
+@d First_AHM_of_IRL(irl) ((irl)->t_first_aim)
+@<Widely aligned IRL elements@> = AHM t_first_aim;
 @ @<Initialize IRL elements@> =
-    First_AIM_of_IRL(irl) = NULL;
+    First_AHM_of_IRL(irl) = NULL;
 
 @** Symbol instance (SYMI) code.
 The symbol instance identifies the instance of a symbol in the internal grammar,
@@ -2995,7 +2993,7 @@ int t_symbol_instance_count;
 @d Last_Proper_SYMI_of_IRL(irl) ((irl)->t_last_proper_symi)
 @d SYMI_of_Completed_IRL(irl)
     (SYMI_of_IRL(irl) + Length_of_IRL(irl)-1)
-@d SYMI_of_AIM(aim) (symbol_instance_of_ahfa_item_get(aim))
+@d SYMI_of_AHM(aim) (symbol_instance_of_aim_get(aim))
 @<Int aligned IRL elements@> =
 int t_symbol_instance_base;
 int t_last_proper_symi;
@@ -3008,18 +3006,18 @@ Symbol instances are used in evaluation.
 In evaluation we are looking at what we have,
 so the emphasis is on what precedes the dot position.
 @ The symbol instance of a prediction is $-1$.
-If the AHFA item is not a prediction, then it has a preceding
-AHFA item for the same rule.
+If the AHM is not a prediction, then it has a preceding
+AHM for the same rule.
 In that case the symbol instance is the
 base symbol instance for
-the rule, offset by the position of that preceding AHFA item.
+the rule, offset by the position of that preceding AHM.
 @<Function definitions@> =
 PRIVATE int
-symbol_instance_of_ahfa_item_get (AIM aim)
+symbol_instance_of_aim_get (AHM aim)
 {
-  if (!AIM_is_Prediction(aim)) {
-      const IRL irl = IRL_of_AIM (aim);
-      return SYMI_of_IRL(irl) + Position_of_AIM(aim-1);
+  if (!AHM_is_Prediction(aim)) {
+      const IRL irl = IRL_of_AHM (aim);
+      return SYMI_of_IRL(irl) + Position_of_AHM(aim-1);
   }
   return -1;
 }
@@ -3075,14 +3073,16 @@ int marpa_g_precompute(Marpa_Grammar g)
         @<Declare variables for the internal grammar
         memoizations@>@;
         @<Calculate Rule by LHS lists@>@;
-        @<Create AHFA items@>@;
-        @<Create AHFA states@>@;
+        @<Create AHMs@>@;
+        @<Construct prediction matrix@>@;
+        @<Construct right derivation matrix@>@;
+        @<Populate the predicted IRL CIL's in the AHM's@>
         @<Populate the terminal boolean vector@>@;
         @<Populate the event boolean vectors@>@;
         @<Populate the prediction
           and nulled symbol CILs@>@;
-        @<Mark the event AHFAs@>@;
-        @<Calculate AHFA Event Group Sizes@>@;
+        @<Mark the event AHMs@>@;
+        @<Calculate AHM Event Group Sizes@>@;
     }
     g->t_is_precomputed = 1;
     if (g->t_has_cycle)
@@ -4818,207 +4818,192 @@ six states each.
    115, 117, 119, 123, 125, 127, 144, 149, 150, 154, 181, 219,
    and 222.
 
-@** AHFA item (AIM) code.
-AHFA states are sets of AHFA items.
-AHFA items are named by analogy with LR(0) items.
-LR(0) items play the same role in the LR(0) automaton that
-AHFA items play in the AHFA ---
-the states of the automata correspond to sets of the items.
-Also like LR(0) items,
-each AHFA items correponds one-to-one to a duple,
-the duple being a a rule and a position in that rule.
+@** Aycock-Horspool item (AHM) code.
+These were formerly called AHFA items,
+where AHFA stood for ``Aycock-Horspool finite automaton''.
+The finite automaton is not longer in use, but its special 
+items (dotted rules which ignore nullables) remain very
+much a part of Marpa's parsing strategy.
 @<Public typedefs@> =
-typedef int Marpa_AHFA_Item_ID;
-@
-@d Sort_Key_of_AIM(aim) ((aim)->t_sort_key)
-@<Private structures@> =
-struct s_AHFA_item {
-    int t_sort_key;
-    @<Widely aligned AHFA item elements@>@;
-    @<Int aligned AHFA item elements@>@;
+typedef int Marpa_AHM_ID;
+@ @<Private structures@> =
+struct s_aim {
+    @<Widely aligned AHM elements@>@;
+    @<Int aligned AHM elements@>@;
+    @<Bit aligned AHM elements@>@;
 };
 @ @<Private incomplete structures@> =
-struct s_AHFA_item;
-typedef struct s_AHFA_item* AIM;
-typedef Marpa_AHFA_Item_ID AIMID;
+struct s_aim;
+typedef struct s_aim* AHM;
+typedef Marpa_AHM_ID AHMID;
 
-@ A pointer to two lists of AHFA items.
-The one list contains the AHFA items themselves, in
-AHFA item ID order.
-The other is indexed by rule ID, and contains a pointer to
-the first AHFA item for that rule.
-@ Because AHFA items are in an array, the predecessor can
-be found by incrementing the AIM pointer,
+@ Because AHM's are in an array, the predecessor can
+be found by incrementing the AHM pointer,
 the successor can be found by decrementing it,
-and AIM pointers can be portably compared.
+and AHM pointers can be portably compared.
 A lot of code relies on these facts.
-@d AIM_by_ID(id) (g->t_AHFA_items+(id))
-@d ID_of_AIM(aim) ((aim) - g->t_AHFA_items)
-@ These require the caller to make sure all the |AIM|'s
+@d AHM_by_ID(id) (g->t_aims+(id))
+@d ID_of_AHM(aim) ((aim) - g->t_aims)
+@ These require the caller to make sure all the |AHM|'s
 involved exist.
-@d Next_AIM_of_AIM(aim) ((aim)+1)
-@d Prev_AIM_of_AIM(aim) ((aim)-1)
+@d Next_AHM_of_AHM(aim) ((aim)+1)
+@d Prev_AHM_of_AHM(aim) ((aim)-1)
 
 @<Widely aligned grammar elements@> =
-   AIM t_AHFA_items;
+   AHM t_aims;
 @
-@d AIM_Count_of_G(g) ((g)->t_aim_count)
+@d AHM_Count_of_G(g) ((g)->t_aim_count)
 @<Int aligned grammar elements@> =
    int t_aim_count;
 @ The space is allocated during precomputation.
 Because the grammar may be destroyed before precomputation,
-I test that |g->t_AHFA_items| is non-zero.
+I test that |g->t_aims| is non-zero.
 @ @<Initialize grammar elements@> =
-g->t_AHFA_items = NULL;
+g->t_aims = NULL;
 @ @<Destroy grammar elements@> =
-     my_free(g->t_AHFA_items);
+     my_free(g->t_aims);
 
-@ Check that AHFA item ID is in valid range.
+@ Check that AHM ID is in valid range.
 @<Function definitions@> =
 PRIVATE int aim_is_valid(
-GRAMMAR g, AIMID item_id)
+GRAMMAR g, AHMID item_id)
 {
-return item_id < (AIMID)AIM_Count_of_G(g) && item_id >= 0;
+return item_id < (AHMID)AHM_Count_of_G(g) && item_id >= 0;
 }
 
 @*0 Rule.
-@d IRL_of_AIM(aim) ((aim)->t_irl)
-@d IRLID_of_AIM(item) ID_of_IRL(IRL_of_AIM(item))
-@d LHS_NSYID_of_AIM(item) LHSID_of_IRL(IRL_of_AIM(item))
-@<Widely aligned AHFA item elements@> =
+@d IRL_of_AHM(aim) ((aim)->t_irl)
+@d IRLID_of_AHM(item) ID_of_IRL(IRL_of_AHM(item))
+@d LHS_NSYID_of_AHM(item) LHSID_of_IRL(IRL_of_AHM(item))
+@d LHSID_of_AHM(item) LHS_NSYID_of_AHM(item)
+@<Widely aligned AHM elements@> =
     IRL t_irl;
 
 @*0 Postdot symbol.
 |-1| if the item is a completion.
-@d Postdot_NSYID_of_AIM(item) ((item)->t_postdot_nsyid)
-@d AIM_is_Completion(aim) (Postdot_NSYID_of_AIM(aim) < 0)
-@d AIM_is_Leo(aim) (IRL_is_Leo(IRL_of_AIM(aim)))
-@d AIM_is_Leo_Completion(aim)
-  (AIM_is_Completion(aim) && AIM_is_Leo(aim))
-@<Int aligned AHFA item elements@> = NSYID t_postdot_nsyid;
+@d Postdot_NSYID_of_AHM(item) ((item)->t_postdot_nsyid)
+@d AHM_is_Completion(aim) (Postdot_NSYID_of_AHM(aim) < 0)
+@d AHM_is_Leo(aim) (IRL_is_Leo(IRL_of_AHM(aim)))
+@d AHM_is_Leo_Completion(aim)
+  (AHM_is_Completion(aim) && AHM_is_Leo(aim))
+@<Int aligned AHM elements@> = NSYID t_postdot_nsyid;
 
 @*0 Leading nulls.
-In libmarpa's AHFA items, the dot position is never in front
+In libmarpa's AHM's, the dot position is never in front
 of a nulling symbol.  (Due to rewriting, every nullable symbol
 is also a nulling symbol.)
 This element contains the count of nulling symbols preceding
-this AHFA items's dot position.
-@d Null_Count_of_AIM(aim) ((aim)->t_leading_nulls)
-@<Int aligned AHFA item elements@> =
+this AHM's dot position.
+@d Null_Count_of_AHM(aim) ((aim)->t_leading_nulls)
+@<Int aligned AHM elements@> =
 int t_leading_nulls;
 
 @*0 RHS Position.
 RHS position include nulling symbols.
 Position in the RHS, -1 for a completion.
-@d Position_of_AIM(aim) ((aim)->t_position)
-@ Probably should replace this with the one
-based on the quasi-position.
-@d AIM_is_Prediction(aim) (
-  Position_of_AIM(aim) >= 0
-  && Position_of_AIM(aim) <= Null_Count_of_AIM(aim) )
-@<Int aligned AHFA item elements@> =
+@d Position_of_AHM(aim) ((aim)->t_position)
+@<Int aligned AHM elements@> =
 int t_position;
+
+@ Note the difference between |AHM_was_Predicted|
+and |AHM_is_Prediction|.
+|AHM_is_Prediction| indicates whether the dotted rule is
+a prediction.
+|AHM_was_Predicted| indicates whether the AHM is the result
+of a prediction.
+In the case of the start AHM, it is result of Initialization.
+@d AHM_is_Prediction(aim) (Quasi_Position_of_AHM(aim) == 0)
 
 @*0 Quasi-position.
 Quasi-positions are those modulo nulling symbols.
-@d Quasi_Position_of_AIM(aim) ((aim)->t_quasi_position)
-@<Int aligned AHFA item elements@> =
+@d Quasi_Position_of_AHM(aim) ((aim)->t_quasi_position)
+@<Int aligned AHM elements@> =
   int t_quasi_position;
 
-@*0 Singleton AHFA.
-A singleton AHFA whose only AHFA item is
-this one.
-@d AHFA_of_AIM(aim) ((aim)->t_singleton_ahfa)
-@<Widely aligned AHFA item elements@> =
-    AHFA t_singleton_ahfa;
+@*0 Predicted IRL's.
+A CIL representing the predicted IRL's.
+The empty CIL if there are none.
+@d Predicted_IRL_CIL_of_AHM(aim) ((aim)->t_predicted_irl_cil)
+@<Widely aligned AHM elements@> =
+    CIL t_predicted_irl_cil;
 
-@*0 AHFA item external accessors.
+@*0 AHM external accessors.
 @<Function definitions@> =
-int _marpa_g_AHFA_item_count(Marpa_Grammar g) {
+int _marpa_g_ahm_count(Marpa_Grammar g) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
-    return AIM_Count_of_G(g);
+    return AHM_Count_of_G(g);
 }
 
 @ @<Function definitions@> =
-Marpa_IRL_ID _marpa_g_AHFA_item_irl(Marpa_Grammar g,
-        Marpa_AHFA_Item_ID item_id) {
+Marpa_IRL_ID _marpa_g_ahm_irl(Marpa_Grammar g,
+        Marpa_AHM_ID item_id) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
     @<Fail if |item_id| is invalid@>@/
-    return IRLID_of_AIM(AIM_by_ID(item_id));
+    return IRLID_of_AHM(AHM_by_ID(item_id));
 }
 
 @ |-1| is the value for completions, so |-2| is the failure indicator.
 @ @<Function definitions@> =
-int _marpa_g_AHFA_item_position(Marpa_Grammar g,
-        Marpa_AHFA_Item_ID item_id) {
+int _marpa_g_ahm_position(Marpa_Grammar g,
+        Marpa_AHM_ID item_id) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
     @<Fail if |item_id| is invalid@>@/
-    return Position_of_AIM(AIM_by_ID(item_id));
+    return Position_of_AHM(AHM_by_ID(item_id));
 }
 
 @ |-1| is the value for completions, so |-2| is the failure indicator.
 @ @<Function definitions@> =
-Marpa_Symbol_ID _marpa_g_AHFA_item_postdot(Marpa_Grammar g,
-        Marpa_AHFA_Item_ID item_id) {
+Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
+        Marpa_AHM_ID item_id) {
     @<Return |-2| on failure@>@/
     @<Fail if not precomputed@>@/
     @<Fail if |item_id| is invalid@>@/
-    return Postdot_NSYID_of_AIM(AIM_by_ID(item_id));
+    return Postdot_NSYID_of_AHM(AHM_by_ID(item_id));
 }
 
-@ @<Function definitions@> =
-int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
-        Marpa_AHFA_Item_ID item_id) {
-    @<Return |-2| on failure@>@/
-    @<Fail if not precomputed@>@/
-    @<Fail if |item_id| is invalid@>@/
-    return Sort_Key_of_AIM(AIM_by_ID(item_id));
-}
-
-@** Creating the AHFA items.
-@ @<Create AHFA items@> =
+@** Creating the AHMs.
+@ @<Create AHMs@> =
 {
     IRLID irl_id;
-    int ahfa_item_count = 0;
-    AIM base_item;
-    AIM current_item;
+    int aim_count = 0;
+    AHM base_item;
+    AHM current_item;
     int symbol_instance_of_next_rule = 0;
     for (irl_id = 0; irl_id < irl_count; irl_id++) {
       const IRL irl = IRL_by_ID(irl_id);
-      @<Count the AHFA items in a rule@>@;
+      @<Count the AHMs in a rule@>@;
     }
-    current_item = base_item = marpa_new(struct s_AHFA_item, ahfa_item_count);
+    current_item = base_item = marpa_new(struct s_aim, aim_count);
     for (irl_id = 0; irl_id < irl_count; irl_id++) {
       const IRL irl = IRL_by_ID(irl_id);
-      @<Create the AHFA items for |irl|@>@;
+      @<Create the AHMs for |irl|@>@;
       {
         SYMI_of_IRL(irl) = symbol_instance_of_next_rule;
         symbol_instance_of_next_rule += Length_of_IRL(irl);
       }
     }
     SYMI_Count_of_G(g) = symbol_instance_of_next_rule;
-    MARPA_ASSERT(ahfa_item_count == current_item - base_item);
-    AIM_Count_of_G(g) = ahfa_item_count;
-    g->t_AHFA_items = marpa_renew(struct s_AHFA_item, base_item, ahfa_item_count);
-    @<Populate the first |AIM|'s of the |RULE|'s@>@;
-    @<Set up the AHFA item ids@>@;
+    MARPA_ASSERT(aim_count == current_item - base_item);
+    AHM_Count_of_G(g) = aim_count;
+    g->t_aims = marpa_renew(struct s_aim, base_item, aim_count);
+    @<Populate the first |AHM|'s of the |RULE|'s@>@;
 }
 
-@ @<Create the AHFA items for |irl|@> =
+@ @<Create the AHMs for |irl|@> =
 {
   int leading_nulls = 0;
   int rhs_ix;
-  const AIM first_aim_of_irl = current_item;
+  const AHM first_aim_of_irl = current_item;
   for (rhs_ix = 0; rhs_ix < Length_of_IRL(irl); rhs_ix++)
     {
       NSYID rh_nsyid = RHSID_of_IRL (irl, rhs_ix);
       if (!NSY_is_Nulling(NSY_by_ID(rh_nsyid)))
         {
           Last_Proper_SYMI_of_IRL(irl) = symbol_instance_of_next_rule + rhs_ix;
-          @<Create an AHFA item for a precompletion@>@;
+          @<Create an AHM for a precompletion@>@;
           current_item++;
           leading_nulls = 0;
         }
@@ -5027,452 +5012,120 @@ int _marpa_g_AHFA_item_sort_key(Marpa_Grammar g,
           leading_nulls++;
         }
     }
-  @<Create an AHFA item for a completion@>@;
+  @<Create an AHM for a completion@>@;
   current_item++;
-  AIM_Count_of_IRL(irl) = current_item - first_aim_of_irl;
+  AHM_Count_of_IRL(irl) = current_item - first_aim_of_irl;
 }
 
-@ @<Count the AHFA items in a rule@> =
+@ @<Count the AHMs in a rule@> =
 {
   int rhs_ix;
   for (rhs_ix = 0; rhs_ix < Length_of_IRL(irl); rhs_ix++)
     {
       const NSYID rh_nsyid = RHSID_of_IRL (irl, rhs_ix);
       const NSY nsy = NSY_by_ID (rh_nsyid);
-      if (!NSY_is_Nulling(nsy)) ahfa_item_count++;
+      if (!NSY_is_Nulling(nsy)) aim_count++;
     }
-  ahfa_item_count++;
+  aim_count++;
 }
 
-@ @<Create an AHFA item for a precompletion@> =
+@ @<Create an AHM for a precompletion@> =
 {
-  @<Initializations common to all AHFA items@>@;
-  Postdot_NSYID_of_AIM (current_item) = rh_nsyid;
-  Position_of_AIM (current_item) = rhs_ix;
+  @<Initializations common to all AHMs@>@;
+  Postdot_NSYID_of_AHM (current_item) = rh_nsyid;
+  Position_of_AHM (current_item) = rhs_ix;
 }
 
-@ @<Create an AHFA item for a completion@> =
+@ @<Create an AHM for a completion@> =
 {
-  @<Initializations common to all AHFA items@>@;
-  Postdot_NSYID_of_AIM (current_item) = -1;
-  Position_of_AIM (current_item) = -1;
+  @<Initializations common to all AHMs@>@;
+  Postdot_NSYID_of_AHM (current_item) = -1;
+  Position_of_AHM (current_item) = -1;
 }
 
-@ @<Initializations common to all AHFA items@> =
+@ @<Initializations common to all AHMs@> =
 {
-  IRL_of_AIM (current_item) = irl;
-  Null_Count_of_AIM(current_item) = leading_nulls;
-  Sort_Key_of_AIM (current_item) = current_item - base_item;
-  AHFA_of_AIM(current_item) = NULL;
-  Quasi_Position_of_AIM(current_item) = current_item - first_aim_of_irl;
+  IRL_of_AHM (current_item) = irl;
+  Null_Count_of_AHM (current_item) = leading_nulls;
+  Quasi_Position_of_AHM (current_item) = current_item - first_aim_of_irl;
+  AHM_was_Predicted (current_item) =
+    ((Quasi_Position_of_AHM (current_item) == 0)
+     && (ID_of_IRL(irl) != ID_of_IRL (g->t_start_irl)));
+  @<Initialize event data for |current_item|@>@;
 }
 
-@ This is done after creating the AHFA items, because in
+@ This is done after creating the AHMs, because in
 theory the |marpa_renew| might have moved them.
 This is not likely since the |marpa_renew| shortened the array,
 but if you are hoping for portability,
 you want to follow the rules.
-@ Walks backwards through the |AIM|'s, setting each to the the
+@ Walks backwards through the |AHM|'s, setting each to the the
 first of its |IRL|.  Last setting wins, which works since
 we are traversing backwards.
-@<Populate the first |AIM|'s of the |RULE|'s@> =
+@<Populate the first |AHM|'s of the |RULE|'s@> =
 {
-  AIM items = g->t_AHFA_items;
-  AIMID item_id = (AIMID) ahfa_item_count;
+  AHM items = g->t_aims;
+  AHMID item_id = (AHMID) aim_count;
   for (item_id--; item_id >= 0; item_id--)
     {
-      AIM item = items + item_id;
-      IRL irl = IRL_of_AIM (item);
-      First_AIM_of_IRL(irl) = item;
+      AHM item = items + item_id;
+      IRL irl = IRL_of_AHM (item);
+      First_AHM_of_IRL(irl) = item;
     }
-}
-
-@ This functions sorts a list of pointers to
-AHFA items by AHFA item id,
-which is their most natural order.
-Once the AHFA states are created,
-they are restored to this order.
-For portability,
-it requires the AIMs to be in an array.
-@ @<Function definitions@> =
-PRIVATE_NOT_INLINE int cmp_by_aimid (const void* ap,
-        const void* bp)
-{
-    AIM a = *(AIM*)ap;
-    AIM b = *(AIM*)bp;
-    return a-b;
-}
-
-@ The AHFA items were created with a temporary ID which sorts them
-by rule, then by position within that rule.  We need one that sort the AHFA items
-by (from major to minor) postdot symbol, then rule, then position.
-A postdot symbol of $-1$ should sort high.
-This comparison function is used in the logic to change the AHFA item ID's
-from their temporary values to their final ones.
-@ @<Function definitions@> =
-PRIVATE_NOT_INLINE int cmp_by_postdot_and_aimid (const void* ap,
-        const void* bp)
-{
-    AIM a = *(AIM*)ap;
-    AIM b = *(AIM*)bp;
-    int a_postdot = Postdot_NSYID_of_AIM(a);
-    int b_postdot = Postdot_NSYID_of_AIM(b);
-    if (a_postdot == b_postdot)
-      return Sort_Key_of_AIM (a) - Sort_Key_of_AIM (b);
-    if (a_postdot < 0) return 1;
-    if (b_postdot < 0) return -1;
-    return a_postdot-b_postdot;
-}
-
-@ Change the AHFA ID's from their temporary form to their
-final form.
-Pointers to the AHFA items are copied to a temporary array
-which is then sorted in the order required for the new ID.
-As a result, the final AHFA ID number will be the same as
-the index in this temporary arra.
-A final loop then indexes through
-the temporary array and writes the index to the pointed-to
-AHFA item as its new, final ID.
-@<Set up the AHFA item ids@> =
-{
-  Marpa_AHFA_Item_ID item_id;
-  AIM *sort_array = marpa_new (struct s_AHFA_item *, ahfa_item_count);
-  AIM items = g->t_AHFA_items;
-  for (item_id = 0; item_id < (Marpa_AHFA_Item_ID) ahfa_item_count; item_id++)
-    {
-      sort_array[item_id] = items + item_id;
-    }
-  qsort (sort_array, (size_t)ahfa_item_count,
-    sizeof (AIM), cmp_by_postdot_and_aimid);
-  for (item_id = 0; item_id < (Marpa_AHFA_Item_ID) ahfa_item_count; item_id++)
-    {
-      Sort_Key_of_AIM (sort_array[item_id]) = item_id;
-    }
-  my_free (sort_array);
-}
-
-@** AHFA state (AHFA) code.
-
-This algorithm to create the AHFA states is new with |libmarpa|.
-It is based on noting that the states to be created fall into
-distinct classes, and that considerable optimization is possible
-if the classes of AHFA states are optimized separately.
-@ In their paper Aycock and Horspool divide the states of their
-automaton into
-call non-kernel and kernel states.
-In the AHFA, kernel states are called discovered AHFA states.
-Non-kernel states are called predicted AHFA states.
-If an AHFA states contains a start rule or
-or an AHFA item for which at least some
-non-nulling symbol has been recognized,
-it is an {\bf discovered} AHFA state.
-Otherwise, the AHFA state will contain only predictions,
-and is a {\bf predicted} AHFA state.
-@ Predicted AHFA states are so called because they only contain
-items which predict, according to the grammar,
-what might be found in the input.
-Discovered AHFA states are so called because either they ``report"
-the start of the input
-or they ``report" symbols actually found in the input.
-@ {\bf The Initial AHFA State}:
-This is the only state which can
-contain an AHFA item for a null rule.
-It only takes one of three possible forms.
-Listing the reasons that it makes sense to special-case
-this class would take more space than the code to do it.
-@ {\bf The Initial AHFA Prediction State}:
-This state is paired with a special-cased state, so it would
-require going out of our way to {\bf not} special-case this
-state as well.
-It does
-share with the other initial state that property that it is not
-necessary to check to ensure it does not duplicate an existing
-state.
-Other than that, the code is much like that to create any other
-prediction state.
-@ {\bf Discovered States with 1 item}:
-These may be specially optimized for.
-Sorting the items can be dispensed with.
-Checking for duplicates can be done using an array indexed by
-the ID of the only AHFA item.
-Statistics for practical grammars show that most discovered states
-contain only a single AHFA item, so there is a big payoff from
-special-casing these.
-@ {\bf Discovered States with 2 or more items}:
-For non-singleton discovered states,
-I use a hand-written insertion sort,
-and check for duplicates using a hash with a customized key.
-Further optimizations are possible, but
-few discovered states fall into this case.
-Also, discovered states of 2 items are a large enough class to justify
-separating out, if a significant optimization for them could be
-found.
-@ {\bf Predicted States}:
-These are treated differently from discovered states.
-The items in these are always a subset of the initial items for rules,
-and therefore correspond one-to-one with a powerset of the rules.
-This fact is used in precomputing rule boolean vectors, by postdot symbol,
-to speed up the construction of these.
-An advantage of using boolean vectors is that a radix sort of the items
-happens as a side effect.
-Because prediction states follow a very different distribution from
-discovered states, they have their own hash for checking duplicates.
-
-@ {\bf Estimating the number of AHFA States}: Based on the numbers given previously
-for Perl and HTML,
-$2s$ is a good high-ball estimate of the number of AHFA states for
-grammars of practical interest,
-where $s$ is the size of the grammar.
-I come up with this as follows.
-
-Let the size of an AHFA state be the number of AHFA items it contains.
-\li It is impossible for the number of AHFA items to greater than
-the size of the grammar.
-\li It is impossible for the number of discovered states of size 1
-to be greater than the number of AHFA items.
-\li The number of discovered states of size 2 or greater
-will typically be half the number of discovered states of size 1,
-or less.
-\li The number of predicted states will typically be
-considerably less than half the number of discovered states.
-
-The three possibilities just enumerated exhaust the possibilities for AHFA states.
-The total is ${s \over 2} + {s \over 2} + s = 2s$.
-Typically, the number of AHFA states should be less than this estimate.
-
-@<Public typedefs@> =
-typedef int Marpa_AHFA_State_ID;
-@ @<Private typedefs@> =
-typedef struct s_AHFA_state* AHFA;
-typedef int AHFAID;
-@ @<Private incomplete structures@> = struct s_AHFA_state;
-@ @<Private structures@> =
-struct s_AHFA_state_key {
-    Marpa_AHFA_State_ID t_id;
-};
-struct s_AHFA_state {
-    struct s_AHFA_state_key t_key;
-    struct s_AHFA_state* t_empty_transition;
-    @<Widely aligned AHFA state elements@>@;
-    @<Int aligned AHFA state elements@>@;
-    @<Bit aligned AHFA state elements@>@;
-};
-typedef struct s_AHFA_state AHFA_Object;
-
-@*0 Initialization.
-Only a few AHFA items are initialized.
-Most are set dependent on context.
-@<Function definitions@> =
-PRIVATE void AHFA_initialize(GRAMMAR g, AHFA ahfa)
-{
-    const AHFAID new_AHFA_id = AHFA_Count_of_G(g)++;
-    @<Initialize AHFA@>@;
-    ahfa->t_key.t_id = new_AHFA_id;
 }
 
 @*0 XSYID Events.
 @
-@d Completion_XSYIDs_of_AHFA(state) ((state)->t_completion_xsyids)
-@d Nulled_XSYIDs_of_AHFA(state) ((state)->t_nulled_xsyids)
-@d Prediction_XSYIDs_of_AHFA(state) ((state)->t_prediction_xsyids)
-@ @<Widely aligned AHFA state elements@> =
+@d Completion_XSYIDs_of_AHM(aim) ((aim)->t_completion_xsyids)
+@d Nulled_XSYIDs_of_AHM(aim) ((aim)->t_nulled_xsyids)
+@d Prediction_XSYIDs_of_AHM(aim) ((aim)->t_prediction_xsyids)
+@ @<Widely aligned AHM elements@> =
   CIL t_completion_xsyids;
   CIL t_nulled_xsyids;
   CIL t_prediction_xsyids;
 
-@*0 Complete symbols container.
-@
-Direct completion events are the completion events
-that are direct results of the rules contained in the current AHFA state.
-Indirect completion events include all possible completions,
-including indirect ones found through right recursion
-and Leo items.
-@d Completion_CIL_of_AHFA(state) ((state)->t_complete_nsyids)
-@d Complete_NSYID_of_AHFA(state, ix)
-  Item_of_CIL(Completion_CIL_of_AHFA(state), (ix))
-@d Complete_NSY_Count_of_AHFA(state)
-  Count_of_CIL(Completion_CIL_of_AHFA(state))
-
-@ @<Widely aligned AHFA state elements@> =
-CIL t_indirect_completion_event_nsyids;
-CIL t_direct_completion_event_nsyids;
-CIL t_complete_nsyids;
-
-@*0 AHFA item container.
+@*0 AHM container.
 @ @s AEX int
 @<Private typedefs@> = typedef int AEX;
-@ @d AIMs_of_AHFA(ahfa) ((ahfa)->t_items)
-@d AIM_of_AHFA_by_AEX(ahfa, aex) (AIMs_of_AHFA(ahfa)[aex])
-@d AEX_of_AHFA_by_AIM(ahfa, aim) aex_of_ahfa_by_aim_get((ahfa), (aim))
-@<Widely aligned AHFA state elements@> =
-AIM* t_items;
 
-@*0 AHFA to AIM macros.
-These assume there is only one AIM in the AHFA,
-which is the case with discovered AHFA's.
-@d AIM_of_AHFA(ahfa) AIM_of_AHFA_by_AEX((ahfa), 0)
-@d IRL_of_AHFA(ahfa) IRL_of_AIM(AIM_of_AHFA(ahfa))
-@d LHSID_of_AHFA(ahfa) LHSID_of_IRL(IRL_of_AHFA(ahfa))
-
-@ @d AIM_Count_of_AHFA(ahfa) ((ahfa)->t_item_count)
-@<Int aligned AHFA state elements@> =
-int t_item_count;
-@ Binary search is overkill for discovered states,
-not even repaying the overhead.
-But prediction states can get larger,
-and the overhead is always low.
-An alternative is to have different search routines based on the number
-of AIM items, but that is more overhead.
-Perhaps better to just search than
-to spend cycles figuring out how to search.
-@ This function assumes that the caller knows that the AHFA item
-is in the AHFA state.
-@<Function definitions@> =
-PRIVATE AEX aex_of_ahfa_by_aim_get(AHFA ahfa, AIM sought_aim)
-{
-    AIM* const aims = AIMs_of_AHFA(ahfa);
-    int aim_count = AIM_Count_of_AHFA(ahfa);
-    int hi = aim_count - 1;
-    int lo = 0;
-    while (hi >= lo) { // A binary search
-       int trial_aex = lo+(hi-lo)/2; // guards against overflow
-       AIM trial_aim = aims[trial_aex];
-       if (trial_aim == sought_aim) return trial_aex;
-       if (trial_aim < sought_aim) {
-           lo = trial_aex+1;
-       } else {
-           hi = trial_aex-1;
-       }
-  }
-  return -1;
-}
-
-@*0 Is AHFA predicted?.
-@ This boolean indicates whether the
-{\bf AHFA state} is predicted,
-as opposed to whether it contains any predicted 
-AHFA items.
-This makes a difference in AHFA state 0.
-AHFA state 0 is {\bf not} a predicted AHFA state.
-@d AHFA_is_Predicted(ahfa) ((ahfa)->t_is_predict)
-@d YIM_is_Predicted(yim) AHFA_is_Predicted(AHFA_of_YIM(yim))
-@<Bit aligned AHFA state elements@> =
-BITFIELD t_is_predict:1;
+@*0 Is AHM predicted?.
+@ This boolean indicates source, not contents.
+If it is true the AHM is a prediction,
+but it is false for the start AHM at location 0,
+which is a prediction, but which is the result
+of initalization, and not of prediction.
+@d AHM_was_Predicted(aim) ((aim)->t_was_predicted)
+@d YIM_was_Predicted(yim) AHM_was_Predicted(AHM_of_YIM(yim))
+@<Bit aligned AHM elements@> =
+BITFIELD t_was_predicted:1;
 
 @*0 Event data.
 A boolean tracks whether this is an
-"event AHFA", that is, whether there is
-an event for this AHFA itself.
-Even an non-event AHFA may be part of an
+"event AHM", that is, whether there is
+an event for this AHM itself.
+Even an non-event AHM may be part of an
 "event group".
-In this context, the subset of event AHFAs in an
-AHFA's right recursion group is called an
+In this context, the subset of event AHMs in an
+AHM's right recursion group is called an
 "event group".
 These data are used in various optimizations --
-the event processing can ignore AHFA states
+the event processing can ignore AHM's
 without events.
-@d Event_Group_Size_of_AHFA(ahfa) ((ahfa)->t_event_group_size)
-@d Event_AHFAIDs_of_AHFA(ahfa) ((ahfa)->t_event_ahfaids)
-@d AHFA_has_Event(ahfa) (Count_of_CIL(Event_AHFAIDs_of_AHFA(ahfa)) != 0)
+@d Event_Group_Size_of_AHM(aim) ((aim)->t_event_group_size)
+@d Event_AHMIDs_of_AHM(aim) ((aim)->t_event_aimids)
+@d AHM_has_Event(aim) (Count_of_CIL(Event_AHMIDs_of_AHM(aim)) != 0)
 @ This CIL is at most of size 1.
-It is either the singleton containing the AHFA's
+It is either the singleton containing the AHM's
 own ID, or the empty CIL.
-@<Widely aligned AHFA state elements@> =
-CIL t_event_ahfaids;
-@ A counter tracks the number of AHFAs in
-this AHFA's event group.
-@<Int aligned AHFA state elements@> =
+@<Widely aligned AHM elements@> =
+CIL t_event_aimids;
+@ A counter tracks the number of AHMs in
+this AHM's event group.
+@<Int aligned AHM elements@> =
 int t_event_group_size;
-@ @<Initialize AHFA@> =
-  Event_AHFAIDs_of_AHFA(ahfa) = NULL;
-  Event_Group_Size_of_AHFA(ahfa) = 0;
-
-@*0 AHFA container in grammar.
-@ @<Widely aligned grammar elements@> = struct s_AHFA_state* t_AHFA;
-@
-@d AHFA_of_G_by_ID(g, id) ((g)->t_AHFA+(id))
-@d AHFA_by_ID(id) (g->t_AHFA+(id))
-@d AHFA_Count_of_G(g) ((g)->t_AHFA_len)
-@<Int aligned grammar elements@> = int t_AHFA_len;
-@ @<Initialize grammar elements@> =
-g->t_AHFA = NULL;
-AHFA_Count_of_G(g) = 0;
-@*0 Destructor.
-@<Destroy grammar elements@> =
-{
-  if (g->t_AHFA)
-    {
-      STOLEN_DQUEUE_DATA_FREE (g->t_AHFA);
-    }
-}
-
-@*0 ID of AHFA state.
-@d ID_of_AHFA(state) ((state)->t_key.t_id)
-
-@*0 Validate AHFA ID.
-Check that AHFA ID is in valid range.
-@<Function definitions@> =
-PRIVATE int AHFA_state_id_is_valid(GRAMMAR g, AHFAID AHFA_state_id)
-{
-    return AHFA_state_id < AHFA_Count_of_G(g) && AHFA_state_id >= 0;
-}
-
-    
-@*0 Postdot symbols.
-@d Postdot_NSY_Count_of_AHFA(state) ((state)->t_postdot_nsy_count)
-@d Postdot_NSYIDAry_of_AHFA(state) ((state)->t_postdot_nsyidary)
-@<Widely aligned AHFA state elements@> = Marpa_Symbol_ID* t_postdot_nsyidary;
-@ @<Int aligned AHFA state elements@> = int t_postdot_nsy_count;
-
-@*0 AHFA state external accessors.
-@<Function definitions@> =
-int _marpa_g_AHFA_state_count(Marpa_Grammar g) {
-    return AHFA_Count_of_G(g);
-}
-
-@ @<Function definitions@> =
-int
-_marpa_g_AHFA_state_item_count(Marpa_Grammar g, AHFAID AHFA_state_id)
-{ @<Return |-2| on failure@>@/
-    AHFA state;
-    @<Fail if not precomputed@>@/
-    @<Fail if |AHFA_state_id| is invalid@>@/
-    state = AHFA_of_G_by_ID(g, AHFA_state_id);
-    return state->t_item_count;
-}
-
-@ @d AIMID_of_AHFA_by_AEX(g, ahfa, aex)
-   ((ahfa)->t_items[aex] - (g)->t_AHFA_items)
-@<Function definitions@> =
-Marpa_AHFA_Item_ID _marpa_g_AHFA_state_item(Marpa_Grammar g,
-     AHFAID AHFA_state_id,
-        int item_ix) {
-    AHFA state;
-    @<Return |-2| on failure@>@/
-    @<Fail if not precomputed@>@/
-    @<Fail if |AHFA_state_id| is invalid@>@/
-    state = AHFA_of_G_by_ID(g, AHFA_state_id);
-    if (item_ix < 0) {
-        MARPA_ERROR(MARPA_ERR_AHFA_IX_NEGATIVE);
-        return failure_indicator;
-    }
-    if (item_ix >= state->t_item_count) {
-        MARPA_ERROR(MARPA_ERR_AHFA_IX_OOB);
-        return failure_indicator;
-    }
-    return AIMID_of_AHFA_by_AEX(g, state, item_ix);
-}
-
-@ @<Function definitions@> =
-int _marpa_g_AHFA_state_is_predict(Marpa_Grammar g,
-        AHFAID AHFA_state_id) {
-    AHFA state;
-    @<Return |-2| on failure@>@/
-    @<Fail if not precomputed@>@/
-    @<Fail if |AHFA_state_id| is invalid@>@/
-    state = AHFA_of_G_by_ID(g, AHFA_state_id);
-    return AHFA_is_Predicted(state);
-}
+@ @<Initialize event data for |current_item|@> =
+  Event_AHMIDs_of_AHM(current_item) = NULL;
+  Event_Group_Size_of_AHM(current_item) = 0;
 
 @*0 The NSY right derivation matrix.
 The NSY right derivation matrix is used in determining which
@@ -5572,299 +5225,15 @@ one non-nulling symbol in each IRL. */
     }
 }
 
-@*0 Leo IRL and LHS.
-The Leo IRL of an AHFA is its rule,
-if that state can be a Leo completion.
-Otherwise it is |-1|.
-(There will be only one if it is a Leo completion.)
-The Leo LHS symbol is the LHS of the Leo IRL,
--1 if there is no Leo IRL.
-The value of the Leo completion symbol is used to
-determine if an Earley item
-with this AHFA state is eligible to be a Leo completion.
-@d AHFA_is_Leo_Completion(state)
-   AIM_is_Leo_Completion(AIM_of_AHFA_by_AEX((state), 0))
-
-@*0 Sorting AHFA states.
-@ The ordering of the AHFA states can be arbitrarily chosen
-to be efficient to compute.
-The only requirement is that states with identical sets
-of items compare equal.
-Here the length is the first subkey, because
-that will be enough to order most predicted states.
-The discovered states will be efficient to compute because
-they will tend either to be short,
-or quickly differentiated
-by length.
-\par
-Note that this function is not used for discovered AHFA states of
-size 1.
-Checking those for duplicates is optimized, using an array
-indexed by the ID of their only AHFA item.
-@ @<Function definitions@> =
-PRIVATE_NOT_INLINE int AHFA_state_cmp(
-    const void* ap,
-    const void* bp,
-    void *param @,@, UNUSED)
-{
-    AIM* items_a;
-    AIM* items_b;
-    const AHFA state_a = (AHFA)ap;
-    const AHFA state_b = (AHFA)bp;
-    const int length_a = state_a->t_item_count;
-    const int length_b = state_b->t_item_count;
-    int major_key = length_a - length_b;
-    if (major_key) return major_key;
-    {
-      int i, minor_key;
-      items_a = state_a->t_items;
-      items_b = state_b->t_items;
-      for (i = 0; i < length_a; i++)
-        {
-          minor_key = Sort_Key_of_AIM (items_a[i]) - Sort_Key_of_AIM (items_b[i]);
-          if (minor_key) return minor_key;
-        }
-    }
-    return 0;
-}
-
-@*0 Creating AHFA states.
-@<Create AHFA states@> =
-{
-    @<Declare locals for creating AHFA states@>@;
-    @<Initialize locals for creating AHFA states@>@;
-   @<Construct prediction matrix@>@;
-   @<Construct right derivation matrix@>@;
-   @<Construct initial AHFA states@>@;
-
-    {
-      AIMID aim_id;
-      const int aim_count = AIM_Count_of_G (g);
-      for (aim_id = 0; aim_id < aim_count; aim_id++)
-        {
-          const AIM aim = AIM_by_ID (aim_id);
-          if (!AIM_is_Prediction (aim))
-            {
-              create_singleton_AHFA_state (g, aim, singleton_duplicates,
-                                           irl_by_sort_key, &states, duplicates,
-                                           item_list_working_buffer,
-                                           prediction_matrix);
-            }
-        }
-    }
-
-   g->t_AHFA = DQUEUE_BASE(states, AHFA_Object); /* ``Steals"
-       the |DQUEUE|'s data */
-   ahfa_count_of_g = AHFA_Count_of_G(g);
-   @<Resort the AIMs@>@;
-   @<Free locals for creating AHFA states@>@;
-}
-
-@ |singleton_duplicates| can probably be eliminated once
-I no longer special-case the start rule.
-|duplicates| can probably be eliminated once predictions
-get special handling.
-|initial_no_of_states| might bear some rethinking, but
-we're elimination AHFA states, so it stays where it is
-until then.
-@<Declare locals for creating AHFA states@> =
-   const int initial_no_of_states = 2*AIM_Count_of_G(g);
-   Bit_Matrix prediction_matrix;
-   IRL* irl_by_sort_key = marpa_new(IRL, irl_count);
-    MARPA_AVL_TREE duplicates;
-      AHFA* singleton_duplicates;
-   DQUEUE_DECLARE(states);
-  int ahfa_count_of_g;
-
-@ @<Initialize locals for creating AHFA states@> =
-    @<Initialize duplicates data structures@>@;
-   DQUEUE_INIT(states, AHFA_Object, initial_no_of_states);
-
-@ @<Initialize duplicates data structures@> =
-{
-  int item_id;
-  int no_of_items_in_grammar = AIM_Count_of_G (g);
-  duplicates = _marpa_avl_create (AHFA_state_cmp, NULL);
-  singleton_duplicates = marpa_new (AHFA, no_of_items_in_grammar);
-  for (item_id = 0; item_id < no_of_items_in_grammar; item_id++)
-    {
-      singleton_duplicates[item_id] = NULL;
-      // All zero bits are not necessarily a NULL pointer
-    }
-}
-
-@ @<Resort the AIMs@> =
-{
-  int ahfa_id;
-  for (ahfa_id = 0; ahfa_id < ahfa_count_of_g; ahfa_id++)
-    {
-      AHFA from_ahfa = AHFA_of_G_by_ID (g, ahfa_id);
-      AIM *aims = AIMs_of_AHFA (from_ahfa);
-      int aim_count = AIM_Count_of_AHFA (from_ahfa);
-      qsort (aims, (size_t)aim_count, sizeof (AIM *), cmp_by_aimid);
-    }
-}
-
-@ @<Free locals for creating AHFA states@> =
-  my_free(irl_by_sort_key);
-  my_free(singleton_duplicates);
-  _marpa_avl_destroy(duplicates);
-
-@ This logic should be reworked after the transition away
-from AHFA states.
-@<Construct initial AHFA states@> =
-{
-  AHFA p_initial_state = DQUEUE_PUSH (states, AHFA_Object);
-  const IRL start_irl = g->t_start_irl;
-  NSYID *postdot_nsyidary;
-  AIM start_item;
-  NSYID postdot_nsyid;
-  AIM *item_list = marpa_obs_new (g->t_obs, AIM, 1);
-  /* The start item is the initial item for the start rule */
-  start_item = First_AIM_of_IRL(start_irl);
-  item_list[0] = start_item;
-  AHFA_initialize(g, p_initial_state);
-  p_initial_state->t_items = item_list;
-  p_initial_state->t_item_count = 1;
-  singleton_duplicates[0] = p_initial_state;
-  AHFA_is_Predicted (p_initial_state) = 0;
-  Postdot_NSY_Count_of_AHFA (p_initial_state) = 1;
-  postdot_nsyidary = Postdot_NSYIDAry_of_AHFA (p_initial_state) =
-    marpa_obs_new (g->t_obs, NSYID, 1);
-  postdot_nsyid = Postdot_NSYID_of_AIM (start_item);
-  *postdot_nsyidary = postdot_nsyid;
-  Completion_CIL_of_AHFA(p_initial_state) =
-    cil_empty (&g->t_cilar);
-  p_initial_state->t_empty_transition = create_predicted_AHFA_state (g,
-                               matrix_row (prediction_matrix,
-                                           postdot_nsyid),
-                               irl_by_sort_key, &states, duplicates,
-                               item_list_working_buffer);
-}
-
 @* Discovered AHFA states.
-@ {\bf Theorem}:
-An AHFA state that contains a start rule completion is always
-a 1-item discovered state.
-{\bf Proof}:
-The grammar is augmented,
-so that no other rule predicts a start rule.
-This means that AHFA state 0 will contain the only predicted
-start rule.
-AHFA state 0 contains the predicted start rule.
-@ The form of the non-null predicted start rule
-is $S' \leftarrow \cdot S$,
-where $S'$ is the augmented start symbol and $S$ was
-the start symbol in the original grammar.
-This rule will be the only transition out of AHFA state 0.
-Call the to-state of this transition, state $n$.
-State $n$ will clearly contain a completed start rule
-( $S' \leftarrow S \cdot$ ),
-which will be rule for the only AHFA item in AHFA state $n$.
-\par
-Since only state 0 contains 
-$S' \leftarrow \cdot S$,
-only AHFA state $n$ will contain 
-$S' \leftarrow S \cdot$.
-Therefore there is only one AHFA state containing
-a start rule completion, and it is a
-1-item discovered AHFA states.
-{\bf QED}.
-@<Function definitions@> =
-PRIVATE AHFA
-create_singleton_AHFA_state(
-    GRAMMAR g,
-    AIM base_aim,
-      AHFA* singleton_duplicates,
-     IRL* irl_by_sort_key,
-     DQUEUE states_p,
-     MARPA_AVL_TREE duplicates,
-     AIM* item_list_working_buffer,
-   Bit_Matrix prediction_matrix
-)
-{
-  /* \comment Every AHFA has at least one item */
-
-   const AIM AHFA_item_0_p = g->t_AHFA_items;
-    AHFA new_ahfa;
-    AIM* new_state_item_list;
-    NSYID postdot_nsyid;
-    const Marpa_AHFA_Item_ID working_aim_id = base_aim - AHFA_item_0_p;
-    
-    new_ahfa = singleton_duplicates[working_aim_id]; /* This will not
-    be necessary after transition to singleton-only AHFA states */
-    if (new_ahfa)
-      {                         /* Do not add, this is a duplicate */
-        return new_ahfa;
-      }
-
-    MARPA_OFF_DEBUG2("Creating singleton AHFA for AIM %d", working_aim_id);
-
-    new_ahfa = DQUEUE_PUSH ((*states_p), AHFA_Object);
-    /* Create a new AHFA state */
-    AHFA_initialize(g, new_ahfa);
-    singleton_duplicates[working_aim_id] = new_ahfa;
-    new_state_item_list = new_ahfa->t_items =
-        marpa_obs_new (g->t_obs, AIM, 1);
-    new_state_item_list[0] = base_aim;
-    new_ahfa->t_item_count = 1;
-    AHFA_is_Predicted(new_ahfa) = 0;
-    postdot_nsyid = Postdot_NSYID_of_AIM(base_aim);
-    if (postdot_nsyid >= 0)
-      {
-        NSYID* p_postdot_nsyidary = Postdot_NSYIDAry_of_AHFA(new_ahfa) =
-          marpa_obs_new (g->t_obs, NSYID, 1);
-        Completion_CIL_of_AHFA(new_ahfa)
-          = cil_empty (&g->t_cilar);
-        Postdot_NSY_Count_of_AHFA(new_ahfa) = 1;
-        *p_postdot_nsyidary = postdot_nsyid;
-    /* If the sole item is not a completion
-     attempt to create a predicted AHFA state as well */
-    new_ahfa->t_empty_transition =
-    create_predicted_AHFA_state (g,
-                                 matrix_row (prediction_matrix,
-                                             postdot_nsyid),
-                                 irl_by_sort_key, states_p, duplicates,
-                                 item_list_working_buffer);
-      }
-    else
-      {
-        /* The only AIM is a completion */
-        const IRL irl = IRL_of_AIM(base_aim);
-        const NSYID lhs_nsyid = LHSID_of_IRL(irl);
-        Completion_CIL_of_AHFA(new_ahfa) = cil_singleton(&g->t_cilar, lhs_nsyid);
-
-        Postdot_NSY_Count_of_AHFA(new_ahfa) = 0;
-        new_ahfa->t_empty_transition = NULL;
-  }
-  AHFA_of_AIM(base_aim) = new_ahfa;
-  return new_ahfa;
-}
-
-@ Discovered AHFA states are usually quite small
-and the insertion sort here is probably optimal for the usual cases.
-It is $O(n^2)$ for the large AHFA states, but at present there is
-little value in coding for such cases.
-Average complexity -- probably $O(1)$.
-Implemented worst-case complexity: $O(n^2)$.
-Theoretical complexity: $O(n \log n)$, because another sort can easily be
-substituted for the insertion sort.
-\par
-Note the mixture of indexing and old-fashioned pointer twiddling
-in the insertion sort.
-I am usually of the opinion that the pointer twiddling should be left
-to the optimizer, but in this case I think that a little bit of
-pointer twiddling actually makes the code clearer than it would
-be if written 100\% using indexes.
-@<Declare variables for the internal grammar
+@ @<Declare variables for the internal grammar
         memoizations@> =
   const RULEID irl_count = IRL_Count_of_G(g);
-  AIM* const item_list_working_buffer
-    = marpa_obs_new(obs_precompute, AIM, irl_count);
   const NSYID nsy_count = NSY_Count_of_G(g);
   const XSYID xsy_count = XSY_Count_of_G(g);
   IRLID** irl_list_x_lh_nsy = NULL;
   Bit_Matrix nsy_by_right_nsy_matrix;
+   Bit_Matrix prediction_nsy_by_irl_matrix;
 
 @ Initialized based on the capacity of the XRL stack, rather
 than its length, as a convenient way to deal with issues
@@ -5925,46 +5294,7 @@ of minimum sizes.
   _marpa_avl_destroy (lhs_avl_tree);
 }
 
-@ Find the AHFA state in the argument,
-creating it if it does not exist.
-When it does not exist, insert it
-in the sequence of states
-and return |NULL|.
-When it does exist, return a pointer to it.
-@<Function definitions@> =
-PRIVATE AHFA
-assign_AHFA_state (AHFA sought_state, MARPA_AVL_TREE duplicates)
-{
-  const AHFA state_found = _marpa_avl_insert(duplicates, sought_state);
-  return state_found;
-}
-
-@*0 Predicted AHFA states.
-The method for building predicted AHFA states is optimized using
-precomputed boolean vectors.
-This should be very fast,
-but it is possible to think other methods might
-be better, at least in some cases.
-The boolean vectors are $O(s)$ in length, where $s$ is the
-size of the grammar, and so is the time complexity of the method used.
-@ It may be possible to look at a list of
-only the AHFA items actually present in each state,
-which might be $O(\log s)$ in the average case.
-An advantage of the boolean vectors is they
-implicitly perform a radix sort.
-This would have to be performed explicitly for an enumerated
-list of AHFA items, making the putative average case $O(\log s \cdot \log \log s)$.
-@ In the worst case, however, the number of AHFA items in the predicted states is
-$O(s)$, making the time complexity
-of a list solution, $O(s \cdot \log s)$.
-In normal cases,
-the practical advantages of boolean vectors are overwhelming and swamp the theoretical
-time complexity.
-The advantage of listing AHFA items is restricted to a putative ``average" case,
-and even there would not kick in until the grammars became very large.
-My conclusion is that alternatives to the boolean vector implementation deserve
-further investigation, but that at present, and overall,
-boolean vectors appear clearly superior to the alternatives.
+@*0 Predictions.
 @ For the predicted states, I construct a symbol-by-rule matrix
 of predictions.  First, I determine which symbols directly predict
 others.  Then I compute the transitive closure.
@@ -5997,13 +5327,13 @@ states.
       NSYID from_nsyid, to_nsyid;
       const IRL irl = IRL_by_ID(irl_id);
       /* Get the initial item for the rule */
-      const AIM item = First_AIM_of_IRL(irl);
-      to_nsyid = Postdot_NSYID_of_AIM (item);
+      const AHM item = First_AHM_of_IRL(irl);
+      to_nsyid = Postdot_NSYID_of_AHM (item);
       /* There is no symbol-to-symbol transition for a completion item */
       if (to_nsyid < 0)
         continue;
       /* Set a bit in the matrix */
-      from_nsyid = LHS_NSYID_of_AIM (item);
+      from_nsyid = LHS_NSYID_of_AHM (item);
       matrix_bit_set (prediction_nsy_by_nsy_matrix,
         from_nsyid,
         to_nsyid);
@@ -6011,81 +5341,20 @@ states.
 }
 
 @ At this point I have a full matrix showing which symbol implies a prediction
-of which others.  To save repeated processing when building the AHFA prediction states,
+of which others.  To save repeated processing when creating the prediction Earley
+items,
 I now convert it into a matrix from symbols to the rules they predict.
 Specifically, if symbol |S1| predicts symbol |S2|, then symbol |S1|
 predicts every rule
 with |S2| on its LHS.
 @<Create the prediction matrix from the symbol-by-symbol matrix@> = {
-    int* sort_key_by_irl_id = marpa_new(int, irl_count);
-    @<Populate |irl_by_sort_key|@>@/
-    @<Populate |sort_key_by_irl_id| with second pass value@>@/
     @<Populate the prediction matrix@>@/
-    my_free(sort_key_by_irl_id);
-}
-
-@ For creating prediction AHFA states, we need to have an ordering of rules
-by their postdot symbol.
-Here we take a first pass at this, letting the value be the postdot symbol for
-the predictable rules.
-This first pass fully captures the order,
-but in the 
-final result we want the keys to be unique integers
-in a sequence start from 0,
-so that they can be used as the indices of a boolean vector.
-
-@ @<Populate |irl_by_sort_key|@> =
-{
-  IRLID irl_id;
-  for (irl_id = 0; irl_id < irl_count; irl_id++)
-    {
-      irl_by_sort_key[irl_id] = IRL_by_ID (irl_id);
-    }
-  qsort (irl_by_sort_key, (size_t)irl_count,
-         sizeof (RULE), cmp_by_irl_sort_key);
-}
-
-@
-@d SET_1ST_PASS_SORT_KEY_FOR_IRL(sort_key, irl) {
-  const AIM aim = First_AIM_of_IRL(irl);
-  (sort_key) = Postdot_NSYID_of_AIM (aim);
-}
-@<Function definitions@> =
-PRIVATE_NOT_INLINE int
-cmp_by_irl_sort_key(const void* ap, const void* bp)
-{
-  const IRL irl_a = *(IRL *) ap;
-  const IRL irl_b = *(IRL *) bp;
-  int sort_key_a;
-  int sort_key_b;
-  SET_1ST_PASS_SORT_KEY_FOR_IRL (sort_key_a, irl_a);
-  SET_1ST_PASS_SORT_KEY_FOR_IRL (sort_key_b, irl_b);
-  if (sort_key_a != sort_key_b)
-    return sort_key_a - sort_key_b;
-  {
-    IRLID a_id = ID_of_IRL (irl_a);
-    IRLID b_id = ID_of_IRL (irl_b);
-    return a_id - b_id;
-  }
-}
-
-@ We have now sorted the rules into the final sort key order.
-The final version of the sort keys are ordinals,
-which can be used to index the rules in a boolean vector.
-@<Populate |sort_key_by_irl_id| with second pass value@> =
-{
-  IRLID sort_ordinal;
-  for (sort_ordinal = 0; sort_ordinal < irl_count; sort_ordinal++)
-    {
-      IRL irl = irl_by_sort_key[sort_ordinal];
-      sort_key_by_irl_id[ID_of_IRL(irl)] = sort_ordinal;
-    }
 }
 
 @ @<Populate the prediction matrix@> =
 {
   NSYID from_nsyid;
-  prediction_matrix =
+  prediction_nsy_by_irl_matrix =
     matrix_obs_create (obs_precompute, nsy_count,
                        irl_count);
   for (from_nsyid = 0; from_nsyid < nsy_count; from_nsyid++)
@@ -6107,131 +5376,34 @@ which can be used to index the rules in a boolean vector.
                 {
                   // For every rule with that symbol on its LHS
                   const IRLID irl_with_this_lhs = *p_irl_x_lh_nsy;
-                  int sort_ordinal =
-                    sort_key_by_irl_id[irl_with_this_lhs];
-                  matrix_bit_set (prediction_matrix,
-                                  from_nsyid, sort_ordinal);
-                  // Set the $(symbol, rule sort key)$ bit in the matrix
+                  matrix_bit_set (prediction_nsy_by_irl_matrix,
+                                  from_nsyid, irl_with_this_lhs);
                 }
             }
         }
     }
 }
 
-@ @<Function definitions@> =
-PRIVATE_NOT_INLINE AHFA
-create_predicted_AHFA_state(
-     GRAMMAR g,
-     Bit_Vector prediction_rule_vector,
-     IRL* irl_by_sort_key,
-     DQUEUE states_p,
-     MARPA_AVL_TREE duplicates,
-     AIM* item_list_working_buffer
-     )
+@** Populating the predicted IRL CIL's in the AHM's.
+@ @<Populate the predicted IRL CIL's in the AHM's@> =
 {
-  AHFA p_new_state;
-  int item_list_ix = 0;
-  int no_of_items_in_new_state = bv_count (prediction_rule_vector);
-  if (no_of_items_in_new_state == 0)
-    return NULL;
-  {
-    int start, min, max;
-      // \comment Scan the prediction rule vector again, this time to populate the list
-    for (start = 0; bv_scan (prediction_rule_vector, start, &min, &max);
-         start = max + 2)
-      {
-        int sort_ordinal;
-        for (sort_ordinal = min; sort_ordinal <= max; sort_ordinal++)
-          {
-            /* Add the initial item for the predicted rule */
-            const IRL irl = irl_by_sort_key[sort_ordinal];
-            item_list_working_buffer[item_list_ix++] = First_AIM_of_IRL(irl);
-          }
-      }
-  }
-  p_new_state = DQUEUE_PUSH ((*states_p), AHFA_Object);
-  AHFA_initialize (g, p_new_state);
-  p_new_state->t_items = item_list_working_buffer;
-  p_new_state->t_item_count = no_of_items_in_new_state;
-  {
-    AHFA queued_AHFA_state = assign_AHFA_state (p_new_state, duplicates);
-    if (queued_AHFA_state)
-      {
-        /* The new state would be a duplicate.
-           Back it out and return the one that already exists */
-        (void) DQUEUE_POP ((*states_p), AHFA_Object);
-        AHFA_Count_of_G(g)--;
-        return queued_AHFA_state;
-      }
-  }
-  // The new state was added -- finish up its data
-  {
-    int i;
-    AIM *const final_aim_list = p_new_state->t_items =
-      marpa_obs_new (g->t_obs, AIM, no_of_items_in_new_state );
-    for (i = 0; i < no_of_items_in_new_state; i++)
-      {
-        final_aim_list[i] = item_list_working_buffer[i];
-      }
-  }
-  AHFA_is_Predicted (p_new_state) = 1;
-  p_new_state->t_empty_transition = NULL;
-  Completion_CIL_of_AHFA(p_new_state) = cil_empty (&g->t_cilar);
-  @<Calculate postdot symbols for predicted state@>@;
-  return p_new_state;
-}
-
-@ @<Calculate postdot symbols for predicted state@> =
-{
-  NSYID nsy_count = NSY_Count_of_G (g);
-  int item_ix;
-  NSYID no_of_postdot_nsys;
-  Bit_Vector postdot_v = bv_create ( nsy_count );
-    for (item_ix = 0; item_ix < no_of_items_in_new_state; item_ix++)
-      {
-        AIM item = item_list_working_buffer[item_ix];
-        NSYID postdot_nsyid = Postdot_NSYID_of_AIM (item);
-        if (postdot_nsyid >= 0)
-          bv_bit_set (postdot_v, postdot_nsyid);
-      }
-    if ((no_of_postdot_nsys = Postdot_NSY_Count_of_AHFA(p_new_state) =
-     bv_count (postdot_v)))
-  {
-    int min, max, start;
-    NSYID *p_nsyid = Postdot_NSYIDAry_of_AHFA(p_new_state) =
-      marpa_obs_new (g->t_obs, NSYID, no_of_postdot_nsys );
-    for (start = 0; bv_scan (postdot_v, start, &min, &max); start = max + 2)
-      {
-        NSYID postdot_nsyid;
-        for (postdot_nsyid = min;
-             postdot_nsyid <= max; postdot_nsyid++)
-          {
-            *p_nsyid++ = postdot_nsyid;
-          }
-      }
-  }
-  bv_free(postdot_v);
-}
-
-@** AHFA trace functions.
-
-@** Empty transition code.
-@d Empty_Transition_of_AHFA(state) ((state)->t_empty_transition)
-@ In the external accessor,
--1 is a valid return value, indicating no empty transition.
-@<Function definitions@> =
-AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
-     AHFAID AHFA_state_id) {
-    AHFA state;
-    AHFA empty_transition_state;
-    @<Return |-2| on failure@>@/
-    @<Fail if not precomputed@>@/
-    @<Fail if |AHFA_state_id| is invalid@>@/
-    state = AHFA_of_G_by_ID(g, AHFA_state_id);
-    empty_transition_state = Empty_Transition_of_AHFA (state);
-    if (empty_transition_state)
-      return ID_of_AHFA (empty_transition_state);
-    return -1;
+  AHMID aim_id;
+  const int aim_count = AHM_Count_of_G (g);
+  for (aim_id = 0; aim_id < aim_count; aim_id++)
+    {
+      const AHM aim = AHM_by_ID (aim_id);
+      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM (aim);
+      if (postdot_nsyid < 0)
+	{
+	  Predicted_IRL_CIL_of_AHM (aim) = cil_empty (&g->t_cilar);
+	}
+      else
+	{
+	  Predicted_IRL_CIL_of_AHM (aim) =
+	    cil_bv_add (&g->t_cilar,
+			matrix_row (prediction_nsy_by_irl_matrix, postdot_nsyid));
+	}
+    }
 }
 
 @** Populating the terminal boolean vector.
@@ -6281,27 +5453,23 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
 
 @ @<Populate the prediction and nulled symbol CILs@> =
 {
-  AHFAID ahfaid;
-  const AHFAID ahfa_count_of_g = AHFA_Count_of_G (g);
+  AHMID aim_id;
+  const int aim_count_of_g = AHM_Count_of_G (g);
   const LBV bv_completion_xsyid = bv_create (xsy_count);
   const LBV bv_prediction_xsyid = bv_create (xsy_count);
   const LBV bv_nulled_xsyid = bv_create (xsy_count);
   const CILAR cilar = &g->t_cilar;
-  for (ahfaid = 0; ahfaid < ahfa_count_of_g; ahfaid++)
+  for (aim_id = 0; aim_id < aim_count_of_g; aim_id++)
     {
-      AEX aex;
-      const AHFA ahfa = AHFA_of_G_by_ID (g, ahfaid);
-      const int ahfa_item_count = AIM_Count_of_AHFA (ahfa);
+      const AHM aim = AHM_by_ID (aim_id);
+      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM (aim);
+      const IRL irl = IRL_of_AHM (aim);
       bv_clear (bv_completion_xsyid);
       bv_clear (bv_prediction_xsyid);
       bv_clear (bv_nulled_xsyid);
-      for (aex = 0; aex < (AEX) ahfa_item_count; aex++)
         {
           int rhs_ix;
-          const AIM aim = AIM_of_AHFA_by_AEX (ahfa, aex);
-          const NSYID postdot_nsyid = Postdot_NSYID_of_AIM (aim);
-          const IRL irl = IRL_of_AIM (aim);
-          int raw_position = Position_of_AIM (aim);
+          int raw_position = Position_of_AHM (aim);
           if (raw_position < 0)
             {                   // Completion
               raw_position = Length_of_IRL (irl);
@@ -6322,7 +5490,7 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
               const XSYID xsyid = ID_of_XSY (xsy);
               bv_bit_set (bv_prediction_xsyid, xsyid);
             }
-          for (rhs_ix = raw_position - Null_Count_of_AIM (aim);
+          for (rhs_ix = raw_position - Null_Count_of_AHM (aim);
                rhs_ix < raw_position; rhs_ix++)
             {
               int cil_ix;
@@ -6338,10 +5506,10 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
                 }
             }
         }
-      Completion_XSYIDs_of_AHFA (ahfa) =
+      Completion_XSYIDs_of_AHM (aim) =
         cil_bv_add (cilar, bv_completion_xsyid);
-      Nulled_XSYIDs_of_AHFA (ahfa) = cil_bv_add (cilar, bv_nulled_xsyid);
-      Prediction_XSYIDs_of_AHFA (ahfa) =
+      Nulled_XSYIDs_of_AHM (aim) = cil_bv_add (cilar, bv_nulled_xsyid);
+      Prediction_XSYIDs_of_AHM (aim) =
         cil_bv_add (cilar, bv_prediction_xsyid);
     }
   bv_free (bv_completion_xsyid);
@@ -6349,63 +5517,63 @@ AHFAID _marpa_g_AHFA_state_empty_transition(Marpa_Grammar g,
   bv_free (bv_nulled_xsyid);
 }
 
-@ @<Mark the event AHFAs@> =
+@ @<Mark the event AHMs@> =
 {
-  AHFAID ahfa_id;
-  for (ahfa_id = 0; ahfa_id < AHFA_Count_of_G (g); ahfa_id++)
+  AHMID aim_id;
+  for (aim_id = 0; aim_id < AHM_Count_of_G (g); aim_id++)
     {
       const CILAR cilar = &g->t_cilar;
-      const AHFA ahfa = AHFA_by_ID (ahfa_id);
-      const int ahfa_is_event =
-        Count_of_CIL (Completion_XSYIDs_of_AHFA (ahfa))
-        || Count_of_CIL (Nulled_XSYIDs_of_AHFA (ahfa))
-        || Count_of_CIL (Prediction_XSYIDs_of_AHFA (ahfa));
-      Event_AHFAIDs_of_AHFA (ahfa) =
-        ahfa_is_event ? cil_singleton (cilar, ahfa_id) : cil_empty (cilar);
+      const AHM aim = AHM_by_ID(aim_id);
+      const int aim_is_event =
+        Count_of_CIL (Completion_XSYIDs_of_AHM (aim))
+        || Count_of_CIL (Nulled_XSYIDs_of_AHM (aim))
+        || Count_of_CIL (Prediction_XSYIDs_of_AHM (aim));
+      Event_AHMIDs_of_AHM (aim) =
+        aim_is_event ? cil_singleton (cilar, aim_id) : cil_empty (cilar);
     }
 }
 
-@ @<Calculate AHFA Event Group Sizes@> =
+@ @<Calculate AHM Event Group Sizes@> =
 {
-  const AHFAID ahfa_count_of_g = AHFA_Count_of_G (g);
-  AHFAID outer_ahfa_id;
-  for (outer_ahfa_id = 0; outer_ahfa_id < ahfa_count_of_g; outer_ahfa_id++)
+  const int aim_count_of_g = AHM_Count_of_G (g);
+  AHMID outer_aim_id;
+  for (outer_aim_id = 0; outer_aim_id < aim_count_of_g; outer_aim_id++)
     {
-      AHFAID inner_ahfa_id;
-      const AHFA outer_ahfa = AHFA_by_ID (outer_ahfa_id);
-      /* There is no test that |outer_ahfa|
-         is an event AHFA.
-         An AHFA, even if it is not itself an event AHFA,
-         may be in a non-empty AHFA event group.  */
+      AHMID inner_aim_id;
+      const AHM outer_aim = AHM_by_ID (outer_aim_id);
+      /* There is no test that |outer_aim|
+         is an event AHM.
+         An AHM, even if it is not itself an event AHM,
+         may be in a non-empty AHM event group.  */
       NSYID outer_nsyid;
-      if (!AHFA_is_Leo_Completion(outer_ahfa)) {
-          if (AHFA_has_Event (outer_ahfa)) {
-              Event_Group_Size_of_AHFA (outer_ahfa) = 1;
+      if (!AHM_is_Leo_Completion(outer_aim)) {
+          if (AHM_has_Event (outer_aim)) {
+              Event_Group_Size_of_AHM (outer_aim) = 1;
           }
-        continue;               /* This AHFA is not a Leo completion,
+        continue;               /* This AHM is not a Leo completion,
                                    so we are done. */
        }
-      outer_nsyid = LHSID_of_AHFA (outer_ahfa);
-      for (inner_ahfa_id = 0; inner_ahfa_id < ahfa_count_of_g;
-           inner_ahfa_id++)
+      outer_nsyid = LHSID_of_AHM (outer_aim);
+      for (inner_aim_id = 0; inner_aim_id < aim_count_of_g;
+           inner_aim_id++)
         {
           NSYID inner_nsyid;
-          const AHFA inner_ahfa = AHFA_by_ID (inner_ahfa_id);
-          if (!AHFA_has_Event (inner_ahfa))
+          const AHM inner_aim = AHM_by_ID (inner_aim_id);
+          if (!AHM_has_Event (inner_aim))
             continue;           /* Not in the group, because it
-                                   is not an event AHFA. */
-          if (!AHFA_is_Leo_Completion(inner_ahfa))
-            continue;           /* This AHFA is not a Leo completion,
+                                   is not an event AHM. */
+          if (!AHM_is_Leo_Completion(inner_aim))
+            continue;           /* This AHM is not a Leo completion,
                                    so we are done. */
-          inner_nsyid = LHSID_of_AHFA (inner_ahfa);
+          inner_nsyid = LHSID_of_AHM (inner_aim);
           if (matrix_bit_test (nsy_by_right_nsy_matrix,
                                outer_nsyid,
                                inner_nsyid))
             {
-              /* |inner_ahfa == outer_ahfa|
+              /* |inner_aim == outer_aim|
               is not treated as special case
               */
-              Event_Group_Size_of_AHFA (outer_ahfa)++; 
+              Event_Group_Size_of_AHM (outer_aim)++; 
             }
         }
     }
@@ -6539,13 +5707,16 @@ In the event of an error creating the recognizer,
 Marpa_Recognizer marpa_r_new( Marpa_Grammar g )
 {
     RECCE r;
-    NSYID nsy_count;
+    int nsy_count;
+    int irl_count;
     @<Return |NULL| on failure@>@;
     @<Fail if not precomputed@>@;
     nsy_count = NSY_Count_of_G(g);
+    irl_count = IRL_Count_of_G(g);
     r = my_malloc(sizeof(struct marpa_r));
     @<Initialize recognizer obstack@>@;
     @<Initialize recognizer elements@>@;
+    @<Initialize dot PSAR@>@;
    return r;
 }
 
@@ -6601,7 +5772,6 @@ void recce_free(struct marpa_r *r)
 @*0 Base objects.
 Initialized in |marpa_r_new|.
 @d G_of_R(r) (G_of_I((r)->t_input))
-@d AHFA_Count_of_R(r) AHFA_Count_of_G(G_of_R(r))
 @<Unpack recognizer objects@> =
 const INPUT input = I_of_R(r);
 const GRAMMAR g = G_of_I(input);
@@ -6653,7 +5823,7 @@ PRIVATE YS current_ys_of_r(RECCE r)
 @<Int aligned recognizer elements@> = int t_earley_item_warning_threshold;
 @ @<Initialize recognizer elements@> =
 r->t_earley_item_warning_threshold =
-    MAX (DEFAULT_YIM_WARNING_THRESHOLD, AIM_Count_of_G (g) * 3);
+    MAX (DEFAULT_YIM_WARNING_THRESHOLD, AHM_Count_of_G (g) * 3);
 @ @<Function definitions@> =
 int
 marpa_r_earley_item_warning_threshold (Marpa_Recognizer r)
@@ -6712,10 +5882,6 @@ r->t_active_event_count = 0;
 A boolean vector by symbol ID,
 with the bits set if the symbol is expected
 at the current earleme.
-This vector is not size until input starts.
-When the recognizer is created,
-this boolean vector is initialized to |NULL| so that the destructor
-can tell if there is a boolean vector to be freed.
 @<Widely aligned recognizer elements@> = Bit_Vector t_bv_nsyid_is_expected;
 @ @<Initialize recognizer elements@> = 
     r->t_bv_nsyid_is_expected = bv_obs_create( r->t_obs, nsy_count );
@@ -6746,6 +5912,7 @@ int marpa_r_terminals_expected(Marpa_Recognizer r, Marpa_Symbol_ID* buffer)
       }
     return ix;
 }
+
 @ @<Function definitions@> =
 int marpa_r_terminal_is_expected(Marpa_Recognizer r,
 Marpa_Symbol_ID xsy_id)
@@ -7038,6 +6205,15 @@ Marpa_Recognizer r, int value)
     @<Fail if recognizer started@>@;
     return r->t_use_leo_flag = value ? 1 : 0;
 }
+
+@*0 Predicted IRL boolean vector.
+A boolean vector by IRL ID,
+used while building the Earley sets.
+It is set if an IRL has already been predicted,
+unset otherwise.
+@<Widely aligned recognizer elements@> = Bit_Vector t_bv_irl_is_predicted;
+@ @<Initialize recognizer elements@> = 
+    r->t_bv_irl_is_predicted = bv_obs_create( r->t_obs, irl_count );
 
 @*1 Is the parser exhausted?.
 A parser is ``exhausted" if it cannot accept any more input.
@@ -7421,7 +6597,7 @@ _marpa_r_earley_set_trace (Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
 }
 
 @ @<Function definitions@> =
-Marpa_AHFA_State_ID
+Marpa_AHM_ID
 _marpa_r_earley_item_trace (Marpa_Recognizer r, Marpa_Earley_Item_ID item_id)
 {
   const int yim_does_not_exist = -1;
@@ -7451,7 +6627,7 @@ _marpa_r_earley_item_trace (Marpa_Recognizer r, Marpa_Earley_Item_ID item_id)
   earley_items = YIMs_of_YS (trace_earley_set);
   earley_item = earley_items[item_id];
   r->t_trace_earley_item = earley_item;
-  return AHFAID_of_YIM (earley_item);
+  return AHMID_of_YIM (earley_item);
 }
 
 @ Clear all the data elements specifically
@@ -7516,14 +6692,12 @@ sources.
 The only awkwardness takes place
 when the second source is added, and the first one must
 be recopied to make way for pointers to the linked lists.
-@d Complete_NSYID_of_YIM(item, ix) 
-    Complete_NSYID_of_AHFA(AHFA_of_YIM(item), (ix))
-@d Complete_NSY_Count_of_YIM(item)
-    Complete_NSY_Count_of_AHFA(AHFA_of_YIM(item))
+@d LHS_NSYID_of_YIM(yim)
+  LHS_NSYID_of_AHM(AHM_of_YIM(yim))
 @ It might be slightly faster if this boolean is memoized in the Earley item
 when the Earley item is initialized.
 @d Earley_Item_is_Completion(item)
-    (Complete_NSY_Count_of_YIM(item) > 0)
+    (AHM_is_Completion(AHM_of_YIM(item)))
 @s Marpa_Earley_Item_ID int
 @<Public typedefs@> = typedef int Marpa_Earley_Item_ID;
 @ The ID of the Earley item is per-Earley-set, so that
@@ -7533,14 +6707,11 @@ the Earley set.
 @d YS_Ord_of_YIM(item) (Ord_of_YS(YS_of_YIM(item)))
 @d Ord_of_YIM(item) ((item)->t_ordinal)
 @d Earleme_of_YIM(item) Earleme_of_YS(YS_of_YIM(item))
-@d AHFAID_of_YIM(item) (ID_of_AHFA(AHFA_of_YIM(item)))
-@d AHFA_of_YIM(item) ((item)->t_key.t_state)
-@d AIM_Count_of_YIM(item) (AIM_Count_of_AHFA(AHFA_of_YIM(item)))
+@d AHM_of_YIM(item) ((item)->t_key.t_aim)
+@d AHMID_of_YIM(item) ID_of_AHM(AHM_of_YIM(item))
 @d Origin_Earleme_of_YIM(item) (Earleme_of_YS(Origin_of_YIM(item)))
 @d Origin_Ord_of_YIM(item) (Ord_of_YS(Origin_of_YIM(item)))
 @d Origin_of_YIM(item) ((item)->t_key.t_origin)
-@d AIM_of_YIM_by_AEX(yim, aex) AIM_of_AHFA_by_AEX(AHFA_of_YIM(yim), (aex))
-@d AEX_of_YIM_by_AIM(yim, aim) AEX_of_AHFA_by_AIM(AHFA_of_YIM(yim), (aim))
 @s YIM int
 @<Private incomplete structures@> =
 struct s_earley_item;
@@ -7560,7 +6731,7 @@ should not be restrictive in practice.
 @d YIM_FATAL_THRESHOLD ((1<<(YIM_ORDINAL_WIDTH))-2)
 @<Earley item structure@> =
 struct s_earley_item_key {
-     AHFA t_state;
+     AHM t_aim;
      YS t_origin;
      YS t_set;
 };
@@ -7576,7 +6747,7 @@ typedef struct s_earley_item YIM_Object;
 
 @*0 Constructor.
 Find an Earley item object, creating it if it does not exist.
-Only in a couple of cases per parse (in AHFA state 0),
+Only in a few cases per parse (in Earley set 0),
 do we already
 know that the Earley item is unique in the set.
 These are not worth optimizing for.
@@ -7604,19 +6775,20 @@ PRIVATE YIM earley_item_create(const RECCE r,
 @ @<Function definitions@> =
 PRIVATE YIM
 earley_item_assign (const RECCE r, const YS set, const YS origin,
-                    const AHFA state)
+                    const AHM aim)
 {
+  const GRAMMAR g = G_of_R (r);
   YIK_Object key;
   YIM yim;
   PSL psl;
-  AHFAID ahfa_id = ID_of_AHFA(state);
+  AHMID aim_id = ID_of_AHM(aim);
   PSL *psl_owner = &Dot_PSL_of_YS (origin);
   if (!*psl_owner)
     {
       psl_claim (psl_owner, Dot_PSAR_of_R(r));
     }
   psl = *psl_owner;
-  yim = PSL_Datum (psl, ahfa_id);
+  yim = PSL_Datum (psl, aim_id);
   if (yim
       && Earleme_of_YIM (yim) == Earleme_of_YS (set)
       && Earleme_of_YS (Origin_of_YIM (yim)) == Earleme_of_YS (origin))
@@ -7624,10 +6796,10 @@ earley_item_assign (const RECCE r, const YS set, const YS origin,
       return yim;
     }
   key.t_origin = origin;
-  key.t_state = state;
+  key.t_aim = aim;
   key.t_set = set;
   yim = earley_item_create (r, key);
-  PSL_Datum (psl, ahfa_id) = yim;
+  PSL_Datum (psl, aim_id) = yim;
   return yim;
 }
 
@@ -7721,8 +6893,8 @@ with a |NULL| Earley item pointer.
 @d Postdot_NSYID_of_LIM(leo) (Postdot_NSYID_of_YIX(YIX_of_LIM(leo)))
 @d Next_PIM_of_LIM(leo) (Next_PIM_of_YIX(YIX_of_LIM(leo)))
 @d Origin_of_LIM(leo) ((leo)->t_origin)
-@d Top_AHFA_of_LIM(leo) ((leo)->t_top_ahfa)
-@d Base_to_AHFA_of_LIM(leo) ((leo)->t_base_to_ahfa)
+@d Top_AHM_of_LIM(leo) ((leo)->t_top_aim)
+@d Base_to_AHM_of_LIM(leo) ((leo)->t_base_to_aim)
 @d Predecessor_LIM_of_LIM(leo) ((leo)->t_predecessor)
 @d Base_YIM_of_LIM(leo) ((leo)->t_base)
 @d YS_of_LIM(leo) ((leo)->t_set)
@@ -7735,8 +6907,8 @@ struct s_leo_item {
      YIX_Object t_earley_ix;
     @<Widely aligned LIM elements@>@;
      YS t_origin;
-     AHFA t_top_ahfa;
-     AHFA t_base_to_ahfa;
+     AHM t_top_aim;
+     AHM t_base_to_aim;
      LIM t_predecessor;
      YIM t_base;
      YS t_set;
@@ -7792,8 +6964,9 @@ Marpa_Earley_Set_ID _marpa_r_leo_base_origin(Marpa_Recognizer r)
   return Origin_Ord_of_YIM(base_earley_item);
 }
 
-@ @<Function definitions@> =
-Marpa_AHFA_State_ID _marpa_r_leo_base_state(Marpa_Recognizer r)
+@ Actually return AHM ID, not the obsolete AHFA ID.
+@<Function definitions@> =
+Marpa_AHM_ID _marpa_r_leo_base_state(Marpa_Recognizer r)
 {
   const JEARLEME pim_is_not_a_leo_item = -1;
   @<Return |-2| on failure@>@;
@@ -7807,7 +6980,7 @@ Marpa_AHFA_State_ID _marpa_r_leo_base_state(Marpa_Recognizer r)
   }
   if (YIM_of_PIM(postdot_item)) return pim_is_not_a_leo_item;
   base_earley_item = Base_YIM_of_LIM(LIM_of_PIM(postdot_item));
-  return AHFAID_of_YIM(base_earley_item);
+  return AHMID_of_YIM(base_earley_item);
 }
 
 @** Postdot item (PIM) code.
@@ -7995,7 +7168,7 @@ _marpa_r_next_postdot_item_trace (Marpa_Recognizer r)
 }
 
 @ @<Function definitions@> =
-Marpa_AHFA_State_ID _marpa_r_postdot_item_symbol(Marpa_Recognizer r)
+Marpa_Symbol_ID _marpa_r_postdot_item_symbol(Marpa_Recognizer r)
 {
   @<Return |-2| on failure@>@;
   PIM postdot_item = r->t_trace_postdot_item;
@@ -8110,8 +7283,8 @@ union u_source_container {
 @d NSYID_of_YIM(yim) NSYID_of_Source(Source_of_YIM(yim))
 @d NSYID_of_SRCL(link) NSYID_of_Source(Source_of_SRCL(link))
 
-@ @d Cause_AHFAID_of_SRCL(srcl)
-    AHFAID_of_YIM((YIM)Cause_of_SRCL(srcl))
+@ @d Cause_AHMID_of_SRCL(srcl)
+    AHMID_of_YIM((YIM)Cause_of_SRCL(srcl))
 @d Leo_Transition_NSYID_of_SRCL(leo_source_link)
     Postdot_NSYID_of_LIM(LIM_of_SRCL(leo_source_link))
 
@@ -8413,7 +7586,8 @@ Marpa_Symbol_ID _marpa_r_next_token_link_trace(Marpa_Recognizer r)
 @*1 Trace first completion link.
 @ Set the trace source link to a completion link,
 if there is one, otherwise clear the completion source link.
-Returns the AHFA state ID of the cause
+Returns the AHM ID
+(not the obsolete AHFA state ID) of the cause
 if there was a completion source link,
 |-1| if there was none,
 and |-2| on some other kind of failure.
@@ -8433,7 +7607,7 @@ Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
         r->t_trace_source_type = SOURCE_IS_COMPLETION;
         source_link = SRCL_of_YIM(item);
         r->t_trace_source_link = source_link;
-        return Cause_AHFAID_of_SRCL (source_link);
+        return Cause_AHMID_of_SRCL (source_link);
       case SOURCE_IS_AMBIGUOUS:
         {
           source_link = LV_First_Completion_SRCL_of_YIM (item);
@@ -8441,7 +7615,7 @@ Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
             {
               r->t_trace_source_type = SOURCE_IS_COMPLETION;
               r->t_trace_source_link = source_link;
-              return Cause_AHFAID_of_SRCL (source_link);
+              return Cause_AHMID_of_SRCL (source_link);
             }
         }
       }
@@ -8453,7 +7627,7 @@ Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
 @ Set the trace source link to the next completion link,
 if there is one.
 Otherwise clear the trace source link.
-@ Returns the symbol ID if there is
+@ Returns the cause AHM ID if there is
 a next completion source link,
 |-1| if there was none,
 and |-2| on some other kind of failure.
@@ -8477,13 +7651,14 @@ Marpa_Symbol_ID _marpa_r_next_completion_link_trace(Marpa_Recognizer r)
         return -1;
     }
     r->t_trace_source_link = source_link;
-    return Cause_AHFAID_of_SRCL (source_link);
+    return Cause_AHMID_of_SRCL (source_link);
 }
 
 @*1 Trace first Leo link.
 @ Set the trace source link to a Leo link,
 if there is one, otherwise clear the Leo source link.
-Returns the AHFA state ID of the cause
+Returns the AHM ID (not
+the obsolete AHFA state ID) of the cause
 if there was a Leo source link,
 |-1| if there was none,
 and |-2| on some other kind of failure.
@@ -8501,7 +7676,7 @@ _marpa_r_first_leo_link_trace (Marpa_Recognizer r)
   if (source_link) {
       r->t_trace_source_type = SOURCE_IS_LEO;
       r->t_trace_source_link = source_link;
-      return Cause_AHFAID_of_SRCL (source_link);
+      return Cause_AHMID_of_SRCL (source_link);
   }
   trace_source_link_clear (r);
   return -1;
@@ -8511,7 +7686,7 @@ _marpa_r_first_leo_link_trace (Marpa_Recognizer r)
 @ Set the trace source link to the next Leo link,
 if there is one.
 Otherwise clear the trace source link.
-@ Returns the symbol ID if there is
+@ Returns the AHM ID if there is
 a next Leo source link,
 |-1| if there was none,
 and |-2| on some other kind of failure.
@@ -8538,7 +7713,7 @@ _marpa_r_next_leo_link_trace (Marpa_Recognizer r)
       return -1;
     }
   r->t_trace_source_link = source_link;
-  return Cause_AHFAID_of_SRCL (source_link);
+  return Cause_AHMID_of_SRCL (source_link);
 }
 
 @ @<Set |item|, failing if necessary@> =
@@ -8557,8 +7732,8 @@ PRIVATE void trace_source_link_clear(RECCE r)
     r->t_trace_source_type = NO_SOURCE;
 }
 
-@*1 Return the predecessor AHFA state.
-Returns the predecessor AHFA State,
+@*1 Return the predecessor AHM ID.
+Returns the predecessor AHM ID,
 or -1 if there is no predecessor.
 If the recognizer is not trace-safe,
 if there is no trace source link,
@@ -8566,7 +7741,7 @@ if the trace source link is a Leo source,
 or if there is some other failure,
 |-2| is returned.
 @<Function definitions@> =
-AHFAID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
+AHMID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
 {
    @<Return |-2| on failure@>@/
    unsigned int source_type;
@@ -8581,7 +7756,7 @@ AHFAID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
     case SOURCE_IS_COMPLETION: {
         YIM predecessor = Predecessor_of_SRCL(source_link);
         if (!predecessor) return -1;
-        return AHFAID_of_YIM(predecessor);
+        return AHMID_of_YIM(predecessor);
     }
     }
     MARPA_ERROR(invalid_source_type_code(source_type));
@@ -8927,9 +8102,14 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     int return_value = 1;
     YS set0;
     YIK_Object key;
-    AHFA state;
+
+    IRL start_irl;
+    AHM start_aim;
+
   @<Unpack recognizer objects@>@;
   @<Return |-2| on failure@>@;
+
+
   @<Fail if recognizer started@>@;
   {
     @<Declare |marpa_r_start_input| locals@>@;
@@ -8957,16 +8137,33 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     set0 = earley_set_new(r, 0);
     Latest_YS_of_R(r) = set0;
     First_YS_of_R(r) = set0;
-    state = AHFA_of_G_by_ID(g, 0);
+
+    start_irl = g->t_start_irl;
+    start_aim = First_AHM_of_IRL(start_irl);
+
     key.t_origin = set0;
-    key.t_state = state;
+    key.t_aim = start_aim;
     key.t_set = set0;
     earley_item_create(r, key);
-    state = Empty_Transition_of_AHFA(state);
-    if (state) {
-        key.t_state = state;
-        earley_item_create(r, key);
-    } 
+    bv_clear (r->t_bv_irl_is_predicted);
+    bv_bit_set (r->t_bv_irl_is_predicted, ID_of_IRL(start_irl));
+
+    {
+      int cil_ix;
+      const CIL prediction_cil = Predicted_IRL_CIL_of_AHM(start_aim);
+      const int prediction_count = Count_of_CIL (prediction_cil);
+      for (cil_ix = 0; cil_ix < prediction_count; cil_ix++)
+        {
+          const IRLID prediction_irlid = Item_of_CIL (prediction_cil, cil_ix);
+          if (!bv_bit_test_then_set(r->t_bv_irl_is_predicted, prediction_irlid)) {
+          const IRL prediction_irl = IRL_by_ID(prediction_irlid);
+          const AHM prediction_aim = First_AHM_of_IRL(prediction_irl);
+          key.t_aim = prediction_aim;
+          if (1) { earley_item_create(r, key); }
+          }
+        }
+    }
+
     postdot_items_create(r, bv_ok_for_chain, set0);
     earley_set_update_items(r, set0);
     r->t_is_using_leo = r->t_use_leo_flag;
@@ -9229,6 +8426,7 @@ This section is devoted to the logic for completion.
 @d Work_YIM_Count_of_R(r) MARPA_DSTACK_LENGTH((r)->t_yim_work_stack)
 @d WORK_YIMS_CLEAR(r) MARPA_DSTACK_CLEAR((r)->t_yim_work_stack)
 @d WORK_YIM_PUSH(r) MARPA_DSTACK_PUSH((r)->t_yim_work_stack, YIM)
+@d WORK_YIM_ITEM(r, ix) (*MARPA_DSTACK_INDEX((r)->t_yim_work_stack, YIM, ix))
 @<Widely aligned recognizer elements@> = MARPA_DSTACK_DECLARE(t_yim_work_stack);
 @ @<Initialize recognizer elements@> = MARPA_DSTACK_SAFE(r->t_yim_work_stack);
 @ @<Initialize Earley item work stacks@> =
@@ -9299,6 +8497,7 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
     G_EVENTS_CLEAR(g);
     psar_dealloc(Dot_PSAR_of_R(r));
     bv_clear (r->t_bv_nsyid_is_expected);
+    bv_clear (r->t_bv_irl_is_predicted);
     @<Initialize |current_earleme|@>@;
     @<Return 0 if no alternatives@>@;
     @<Initialize |current_earley_set|@>@;
@@ -9308,6 +8507,7 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
       YIM cause = *cause_p;
         @<Add new Earley items for |cause|@>@;
     }
+    @<Add predictions@>@;
     postdot_items_create(r, bv_ok_for_chain, current_earley_set);
 
       /* \comment If no terminals are expected, and there are no Earley items in
@@ -9391,54 +8591,26 @@ The return value means success, with no events.
       if (!predecessor)
 	continue;		// Ignore Leo items when scanning
 
-      if (YIM_is_Predicted (predecessor))
 	{
-              const AHFA predecessor_ahfa = AHFA_of_YIM(predecessor);
-              AIM* const aims = AIMs_of_AHFA(predecessor_ahfa);
-              const int aim_count = AIM_Count_of_AHFA(predecessor_ahfa);
-              AEX aex;
-              for (aex = 0; aex < aim_count; aex++) {
-                  const AIM predecessor_aim = aims[aex];
-                  if (Postdot_NSYID_of_AIM(predecessor_aim) == tkn_nsyid) {
-                    const AIM next_aim = Next_AIM_of_AIM(predecessor_aim);
-                    /* This is a prediction, so there must be a next AIM for every
-                    AIM in it. */
-                    const AHFA scanned_AHFA = AHFA_of_AIM(next_aim);
-                    MARPA_ASSERT(scanned_AHFA);
-                    /* The next aim is *not* a prediction AIM, so it must
-                    have a singleton AHFA */
-                    @<Create the earley items for |scanned_AHFA|@>@;
-                  }
-              }
-	}
-      else
-	{
-          const AHFA predecessor_ahfa = AHFA_of_YIM(predecessor);
-          const AIM predecessor_aim = AIM_of_AHFA_by_AEX(predecessor_ahfa, 0);
-          const AIM scanned_aim = Next_AIM_of_AIM(predecessor_aim);
-	  const AHFA scanned_AHFA = AHFA_of_AIM(scanned_aim);
-        @<Create the earley items for |scanned_AHFA|@> @;
+          const AHM predecessor_aim = AHM_of_YIM(predecessor);
+          const AHM scanned_aim = Next_AHM_of_AHM(predecessor_aim);
+        @<Create the earley items for |scanned_aim|@> @;
         }
     }
 }
 
-@ @<Create the earley items for |scanned_AHFA|@> =
+@ @<Create the earley items for |scanned_aim|@> =
 {
-  const AHFA prediction_AHFA = Empty_Transition_of_AHFA (scanned_AHFA);
   const YIM scanned_earley_item = earley_item_assign (r,
 						      current_earley_set,
 						      Origin_of_YIM
 						      (predecessor),
-						      scanned_AHFA);
+						      scanned_aim);
   tkn_link_add (r, scanned_earley_item, predecessor, tkn);
-  if (prediction_AHFA)
-    {
-      earley_item_assign (r, current_earley_set, current_earley_set,
-			  prediction_AHFA);
-    }
 }
 
 @ @<Pre-populate the completion stack@> = {
+    /* We know the no new items are added to the stack in this scope */
     YIM* work_earley_items = MARPA_DSTACK_BASE (r->t_yim_work_stack, YIM );
     int no_of_work_earley_items = MARPA_DSTACK_LENGTH (r->t_yim_work_stack );
     int ix;
@@ -9459,12 +8631,10 @@ The return value means success, with no events.
 add those Earley items it ``causes".
 @<Add new Earley items for |cause|@> =
 {
-  int count = Complete_NSY_Count_of_YIM (cause);
-  YS middle = Origin_of_YIM (cause);
-  int nsy_ix;
-  for (nsy_ix = 0; nsy_ix < count; nsy_ix++)
+  if (Earley_Item_is_Completion(cause))
     {
-      NSYID complete_nsyid = Complete_NSYID_of_YIM(cause, nsy_ix);
+      NSYID complete_nsyid = LHS_NSYID_of_YIM(cause);
+      const YS middle = Origin_of_YIM (cause);
       @<Add new Earley items for |complete_nsyid| and |cause|@>@;
     }
 }
@@ -9478,34 +8648,10 @@ add those Earley items it ``causes".
       const YIM predecessor = YIM_of_PIM (postdot_item);
       if (predecessor)
         { /* Not a Leo item */
-      if (YIM_is_Predicted (predecessor))
-	{
-              const AHFA predecessor_ahfa = AHFA_of_YIM(predecessor);
-              AIM* const aims = AIMs_of_AHFA(predecessor_ahfa);
-              const int aim_count = AIM_Count_of_AHFA(predecessor_ahfa);
-              AEX aex;
-              for (aex = 0; aex < aim_count; aex++) {
-                  const AIM predecessor_aim = aims[aex];
-                  if (Postdot_NSYID_of_AIM(predecessor_aim) == complete_nsyid) {
-                    const AIM next_aim = Next_AIM_of_AIM(predecessor_aim);
-                    /* This is a prediction, so there must be a next AIM for every
-                    AIM in it. */
-                    const AHFA effect_AHFA = AHFA_of_AIM(next_aim);
-                    MARPA_ASSERT(effect_AHFA);
-                    /* The next aim is *not* a prediction AIM, so it must
-                    have a singleton AHFA */
-                    @<Add |effect_AHFA|, plus any prediction,
-                      for non-Leo |predecessor|@>@;
-                  }
-              }
-          } else {
-            const AHFA predecessor_ahfa = AHFA_of_YIM(predecessor);
-            const AIM predecessor_aim = AIM_of_AHFA_by_AEX(predecessor_ahfa, 0);
-            const AIM effect_aim = Next_AIM_of_AIM(predecessor_aim);
-            const AHFA effect_AHFA = AHFA_of_AIM(effect_aim);
-            @<Add |effect_AHFA|, plus any prediction,
+            const AHM predecessor_aim = AHM_of_YIM(predecessor);
+            const AHM effect_aim = Next_AHM_of_AHM(predecessor_aim);
+            @<Add |effect_aim|, plus any prediction,
               for non-Leo |predecessor|@>@;
-          }
         }
       else
         {                       /* A Leo item */
@@ -9517,23 +8663,16 @@ add those Earley items it ``causes".
     }
 }
 
-@ @<Add |effect_AHFA|, plus any prediction, for non-Leo |predecessor|@> =
+@ @<Add |effect_aim|, plus any prediction, for non-Leo |predecessor|@> =
 {
    const YS origin = Origin_of_YIM(predecessor);
    const YIM effect = earley_item_assign(r, current_earley_set,
-        origin, effect_AHFA);
+        origin, effect_aim);
    if (Earley_Item_has_No_Source(effect)) {
-          const AHFA prediction_AHFA_state =
-            Empty_Transition_of_AHFA (effect_AHFA);
        /* If it has no source, then it is new */
        if (Earley_Item_is_Completion(effect)) {
            @<Push |effect| onto completion stack@>@;
        }
-      if (prediction_AHFA_state)
-        {
-          earley_item_assign (r, current_earley_set, current_earley_set,
-                              prediction_AHFA_state);
-        }
    }
    completion_link_add(r, effect, predecessor, cause);
 }
@@ -9546,15 +8685,45 @@ add those Earley items it ``causes".
 @ @<Add effect of Leo item@> = {
     const LIM leo_item = LIM_of_PIM (postdot_item);
     const YS origin = Origin_of_LIM (leo_item);
-    const AHFA effect_AHFA = Top_AHFA_of_LIM (leo_item);
+    const AHM effect_aim = Top_AHM_of_LIM (leo_item);
     const YIM effect = earley_item_assign (r, current_earley_set,
-                                 origin, effect_AHFA);
+                                 origin, effect_aim);
     if (Earley_Item_has_No_Source (effect))
       {
         /* If it has no source, then it is new */
         @<Push |effect| onto completion stack@>@;
       }
     leo_link_add (r, effect, leo_item, cause);
+}
+
+@ Note that there may already be predictions on the stack from
+the Leo items.
+@<Add predictions@> =
+{
+  int ix;
+  const int no_of_work_earley_items = MARPA_DSTACK_LENGTH (r->t_yim_work_stack);
+  for (ix = 0; ix < no_of_work_earley_items; ix++)
+    {
+      YIM earley_item = WORK_YIM_ITEM(r, ix);
+
+      if (1)
+	{
+	  int cil_ix;
+	  const AHM aim = AHM_of_YIM (earley_item);
+	  const CIL prediction_cil = Predicted_IRL_CIL_of_AHM (aim);
+	  const int prediction_count = Count_of_CIL (prediction_cil);
+	  for (cil_ix = 0; cil_ix < prediction_count; cil_ix++)
+	    {
+	      const IRLID prediction_irlid =
+		Item_of_CIL (prediction_cil, cil_ix);
+	      const IRL prediction_irl = IRL_by_ID (prediction_irlid);
+	      const AHM prediction_aim = First_AHM_of_IRL (prediction_irl);
+	      earley_item_assign (r, current_earley_set, current_earley_set,
+				  prediction_aim);
+	    }
+	}
+
+    }
 }
 
 @ @<Function definitions@> =
@@ -9567,25 +8736,24 @@ PRIVATE void trigger_events(RECCE r)
   struct marpa_obstack *const trigger_events_obs = marpa_obs_init;
   const YIM *yims = YIMs_of_YS (current_earley_set);
   const XSYID xsy_count = XSY_Count_of_G (g);
-  const AHFAID ahfa_count = AHFA_Count_of_G (g);
+  const int aim_count = AHM_Count_of_G (g);
   Bit_Vector bv_completion_event_trigger =
     bv_obs_create (trigger_events_obs, xsy_count);
   Bit_Vector bv_nulled_event_trigger =
     bv_obs_create (trigger_events_obs, xsy_count);
   Bit_Vector bv_prediction_event_trigger =
     bv_obs_create (trigger_events_obs, xsy_count);
-  Bit_Vector bv_ahfa_event_trigger =
-    bv_obs_create (trigger_events_obs, ahfa_count);
+  Bit_Vector bv_aim_event_trigger =
+    bv_obs_create (trigger_events_obs, aim_count);
   const int working_earley_item_count = YIM_Count_of_YS (current_earley_set);
   for (yim_ix = 0; yim_ix < working_earley_item_count; yim_ix++)
     {
       const YIM yim = yims[yim_ix];
-      const AHFA root_ahfa = AHFA_of_YIM (yim);
-      const AHFAID root_ahfaid = ID_of_AHFA (root_ahfa);
-      if (AHFA_has_Event (root_ahfa))
+      const AHM root_aim = AHM_of_YIM (yim);
+      if (AHM_has_Event (root_aim))
         {                       /* Note that we go on to look at the Leo path, even if
-                                   the top AHFA is not an event AHFA */
-          bv_bit_set (bv_ahfa_event_trigger, root_ahfaid);
+                                   the top AHM is not an event AHM */
+          bv_bit_set (bv_aim_event_trigger, ID_of_AHM(root_aim));
         }
       {
         /* Now do the NSYs for any Leo links */
@@ -9596,32 +8764,32 @@ PRIVATE void trigger_events(RECCE r)
           {
             int cil_ix;
             const LIM lim = LIM_of_SRCL (setup_source_link);
-            const CIL event_ahfaids = CIL_of_LIM (lim);
-            const int event_ahfa_count = Count_of_CIL (event_ahfaids);
-            for (cil_ix = 0; cil_ix < event_ahfa_count; cil_ix++)
+            const CIL event_aimids = CIL_of_LIM (lim);
+            const int event_aim_count = Count_of_CIL (event_aimids);
+            for (cil_ix = 0; cil_ix < event_aim_count; cil_ix++)
               {
-                const NSYID leo_path_ahfaid =
-                  Item_of_CIL (event_ahfaids, cil_ix);
-                bv_bit_set (bv_ahfa_event_trigger, leo_path_ahfaid);
-                /* No need to test if AHFA is an event AHFA --
+                const NSYID leo_path_aimid =
+                  Item_of_CIL (event_aimids, cil_ix);
+                bv_bit_set (bv_aim_event_trigger, leo_path_aimid);
+                /* No need to test if AHM is an event AHM --
                    all paths in the LIM's CIL will be */
               }
           }
       }
     }
 
-  for (start = 0; bv_scan (bv_ahfa_event_trigger, start, &min, &max);
+  for (start = 0; bv_scan (bv_aim_event_trigger, start, &min, &max);
        start = max + 2)
     {
-      XSYID event_ahfaid;
-      for (event_ahfaid = (NSYID) min; event_ahfaid <= (NSYID) max;
-           event_ahfaid++)
+      XSYID event_aimid;
+      for (event_aimid = (NSYID) min; event_aimid <= (NSYID) max;
+           event_aimid++)
         {
           int cil_ix;
-          const AHFA event_ahfa = AHFA_by_ID (event_ahfaid);
+          const AHM event_aim = AHM_by_ID(event_aimid);
           {
             const CIL completion_xsyids =
-              Completion_XSYIDs_of_AHFA (event_ahfa);
+              Completion_XSYIDs_of_AHM (event_aim);
             const int event_xsy_count = Count_of_CIL (completion_xsyids);
             for (cil_ix = 0; cil_ix < event_xsy_count; cil_ix++)
               {
@@ -9630,7 +8798,7 @@ PRIVATE void trigger_events(RECCE r)
               }
           }
           {
-            const CIL nulled_xsyids = Nulled_XSYIDs_of_AHFA (event_ahfa);
+            const CIL nulled_xsyids = Nulled_XSYIDs_of_AHM (event_aim);
             const int event_xsy_count = Count_of_CIL (nulled_xsyids);
             for (cil_ix = 0; cil_ix < event_xsy_count; cil_ix++)
               {
@@ -9640,7 +8808,7 @@ PRIVATE void trigger_events(RECCE r)
           }
           {
             const CIL prediction_xsyids =
-              Prediction_XSYIDs_of_AHFA (event_ahfa);
+              Prediction_XSYIDs_of_AHM (event_aim);
             const int event_xsy_count = Count_of_CIL (prediction_xsyids);
             for (cil_ix = 0; cil_ix < event_xsy_count; cil_ix++)
               {
@@ -9706,6 +8874,7 @@ PRIVATE void earley_set_update_items(RECCE r, YS set)
     int i;
     YIMs_of_YS(set) = marpa_obs_new(r->t_obs, YIM, YIM_Count_of_YS(set));
     finished_earley_items = YIMs_of_YS(set);
+    /* We know that no new earley items will be added in this scope */
     working_earley_items = Work_YIMs_of_R(r);
     working_earley_item_count = Work_YIM_Count_of_R(r);
     for (i = 0; i < working_earley_item_count; i++) {
@@ -9849,37 +9018,34 @@ postdot_items_create (RECCE r,
 @ This code creates the Earley indexes in the PIM workarea.
 At this point there are no Leo items.
 @<Start YIXes in PIM workarea@> = {
+    /* No new Earley items are created in this scope */
     YIM* work_earley_items = MARPA_DSTACK_BASE (r->t_yim_work_stack, YIM );
     int no_of_work_earley_items = MARPA_DSTACK_LENGTH (r->t_yim_work_stack );
     int ix;
     for (ix = 0;
          ix < no_of_work_earley_items;
-         ix++) {
+         ix++)
+     {
         YIM earley_item = work_earley_items[ix];
-      AHFA state = AHFA_of_YIM (earley_item);
-      int nsy_ix;
-      NSYID postdot_nsy_count = Postdot_NSY_Count_of_AHFA (state);
-      NSYID *postdot_nsyidary =
-        Postdot_NSYIDAry_of_AHFA (state);
-      for (nsy_ix = 0; nsy_ix < postdot_nsy_count; nsy_ix++)
+      AHM aim = AHM_of_YIM (earley_item);
+      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM(aim);
+      if (postdot_nsyid < 0) continue;
         {
           PIM old_pim = NULL;
           PIM new_pim;
-          NSYID nsyid;
 
 	  /* Need to be aligned for a PIM */
           new_pim = marpa__obs_alloc(r->t_obs,
             sizeof(YIX_Object), ALIGNOF(PIM_Object));
 
-          nsyid = postdot_nsyidary[nsy_ix];
-          Postdot_NSYID_of_PIM(new_pim) = nsyid;
+          Postdot_NSYID_of_PIM(new_pim) = postdot_nsyid;
           YIM_of_PIM(new_pim) = earley_item;
-          if (bv_bit_test(r->t_bv_pim_symbols, nsyid))
-              old_pim = r->t_pim_workarea[nsyid];
+          if (bv_bit_test(r->t_bv_pim_symbols, postdot_nsyid))
+              old_pim = r->t_pim_workarea[postdot_nsyid];
           Next_PIM_of_PIM(new_pim) = old_pim;
           if (!old_pim) current_earley_set->t_postdot_sym_count++;
-          r->t_pim_workarea[nsyid] = new_pim;
-          bv_bit_set(r->t_bv_pim_symbols, nsyid);
+          r->t_pim_workarea[postdot_nsyid] = new_pim;
+          bv_bit_set(r->t_bv_pim_symbols, postdot_nsyid);
         }
     }
 }
@@ -9910,64 +9076,18 @@ Leo item have not been fully populated.
                    than one YIX */
           {
 	    const YIM leo_base = YIM_of_PIM (this_pim);
-	    AIM potential_leo_penult_aim = NULL;
-	    if (YIM_is_Predicted (leo_base))
-	      {
-		const AHFA leo_base_ahfa = AHFA_of_YIM (leo_base);
-		const AIM *const aims = AIMs_of_AHFA (leo_base_ahfa);
-		const int aim_count = AIM_Count_of_AHFA (leo_base_ahfa);
-		int i;
-		int trial_aex = -1;
-		for (i = 0; i < aim_count; i++)
-		  {		// Find where our nysid is in the AIM's
-		    const AIM trial_aim = aims[i];
-		    const NSYID trial_nsyid =
-		      Postdot_NSYID_of_AIM (trial_aim);
-		    if (trial_nsyid != nsyid)
-		      continue;
-		    trial_aex = i;
-		    break;
-		  }
-                /* We know that aex is initialized here */
-                MARPA_ASSERT (trial_aex > 0);
-		for (i = trial_aex + 1; i < aim_count; i++)
-		  {		// But check for duplicates 
-		    const AIM trial_aim = aims[i];
-		    const NSYID trial_nsyid =
-		      Postdot_NSYID_of_AIM (trial_aim);
-		    if (trial_nsyid == nsyid)
-		      goto NEXT_NSYID;
-		  }
-		{
-		  const AIM trial_aim = aims[trial_aex];
-		  const IRL trial_irl = IRL_of_AIM (trial_aim);
-		  if (!IRL_is_Unit_Rule (trial_irl))
-		    goto NEXT_NSYID;
-		  if (!IRL_is_Leo (trial_irl))
-		    goto NEXT_NSYID;
-		  potential_leo_penult_aim = trial_aim;
-		  MARPA_ASSERT (AIM_is_Leo_Completion
-				(Next_AIM_of_AIM (potential_leo_penult_aim)));
-		}
-	      }
-	    else
-	      {
-		// Not a prediction, so there is only one AIM.
-		const AHFA leo_base_ahfa = AHFA_of_YIM (leo_base);
-		const AIM leo_base_aim =
-		  AIM_of_AHFA_by_AEX (leo_base_ahfa, 0);
-		const IRL leo_base_irl = IRL_of_AIM (leo_base_aim);
+	    AHM potential_leo_penult_aim = NULL;
+		const AHM leo_base_aim = AHM_of_YIM (leo_base);
+		const IRL leo_base_irl = IRL_of_AHM (leo_base_aim);
 
 		if (!IRL_is_Leo (leo_base_irl))
 		  goto NEXT_NSYID;
 		potential_leo_penult_aim = leo_base_aim;
-	      }
             MARPA_ASSERT(potential_leo_penult_aim);
 	    {
-	      const AIM base_to_aim =
-		Next_AIM_of_AIM (potential_leo_penult_aim);
-	      const AHFA base_to_ahfa = AHFA_of_AIM (base_to_aim);
-	      if (AHFA_is_Leo_Completion (base_to_ahfa))
+	      const AHM base_to_aim =
+		Next_AHM_of_AHM (potential_leo_penult_aim);
+	      if (AHM_is_Leo_Completion (base_to_aim))
 		{
 		  @<Create a new, unpopulated, LIM@>@;
 		}
@@ -9978,9 +9098,9 @@ Leo item have not been fully populated.
     }
 }
 
-@ The Top AHFA of the new LIM is temporarily used
+@ The Top AHM of the new LIM is temporarily used
 to memoize
-the value of the AHFA to-state for the LIM's
+the value of the AHM to-state for the LIM's
 base YIM.
 That may become its actual value,
 once it is populated.
@@ -9992,8 +9112,8 @@ once it is populated.
     Predecessor_LIM_of_LIM(new_lim) = NULL;
     Origin_of_LIM(new_lim) = NULL;
     CIL_of_LIM(new_lim) = NULL;
-    Top_AHFA_of_LIM(new_lim) = base_to_ahfa;
-    Base_to_AHFA_of_LIM(new_lim) = base_to_ahfa;
+    Top_AHM_of_LIM(new_lim) = base_to_aim;
+    Base_to_AHM_of_LIM(new_lim) = base_to_aim;
     Base_YIM_of_LIM(new_lim) = leo_base;
     YS_of_LIM(new_lim) = current_earley_set;
     Next_PIM_of_LIM(new_lim) = this_pim;
@@ -10113,14 +9233,14 @@ set up and I can find it there.
 in the base item will be the same, because the two rules
 are the same.
 Given the |main_loop_symbol_id| we can look up either the
-appropriate rule in the base Earley item's AHFA state,
-or the Leo completion's AHFA state.
+appropriate rule in the base Earley item's AHM,
+or the Leo completion's AHM.
 It is most convenient to find the LHS of the completed
 rule as the
-only possible Leo LHS of the Leo completion's AHFA state.
-The AHFA state for the Leo completion is guaranteed
+only possible Leo LHS of the Leo completion's AHM.
+The AHM for the Leo completion is guaranteed
 to have only one rule.
-The base Earley item's AHFA state can have multiple
+The base Earley item's AHM can have multiple
 rules, and in its list of rules there can
 be transitions to Leo
 completions via several different symbols.
@@ -10130,9 +9250,9 @@ In a populated LIM, this will not necessarily be the case.
 {
   const YIM base_yim = Base_YIM_of_LIM (lim_to_process);
   const YS predecessor_set = Origin_of_YIM (base_yim);
-  const AHFA base_to_ahfa = Base_to_AHFA_of_LIM (lim_to_process);
+  const AHM base_to_aim = Base_to_AHM_of_LIM (lim_to_process);
   const NSYID predecessor_transition_nsyid =
-    LHSID_of_AHFA (base_to_ahfa);
+    LHSID_of_AHM (base_to_aim);
   PIM predecessor_pim;
   if (Ord_of_YS (predecessor_set) < Ord_of_YS (current_earley_set))
     {
@@ -10238,37 +9358,37 @@ for (lim_chain_ix--; lim_chain_ix >= 0; lim_chain_ix--) {
 }
 
 @ This code is optimized for cases where there are no events,
-or the lists of AHFA IDs is "at closure".
+or the lists of AHM IDs is "at closure".
 These are the most frequent and worst case scenarios.
-The new remaining "worst case" is a recursive series of AHFA ID's
+The new remaining "worst case" is a recursive series of AHM ID's
 which stabilizes short of closure.
 Secondary optimzations ensure this is fairly cheap as well.
 @<Populate |lim_to_process| from |predecessor_lim|@> =
 {
-  const AHFA new_top_ahfa = Top_AHFA_of_LIM (predecessor_lim);
+  const AHM new_top_aim = Top_AHM_of_LIM (predecessor_lim);
   const CIL predecessor_cil = CIL_of_LIM (predecessor_lim);
-  /* \comment Initialize to be just the predcessor's list of AHFA IDs.
+  /* \comment Initialize to be just the predcessor's list of AHM IDs.
        Overwrite if we need to add another. */
   CIL_of_LIM (lim_to_process) = predecessor_cil;        
   Predecessor_LIM_of_LIM (lim_to_process) = predecessor_lim;
   Origin_of_LIM (lim_to_process) = Origin_of_LIM (predecessor_lim);
-  if (Event_Group_Size_of_AHFA (new_top_ahfa) > Count_of_CIL (predecessor_cil))
-    {                           /* Might we need to add another AHFA ID? */
-      const AHFA base_to_ahfa = Base_to_AHFA_of_LIM (lim_to_process);      
-      const CIL base_to_ahfa_event_ahfaids =
-        Event_AHFAIDs_of_AHFA (base_to_ahfa);
-      if (Count_of_CIL (base_to_ahfa_event_ahfaids))
+  if (Event_Group_Size_of_AHM (new_top_aim) > Count_of_CIL (predecessor_cil))
+    {                           /* Might we need to add another AHM ID? */
+      const AHM base_to_aim = Base_to_AHM_of_LIM(lim_to_process);
+      const CIL base_to_aim_event_aimids =
+        Event_AHMIDs_of_AHM (base_to_aim);
+      if (Count_of_CIL (base_to_aim_event_aimids))
         {
           CIL new_cil = cil_merge_one (&g->t_cilar, predecessor_cil,
                                        Item_of_CIL
-                                       (base_to_ahfa_event_ahfaids, 0));
+                                       (base_to_aim_event_aimids, 0));
           if (new_cil)
             {
               CIL_of_LIM (lim_to_process) = new_cil;
             }
         }
     }
-  Top_AHFA_of_LIM (lim_to_process) = new_top_ahfa;
+  Top_AHM_of_LIM (lim_to_process) = new_top_aim;
 }
 
 @ If we have reached this code, either we do not have a predecessor
@@ -10278,16 +9398,16 @@ for populating its successor.
 An unpopulated predecessor LIM
 may occur when there is a predecessor LIM
 which proved impossible to populate because it is part of a cycle.
-@ The predecessor LIM and the top AHFA to-state were initialized
+@ The predecessor LIM and the top AHM to-state were initialized
 to the appropriate values for this case,
 and do not need to be changed.
 The predecessor LIM was initialized to |NULL|.
 of the base YIM.
 @<Populate |lim_to_process| from its base Earley item@> = {
-  const AHFA base_to_AHFA = Base_to_AHFA_of_LIM(lim_to_process);
+  const AHM base_to_aim = Base_to_AHM_of_LIM(lim_to_process);
   const YIM base_yim = Base_YIM_of_LIM(lim_to_process);
   Origin_of_LIM (lim_to_process) = Origin_of_YIM (base_yim);
-  CIL_of_LIM(lim_to_process) = Event_AHFAIDs_of_AHFA(base_to_AHFA);
+  CIL_of_LIM(lim_to_process) = Event_AHMIDs_of_AHM(base_to_aim);
 }
 
 @ @<Copy PIM workarea to postdot item array@> = {
@@ -10546,21 +9666,20 @@ never on the stack.
     while ((ur_node = ur_node_pop(ur_node_stack)))
     {
         const YIM_Const parent_earley_item = YIM_of_UR(ur_node);
-        const AEX parent_aex = AEX_of_UR(ur_node);
-        const AIM parent_aim = AIM_of_YIM_by_AEX (parent_earley_item, parent_aex);
-        MARPA_ASSERT(parent_aim >= AIM_by_ID(1))@;
-        const AIM predecessor_aim = parent_aim - 1;
+        const AHM parent_aim = AHM_of_YIM(parent_earley_item);
+        MARPA_ASSERT(parent_aim >= AHM_by_ID(1))@;
+        const AHM predecessor_aim = parent_aim - 1;
         /* Note that the postdot symbol of the predecessor is NOT necessarily the
            predot symbol, because there may be nulling symbols in between. */
         unsigned int source_type = Source_Type_of_YIM (parent_earley_item);
-        MARPA_ASSERT(!YIM_is_Predicted(parent_earley_item))@;
+        MARPA_ASSERT(!YIM_was_Predicted(parent_earley_item))@;
         @<Push child Earley items from token sources@>@;
         @<Push child Earley items from completion sources@>@;
         @<Push child Earley items from Leo sources@>@;
     }
 }
 
-@ There is now only one AIM unless the item is a prediction, which it never is
+@ There is now only one AHM unless the item is a prediction, which it never is
 if we are here.
 @<Push ur-node if new@> = {
     if (!psia_test_and_set
@@ -10581,19 +9700,14 @@ PRIVATE int psia_test_and_set(
     YIM earley_item,
     AEX ahfa_element_ix)
 {
-    const int aim_count_of_item = AIM_Count_of_YIM(earley_item);
     const Marpa_Earley_Set_ID set_ordinal = YS_Ord_of_YIM(earley_item);
     OR** nodes_by_item = per_ys_data[set_ordinal].t_aexes_by_item;
     const int item_ordinal = Ord_of_YIM(earley_item);
     OR* nodes_by_aex = nodes_by_item[item_ordinal];
-MARPA_ASSERT(ahfa_element_ix < aim_count_of_item)@;
     if (!nodes_by_aex) {
-        AEX aex;
         nodes_by_aex = nodes_by_item[item_ordinal] =
-            marpa_obs_new(obs, OR, aim_count_of_item);
-        for (aex = 0; aex < aim_count_of_item; aex++) {
-            nodes_by_aex[aex] = NULL;
-        }
+            marpa_obs_new(obs, OR, 1);
+            nodes_by_aex[0] = NULL;
     }
     if (!nodes_by_aex[ahfa_element_ix]) {
         nodes_by_aex[ahfa_element_ix] = dummy_or_node;
@@ -10623,7 +9737,7 @@ MARPA_ASSERT(ahfa_element_ix < aim_count_of_item)@;
     {
       if (predecessor_earley_item)
         {
-          if (YIM_is_Predicted (predecessor_earley_item))
+          if (YIM_was_Predicted (predecessor_earley_item))
             {
                 Set_boolean_in_PSIA_for_initial_nulls (bocage_setup_obs, per_ys_data,
                                                        predecessor_earley_item,
@@ -10650,15 +9764,16 @@ no other descendants.
 PRIVATE int
 Set_boolean_in_PSIA_for_initial_nulls (struct marpa_obstack *bocage_setup_obs,
 				       struct s_bocage_setup_per_ys
-				       *per_ys_data, YIM yim, AIM aim)
+				       *per_ys_data, YIM yim, AHM aim)
 {
   int null_count = 0;
-  if (Position_of_AIM (aim) > 0)
+  if (Position_of_AHM (aim) > 0)
     {
-      null_count = Null_Count_of_AIM (aim);
+      null_count = Null_Count_of_AHM (aim);
       if (null_count)
 	{
-	  AEX aex = AEX_of_YIM_by_AIM ((yim), (aim));
+	  // the AEX is now always zero.
+          const int aex = 0;
 	  psia_test_and_set (bocage_setup_obs, per_ys_data, (yim), aex);
 	}
     }
@@ -10690,7 +9805,7 @@ Set_boolean_in_PSIA_for_initial_nulls (struct marpa_obstack *bocage_setup_obs,
     {
       if (predecessor_earley_item)
 	{
-	  if (YIM_is_Predicted (predecessor_earley_item))
+	  if (YIM_was_Predicted (predecessor_earley_item))
 	    {
 	       Set_boolean_in_PSIA_for_initial_nulls
 		(bocage_setup_obs, per_ys_data,
@@ -10731,11 +9846,10 @@ Set_boolean_in_PSIA_for_initial_nulls (struct marpa_obstack *bocage_setup_obs,
       while (leo_predecessor)
         {
           const YIM leo_base_yim = Base_YIM_of_LIM (leo_predecessor);
-          if (YIM_is_Predicted (leo_base_yim))
+          if (YIM_was_Predicted (leo_base_yim))
             {
-                const AHFA leo_final_ahfa = Base_to_AHFA_of_LIM(leo_predecessor);
-                const AIM leo_final_aim = AIM_of_AHFA_by_AEX(leo_final_ahfa, 0);
-                const AIM prediction_aim = Prev_AIM_of_AIM(leo_final_aim);
+                const AHM leo_final_aim = Base_to_AHM_of_LIM(leo_predecessor);
+                const AHM prediction_aim = Prev_AHM_of_AHM(leo_final_aim);
                 Set_boolean_in_PSIA_for_initial_nulls (bocage_setup_obs, per_ys_data,
                                                        leo_base_yim, prediction_aim);
             }
@@ -10966,16 +10080,11 @@ Top_ORID_of_B(b) = -1;
         {
           const YIM work_earley_item =
             yims_of_ys[item_ordinal];
-          const int work_ahfa_item_count =
-            AIM_Count_of_YIM (work_earley_item);
-          AEX work_aex;
+          const AEX work_aex = 0;
           const int work_origin_ordinal =
             Ord_of_YS (Origin_of_YIM (work_earley_item));
-          for (work_aex = 0;
-               work_aex < work_ahfa_item_count; work_aex++)
+              if (work_nodes_by_aex[work_aex])
             {
-              if (!work_nodes_by_aex[work_aex])
-                continue;
               @<Create the or-nodes for
                   |work_earley_item| and |work_aex|@>@;
             }
@@ -10985,10 +10094,10 @@ Top_ORID_of_B(b) = -1;
 
 @ @<Create the or-nodes for |work_earley_item| and |work_aex|@> =
 {
-  AIM ahfa_item = AIM_of_YIM_by_AEX(work_earley_item, work_aex);
-  SYMI ahfa_item_symbol_instance;
+  AHM aim = AHM_of_YIM(work_earley_item);
+  SYMI aim_symbol_instance;
   OR psia_or_node = NULL;
-  ahfa_item_symbol_instance = SYMI_of_AIM(ahfa_item);
+  aim_symbol_instance = SYMI_of_AHM(aim);
   {
         PSL or_psl;
         {
@@ -11011,27 +10120,27 @@ Top_ORID_of_B(b) = -1;
 
 @*0 Non-Leo or-nodes.
 @ Add the main or-node ---
-the one that corresponds directly to this AHFA item.
-The exception are predicted AHFA items.
-Or-nodes are not added for predicted AHFA items.
+the one that corresponds directly to this AHM.
+The exception are predicted AHM's.
+Or-nodes are not added for predicted AHM's.
 @<Add main or-node@> =
 {
-  if (ahfa_item_symbol_instance >= 0)
+  if (aim_symbol_instance >= 0)
     {
       OR or_node;
-MARPA_ASSERT(ahfa_item_symbol_instance < SYMI_Count_of_G(g))@;
-      or_node = PSL_Datum (or_psl, ahfa_item_symbol_instance);
+MARPA_ASSERT(aim_symbol_instance < SYMI_Count_of_G(g))@;
+      or_node = PSL_Datum (or_psl, aim_symbol_instance);
       if (!or_node || YS_Ord_of_OR(or_node) != work_earley_set_ordinal)
         {
-          const IRL irl = IRL_of_AIM(ahfa_item);
+          const IRL irl = IRL_of_AHM(aim);
           @<Set |last_or_node| to a new or-node@>@;
           or_node = last_or_node;
-          PSL_Datum (or_psl, ahfa_item_symbol_instance) = last_or_node;
+          PSL_Datum (or_psl, aim_symbol_instance) = last_or_node;
           Origin_Ord_of_OR(or_node) = Origin_Ord_of_YIM(work_earley_item);
           YS_Ord_of_OR(or_node) = work_earley_set_ordinal;
           IRL_of_OR(or_node) = irl;
           Position_of_OR (or_node) =
-              ahfa_item_symbol_instance - SYMI_of_IRL (irl) + 1;
+              aim_symbol_instance - SYMI_of_IRL (irl) + 1;
           DANDs_of_OR(or_node) = NULL;
         }
         psia_or_node = or_node;
@@ -11070,14 +10179,14 @@ The exception is where there is no predecessor,
 and this is the case if |Position_of_OR(or_node) == 0|.
 @<Add nulling token or-nodes@> =
 {
-  const int null_count = Null_Count_of_AIM (ahfa_item);
+  const int null_count = Null_Count_of_AHM (aim);
   if (null_count > 0)
     {
-      const IRL irl = IRL_of_AIM (ahfa_item);
+      const IRL irl = IRL_of_AHM (aim);
       const int symbol_instance_of_rule = SYMI_of_IRL(irl);
         const int first_null_symbol_instance =
-          ahfa_item_symbol_instance <
-          0 ? symbol_instance_of_rule : ahfa_item_symbol_instance + 1;
+          aim_symbol_instance <
+          0 ? symbol_instance_of_rule : aim_symbol_instance + 1;
       int i;
       for (i = 0; i < null_count; i++)
         {
@@ -11134,43 +10243,14 @@ requirements in the process.
   LIM previous_leo_item = this_leo_item;
   while ((this_leo_item = Predecessor_LIM_of_LIM (this_leo_item)))
     {
-        const int ordinal_of_set_of_this_leo_item = Ord_of_YS(YS_of_LIM(this_leo_item));
-          const AIM path_ahfa_item = Path_AIM_of_LIM(previous_leo_item);
-          const IRL path_irl = IRL_of_AIM(path_ahfa_item);
-          const int symbol_instance_of_path_ahfa_item = SYMI_of_AIM(path_ahfa_item);
-        @<Add main Leo path or-node@>@;
-        @<Add Leo path nulling token or-nodes@>@;
-        previous_leo_item = this_leo_item;
+      const int ordinal_of_set_of_this_leo_item = Ord_of_YS(YS_of_LIM(this_leo_item));
+      const AHM path_aim = Base_to_AHM_of_LIM(previous_leo_item);
+      const IRL path_irl = IRL_of_AHM(path_aim);
+      const int symbol_instance_of_path_aim = SYMI_of_AHM(path_aim);
+      @<Add main Leo path or-node@>@;
+      @<Add Leo path nulling token or-nodes@>@;
+      previous_leo_item = this_leo_item;
     }
-}
-
-@ Get the base data for a Leo item -- its base Earley item
-and the index of the relevant AHFA item.
-@<Function definitions@> =
-PRIVATE AEX lim_base_data_get(LIM leo_item, YIM* p_base)
-{
-      const YIM base = Base_YIM_of_LIM(leo_item);
-      *p_base = base;
-      if (YIM_is_Predicted(base)) {
-          const AHFA base_to_ahfa = Base_to_AHFA_of_LIM(leo_item);
-          const AIM base_to_aim = AIM_of_AHFA_by_AEX(base_to_ahfa, 0);
-          const AIM base_aim = Prev_AIM_of_AIM(base_to_aim);
-          const AHFA base_ahfa = AHFA_of_YIM(base);
-          /* A bit inefficient, but OK for now */
-          return AEX_of_AHFA_by_AIM(base_ahfa, base_aim);
-      }
-      return 0;
-}
-
-@
-@d Path_AIM_of_LIM(lim) (AIM_of_AHFA_by_AEX(Base_to_AHFA_of_LIM(lim), 0))
-@d Base_AIM_of_LIM(lim) (base_aim_of_lim(lim))
-@<Function definitions@> =
-PRIVATE AIM base_aim_of_lim(LIM leo_item)
-{
-      YIM base;
-      const AEX base_aex = lim_base_data_get(leo_item, &base);
-      return AIM_of_YIM_by_AEX(base, base_aex);
 }
 
 @ Adds the main Leo path or-node ---
@@ -11187,17 +10267,17 @@ corresponds to the Leo predecessor.
         @<Claim the or-node PSL for |psl_ys_ord| as |claimed_psl|@>@;
         leo_psl = claimed_psl ;
       }
-      or_node = PSL_Datum (leo_psl, symbol_instance_of_path_ahfa_item);
+      or_node = PSL_Datum (leo_psl, symbol_instance_of_path_aim);
       if (!or_node || YS_Ord_of_OR(or_node) != work_earley_set_ordinal)
         {
           @<Set |last_or_node| to a new or-node@>@;
-          PSL_Datum (leo_psl, symbol_instance_of_path_ahfa_item) = or_node =
+          PSL_Datum (leo_psl, symbol_instance_of_path_aim) = or_node =
               last_or_node;
           Origin_Ord_of_OR(or_node) = ordinal_of_set_of_this_leo_item;
           YS_Ord_of_OR(or_node) = work_earley_set_ordinal;
           IRL_of_OR(or_node) = path_irl;
           Position_of_OR (or_node) =
-              symbol_instance_of_path_ahfa_item - SYMI_of_IRL (path_irl) + 1;
+              symbol_instance_of_path_aim - SYMI_of_IRL (path_irl) + 1;
           DANDs_of_OR(or_node) = NULL;
         }
     }
@@ -11210,10 +10290,10 @@ or-nodes follow a completion.
 @<Add Leo path nulling token or-nodes@> =
 {
   int i;
-  const int null_count = Null_Count_of_AIM (path_ahfa_item);
+  const int null_count = Null_Count_of_AHM (path_aim);
   for (i = 1; i <= null_count; i++)
     {
-      const int symbol_instance = symbol_instance_of_path_ahfa_item + i;
+      const int symbol_instance = symbol_instance_of_path_aim + i;
       OR or_node = PSL_Datum (this_earley_set_psl, symbol_instance);
       MARPA_ASSERT (symbol_instance < SYMI_Count_of_G (g)) @;
       if (!or_node || YS_Ord_of_OR (or_node) != work_earley_set_ordinal)
@@ -11527,15 +10607,12 @@ void draft_and_node_add(struct marpa_obstack *obs, OR parent, OR predecessor, OR
         OR* const nodes_by_aex = nodes_by_item[item_ordinal];
         if (nodes_by_aex) {
             const YIM work_earley_item = yims_of_ys[item_ordinal];
-            const int work_ahfa_item_count = AIM_Count_of_YIM(work_earley_item);
             const int work_origin_ordinal = Ord_of_YS (Origin_of_YIM (work_earley_item));
-            AEX work_aex;
-            for (work_aex = 0; work_aex < work_ahfa_item_count; work_aex++) {
-                OR or_node = nodes_by_aex[work_aex];
-                @<Move |or_node| to proper predecessor@>@;
-                if (or_node) {
-                    @<Create draft and-nodes for |or_node|@>@;
-                }
+            const AEX work_aex = 0;
+            OR or_node = nodes_by_aex[work_aex];
+            @<Move |or_node| to proper predecessor@>@;
+            if (or_node) {
+                @<Create draft and-nodes for |or_node|@>@;
             }
         }
     }
@@ -11560,10 +10637,10 @@ predecessor.  Set |or_node| to 0 if there is none.
 @ @<Create draft and-nodes for |or_node|@> =
 {
     unsigned int work_source_type = Source_Type_of_YIM (work_earley_item);
-    const AIM work_ahfa_item = AIM_of_YIM_by_AEX (work_earley_item, work_aex);
-    MARPA_ASSERT (work_ahfa_item >= AIM_by_ID (1))@;
-    const AIM work_predecessor_aim = work_ahfa_item - 1;
-    const int work_symbol_instance = SYMI_of_AIM (work_ahfa_item);
+    const AHM work_aim = AHM_of_YIM (work_earley_item);
+    MARPA_ASSERT (work_aim >= AHM_by_ID (1))@;
+    const AHM work_predecessor_aim = work_aim - 1;
+    const int work_symbol_instance = SYMI_of_AHM (work_aim);
     OR work_proper_or_node;
     {
       const int origin = work_origin_ordinal;
@@ -11601,17 +10678,16 @@ predecessor.  Set |or_node| to 0 if there is none.
     LIM higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
     OR dand_predecessor;
     OR path_or_node;
-    YIM base_earley_item;
-    AEX base_aex = lim_base_data_get(path_leo_item, &base_earley_item);
-    Set_OR_from_YIM_and_AEX(dand_predecessor, base_earley_item, base_aex);
+    YIM base_earley_item = Base_YIM_of_LIM(path_leo_item);
+    Set_OR_from_YIM(dand_predecessor, base_earley_item);
     @<Set |path_or_node|@>@;
     @<Add draft and-nodes to the bottom or-node@>@;
     previous_path_irl = path_irl;
     while (higher_path_leo_item) {
         path_leo_item = higher_path_leo_item;
         higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
-        base_aex = lim_base_data_get(path_leo_item, &base_earley_item);
-        Set_OR_from_YIM_and_AEX(dand_predecessor, base_earley_item, base_aex);
+        base_earley_item = Base_YIM_of_LIM(path_leo_item);
+        Set_OR_from_YIM(dand_predecessor, base_earley_item);
         @<Set |path_or_node|@>@;
         @<Add the draft and-nodes to an upper Leo path or-node@>@;
         previous_path_irl = path_irl;
@@ -11637,29 +10713,31 @@ predecessor.  Set |or_node| to 0 if there is none.
 {
   OR dand_cause;
     /* There is now only one AEX in a completion */
-  Set_OR_from_YIM_and_AEX (dand_cause, cause_earley_item, 0);
+  Set_OR_from_YIM(dand_cause, cause_earley_item);
   draft_and_node_add (bocage_setup_obs, path_or_node,
 		      dand_predecessor, dand_cause);
 }
 
 @ It is assumed that there is an or-node entry for
-|psia_yim| and |psia_aex|.
-@d Set_OR_from_YIM_and_AEX(psia_or, psia_yim, psia_aex) {
+|psia_yim| at index 0.
+(The index is obsolete now that the LR(0) states have
+been eliminated.)
+@d Set_OR_from_YIM(psia_or, psia_yim) {
   const YIM psia_earley_item = psia_yim;
   const int psia_earley_set_ordinal = YS_Ord_of_YIM (psia_earley_item);
   OR **const psia_nodes_by_item =
     per_ys_data[psia_earley_set_ordinal].t_aexes_by_item;
   const int psia_item_ordinal = Ord_of_YIM (psia_earley_item);
   OR *const psia_nodes_by_aex = psia_nodes_by_item[psia_item_ordinal];
-  psia_or = psia_nodes_by_aex ? psia_nodes_by_aex[psia_aex] : NULL;
+  psia_or = psia_nodes_by_aex ? psia_nodes_by_aex[0] : NULL;
 }
 
 @ @<Use Leo base data to set |path_or_node|@> =
 {
   int symbol_instance;
   const int origin_ordinal = Origin_Ord_of_YIM (base_earley_item);
-  const AIM aim = AIM_of_YIM_by_AEX (base_earley_item, base_aex);
-  path_irl = IRL_of_AIM (aim);
+  const AHM aim = AHM_of_YIM (base_earley_item);
+  path_irl = IRL_of_AHM (aim);
   symbol_instance = Last_Proper_SYMI_of_IRL (path_irl);
   {
      OR* const p_or_node = &path_or_node;
@@ -11719,16 +10797,13 @@ predecessor.  Set |or_node| to 0 if there is none.
 
 @ @<Set |dand_predecessor|@> =
 {
-  if (Position_of_AIM (work_predecessor_aim) < 1)
+  if (Position_of_AHM (work_predecessor_aim) < 1)
     {
       dand_predecessor = NULL;
     }
   else
     {
-      const AEX predecessor_aex =
-        AEX_of_YIM_by_AIM (predecessor_earley_item, work_predecessor_aim);
-      Set_OR_from_YIM_and_AEX (dand_predecessor, predecessor_earley_item,
-                               predecessor_aex);
+      Set_OR_from_YIM (dand_predecessor, predecessor_earley_item);
     }
 }
 
@@ -11769,9 +10844,9 @@ predecessor.  Set |or_node| to 0 if there is none.
   OR dand_cause;
   const int middle_ordinal = Origin_Ord_of_YIM(cause_earley_item);
   /* There is now only one AEX in a completion */
-  const AIM cause_ahfa_item = AIM_of_YIM_by_AEX(cause_earley_item, 0);
+  const AHM cause_aim = AHM_of_YIM(cause_earley_item);
   const SYMI cause_symbol_instance =
-      SYMI_of_Completed_IRL(IRL_of_AIM(cause_ahfa_item));
+      SYMI_of_Completed_IRL(IRL_of_AHM(cause_aim));
   @<Set |dand_predecessor|@>@;
   {
     const int origin = middle_ordinal;
@@ -12188,14 +11263,14 @@ int marpa_r_progress_report_reset( Marpa_Recognizer r)
   while (1)
     {
       YSID report_origin;
-      AHFA report_AHFA_state;
+      AHM report_aim;
       while (1)
-        {                       // this loop finds the next AHFA state to report
+        {                       // this loop finds the next AHM to report
           const int phase = next_phase;
           if (phase == initial_phase)
             {
               report_origin = Origin_Ord_of_YIM (earley_item);
-              report_AHFA_state = AHFA_of_YIM (earley_item);
+              report_aim = AHM_of_YIM (earley_item);
               next_phase = leo_source_link_phase;
               goto INSERT_ITEMS_INTO_TREE;
             }
@@ -12224,7 +11299,7 @@ int marpa_r_progress_report_reset( Marpa_Recognizer r)
                 }
               {
                 report_origin = Ord_of_YS (YS_of_LIM (leo_item));
-                report_AHFA_state = Base_to_AHFA_of_LIM(leo_item);
+                report_aim = Base_to_AHM_of_LIM(leo_item);
                 next_leo_item = Predecessor_LIM_of_LIM (leo_item);
                 goto INSERT_ITEMS_INTO_TREE;
               }
@@ -12232,53 +11307,49 @@ int marpa_r_progress_report_reset( Marpa_Recognizer r)
         NEXT_PHASE:;
         }
     INSERT_ITEMS_INTO_TREE:
-      @<Insert items into tree for |report_AHFA_state| and |report_origin|@>@;
+      @<Insert items into tree for |report_aim| and |report_origin|@>@;
     }
 NEXT_EARLEY_ITEM:;
 }
 
-@ @<Insert items into tree for |report_AHFA_state| and |report_origin|@> =
+@ @<Insert items into tree for |report_aim| and |report_origin|@> =
 {
-  AEX aex;
-  const int aim_count = report_AHFA_state->t_item_count;
-  for (aex = 0; aex < aim_count; aex++)
+  const IRL irl = IRL_of_AHM (report_aim);
+  const XRL source_xrl = Source_XRL_of_IRL (irl);
+  if (source_xrl)
     {
-      const AIM report_aim = AIM_of_AHFA_by_AEX (report_AHFA_state, aex);
-      const IRL irl = IRL_of_AIM (report_aim);
-      const XRL source_xrl = Source_XRL_of_IRL (irl);
-      if (source_xrl)
-        {
-          const int irl_position = Position_of_AIM (report_aim);
-          int xrl_position = irl_position;
-          const int virtual_start = Virtual_Start_of_IRL (irl);
-          if (virtual_start >= 0)
-            {
-              xrl_position += virtual_start;
-            }
-          if (XRL_is_Sequence (source_xrl))
-            {
-              if (IRL_has_Virtual_LHS (irl))
-                {
-                  if (irl_position <= 0) goto NEXT_AIM;
-                  xrl_position = -1;
-                }
-              else
-                {
-                  xrl_position = irl_position > 0 ? -1 : 0;
-                }
-            }
-          {
-            const PROGRESS new_report_item =
-              marpa_obs_new (MARPA_AVL_OBSTACK (report_tree), struct marpa_progress_item,
-                              1);
-            Position_of_PROGRESS (new_report_item) = xrl_position;
-            Origin_of_PROGRESS (new_report_item) = report_origin;
-            RULEID_of_PROGRESS (new_report_item) = ID_of_XRL (source_xrl);
-            _marpa_avl_insert (report_tree, new_report_item);
-          }
-        }
-    NEXT_AIM:;
+      const int irl_position = Position_of_AHM (report_aim);
+      int xrl_position = irl_position;
+      const int virtual_start = Virtual_Start_of_IRL (irl);
+      if (virtual_start >= 0)
+	{
+	  xrl_position += virtual_start;
+	}
+      if (XRL_is_Sequence (source_xrl))
+	{
+	  if (IRL_has_Virtual_LHS (irl))
+	    {
+	      if (irl_position <= 0)
+		goto NEXT_AHM;
+	      xrl_position = -1;
+	    }
+	  else
+	    {
+	      xrl_position = irl_position > 0 ? -1 : 0;
+	    }
+	}
+      {
+	const PROGRESS new_report_item =
+	  marpa_obs_new (MARPA_AVL_OBSTACK (report_tree),
+			 struct marpa_progress_item,
+			 1);
+	Position_of_PROGRESS (new_report_item) = xrl_position;
+	Origin_of_PROGRESS (new_report_item) = report_origin;
+	RULEID_of_PROGRESS (new_report_item) = ID_of_XRL (source_xrl);
+	_marpa_avl_insert (report_tree, new_report_item);
+      }
     }
+NEXT_AHM:;
 }
 
 @ @<Function definitions@> =
@@ -12394,7 +11465,7 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
         B_is_Nulling (b) = 1;
         return b;
       }
-    @<Find |start_yim| and |start_aex|@>@;
+    @<Find |start_yim|@>@;
     if (!start_yim) goto NO_PARSE;
     bocage_setup_obs = marpa_obs_init;
     @<Allocate bocage setup working data@>@;
@@ -12433,7 +11504,7 @@ BOCAGE b = NULL;
 YS end_of_parse_earley_set;
 JEARLEME end_of_parse_earleme;
 YIM start_yim = NULL;
-AEX start_aex = -1;
+const AEX start_aex = 0;
 struct marpa_obstack* bocage_setup_obs = NULL;
 int count_of_earley_items_in_parse;
 const int earley_set_count_of_r = YS_Count_of_R (r);
@@ -12501,15 +11572,7 @@ struct s_bocage_setup_per_ys* per_ys_data = NULL;
 @ Predicted AHFA states can be skipped since they
 contain no completions.
 Note that AHFA state 0 is not marked as a predicted AHFA state,
-even though it can contain a predicted AHFA item.
-@ A linear search of the AHFA items is used.
-As shown elsewhere in this document,
-discovered AHFA states for practical grammars tend to be
-very small ---
-less than two AHFA items.
-Size of the AHFA state is a function of the grammar, so
-any reasonable search is $O(1)$ in terms of the length of
-the input.
+even though it can contain a predicted AHM.
 @ The search for the start Earley item is done once
 per parse ---
 $O(s)$, where $s$ is the size of the end of parse Earley set.
@@ -12522,7 +11585,7 @@ It is hard to believe that for practical grammars
 that $O(\wsize \cdot s') <= O(s)$, which
 is what it would take for any per-Earley set overhead
 to make sense.
-@<Find |start_yim| and |start_aex|@> =
+@<Find |start_yim|@> =
 {
     int yim_ix;
     YIM* const earley_items = YIMs_of_YS(end_of_parse_earley_set);
@@ -12531,22 +11594,15 @@ to make sense.
     const int earley_item_count = YIM_Count_of_YS(end_of_parse_earley_set);
     for (yim_ix = 0; yim_ix < earley_item_count; yim_ix++) {
         const YIM earley_item = earley_items[yim_ix];
-        const AHFA ahfa_state = AHFA_of_YIM(earley_item);
         if (Origin_Earleme_of_YIM(earley_item) > 0) continue; // Not a start YIM
-        if (!AHFA_is_Predicted(ahfa_state)) {
-            int aex;
-            AIM* const ahfa_items = AIMs_of_AHFA(ahfa_state);
-            const int ahfa_item_count = AIM_Count_of_AHFA(ahfa_state);
-            for (aex = 0; aex < ahfa_item_count; aex++) {
-                 const AIM ahfa_item = ahfa_items[aex];
-                 if (IRLID_of_AIM(ahfa_item) == sought_irl_id) {
-                      start_yim = earley_item;
-                      start_aex = aex;
+        if (YIM_was_Predicted(earley_item)) continue;
+        {
+           const AHM aim = AHM_of_YIM(earley_item);
+           if (IRLID_of_AHM(aim) == sought_irl_id) {
+                start_yim = earley_item;
                       break;
-                 }
             }
         }
-        if (start_yim) break;
     }
 }
 
@@ -15502,7 +14558,7 @@ There are several cases where Marpa needs to
 look up a triple $\langle s,s',k \rangle$,
 where $s$ and $s'$ are earlemes, and $0<k<n$,
 where $n$ is a reasonably small constant,
-such as the number of AHFA items.
+such as the number of AHM's.
 Earley items, or-nodes and and-nodes are examples.
 @ Lookup for Earley items needs to be $O(1)$
 to justify Marpa's time complexity claims.
@@ -15597,10 +14653,28 @@ typedef struct s_per_earley_set_arena PSAR_Object;
 @ @d Dot_PSAR_of_R(r) (&(r)->t_dot_psar_object)
 @<Widely aligned recognizer elements@> =
 PSAR_Object t_dot_psar_object;
-@ @<Initialize recognizer elements@> =
-  psar_init(Dot_PSAR_of_R(r), AHFA_Count_of_R (r));
+@ @<Initialize dot PSAR@> =
+{
+  if (G_is_Trivial(g)) {
+    psar_safe(Dot_PSAR_of_R(r));
+  } else {
+    psar_init(Dot_PSAR_of_R(r), AHM_Count_of_G (g));
+  }
+}
 @ @<Destroy recognizer elements@> =
   psar_destroy(Dot_PSAR_of_R(r));
+@ Create a ``safe'' PSAR.
+A ``safe'' data structure is not
+considered initialized,
+and will need to be initialized before use.
+But the destructor may ``safely'' be called on it.
+@<Function definitions@> =
+PRIVATE void
+psar_safe (const PSAR psar)
+{
+  psar->t_psl_length = 0;
+  psar->t_first_psl = psar->t_first_free_psl = NULL;
+}
 @ @<Function definitions@> =
 PRIVATE void
 psar_init (const PSAR psar, int length)
@@ -15826,14 +14900,13 @@ if (_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))) {
     MARPA_ERROR (MARPA_ERR_INVALID_RULE_ID);
     return failure_indicator;
 }
-@ @<Fail if |item_id| is invalid@> =
+
+@ ``AIMID'' in the error code name is a legacy
+of a previous implementation, and must be kept
+for backward compatibility.
+@<Fail if |item_id| is invalid@> =
 if (_MARPA_UNLIKELY(!aim_is_valid(g, item_id))) {
     MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
-    return failure_indicator;
-}
-@ @<Fail if |AHFA_state_id| is invalid@> =
-if (_MARPA_UNLIKELY(!AHFA_state_id_is_valid(g, AHFA_state_id))) {
-    MARPA_ERROR(MARPA_ERR_INVALID_AHFA_ID);
     return failure_indicator;
 }
 
@@ -16028,7 +15101,7 @@ yim_tag_safe (char * buffer, YIM yim)
 {
   if (!yim) return "NULL";
   sprintf (buffer, "S%d@@%d-%d",
-           AHFAID_of_YIM (yim), Origin_Earleme_of_YIM (yim),
+           AHMID_of_YIM (yim), Origin_Earleme_of_YIM (yim),
            Earleme_of_YIM (yim));
   return buffer;
 }
@@ -16094,33 +15167,33 @@ or_tag (OR or)
   return or_tag_safe (DEBUG_or_tag_buffer, or);
 }
 
-@*0 AHFA item tag.
+@*0 AHM tag.
 Functions to print a descriptive tag for
-an AHFA item.
+an AHM.
 One is passed a buffer to keep it thread-safe.
 The other uses a global buffer,
 which is not thread-safe, but
 convenient when debugging in a non-threaded environment.
 @<Debug function prototypes@> =
-static const char* aim_tag_safe(char *buffer, AIM aim) @,@, UNUSED;
-static const char* aim_tag(AIM aim) @,@, UNUSED;
+static const char* aim_tag_safe(char *buffer, AHM aim) @,@, UNUSED;
+static const char* aim_tag(AHM aim) @,@, UNUSED;
 @ @<Debug function definitions@> =
 static const char *
-aim_tag_safe (char * buffer, AIM aim)
+aim_tag_safe (char * buffer, AHM aim)
 {
   if (!aim) return "NULL";
-  const int aim_position = Position_of_AIM (aim);
+  const int aim_position = Position_of_AHM (aim);
   if (aim_position >= 0) {
-      sprintf (buffer, "R%d@@%d", IRLID_of_AIM (aim), Position_of_AIM (aim));
+      sprintf (buffer, "R%d@@%d", IRLID_of_AHM (aim), Position_of_AHM (aim));
   } else {
-      sprintf (buffer, "R%d@@end", IRLID_of_AIM (aim));
+      sprintf (buffer, "R%d@@end", IRLID_of_AHM (aim));
   }
   return buffer;
 }
 
 static char DEBUG_aim_tag_buffer[1000];
 static const char*
-aim_tag (AIM aim)
+aim_tag (AHM aim)
 {
   return aim_tag_safe (DEBUG_aim_tag_buffer, aim);
 }

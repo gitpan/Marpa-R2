@@ -1,8 +1,8 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (20 January 2014) is for the internals of Libmarpa
-5.179.111.
+This manual (23 January 2014) is for the internals of Libmarpa
+5.179.112.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -18,8 +18,8 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (20 January 2014) is for the internals of Libmarpa
-5.179.111.
+This manual (23 January 2014) is for the internals of Libmarpa
+5.179.112.
 
    Copyright (C) 2013 Jeffrey Kegler.
 
@@ -390,45 +390,23 @@ File: internal.info,  Node: Grammar internals,  Next: Recognizer internals,  Pre
 2.3 Grammar internal methods
 ============================
 
-The methods in this section are accessors for Libmarpa's AHFA items and
-states.  Their use requires familiarity with Marpa's internals, as
-described in `Marpa: The Program'.
+The methods in this section are accessors for Libmarpa's AHMs.  Their
+use requires familiarity with Marpa's internals, as described in
+`Marpa: The Program'.
 
- -- Function: int _marpa_g_AHFA_item_count (Marpa_Grammar G)
+ -- Function: int _marpa_g_ahm_count (Marpa_Grammar G)
 
- -- Function: Marpa_Rule_ID _marpa_g_AHFA_item_irl (Marpa_Grammar G,
-          Marpa_AHFA_Item_ID ITEM_ID)
+ -- Function: Marpa_Rule_ID _marpa_g_ahm_irl (Marpa_Grammar G,
+          Marpa_AHM_ID ITEM_ID)
 
- -- Function: int _marpa_g_AHFA_item_position (Marpa_Grammar G,
-          Marpa_AHFA_Item_ID ITEM_ID)
+ -- Function: int _marpa_g_ahm_position (Marpa_Grammar G, Marpa_AHM_ID
+          ITEM_ID)
 
- -- Function: Marpa_Symbol_ID _marpa_g_AHFA_item_postdot (Marpa_Grammar
-          G, Marpa_AHFA_Item_ID ITEM_ID)
+ -- Function: Marpa_Symbol_ID _marpa_g_ahm_postdot (Marpa_Grammar G,
+          Marpa_AHM_ID ITEM_ID)
 
- -- Function: int _marpa_g_AHFA_item_sort_key (Marpa_Grammar G,
-          Marpa_AHFA_Item_ID ITEM_ID)
-
- -- Function: int _marpa_g_AHFA_state_count (Marpa_Grammar G)
-
- -- Function: int _marpa_g_AHFA_state_item_count (Marpa_Grammar G,
-          Marpa_AHFA_State_ID AHFA_STATE_ID)
-
- -- Function: Marpa_AHFA_Item_ID _marpa_g_AHFA_state_item
-          (Marpa_Grammar G, Marpa_AHFA_State_ID AHFA_STATE_ID, int
-          ITEM_IX)
-
- -- Function: int _marpa_g_AHFA_state_is_predict (Marpa_Grammar G,
-          Marpa_AHFA_State_ID AHFA_STATE_ID)
-
- -- Function: Marpa_Symbol_ID _marpa_g_AHFA_state_leo_lhs_symbol (
-          Marpa_Grammar G, Marpa_AHFA_State_ID AHFA_STATE_ID)
-
- -- Function: int _marpa_g_AHFA_state_transitions ( Marpa_Grammar G,
-          Marpa_AHFA_State_ID AHFA_STATE_ID, int *BUFFER, int
-          BUFFER_SIZE )
-
- -- Function: Marpa_AHFA_State_ID _marpa_g_AHFA_state_empty_transition
-          ( Marpa_Grammar G, Marpa_AHFA_Item_ID AHFA_ITEM_ID)
+ -- Function: int _marpa_g_ahm_sort_key (Marpa_Grammar G, Marpa_AHM_ID
+          ITEM_ID)
 
 
 File: internal.info,  Node: Recognizer internals,  Next: Bocage internals,  Prev: Grammar internals,  Up: Internal Interface
@@ -454,8 +432,8 @@ File: internal.info,  Node: Recognizer internals,  Next: Bocage internals,  Prev
  -- Function: Marpa_Earleme _marpa_r_earley_set_trace (Marpa_Recognizer
           r, Marpa_Earley_Set_ID SET_ID)
 
- -- Function: Marpa_AHFA_State_ID _marpa_r_earley_item_trace
-          (Marpa_Recognizer r, Marpa_Earley_Item_ID ITEM_ID)
+ -- Function: Marpa_AHM_ID _marpa_r_earley_item_trace (Marpa_Recognizer
+          r, Marpa_Earley_Item_ID ITEM_ID)
 
  -- Function: Marpa_Earley_Set_ID _marpa_r_earley_item_origin
           (Marpa_Recognizer R)
@@ -466,11 +444,7 @@ File: internal.info,  Node: Recognizer internals,  Next: Bocage internals,  Prev
  -- Function: Marpa_Earley_Set_ID _marpa_r_leo_base_origin
           (Marpa_Recognizer R)
 
- -- Function: Marpa_AHFA_State_ID _marpa_r_leo_base_state
-          (Marpa_Recognizer R)
-
- -- Function: Marpa_AHFA_State_ID _marpa_r_leo_expansion_ahfa
-          (Marpa_Recognizer R)
+ -- Function: Marpa_AHM_ID _marpa_r_leo_base_state (Marpa_Recognizer R)
 
  -- Function: Marpa_Symbol_ID _marpa_r_postdot_symbol_trace
           (Marpa_Recognizer r, Marpa_Symbol_ID SYMID)
@@ -481,7 +455,7 @@ File: internal.info,  Node: Recognizer internals,  Next: Bocage internals,  Prev
  -- Function: Marpa_Symbol_ID _marpa_r_next_postdot_item_trace
           (Marpa_Recognizer R)
 
- -- Function: Marpa_AHFA_State_ID _marpa_r_postdot_item_symbol
+ -- Function: Marpa_Symbol_ID _marpa_r_postdot_item_symbol
           (Marpa_Recognizer R)
 
  -- Function: Marpa_Symbol_ID _marpa_r_first_token_link_trace
@@ -502,7 +476,7 @@ File: internal.info,  Node: Recognizer internals,  Next: Bocage internals,  Prev
  -- Function: Marpa_Symbol_ID _marpa_r_next_leo_link_trace
           (Marpa_Recognizer R)
 
- -- Function: Marpa_AHFA_State_ID _marpa_r_source_predecessor_state
+ -- Function: Marpa_AHM_ID _marpa_r_source_predecessor_state
           (Marpa_Recognizer R)
 
  -- Function: Marpa_Symbol_ID _marpa_r_source_token (Marpa_Recognizer
@@ -1162,12 +1136,12 @@ Node: Internal Interface10169
 Node: Symbol internal methods10959
 Node: Rule internals12633
 Node: Grammar internals15255
-Node: Recognizer internals16959
-Node: Bocage internals19833
-Node: Ordering internals22358
-Node: Tree internals22873
-Node: Valuator internals24881
-Node: Debugging methods25173
-Node: GNU Free Documentation License25471
+Node: Recognizer internals16034
+Node: Bocage internals18779
+Node: Ordering internals21304
+Node: Tree internals21819
+Node: Valuator internals23827
+Node: Debugging methods24119
+Node: GNU Free Documentation License24417
 
 End Tag Table

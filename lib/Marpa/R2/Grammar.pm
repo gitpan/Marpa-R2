@@ -26,7 +26,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_011';
+$VERSION        = '2.079_012';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1636,16 +1636,10 @@ sub Marpa::R2::Grammar::rule_is_used {
     return $grammar_c->_marpa_g_rule_is_used($rule_id);
 }
 
-sub Marpa::R2::Grammar::show_AHFA {
+sub Marpa::R2::Grammar::show_ahms {
     my ( $grammar, $verbose ) = @_;
     return $grammar->[Marpa::R2::Internal::Grammar::TRACER]
-        ->show_AHFA($verbose);
-}
-
-sub Marpa::R2::Grammar::show_AHFA_items {
-    my ( $grammar, $verbose ) = @_;
-    return $grammar->[Marpa::R2::Internal::Grammar::TRACER]
-        ->show_AHFA_items($verbose);
+        ->show_ahms($verbose);
 }
 
 1;

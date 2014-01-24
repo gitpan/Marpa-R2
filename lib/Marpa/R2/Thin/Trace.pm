@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_011';
+$VERSION        = '2.079_012';
 $STRING_VERSION = $VERSION;
 $VERSION        = eval $VERSION;
 
@@ -171,7 +171,7 @@ sub show_dotted_irl {
     my $lhs_id     = $grammar_c->_marpa_g_irl_lhs($irl_id);
     my $irl_length = $grammar_c->_marpa_g_irl_length($irl_id);
 
-    my $text = $self->isy_name($lhs_id) . q{ ->};
+    my $text = $self->isy_name($lhs_id) . q{ ::=};
 
     if ( $dot_position < 0 ) {
         $dot_position = $irl_length;
@@ -197,15 +197,12 @@ sub show_dotted_irl {
 
 } ## end sub show_dotted_irl
 
-sub show_AHFA_item {
+sub show_ahm {
     my ( $self, $item_id ) = @_;
     my $grammar_c  = $self->{g};
-    my $postdot_id = $grammar_c->_marpa_g_AHFA_item_postdot($item_id);
-    my $sort_key   = $grammar_c->_marpa_g_AHFA_item_sort_key($item_id);
-    my $text       = "AHFA item $item_id: ";
+    my $postdot_id = $grammar_c->_marpa_g_ahm_postdot($item_id);
+    my $text       = "AHM $item_id: ";
     my @properties = ();
-    push @properties, "sort = $sort_key";
-
     if ( $postdot_id < 0 ) {
         push @properties, 'completion';
     }
@@ -215,60 +212,29 @@ sub show_AHFA_item {
     }
     $text .= join q{; }, @properties;
     $text .= "\n" . ( q{ } x 4 );
-    $text .= $self->show_brief_AHFA_item($item_id) . "\n";
+    $text .= $self->show_brief_ahm($item_id) . "\n";
     return $text;
-} ## end sub show_AHFA_item
+} ## end sub show_ahm
 
-sub show_brief_AHFA_item {
+sub show_brief_ahm {
     my ( $self, $item_id ) = @_;
     my $grammar_c  = $self->{g};
-    my $postdot_id = $grammar_c->_marpa_g_AHFA_item_postdot($item_id);
-    my $irl_id     = $grammar_c->_marpa_g_AHFA_item_irl($item_id);
-    my $position   = $grammar_c->_marpa_g_AHFA_item_position($item_id);
+    my $postdot_id = $grammar_c->_marpa_g_ahm_postdot($item_id);
+    my $irl_id     = $grammar_c->_marpa_g_ahm_irl($item_id);
+    my $position   = $grammar_c->_marpa_g_ahm_position($item_id);
     return $self->show_dotted_irl( $irl_id, $position );
-} ## end sub show_brief_AHFA_item
+} ## end sub show_brief_ahm
 
-sub show_AHFA {
-    my ( $self, $verbose ) = @_;
-    $verbose //= 1;    # legacy is to be verbose, so default to it
-    my $grammar_c        = $self->{g};
-    my $text             = q{};
-    my $AHFA_state_count = $grammar_c->_marpa_g_AHFA_state_count();
-    STATE:
-    for ( my $state_id = 0; $state_id < $AHFA_state_count; $state_id++ ) {
-        $text .= "* S$state_id:";
-        $grammar_c->_marpa_g_AHFA_state_is_predict($state_id)
-            and $text .= ' predict';
-        $text .= "\n";
-        my @items = ();
-        for my $item_id ( $grammar_c->_marpa_g_AHFA_state_items($state_id) ) {
-            push @items,
-                [
-                $grammar_c->_marpa_g_AHFA_item_irl($item_id),
-                $grammar_c->_marpa_g_AHFA_item_postdot($item_id),
-                $self->show_brief_AHFA_item($item_id)
-                ];
-        } ## end for my $item_id ( $grammar_c->_marpa_g_AHFA_state_items...)
-        $text .= join "\n", map { $_->[2] }
-            sort { $a->[0] <=> $b->[0] || $a->[1] <=> $b->[1] } @items;
-        $text .= "\n";
-
-        next STATE if not $verbose;
-
-    } ## end STATE: for ( my $state_id = 0; $state_id < $AHFA_state_count...)
-    return $text;
-} ## end sub show_AHFA
-
-sub show_AHFA_items {
+sub show_ahms {
     my ($self)    = @_;
     my $grammar_c = $self->{g};
     my $text      = q{};
-    my $count     = $grammar_c->_marpa_g_AHFA_item_count();
+    my $count     = $grammar_c->_marpa_g_ahm_count();
     for my $AHFA_item_id ( 0 .. $count - 1 ) {
-        $text .= $self->show_AHFA_item($AHFA_item_id);
+        $text .= $self->show_ahm($AHFA_item_id);
     }
     return $text;
-} ## end sub show_AHFA_items
+} ## end sub show_ahms
 
 sub isy_name {
     my ( $self, $id ) = @_;
