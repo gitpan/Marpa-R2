@@ -1,4 +1,4 @@
-# Copyright 2013 Jeffrey Kegler
+# Copyright 2014 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -25,7 +25,7 @@ m4_define(marpa_configure_in)
 
 m4_define([marpa_major_version], [5])
 m4_define([marpa_minor_version], [179])
-m4_define([marpa_micro_version], [112])
+m4_define([marpa_micro_version], [113])
 m4_define([marpa_version],
           [marpa_major_version.marpa_minor_version.marpa_micro_version])
 

@@ -1,4 +1,4 @@
-# Copyright 2013 Jeffrey Kegler
+# Copyright 2014 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -57,8 +57,8 @@ normalize-whitespace: 1
 remove-display-indent: 1
 remove-blank-last-line: 1
 
-  :default ::= action => [values] bless => ::lhs
-  lexeme default = action => [value] bless => ::name
+  :default ::= action => [ values ] bless => ::lhs
+  lexeme default = action => [ value ] bless => ::name
 
   S   ::= NP  VP  period  bless => S
 
@@ -303,10 +303,10 @@ At rule alteratives, the L<C<symbol_id()>|/"symbol_d()"> method returns the
 ID of the LHS of the rule.
 
 At rule alternatives,
-the L<C<rh_count()>|/"rh_count()"> and
+the L<C<rh_length()>|/"rh_length()"> and
 the L<C<rh_value()>|/"rh_value()"> glade methods
 are of use.
-The C<rh_count()> method returns the length of the RHS,
+The C<rh_length()> method returns the length of the RHS,
 and the C<rh_value()> method returns the value of one of the
 RHS children, as determined using its traverser.
 
@@ -457,6 +457,17 @@ the integer zero, so applications checking for failure
 should be careful to check for a Perl defined value,
 and not for a Perl true value.
 
+In addition, because 
+the L<C<rule_id()> method|/"rule_id()"> 
+remains constant only within a symch, and 
+the L<C<next()> method|/"next()"> may 
+change the current symch, 
+L<C<rule_id()> method|/"rule_id()">
+must always be called to obtain the current rule ID 
+in a C<while> loop where 
+L<C<next()> method|/"next()"> 
+is used as the exit condition. 
+
 =head1 Details
 
 This section contains additional explanations, not essential to understanding
@@ -595,7 +606,7 @@ normalize-whitespace: 1
 =for Marpa::R2::Display
 ignore: 1
 
-  Copyright 2013 Jeffrey Kegler
+  Copyright 2014 Jeffrey Kegler
   This file is part of Marpa::R2.  Marpa::R2 is free software: you can
   redistribute it and/or modify it under the terms of the GNU Lesser
   General Public License as published by the Free Software Foundation,

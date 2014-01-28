@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Jeffrey Kegler
+ * Copyright 2014 Jeffrey Kegler
  * This file is part of Marpa::R2.  Marpa::R2 is free software: you can
  * redistribute it and/or modify it under the terms of the GNU Lesser
  * General Public License as published by the Free Software Foundation,
@@ -2322,7 +2322,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 179
-#define EXPECTED_LIBMARPA_MICRO 112
+#define EXPECTED_LIBMARPA_MICRO 113
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 

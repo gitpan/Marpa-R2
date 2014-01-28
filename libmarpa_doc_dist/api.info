@@ -1,8 +1,8 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (23 January 2014) is for Libmarpa 5.179.112.
+This manual (28 January 2014) is for Libmarpa 5.179.113.
 
-   Copyright (C) 2013 Jeffrey Kegler.
+   Copyright (C) 2014 Jeffrey Kegler.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,9 +16,9 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (23 January 2014) is for Libmarpa 5.179.112.
+This manual (28 January 2014) is for Libmarpa 5.179.113.
 
-   Copyright (C) 2013 Jeffrey Kegler.
+   Copyright (C) 2014 Jeffrey Kegler.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,

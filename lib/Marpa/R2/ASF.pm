@@ -1,4 +1,4 @@
-# Copyright 2013 Jeffrey Kegler
+# Copyright 2014 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -21,7 +21,7 @@ use warnings;
 no warnings qw(recursion);
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_012';
+$VERSION        = '2.079_013';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1393,7 +1393,7 @@ sub Marpa::R2::Internal::ASF::Traverse::rule_id {
     my ( $rule_id ) = @{$symch};
     return if $rule_id < 0;
     return $rule_id;
-} ## end sub Marpa::R2::Internal::ASF::Traverse::rh_length
+} ## end sub Marpa::R2::Internal::ASF::Traverse::rule_id
 
 sub Marpa::R2::Internal::ASF::Traverse::rh_length {
     my ( $traverser ) = @_;
@@ -1450,6 +1450,12 @@ sub Marpa::R2::Internal::ASF::Traverse::rh_value {
         = $value;
     return $value;
 } ## end sub Marpa::R2::Internal::ASF::Traverse::rh_value
+
+sub Marpa::R2::Internal::ASF::Traverse::rh_values {
+    my ( $traverser ) = @_;
+    return map { Marpa::R2::Internal::ASF::Traverse::rh_value( $traverser, $_ ) } 
+        0 .. Marpa::R2::Internal::ASF::Traverse::rh_length( $traverser ) - 1;
+}
 
 sub Marpa::R2::Internal::ASF::Traverse::next_factoring {
     my ($traverser) = @_;

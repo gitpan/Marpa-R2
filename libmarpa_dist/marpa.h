@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Jeffrey Kegler
+ * Copyright 2014 Jeffrey Kegler
  * This file is part of Marpa::R2.  Marpa::R2 is free software: you can
  * redistribute it and/or modify it under the terms of the GNU Lesser
  * General Public License as published by the Free Software Foundation,
@@ -33,7 +33,7 @@
 
 #define MARPA_MAJOR_VERSION 5
 #define MARPA_MINOR_VERSION 179
-#define MARPA_MICRO_VERSION 112
+#define MARPA_MICRO_VERSION 113
 
 #line 1 "./marpa.h-err"
 #define MARPA_ERROR_COUNT 95
@@ -160,7 +160,7 @@
 #define MARPA_STEP_INITIAL 7
 
 /*1309:*/
-#line 15256 "./marpa.w"
+#line 15257 "./marpa.w"
 
 extern const unsigned int marpa_major_version;
 extern const unsigned int marpa_minor_version;
@@ -210,7 +210,7 @@ extern const unsigned int marpa_binary_age;
 #define marpa_v_es_id(v) ((v)->t_ys_id)
 
 /*:1105*/
-#line 15270 "./marpa.w"
+#line 15271 "./marpa.w"
 
 /*46:*/
 #line 649 "./marpa.w"
@@ -249,7 +249,7 @@ typedef struct marpa_tree*Marpa_Tree;
 struct marpa_value;
 typedef struct marpa_value*Marpa_Value;
 /*:1100*/
-#line 15271 "./marpa.w"
+#line 15272 "./marpa.w"
 
 /*91:*/
 #line 915 "./marpa.w"
@@ -310,12 +310,12 @@ typedef int Marpa_Nook_ID;
 
 typedef int Marpa_Step_Type;
 /*:1141*//*1285:*/
-#line 15053 "./marpa.w"
+#line 15054 "./marpa.w"
 
 typedef const char*Marpa_Message_ID;
 
 /*:1285*/
-#line 15272 "./marpa.w"
+#line 15273 "./marpa.w"
 
 /*43:*/
 #line 620 "./marpa.w"
@@ -360,22 +360,22 @@ Marpa_Earley_Set_ID t_rule_start_ys_id;
 Marpa_Earley_Set_ID t_ys_id;
 };
 /*:1104*/
-#line 15273 "./marpa.w"
+#line 15274 "./marpa.w"
 
 /*1284:*/
-#line 15050 "./marpa.w"
+#line 15051 "./marpa.w"
 
 extern void*(*const marpa__out_of_memory)(void);
 
 /*:1284*//*1286:*/
-#line 15062 "./marpa.w"
+#line 15063 "./marpa.w"
 
 extern int marpa__default_debug_handler(const char*format,...);
 extern int(*marpa__debug_handler)(const char*,...);
 extern int marpa__debug_level;
 
 /*:1286*/
-#line 15274 "./marpa.w"
+#line 15275 "./marpa.w"
 
 
 /*:1309*/

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Copyright 2013 Jeffrey Kegler
+# Copyright 2014 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -52,11 +52,14 @@ use lib 'inc';
 use Marpa::R2::Test;
 use Marpa::R2;
 
+# Marpa::R2::Display
+# name: SLIF "time flies" DSL synopsis
+
 my $grammar = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
         
-:default ::= action => [lhs,values]
-lexeme default = action => [lhs,value]
+:default ::= action => [lhs, values ]
+lexeme default = action => [ lhs, value ]
 
 S   ::= NP  VP  period  
 
@@ -89,6 +92,8 @@ VBP ~ 'time':i
 END_OF_SOURCE
     }
 );
+
+# Marpa::R2::Display::End
 
 my $expected = <<'EOS';
 (S 

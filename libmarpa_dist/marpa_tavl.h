@@ -113,6 +113,7 @@ void *marpa__tavl_assert_delete (struct tavl_table *, void *);
 /* Don't bother with inlining on this test if we are not
  * GCC.  */
 #ifndef __GNUC__
+#undef inline
 #define inline
 #endif
 

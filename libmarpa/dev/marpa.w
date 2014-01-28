@@ -1,4 +1,4 @@
-% Copyright 2013 Jeffrey Kegler
+% Copyright 2014 Jeffrey Kegler
 % This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 % redistribute it and/or modify it under the terms of the GNU Lesser
 % General Public License as published by the Free Software Foundation,
@@ -15044,6 +15044,7 @@ PRIVATE_NOT_INLINE void*
 marpa__default_out_of_memory(void)
 {
     abort();
+    return NULL; // to prevent warnings on some compilers
 }
 void* (* const marpa__out_of_memory)(void) = marpa__default_out_of_memory;
 

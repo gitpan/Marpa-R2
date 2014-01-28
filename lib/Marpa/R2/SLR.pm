@@ -1,4 +1,4 @@
-# Copyright 2013 Jeffrey Kegler
+# Copyright 2014 Jeffrey Kegler
 # This file is part of Marpa::R2.  Marpa::R2 is free software: you can
 # redistribute it and/or modify it under the terms of the GNU Lesser
 # General Public License as published by the Free Software Foundation,
@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_012';
+$VERSION        = '2.079_013';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1310,6 +1310,55 @@ sub Marpa::R2::Scanless::R::ambiguity_metric {
     return 0 if not $ordering;
     return $ordering->ambiguity_metric();
 } ## end sub Marpa::R2::Scanless::R::ambiguity_metric
+
+sub Marpa::R2::Scanless::R::rule_closure {
+
+    my ( $slr, $rule_id ) = @_;
+    
+    my $recce = $slr->[Marpa::R2::Internal::Scanless::R::THICK_G1_RECCE];
+
+    if ( not $recce->[Marpa::R2::Internal::Recognizer::REGISTRATIONS] ) {
+
+        my $grammar           = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
+        my $grammar_c         = $grammar->[Marpa::R2::Internal::Grammar::C];
+        my $recce_c           = $recce->[Marpa::R2::Internal::Recognizer::C];
+        my $per_parse_arg     = {};
+        my $trace_actions     = $recce->[Marpa::R2::Internal::Recognizer::TRACE_ACTIONS] // 0;
+        my $trace_file_handle = $recce->[Marpa::R2::Internal::Recognizer::TRACE_FILE_HANDLE];
+        my $rules             = $grammar->[Marpa::R2::Internal::Grammar::RULES];
+        my $symbols           = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
+        my $tracer            = $grammar->[Marpa::R2::Internal::Grammar::TRACER];
+
+        Marpa::R2::Internal::Value::init_registrations(
+            $recce, 
+            $slr, 
+            $grammar, 
+            $grammar_c, 
+            $per_parse_arg, 
+            $trace_actions, 
+            $trace_file_handle, 
+            $symbols, 
+            $rules, 
+            $tracer
+        );
+
+    } ## end if ( not $recce->[Marpa::R2::Internal::Recognizer::REGISTRATIONS...])
+    
+    my $rule_closure = $recce->[Marpa::R2::Internal::Recognizer::CLOSURE_BY_RULE_ID]->[$rule_id];
+    if (defined $rule_closure){
+        my $ref_rule_closure = ref $rule_closure;
+        if (    $ref_rule_closure eq 'CODE' ){
+            return $rule_closure;
+        }
+        elsif ( $ref_rule_closure eq 'SCALAR' ){
+            return $rule_closure;
+        }
+    }
+    else{
+        return
+    }
+    
+} ## end sub Marpa::R2::Scanless::R::rule_closure
 
 sub Marpa::R2::Scanless::R::value {
     my ( $slr, $per_parse_arg ) = @_;
