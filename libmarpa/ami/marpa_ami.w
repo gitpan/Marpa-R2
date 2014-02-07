@@ -275,6 +275,12 @@ to free memory should be made.
 @d MARPA_DSTACK_SAFE(this)
   (((this).t_count = (this).t_capacity = 0), ((this).t_base = NULL))
 
+@ It is up to the caller to ensure that there is sufficient
+capacity for the new count.  Usually this call will be used
+to shorten the stack, in which case capacity is not
+an issue.
+@d MARPA_DSTACK_COUNT_SET(this, n) ((this).t_count = (n))
+
 @ A stack reinitialized by
 |MARPA_DSTACK_CLEAR| contains 0 elements,
 but has the same capacity as it had before the reinitialization.
@@ -282,7 +288,7 @@ This saves the cost of reallocating the dstack's buffer,
 and leaves its capacity at what is hopefully
 a stable, high-water mark, which will make future
 resizings unnecessary.
-@d MARPA_DSTACK_CLEAR(this) ((this).t_count = 0)
+@d MARPA_DSTACK_CLEAR(this) MARPA_DSTACK_COUNT_SET((this), 0)
 @d MARPA_DSTACK_PUSH(this, type) (
       (_MARPA_UNLIKELY((this).t_count >= (this).t_capacity)
       ? marpa_dstack_resize2(&(this), sizeof(type))
@@ -370,16 +376,28 @@ int marpa__default_debug_handler (const char *format, ...)
 #define MARPA_DEBUG 0
 #endif
 
-#define MARPA_DEBUG1(a) @[ (MARPA_DEBUG && marpa__debug_level && \
+#if MARPA_DEBUG
+
+#define MARPA_DEBUG1(a) @[ (marpa__debug_level && \
     (*marpa__debug_handler)(a)) @]
-#define MARPA_DEBUG2(a,b) @[ (MARPA_DEBUG && marpa__debug_level && \
+#define MARPA_DEBUG2(a,b) @[ (marpa__debug_level && \
     (*marpa__debug_handler)((a),(b))) @]
-#define MARPA_DEBUG3(a,b,c) @[ (MARPA_DEBUG && marpa__debug_level && \
+#define MARPA_DEBUG3(a,b,c) @[ (marpa__debug_level && \
     (*marpa__debug_handler)((a),(b),(c))) @]
-#define MARPA_DEBUG4(a,b,c,d) @[ (MARPA_DEBUG && marpa__debug_level && \
+#define MARPA_DEBUG4(a,b,c,d) @[ (marpa__debug_level && \
     (*marpa__debug_handler)((a),(b),(c),(d))) @]
-#define MARPA_DEBUG5(a,b,c,d,e) @[ (MARPA_DEBUG && marpa__debug_level && \
+#define MARPA_DEBUG5(a,b,c,d,e) @[ (marpa__debug_level && \
     (*marpa__debug_handler)((a),(b),(c),(d),(e))) @]
+
+#else
+
+#define MARPA_DEBUG1(a)
+#define MARPA_DEBUG2(a,b)
+#define MARPA_DEBUG3(a,b,c)
+#define MARPA_DEBUG4(a,b,c,d)
+#define MARPA_DEBUG5(a,b,c,d,e)
+
+#endif
 
 #if MARPA_DEBUG
 #undef MARPA_ENABLE_ASSERT

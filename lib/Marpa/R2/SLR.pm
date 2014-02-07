@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_013';
+$VERSION        = '2.079_014';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1331,7 +1331,6 @@ sub Marpa::R2::Scanless::R::rule_closure {
 
         Marpa::R2::Internal::Value::init_registrations(
             $recce, 
-            $slr, 
             $grammar, 
             $grammar_c, 
             $per_parse_arg, 
@@ -1522,6 +1521,12 @@ sub Marpa::R2::Scanless::R::terminals_expected {
     my ($self) = @_;
     return $self->[Marpa::R2::Internal::Scanless::R::THICK_G1_RECCE]
         ->terminals_expected();
+}
+
+sub Marpa::R2::Scanless::R::exhausted {
+    my ($self) = @_;
+    return $self->[Marpa::R2::Internal::Scanless::R::THICK_G1_RECCE]
+        ->exhausted();
 }
 
 # Latest and current G1 location are the same

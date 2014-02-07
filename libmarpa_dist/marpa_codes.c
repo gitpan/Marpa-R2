@@ -126,6 +126,7 @@ const struct marpa_error_description_s marpa_error_description[] = {
   { 92, "MARPA_ERR_SYMBOL_IS_NOT_COMPLETION_EVENT", "Symbol is not set up for completion events" },
   { 93, "MARPA_ERR_SYMBOL_IS_NOT_NULLED_EVENT", "Symbol is not set up for nulled events" },
   { 94, "MARPA_ERR_SYMBOL_IS_NOT_PREDICTION_EVENT", "Symbol is not set up for prediction events" },
+  { 95, "MARPA_ERR_RECCE_IS_INCONSISTENT", "MARPA_ERR_RECCE_IS_INCONSISTENT" },
 };
 
 

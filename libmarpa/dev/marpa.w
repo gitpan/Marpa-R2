@@ -27,6 +27,10 @@
 \def\skipxTeX{\\{skip\_\TEX/}}
 \def\copyxTeX{\\{copy\_\TEX/}}
 
+\def\comment{\par\medskip\noindent
+  \ifmmode\else\par % forced break
+  \hangindent\ind em\ignorespaces\fi}
+
 \let\K=\Longleftarrow
 
 \secpagedepth=1
@@ -50,11 +54,10 @@
 \def\libmarpa/{{\tt libmarpa}}
 \def\QED/{{\bf QED}}
 \def\Theorem/{{\bf Theorem}}
-\def\Proof/{{\bf Theorem}}
+\def\Proof/{{\bf Proof}}
 \def\size#1{\v #1\v}
 \def\gsize{\v g\v}
 \def\wsize{\v w\v}
-\def\comment{\vskip\baselineskip}
 
 @q Unreserve the C++ keywords @>
 @s asm normal
@@ -669,10 +672,12 @@ Marpa_Grammar marpa_g_new (Marpa_Config* configuration)
         return NULL;
     }
     g = my_malloc(sizeof(struct marpa_g));
-    /* \comment Set |t_is_ok| to a bad value, just in case */
+    @t}\comment{@>
+    /* Set |t_is_ok| to a bad value, just in case */
     g->t_is_ok = 0;
     @<Initialize grammar elements@>@;
-    /* \comment Properly initialized, so set |t_is_ok| to its proper value */
+    @t}\comment{@>
+    /* Properly initialized, so set |t_is_ok| to its proper value */
     g->t_is_ok = I_AM_OK;
    return g;
 }
@@ -875,9 +880,6 @@ with no proper start rule is considered trivial.
 IRL t_start_irl;
 @ @<Initialize grammar elements@> =
 g->t_start_irl = NULL;
-@
-{\bf To Do}: @^To Do@>
-Check that all trace functions are safe if G is trivial.
 
 @*0 The grammar's size.
 Intuitively,
@@ -1049,7 +1051,8 @@ the locations of |MARPA_DSTACK| elements to change.
 PRIVATE
 void event_new(GRAMMAR g, int type)
 {
-  /* \comment may change base of dstack */
+    @t}\comment{@>
+  /* may change base of dstack */
   GEV end_of_stack = G_EVENT_PUSH(g);
   end_of_stack->t_type = type;
   end_of_stack->t_value = 0;
@@ -1058,7 +1061,8 @@ void event_new(GRAMMAR g, int type)
 PRIVATE
 void int_event_new(GRAMMAR g, int type, int value)
 {
-  /* \comment may change base of dstack */
+  /* may change base of dstack */
+    @t}\comment{@>
   GEV end_of_stack = G_EVENT_PUSH(g);
   end_of_stack->t_type = type;
   end_of_stack->t_value =  value;
@@ -1755,21 +1759,30 @@ so that the
 symbol structure may be used
 where token or-nodes are
 expected.
-@d Nulling_OR_by_NSYID(nsyid) ((OR)NSY_by_ID(nsyid))
+@d Nulling_OR_by_NSYID(nsyid) ((OR)&NSY_by_ID(nsyid)->t_nulling_or_node)
+@d Unvalued_OR_by_NSYID(nsyid) ((OR)&NSY_by_ID(nsyid)->t_unvalued_or_node)
 @<Private structures@> =
-struct s_nsy {
+struct s_unvalued_token_or_node {
   int t_or_node_type;
   NSYID t_nsyid;
+};
+
+struct s_nsy {
   @<Widely aligned NSY elements@>@;
   @<Int aligned NSY elements@>@;
   @<Bit aligned NSY elements@>@;
+  struct s_unvalued_token_or_node t_nulling_or_node;
+  struct s_unvalued_token_or_node t_unvalued_or_node;
 };
 @ |t_nsyid| is initialized when the symbol is
 added to the list of symbols.
 Symbols are used a nulling tokens, and
 |t_or_node_type| is set accordingly.
 @<Initialize NSY elements@> =
-    nsy->t_or_node_type = NULLING_TOKEN_OR_NODE;
+    nsy->t_nulling_or_node.t_or_node_type = NULLING_TOKEN_OR_NODE;
+    /* ID of nulling or-node is already set */
+    nsy->t_unvalued_or_node.t_or_node_type = UNVALUED_TOKEN_OR_NODE;
+    nsy->t_unvalued_or_node.t_nsyid = ID_of_NSY(nsy);
 
 @*0 Constructors.
 @ Common logic for creating an NSY.
@@ -1827,7 +1840,7 @@ acts as the unique identifier for an NSY.
 The NSY ID is initialized when the NSY is
 added to the list of rules.
 @d NSY_by_ID(id) (*MARPA_DSTACK_INDEX (g->t_nsy_stack, NSY, (id)))
-@d ID_of_NSY(nsy) ((nsy)->t_nsyid)
+@d ID_of_NSY(nsy) ((nsy)->t_nulling_or_node.t_nsyid)
 
 @ Symbol count accesors.
 @d NSY_Count_of_G(g) (MARPA_DSTACK_LENGTH((g)->t_nsy_stack))
@@ -1880,6 +1893,14 @@ int _marpa_g_nsy_is_nulling(Marpa_Grammar g, Marpa_NSY_ID nsy_id)
   return NSY_is_Nulling(NSY_by_ID(nsy_id));
 }
 
+@*0 LHS CIL.
+A CIL which records the IRL's of which this NSY
+is the LHS.
+@d LHS_CIL_of_NSY(nsy) ((nsy)->t_lhs_cil)
+@d LHS_CIL_of_NSYID(nsyid) LHS_CIL_of_NSY(NSY_by_ID(nsyid))
+@<Widely aligned NSY elements@> = CIL t_lhs_cil;
+@ @<Initialize NSY elements@> = LHS_CIL_of_NSY(nsy) = NULL;
+
 @*0 Semantic XSY.
 Set if the internal symbol is semantically visible
 externally.
@@ -1906,6 +1927,8 @@ It is used in ranking, and is also convenient
 for tracing and debugging.
 @d Source_XSY_of_NSY(nsy) ((nsy)->t_source_xsy)
 @d Source_XSY_of_NSYID(nsyid) (Source_XSY_of_NSY(NSY_by_ID(nsyid)))
+@d Source_XSYID_of_NSYID(nsyid)
+  ID_of_XSY(Source_XSY_of_NSYID(nsyid))
 @<Widely aligned NSY elements@> = XSY t_source_xsy;
 @ @<Initialize NSY elements@> = Source_XSY_of_NSY(nsy) = NULL;
 @ @<Function definitions@> =
@@ -2262,7 +2285,8 @@ duplicate_rule_cmp (const void *ap, const void *bp, void *param @,@, UNUSED)
   if (diff)
     return diff;
   {
-    /* \comment Length is a key in-between LHS.  That way
+    @t}\comment{@>
+    /* Length is a key in-between LHS.  That way
       we only need to compare the RHS of
       rules of the same length */
     int ix;
@@ -3052,23 +3076,28 @@ int marpa_g_precompute(Marpa_Grammar g)
     @<Fail if precomputed@>@;
     @<Fail if bad start symbol@>@;
 
-    /* \comment After this point, errors are not recoverable */
+    @t}\comment{@>
+    /* After this point, errors are not recoverable */
 
     @<Clear rule duplication tree@>@;
-    /* \comment Phase 1: census the external grammar */
+
+    @t}\comment{@>
+    /* Phase 1: census the external grammar */
     { /* Scope with only external grammar */
         @<Declare census variables@>@;
         @<Perform census of grammar |g|@>@;
         @<Detect cycles@>@;
     }
 
-    //  \comment Phase 2: rewrite the grammar into internal form 
+    @t}\comment{@>
+    //  Phase 2: rewrite the grammar into internal form 
     @<Initialize IRL stack@>@;
     @<Initialize NSY stack@>@;
     @<Rewrite grammar |g| into CHAF form@>@;
     @<Augment grammar |g|@>@;
 
-    /* \comment Phase 3: memoize the internal grammar */
+    @t}\comment{@>
+    /* Phase 3: memoize the internal grammar */
      if (!G_is_Trivial(g)) {
         @<Declare variables for the internal grammar
         memoizations@>@;
@@ -3099,6 +3128,18 @@ int marpa_g_precompute(Marpa_Grammar g)
     marpa_obs_free (obs_precompute);
     return return_value;
 }
+
+@ Reinitialize the CILAR, because its size requirement may vary wildly
+bewteen a base grammar and its recognizers.
+A large allocation may be required in the grammar, which
+thereafter would be wasted space.
+@<Reinitialize the CILAR@> =
+{ cilar_reinit(&g->t_cilar); }
+@ {\bf To Do}: @^To Do@>
+Perhaps someday there should be a CILAR for each recognizer.
+This probably is an issue to be dealt with,
+when adding the ability
+to clone grammars.
 
 @** The grammar census.
 
@@ -3143,9 +3184,7 @@ a lot of useless diagnostics.
     @<Census nulling symbols@>@;
     @<Classify rules@>@;
     @<Mark valued symbols@>@;
-    if (1) {
-      @<Populate nullification CILs@>@;
-    }
+    @<Populate nullification CILs@>@;
 }
 
 @ @<Declare precompute variables@> =
@@ -3209,7 +3248,8 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
 {
   Marpa_Rule_ID rule_id;
 
-  /* \comment AVL tree for RHS symbols */
+    @t}\comment{@>
+  /* AVL tree for RHS symbols */
   const MARPA_AVL_TREE rhs_avl_tree = _marpa_avl_create (sym_rule_cmp, NULL);
     /* Size of G is sum of RHS lengths, plus 1 for each rule, which here is necessary
     for separator of sequences */
@@ -3218,7 +3258,8 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
                     (size_t)External_Size_of_G (g));
   struct sym_rule_pair *p_rh_sym_rule_pairs = p_rh_sym_rule_pair_base;
 
-  /* \comment AVL tree for LHS symbols */
+    @t}\comment{@>
+  /* AVL tree for LHS symbols */
   const MARPA_AVL_TREE lhs_avl_tree = _marpa_avl_create (sym_rule_cmp, NULL);
   struct sym_rule_pair *const p_lh_sym_rule_pair_base =
     marpa_obs_new (MARPA_AVL_OBSTACK (lhs_avl_tree), struct sym_rule_pair,
@@ -3236,7 +3277,8 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
 
       bv_bit_set (lhs_v, lhs_id);
 
-      /* \comment Insert the LH Sym / XRL pair into the LH AVL tree */
+    @t}\comment{@>
+      /* Insert the LH Sym / XRL pair into the LH AVL tree */
       p_lh_sym_rule_pairs->t_symid = lhs_id;
         p_lh_sym_rule_pairs->t_ruleid = rule_id;
       _marpa_avl_insert (lhs_avl_tree, p_lh_sym_rule_pairs);
@@ -3281,7 +3323,9 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
       marpa_obs_new (obs_precompute, RULEID, (size_t)External_Size_of_G (g));
     RULEID *p_rule_data = rule_data_base;
     traverser = _marpa_avl_t_init (rhs_avl_tree);
-    /* \comment One extra "symbol" as an end marker */
+
+    @t}\comment{@>
+    /* One extra "symbol" as an end marker */
     xrl_list_x_rh_sym =
       marpa_obs_new (obs_precompute, RULEID *, (size_t)pre_census_xsy_count + 1);
     for (pair = _marpa_avl_t_first (traverser); pair;
@@ -3305,7 +3349,8 @@ PRIVATE_NOT_INLINE int sym_rule_cmp(
       marpa_obs_new (obs_precompute, RULEID, (size_t)xrl_count);
     RULEID *p_rule_data = rule_data_base;
     traverser = _marpa_avl_t_init (lhs_avl_tree);
-    /* \comment One extra "symbol" as an end marker */
+    @t}\comment{@>
+    /* One extra "symbol" as an end marker */
     xrl_list_x_lh_sym =
       marpa_obs_new (obs_precompute, RULEID *, (size_t)pre_census_xsy_count + 1);
     for (pair = _marpa_avl_t_first (traverser); pair;
@@ -3334,7 +3379,8 @@ and a flag which indicates if there are any.
   for (symid = 0; symid < pre_census_xsy_count; symid++)
     {
       XSY symbol = XSY_by_ID (symid);
-          /* \comment If marked by the user, leave the symbol
+    @t}\comment{@>
+          /* If marked by the user, leave the symbol
              as set by the user, and update the boolean vector */
       if (XSY_is_Locked_Terminal (symbol))
         {
@@ -3346,7 +3392,8 @@ and a flag which indicates if there are any.
           bv_bit_clear (terminal_v, symid);
           continue;
         }
-      /* \comment If not marked by the user, take the default
+    @t}\comment{@>
+      /* If not marked by the user, take the default
          from the boolean vector and mark the symbol,
          if necessary. */
       if (bv_bit_test (terminal_v, symid))
@@ -3361,6 +3408,9 @@ Bit_Vector terminal_v = NULL;
 @ @<Declare census variables@> =
 Bit_Vector lhs_v = NULL;
 Bit_Vector empty_lhs_v = NULL;
+
+@ These might better be tracked as per-XSY CIL's.
+@<Declare census variables@> =
 RULEID** xrl_list_x_rh_sym = NULL;
 RULEID** xrl_list_x_lh_sym = NULL;
 
@@ -3594,43 +3644,53 @@ But currently we don't both -- we just mark the rule unproductive.
   const XSY rh_xsy = XSY_by_ID (rhs_id);
   const XSYID separator_id = Separator_of_XRL (xrl);
 
-     /* \comment A sequence rule is nullable if it can be zero length or
+    @t}\comment{@>
+     /* A sequence rule is nullable if it can be zero length or
     if its RHS is nullable */
   XRL_is_Nullable (xrl) = Minimum_of_XRL (xrl) <= 0
     || XSY_is_Nullable (rh_xsy);@;
 
-     /* \comment A sequence rule is nulling if its RHS is nulling */
+    @t}\comment{@>
+     /* A sequence rule is nulling if its RHS is nulling */
   XRL_is_Nulling (xrl) = XSY_is_Nulling (rh_xsy);
     
-     /* \comment A sequence rule is productive
+    @t}\comment{@>
+     /* A sequence rule is productive
      if it is nulling or if its RHS is productive */
   XRL_is_Productive (xrl) = XRL_is_Nullable (xrl) || XSY_is_Productive (rh_xsy);
 
-  // \comment Initialize to used if accessible and RHS is productive
+    @t}\comment{@>
+  // Initialize to used if accessible and RHS is productive
   XRL_is_Used (xrl) = XRL_is_Accessible (xrl) && XSY_is_Productive (rh_xsy);
 
-  // \comment Touch-ups to account for the separator
+    @t}\comment{@>
+  // Touch-ups to account for the separator
   if (separator_id >= 0)
     {
       const XSY separator_xsy = XSY_by_ID (separator_id);
-        /* \comment A non-nulling separator means a non-nulling rule */
+
+    @t}\comment{@>
+        /* A non-nulling separator means a non-nulling rule */
       if (!XSY_is_Nulling (separator_xsy))
         {
           XRL_is_Nulling (xrl) = 0;
         }
 
-          /* \comment A unproductive separator means a unproductive rule,
+    @t}\comment{@>
+          /* A unproductive separator means a unproductive rule,
           unless it is nullable.  */
       if (_MARPA_UNLIKELY(!XSY_is_Productive (separator_xsy)))
         {
           XRL_is_Productive (xrl) = XRL_is_Nullable(xrl);
 
-          // \comment Do not use a sequence rule with an unproductive separator
+    @t}\comment{@>
+          // Do not use a sequence rule with an unproductive separator
           XRL_is_Used(xrl) = 0;
         }
   }
 
-  // \comment Do not use if nulling
+    @t}\comment{@>
+  // Do not use if nulling
   if (XRL_is_Nulling (xrl)) XRL_is_Used (xrl) = 0;
 }
 
@@ -3646,7 +3706,8 @@ and cause an error in the recognizer.
 @<Mark valued symbols@> = 
 if (0)
   {
-    /* \comment Commented out.  The LHS terminal user is a sophisticated
+    @t}\comment{@>
+    /* Commented out.  The LHS terminal user is a sophisticated
        user so it is probably the better course to allow her the
        choice.  */
     XSYID xsy_id;
@@ -3675,15 +3736,20 @@ Change so that this runs only if there are prediction events.
 {
   XSYID xsyid;
   XRLID xrlid;
-  int nullable_xsy_count = 0;   /* Use this to make sure we
-                                   have enough CILAR buffer space */
+    @t}\comment{@>
+  /* Use this to make sure we have enough CILAR buffer space */
+  int nullable_xsy_count = 0; 
+
+    @t}\comment{@>
+   /* This matrix is large and very temporary,
+   so it does not go on the obstack */
   void* matrix_buffer = my_malloc(matrix_sizeof(
      pre_census_xsy_count,
-                       pre_census_xsy_count)); /* This
-  matrix is large and very temporary, so it does not go on the obstack */
+                       pre_census_xsy_count));
   Bit_Matrix nullification_matrix =
     matrix_buffer_create (matrix_buffer, pre_census_xsy_count,
                        pre_census_xsy_count);
+
   for (xsyid = 0; xsyid < pre_census_xsy_count; xsyid++)
     {                           /* Every nullable symbol symbol nullifies itself */
       if (!XSYID_is_Nullable (xsyid))
@@ -4005,7 +4071,8 @@ rule.
     int second_factor_position = factor_positions[factor_position_ix+1];
     if (second_factor_position >= nullable_suffix_ix) {
         piece_end = second_factor_position-1;
-        /* \comment The last factor is in the nullable suffix,
+    @t}\comment{@>
+        /* The last factor is in the nullable suffix,
             so the virtual RHS must be nullable */
         @<Create a CHAF virtual symbol@>@;
         @<Add CHAF rules for nullable continuation@>@;
@@ -4546,47 +4613,59 @@ unit transitions are not in general reflexive.
   for (rule_id = 0; rule_id < xrl_count; rule_id++)
     {
       XRL rule = XRL_by_ID (rule_id);
-      XSYID nonnulling_id = -1;
-      int nonnulling_count = 0;
+      XSYID nonnullable_id = -1;
+      int nonnullable_count = 0;
       int rhs_ix, rule_length;
       rule_length = Length_of_XRL (rule);
+
+      @t}\comment{@>
+      /* Count the non-nullable rules */
       for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
-        {
-          XSYID xsy_id = RHS_ID_of_RULE (rule, rhs_ix);
-          if (bv_bit_test (nullable_v, xsy_id))
-            continue;
-          nonnulling_id = xsy_id;
-          nonnulling_count++;
-        }
-        if (nonnulling_count == 1)
-        {
-          @<For |nonnulling_id|, set to,from
-            rule bit in |unit_transition_matrix|@>@;
-        }
-      else if (nonnulling_count == 0)
-        {
-          for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
-            {
-              nonnulling_id = RHS_ID_of_RULE (rule, rhs_ix);
-              if (!bv_bit_test (nullable_v, nonnulling_id))
-                continue;
-              if (XSY_is_Nulling (XSY_by_ID (nonnulling_id)))
-                continue;
-              /* |nonnulling_id| is a proper nullable */
-              @<For |nonnulling_id|, set to,from rule bit
-                in |unit_transition_matrix|@>@;
-            }
-        }
+	{
+	  XSYID xsy_id = RHS_ID_of_RULE (rule, rhs_ix);
+	  if (bv_bit_test (nullable_v, xsy_id))
+	    continue;
+	  nonnullable_id = xsy_id;
+	  nonnullable_count++;
+	}
+
+      if (nonnullable_count == 1)
+	{
+          @t}\comment{@>
+          /* If exactly one RHS symbol is non-nullable, it is a unit transition,
+             and the only one for this rule */
+	  @<For |nonnullable_id|, set to-,
+          from-rule bit in |unit_transition_matrix|@>@;
+	}
+      else if (nonnullable_count == 0)
+	{
+	  for (rhs_ix = 0; rhs_ix < rule_length; rhs_ix++)
+	    {
+              @t}\comment{@>
+              /* If exactly zero RHS symbols are non-nullable, all the proper nullables
+              (that is, nullables which are not nulling)
+              are are potential unit transitions */
+	      nonnullable_id = RHS_ID_of_RULE (rule, rhs_ix);
+
+	      if (XSY_is_Nulling (XSY_by_ID (nonnullable_id)))
+		continue;
+
+              @t}\comment{@>
+	      /* If here, |nonnullable_id| is a proper nullable */
+	      @<For |nonnullable_id|, set to-,
+              from-rule bit in |unit_transition_matrix|@>@;
+	    }
+	}
     }
 }
 
-@ We have a lone |nonnulling_id| in |rule_id|,
+@ We have a lone |nonnullable_id| in |rule_id|,
 so there is a unit transition from |rule_id| to every
-rule with |nonnulling_id| on the LHS.
-@<For |nonnulling_id|, set to,from rule bit in |unit_transition_matrix|@> =
+rule with |nonnullable_id| on the LHS.
+@<For |nonnullable_id|, set to-, from-rule bit in |unit_transition_matrix|@> =
 {
-  RULEID *p_xrl = xrl_list_x_lh_sym[nonnulling_id];
-  const RULEID *p_one_past_rules = xrl_list_x_lh_sym[nonnulling_id + 1];
+  RULEID *p_xrl = xrl_list_x_lh_sym[nonnullable_id];
+  const RULEID *p_one_past_rules = xrl_list_x_lh_sym[nonnullable_id + 1];
   for (; p_xrl < p_one_past_rules; p_xrl++)
     {
       /* Direct loops ($A \RA A$) only need the $(rule_id, rule_id)$ bit set,
@@ -4612,211 +4691,6 @@ rule with |nonnulling_id| on the LHS.
       rule->t_is_loop = 1;
     }
 }
-
-@** The Aycock-Horspool finite automata.
-
-@*0 Some statistics on AHFA states.
-
-@*1 Discovered states.
-
-@ For Perl's grammar, the discovered states range in size from 1 to 20 items,
-but the numbers are heavily skewed toward the low
-end.  Here are the item counts that appear, with the percent of the total
-discovered AHFA states with that item count in parentheses.
-in parentheses:
-\par
-\vskip\baselineskip
-\vbox{\offinterlineskip
-\halign{&#&
-  \strut\quad\hfil#\quad\cr
-&\omit&&\omit&\cr
-&Size\hfil&&Perl discovered&\cr\
-&&&states (percent)\hfil&\cr\
-&\omit&&\omit&\cr
-&1&&67.05\%&\cr
-&2&&25.67\%\cr
-&3&&2.87\%\cr
-&4&&2.68\%\cr
-&5&&0.19\%\cr
-&6&&0.38\%\cr
-&7&&0.19\%\cr
-&8&&0.57\%\cr
-&9&&0.19\%\cr
-&20&&0.19\%\cr
-&\omit&&\omit&\cr}
-}
-\vskip\baselineskip
-\par
-As can be seen, well over 90\% of the total discovered states have
-just one or two items.
-The average size is 1.5235,
-and the average of the $|size|^2$ is 3.9405.
-
-@ For HTML, I looked at a parser which generates grammars on
-the fly, aggregating the states in all of them.
-For the the HTML grammars I used, the totals are even more lopsided:
-80.96\% of all discovered states have only 1 item.
-All the others (19.04\%) have 2 items.
-The average size is 1.1904,
-and the average of the $|size|^2$ is 1.5712.
-
-@ For a compiler-quality C grammar,
-the discovered states range in size from 1 to 15 items but again,
-the numbers are heavily skewed toward the low
-end.  Here are the item counts that appear, with the percent of the total
-discovered AHFA states with that item count in parentheses.
-in parentheses:
-\par
-\vskip\baselineskip
-\vbox{\offinterlineskip
-\halign{&#&
-  \strut\quad\hfil#\quad\cr
-&\omit&&\omit&\cr
-&Size\hfil&&C discovered states&\cr\
-&\omit&&\omit&\cr
-&1&&695&\cr
-&2&&188&\cr
-&3&&40&\cr
-&4&&17&\cr
-&5&&6&\cr
-&6&&8&\cr
-&7&&6&\cr
-&8&&4&\cr
-&9&&1&\cr
-&10&&2&\cr
-&12&&2&\cr
-&15&&1&\cr
-&\omit&&\omit&\cr}
-}
-\vskip\baselineskip
-\par
-There were 970 discovered C states.
-The average size was 1.52.
-The average of the size squared was 3.98.
-
-@*1 Predicted states.
-
-@ The number of predicted states tends to be much more
-evenly distributed.
-It also tends to be much larger, and
-the average for practical grammars may be $O(s)$,
-where $s$ is the size of the grammar.
-This is the same as the theoretical worst case.
-
-@ Here are the number of items for predicted states for the Perl grammar.
-Here in tabular form are the sizes most common sizes, in order of
-decreasing frequency:
-\par
-\vskip\baselineskip
-\vbox{\offinterlineskip
-\halign{&#&
-  \strut\quad\hfil#\quad\cr
-&\omit&&\omit&\cr
-&Size\hfil&&Frequency&\cr\
-&\omit&&\omit&\cr
-&2&&5&\cr
-&3, 142&&4&\cr
-&1, 4&&3&\cr
-&6, 7, 143&&2&\cr
-&\omit&&\omit&\cr}
-}
-\vskip\baselineskip
-\par
-
-In addition, the Perl grammar had exactly one predicted state of
-the following sizes:
-5,
-64,
-71,
-77,
-79,
-81,
-83,
-85,
-88,
-90,
-98,
-100,
-102,
-104,
-106,
-108,
-111,
-116,
-127,
-129,
-132,
-135,
-136,
-137,
-141,
-144,
-149,
-151,
-156,
-157,
-220,
-224, and
-225.
-
-@ The number of predicted states in the Perl grammar was 58.
-The average size was 83.59 AHFA items.
-The average of the size squared was 11356.41.
-
-@ And here is the same data for the collection of HTML grammars:
-\par
-\vskip\baselineskip
-\vbox{\offinterlineskip
-\halign{&#&
-  \strut\quad\hfil#\quad\cr
-&\omit&&\omit&\cr
-&Size\hfil&&HTML predicted states&\cr\
-&\omit&&\omit&\cr
-&1&&95&\cr
-&2&&95&\cr
-&4&&95&\cr
-&11&&181&\cr
-&14&&181&\cr
-&15&&294&\cr
-&16&&112&\cr
-&18&&349&\cr
-&19&&120&\cr
-&20&&190&\cr
-&21&&63&\cr
-&22&&22&\cr
-&24&&8&\cr
-&25&&16&\cr
-&26&&16&\cr
-&28&&2&\cr
-&29&&16&\cr
-&\omit&&\omit&\cr}
-}
-\vskip\baselineskip
-
-@
-The total number of predicted states in the HTML grammars was 1855.
-Their average size was 14.60.
-Their average size squared was 250.93.
-
-@ The number of predicted states in the C grammar was 114.
-The average size was 54.81.
-The average size squared was 5361.28.
-The sizes of the predicted states for the C grammar were spread from 1 
-to 222.
-\li The most frequent sizes were 2 and 3, tied at
-six states each.
-\li There were five states of size 8.
-\li There were four states in each of the sizes 4 and 90.
-\li There were three states in each of the following sizes:
-      6, 11, 31, and 47
-\li There were two states in each of the following sizes:
-           5, 14, 42, 64, 68, 78, 91, 95, and 98.
-\li There was a single state of each of the following sizes:
-     1, 7, 9, 12, 15, 17, 18, 19, 21, 22, 25, 28, 29, 33, 34, 36,
-    37, 40, 43, 44, 45, 46, 52, 53, 54, 57, 58, 61, 65, 66, 69, 72,
-    74, 76, 80, 81, 86, 87, 89, 94, 96, 97, 99, 102, 105, 108,
-   115, 117, 119, 123, 125, 127, 144, 149, 150, 154, 181, 219,
-   and 222.
 
 @** Aycock-Horspool item (AHM) code.
 These were formerly called AHFA items,
@@ -5048,9 +4922,19 @@ Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
   IRL_of_AHM (current_item) = irl;
   Null_Count_of_AHM (current_item) = leading_nulls;
   Quasi_Position_of_AHM (current_item) = current_item - first_aim_of_irl;
-  AHM_was_Predicted (current_item) =
-    ((Quasi_Position_of_AHM (current_item) == 0)
-     && (ID_of_IRL(irl) != ID_of_IRL (g->t_start_irl)));
+  if (Quasi_Position_of_AHM (current_item) == 0) {
+     if (ID_of_IRL(irl) == ID_of_IRL (g->t_start_irl))
+     {
+      AHM_was_Predicted (current_item) = 0;
+      AHM_is_Initial (current_item) = 1;
+     } else {
+      AHM_was_Predicted (current_item) = 1;
+      AHM_is_Initial (current_item) = 0;
+     }
+  } else {
+    AHM_was_Predicted (current_item) = 0;
+    AHM_is_Initial (current_item) = 0;
+  }
   @<Initialize event data for |current_item|@>@;
 }
 
@@ -5085,19 +4969,24 @@ we are traversing backwards.
   CIL t_prediction_xsyids;
 
 @*0 AHM container.
-@ @s AEX int
-@<Private typedefs@> = typedef int AEX;
 
-@*0 Is AHM predicted?.
-@ This boolean indicates source, not contents.
-If it is true the AHM is a prediction,
-but it is false for the start AHM at location 0,
-which is a prediction, but which is the result
-of initalization, and not of prediction.
+@*0 What is source of the AHM?.
+@ These macros and booleans indicates source,
+not contents.
+In particular ``was predicted'' means was the
+result of a prediction, and does not always
+indicate whether the AHM or YIM contains a
+prediction.
+This is relevant in the case of the the
+initial AHM, which contains a predicted,
+but for which ``was predicted'' is false.
 @d AHM_was_Predicted(aim) ((aim)->t_was_predicted)
 @d YIM_was_Predicted(yim) AHM_was_Predicted(AHM_of_YIM(yim))
+@d AHM_is_Initial(aim) ((aim)->t_is_initial)
+@d YIM_is_Initial(yim) AHM_is_Initial(AHM_of_YIM(yim))
 @<Bit aligned AHM elements@> =
 BITFIELD t_was_predicted:1;
+BITFIELD t_is_initial:1;
 
 @*0 Event data.
 A boolean tracks whether this is an
@@ -5225,13 +5114,11 @@ one non-nulling symbol in each IRL. */
     }
 }
 
-@* Discovered AHFA states.
 @ @<Declare variables for the internal grammar
         memoizations@> =
   const RULEID irl_count = IRL_Count_of_G(g);
   const NSYID nsy_count = NSY_Count_of_G(g);
   const XSYID xsy_count = XSY_Count_of_G(g);
-  IRLID** irl_list_x_lh_nsy = NULL;
   Bit_Matrix nsy_by_right_nsy_matrix;
    Bit_Matrix prediction_nsy_by_irl_matrix;
 
@@ -5253,45 +5140,47 @@ of minimum sizes.
 
 @ @<Calculate Rule by LHS lists@> =
 {
+  NSYID lhsid;
+
+    @t}\comment{@>
+   /* This matrix is large and very temporary,
+   so it does not go on the obstack */
+  void* matrix_buffer = my_malloc(matrix_sizeof(
+     nsy_count, irl_count));
+  Bit_Matrix irl_by_lhs_matrix =
+        matrix_buffer_create (matrix_buffer, nsy_count, irl_count);
+
   IRLID irl_id;
-  const MARPA_AVL_TREE lhs_avl_tree =
-    _marpa_avl_create (sym_rule_cmp, NULL);
-  struct sym_rule_pair *const p_sym_rule_pair_base =
-    marpa_obs_new (MARPA_AVL_OBSTACK (lhs_avl_tree), struct sym_rule_pair,
-                    irl_count);
-  struct sym_rule_pair *p_sym_rule_pairs = p_sym_rule_pair_base;
   for (irl_id = 0; irl_id < irl_count; irl_id++)
     {
       const IRL irl = IRL_by_ID (irl_id);
       const NSYID lhs_nsyid = LHSID_of_IRL(irl);
-      p_sym_rule_pairs->t_symid = lhs_nsyid;
-      p_sym_rule_pairs->t_ruleid = irl_id;
-      _marpa_avl_insert (lhs_avl_tree, p_sym_rule_pairs);
-      p_sym_rule_pairs++;
+      matrix_bit_set (irl_by_lhs_matrix, lhs_nsyid, irl_id);
     }
-  {
-    MARPA_AVL_TRAV traverser;
-    struct sym_rule_pair *pair;
-    NSYID seen_nsyid = -1;
-    IRLID *const rule_data_base =
-      marpa_obs_new (obs_precompute, IRLID, irl_count);
-    IRLID *p_rule_data = rule_data_base;
-    traverser = _marpa_avl_t_init (lhs_avl_tree);
-    /* One extra "symbol" as an end marker */
-    irl_list_x_lh_nsy =
-      marpa_obs_new (obs_precompute, IRLID *, nsy_count + 1);
-    for (pair = _marpa_avl_t_first (traverser); pair;
-         pair = (struct sym_rule_pair *) _marpa_avl_t_next (traverser))
-      {
-        const NSYID current_nsyid = pair->t_symid;
-        while (seen_nsyid < current_nsyid)
-          irl_list_x_lh_nsy[++seen_nsyid] = p_rule_data;
-        *p_rule_data++ = pair->t_ruleid;
-      }
-    while (++seen_nsyid <= nsy_count)
-      irl_list_x_lh_nsy[seen_nsyid] = p_rule_data;
-  }
-  _marpa_avl_destroy (lhs_avl_tree);
+
+  @t}\comment{@>
+  /* for every LHS row of the IRL-by-LHS matrix, add
+  all its IRL's to the LHS CIL */
+  for (lhsid = 0; lhsid < nsy_count; lhsid++)
+    {
+      IRLID irlid;
+      int min, max, start;
+      cil_buffer_clear (&g->t_cilar);
+      for (start = 0;
+           bv_scan (matrix_row
+                    (irl_by_lhs_matrix, lhsid),
+                    start, &min, &max); start = max + 2)
+        {
+          for (irlid = min; irlid <= max; irlid++)
+          {
+            cil_buffer_push (&g->t_cilar, irlid);
+          }
+        }
+      LHS_CIL_of_NSYID(lhsid) = cil_buffer_add (&g->t_cilar);
+    }
+
+  my_free(matrix_buffer);
+
 }
 
 @*0 Predictions.
@@ -5359,7 +5248,8 @@ with |S2| on its LHS.
                        irl_count);
   for (from_nsyid = 0; from_nsyid < nsy_count; from_nsyid++)
     {
-      // for every row of the symbol-by-symbol matrix
+      @t}\comment{@>
+      /* for every row of the symbol-by-symbol matrix */
       int min, max, start;
       for (start = 0;
            bv_scan (matrix_row
@@ -5367,18 +5257,20 @@ with |S2| on its LHS.
                     start, &min, &max); start = max + 2)
         {
           NSYID to_nsyid;
+
+          @t}\comment{@>
+          /* for every predicted symbol */
           for (to_nsyid = min; to_nsyid <= max; to_nsyid++)
             {
-              // for every predicted symbol
-              RULEID *p_irl_x_lh_nsy = irl_list_x_lh_nsy[to_nsyid];
-              const RULEID *p_one_past_rules = irl_list_x_lh_nsy[to_nsyid + 1];
-              for (; p_irl_x_lh_nsy < p_one_past_rules; p_irl_x_lh_nsy++)
-                {
-                  // For every rule with that symbol on its LHS
-                  const IRLID irl_with_this_lhs = *p_irl_x_lh_nsy;
+              int cil_ix;
+              const CIL lhs_cil = LHS_CIL_of_NSYID(to_nsyid);
+              const int cil_count = Count_of_CIL (lhs_cil);
+              for (cil_ix = 0; cil_ix < cil_count; cil_ix++)
+              {
+                  const IRLID irlid = Item_of_CIL (lhs_cil, cil_ix);
                   matrix_bit_set (prediction_nsy_by_irl_matrix,
-                                  from_nsyid, irl_with_this_lhs);
-                }
+                                  from_nsyid, irlid);
+              }
             }
         }
     }
@@ -5579,110 +5471,6 @@ with |S2| on its LHS.
     }
 }
 
-@ Reinitialize the CILAR, because its size requirement may vary wildly
-bewteen a base grammar and its recognizers.
-A large allocation may be required in the grammar, which
-thereafter would be wasted space.
-@<Reinitialize the CILAR@> =
-{ cilar_reinit(&g->t_cilar); }
-@ {\bf To Do}: @^To Do@>
-Perhaps someday there should be a CILAR for each recognizer.
-This probably is an issue to be dealt with,
-when adding the ability
-to clone grammars.
-
-@** Input (I, INPUT) code.
-|INPUT| is a "hidden" class.
-It is manipulated
-entirely via the Recognizer class ---
-there are no public
-methods for it.
-@ @<Private typedefs@> =
-struct s_input;
-typedef struct s_input* INPUT;
-@ @<Private structures@> =
-struct s_input {
-    @<Widely aligned input elements@>@;
-    @<Int aligned input elements@>@;
-};
-
-@ @<Function definitions@> =
-PRIVATE INPUT input_new (GRAMMAR g)
-{
-  INPUT input = my_malloc (sizeof(struct s_input));
-  TOK_Obs_of_I (input) = marpa_obs_init;
-  @<Initialize input elements@>@;
-  return input;
-}
-
-@*0 Reference counting and destructors.
-@ @<Int aligned input elements@>=
-    int t_ref_count;
-@ @<Initialize input elements@> =
-    input->t_ref_count = 1;
-
-@ Decrement the input reference count.
-@<Function definitions@> =
-PRIVATE void
-input_unref (INPUT input)
-{
-  MARPA_ASSERT (input->t_ref_count > 0)
-  input->t_ref_count--;
-  if (input->t_ref_count <= 0)
-    {
-        input_free(input);
-    }
-}
-
-@ Increment the input reference count.
-@<Function definitions@> =
-PRIVATE INPUT
-input_ref (INPUT input)
-{
-  MARPA_ASSERT(input->t_ref_count > 0)
-  input->t_ref_count++;
-  return input;
-}
-
-@ The token obstack has exactly the same lifetime as its
-container |input| object,
-so there is no need for a flag to
-guarantee that it is safe to destroy it.
-@<Function definitions@> =
-PRIVATE void input_free(INPUT input)
-{
-    marpa_obs_free(TOK_Obs_of_I(input));
-    my_free( input);
-}
-
-@*0 Token obstack.
-@ An obstack dedicated to the tokens and an array
-with default tokens for each symbol.
-Currently,
-the default tokens are used to provide
-null values, since all non-tokens are given
-values when read.
-There is a special obstack for the tokens, to
-to separate the token stream from the rest of the recognizer
-data.
-Once the bocage is built, the token data is all that
-it needs, and someday I may want to take advantage of
-this fact by freeing up the rest of recognizer memory.
-@d TOK_Obs_of_I(i)
-    ((i)->t_token_obs)
-@<Widely aligned input elements@> =
-struct marpa_obstack* t_token_obs;
-
-@*0 Base objects.
-@ @d G_of_I(i) ((i)->t_grammar)
-@<Widely aligned input elements@> =
-    GRAMMAR t_grammar;
-@ @<Initialize input elements@> =
-{
-    G_of_I(input) = g;
-    grammar_ref(g);
-}
-
 @** Recognizer (R, RECCE) code.
 @<Public incomplete structures@> =
 struct marpa_r;
@@ -5690,10 +5478,8 @@ typedef struct marpa_r* Marpa_Recognizer;
 typedef Marpa_Recognizer Marpa_Recce;
 @ @<Private typedefs@> =
 typedef struct marpa_r* RECCE;
-@ @d I_of_R(r) ((r)->t_input)
-@<Recognizer structure@> =
+@ @<Recognizer structure@> =
 struct marpa_r {
-    INPUT t_input;
     @<Widely aligned recognizer elements@>@;
     @<Int aligned recognizer elements@>@;
     @<Bit aligned recognizer elements@>@;
@@ -5764,18 +5550,23 @@ void recce_free(struct marpa_r *r)
 {
     @<Unpack recognizer objects@>@;
     @<Destroy recognizer elements@>@;
-    grammar_unref(g);
     @<Destroy recognizer obstack@>@;
     my_free( r);
 }
 
 @*0 Base objects.
 Initialized in |marpa_r_new|.
-@d G_of_R(r) (G_of_I((r)->t_input))
-@<Unpack recognizer objects@> =
-const INPUT input = I_of_R(r);
-const GRAMMAR g = G_of_I(input);
-@ @<Destroy recognizer elements@> = input_unref(input);
+@d G_of_R(r) ((r)->t_grammar)
+@<Widely aligned recognizer elements@> =
+    GRAMMAR t_grammar;
+@ @<Initialize recognizer elements@> =
+{
+  G_of_R(r) = g;
+  grammar_ref(g);
+}
+@ @<Unpack recognizer objects@> =
+const GRAMMAR g = G_of_R(r);
+@ @<Destroy recognizer elements@> = grammar_unref(g);
 
 @*0 Input phase.
 The recognizer always is
@@ -5809,9 +5600,12 @@ r->t_current_earleme = -1;
 unsigned int marpa_r_current_earleme(Marpa_Recognizer r)
 { return (unsigned int)Current_Earleme_of_R(r); }
 
-@ @d Current_YS_of_R(r) current_ys_of_r(r)
+@ The ``Earley set at the current earleme'' is always
+the latest YS, if it is defined.
+There may not be a YS at the current earleme.
+@d YS_at_Current_Earleme_of_R(r) ys_at_current_earleme(r)
 @<Function definitions@> =
-PRIVATE YS current_ys_of_r(RECCE r)
+PRIVATE YS ys_at_current_earleme(RECCE r)
 {
     const YS latest = Latest_YS_of_R(r);
     if (Earleme_of_YS(latest) == Current_Earleme_of_R(r)) return latest;
@@ -6246,6 +6040,16 @@ int marpa_r_is_exhausted(Marpa_Recognizer r)
     return R_is_Exhausted(r);
 }
 
+@*1 Is the parser consistent?
+A parser becomes inconsistent when
+YIM's or LIM's or ALT's are rejected.
+It can be made consistent again by calling
+|marpa_r_consistent()|.
+@d First_Inconsistent_YS_of_R(r) ((r)->t_first_inconsistent_ys)
+@d R_is_Consistent(r) ((r)->t_first_inconsistent_ys < 0)
+@<Int aligned recognizer elements@> = YSID t_first_inconsistent_ys;
+@ @<Initialize recognizer elements@> = r->t_first_inconsistent_ys = -1;
+
 @*0 The recognizer obstack.
 Create an obstack with the lifetime of the recognizer.
 This is a very efficient way of allocating memory which won't be
@@ -6449,218 +6253,6 @@ earley_set_new( RECCE r, JEARLEME id)
   return set;
 }
 
-@** Earley set trace functions.
-Many of the
-trace functions use
-a ``trace Earley set" which is
-tracked on a per-recognizer basis.
-The ``trace Earley set" is tracked separately
-from the current Earley set for the parse.
-The two may coincide, but should not be confused.
-@<Widely aligned recognizer elements@> =
-struct s_earley_set* t_trace_earley_set;
-@ @<Initialize recognizer elements@> =
-r->t_trace_earley_set = NULL;
-
-@ @<Function definitions@> =
-Marpa_Earley_Set_ID _marpa_r_trace_earley_set(Marpa_Recognizer r)
-{
-  @<Return |-2| on failure@>@;
-  @<Unpack recognizer objects@>@;
-  YS trace_earley_set = r->t_trace_earley_set;
-  @<Fail if not trace-safe@>@;
-  if (!trace_earley_set) {
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
-      return failure_indicator;
-  }
-  return Ord_of_YS(trace_earley_set);
-}
-
-@ @<Function definitions@> =
-Marpa_Earley_Set_ID marpa_r_latest_earley_set(Marpa_Recognizer r)
-{
-  @<Return |-2| on failure@>@;
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@;
-  return Ord_of_YS(Latest_YS_of_R(r));
-}
-
-@ @<Function definitions@> =
-Marpa_Earleme marpa_r_earleme(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
-{
-  @<Unpack recognizer objects@>@;
-    @<Return |-2| on failure@>@;
-    YS earley_set;
-    @<Fail if recognizer not started@>@;
-    @<Fail if fatal error@>@;
-    if (set_id < 0) {
-        MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
-        return failure_indicator;
-    }
-    r_update_earley_sets (r);
-    if (!YS_Ord_is_Valid (r, set_id))
-      {
-        MARPA_ERROR(MARPA_ERR_NO_EARLEY_SET_AT_LOCATION);
-        return failure_indicator;
-      }
-    earley_set = YS_of_R_by_Ord (r, set_id);
-    return Earleme_of_YS (earley_set);
-}
-
-@ Note that this trace function returns the earley set size
-of the {\bf current earley set}.
-It includes rejected |YIM|'s.
-@ @<Function definitions@> =
-int _marpa_r_earley_set_size(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
-{
-    @<Return |-2| on failure@>@;
-    YS earley_set;
-  @<Unpack recognizer objects@>@;
-    @<Fail if recognizer not started@>@;
-    @<Fail if fatal error@>@;
-    r_update_earley_sets (r);
-    if (!YS_Ord_is_Valid (r, set_id))
-      {
-        MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
-        return failure_indicator;
-      }
-    earley_set = YS_of_R_by_Ord (r, set_id);
-    return YIM_Count_of_YS (earley_set);
-}
-
-@ Many of the
-trace functions use
-a ``trace Earley item" which is
-tracked on a per-recognizer basis.
-@<Widely aligned recognizer elements@> =
-YIM t_trace_earley_item;
-@ @<Initialize recognizer elements@> =
-r->t_trace_earley_item = NULL;
-
-@ This function sets
-the trace Earley set to the one indicated
-by the ID
-of the argument.
-On success,
-the earleme of the new trace Earley set is
-returned.
-@ Various other trace data depends on the Earley
-set, and must be consistent with it.
-This function clears all such data,
-unless it is called while the recognizer is in
-a trace-unsafe state (initial, fatal, etc.)
-or unless the the Earley set requested by the
-argument is already the trace Earley set.
-On failure because the ID is for a non-existent
-Earley set which does not
-exist, |-1| is returned.
-The upper levels may choose to treat this as a soft failure.
-This may be treated as a soft failure by the upper levels.
-On failure because the ID is illegal (less than zero)
-or for other failures, |-2| is returned.
-The upper levels may choose to treat these as hard failures.
-@ @<Function definitions@> =
-Marpa_Earleme
-_marpa_r_earley_set_trace (Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
-{
-  YS earley_set;
-  const int es_does_not_exist = -1;
-  @<Return |-2| on failure@>@/
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@;
-    if (r->t_trace_earley_set && Ord_of_YS (r->t_trace_earley_set) == set_id)
-      { /* If the set is already
-           the current earley set,
-           return successfully without resetting any of the dependant data */
-        return Earleme_of_YS (r->t_trace_earley_set);
-      }
-  @<Clear trace Earley set dependent data@>@;
-    if (set_id < 0)
-    {
-        MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
-        return failure_indicator;
-    }
-  r_update_earley_sets (r);
-    if (set_id >= MARPA_DSTACK_LENGTH (r->t_earley_set_stack))
-      {
-        return es_does_not_exist;
-      }
-    earley_set = YS_of_R_by_Ord (r, set_id);
-  r->t_trace_earley_set = earley_set;
-  return Earleme_of_YS(earley_set);
-}
-
-@ @<Clear trace Earley set dependent data@> = {
-  r->t_trace_earley_set = NULL;
-  trace_earley_item_clear(r);
-  @<Clear trace postdot item data@>@;
-}
-
-@ @<Function definitions@> =
-Marpa_AHM_ID
-_marpa_r_earley_item_trace (Marpa_Recognizer r, Marpa_Earley_Item_ID item_id)
-{
-  const int yim_does_not_exist = -1;
-  @<Return |-2| on failure@>@;
-  YS trace_earley_set;
-  YIM earley_item;
-  YIM *earley_items;
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@;
-  trace_earley_set = r->t_trace_earley_set;
-  if (!trace_earley_set)
-    {
-      @<Clear trace Earley set dependent data@>@;
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
-      return failure_indicator;
-    }
-  trace_earley_item_clear (r);
-  if (item_id < 0)
-    {
-      MARPA_ERROR (MARPA_ERR_YIM_ID_INVALID);
-      return failure_indicator;
-    }
-  if (item_id >= YIM_Count_of_YS (trace_earley_set))
-    {
-      return yim_does_not_exist;
-    }
-  earley_items = YIMs_of_YS (trace_earley_set);
-  earley_item = earley_items[item_id];
-  r->t_trace_earley_item = earley_item;
-  return AHMID_of_YIM (earley_item);
-}
-
-@ Clear all the data elements specifically
-for the trace Earley item.
-The difference between this code and
-|trace_earley_item_clear| is
-that |trace_earley_item_clear| 
-also clears the source link.
-@<Clear trace Earley item data@> =
-      r->t_trace_earley_item = NULL;
-
-@ @<Function definitions@> =
-PRIVATE void trace_earley_item_clear(RECCE r)
-{
-    @<Clear trace Earley item data@>@/
-    trace_source_link_clear(r);
-}
-
-@ @<Function definitions@> =
-Marpa_Earley_Set_ID _marpa_r_earley_item_origin(Marpa_Recognizer r)
-{
-    @<Return |-2| on failure@>@;
-    YIM item = r->t_trace_earley_item;
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@;
-    if (!item) {
-        @<Clear trace Earley item data@>@;
-        MARPA_ERROR(MARPA_ERR_NO_TRACE_YIM);
-        return failure_indicator;
-    }
-    return Origin_Ord_of_YIM(item);
-}
-
 @** Earley item (YIM) code.
 @ {\bf Optimization Principles:}
 \li Optimization should favor unambiguous grammars,
@@ -6696,22 +6288,25 @@ be recopied to make way for pointers to the linked lists.
   LHS_NSYID_of_AHM(AHM_of_YIM(yim))
 @ It might be slightly faster if this boolean is memoized in the Earley item
 when the Earley item is initialized.
-@d Earley_Item_is_Completion(item)
+@d YIM_is_Completion(item)
     (AHM_is_Completion(AHM_of_YIM(item)))
 @s Marpa_Earley_Item_ID int
 @<Public typedefs@> = typedef int Marpa_Earley_Item_ID;
 @ The ID of the Earley item is per-Earley-set, so that
 to uniquely specify the Earley item you must also specify
 the Earley set.
-@d YS_of_YIM(item) ((item)->t_key.t_set)
-@d YS_Ord_of_YIM(item) (Ord_of_YS(YS_of_YIM(item)))
-@d Ord_of_YIM(item) ((item)->t_ordinal)
-@d Earleme_of_YIM(item) Earleme_of_YS(YS_of_YIM(item))
-@d AHM_of_YIM(item) ((item)->t_key.t_aim)
-@d AHMID_of_YIM(item) ID_of_AHM(AHM_of_YIM(item))
-@d Origin_Earleme_of_YIM(item) (Earleme_of_YS(Origin_of_YIM(item)))
-@d Origin_Ord_of_YIM(item) (Ord_of_YS(Origin_of_YIM(item)))
-@d Origin_of_YIM(item) ((item)->t_key.t_origin)
+@d YS_of_YIM(yim) ((yim)->t_key.t_set)
+@d YS_Ord_of_YIM(yim) (Ord_of_YS(YS_of_YIM(yim)))
+@d Ord_of_YIM(yim) ((yim)->t_ordinal)
+@d Earleme_of_YIM(yim) Earleme_of_YS(YS_of_YIM(yim))
+@d AHM_of_YIM(yim) ((yim)->t_key.t_aim)
+@d AHMID_of_YIM(yim) ID_of_AHM(AHM_of_YIM(yim))
+@d Postdot_NSYID_of_YIM(yim) Postdot_NSYID_of_AHM(AHM_of_YIM(yim))
+@d IRL_of_YIM(yim) IRL_of_AHM(AHM_of_YIM(yim))
+@d IRLID_of_YIM(yim) ID_of_IRL(IRL_of_YIM(yim))
+@d Origin_Earleme_of_YIM(yim) (Earleme_of_YS(Origin_of_YIM(yim)))
+@d Origin_Ord_of_YIM(yim) (Ord_of_YS(Origin_of_YIM(yim)))
+@d Origin_of_YIM(yim) ((yim)->t_key.t_origin)
 @s YIM int
 @<Private incomplete structures@> =
 struct s_earley_item;
@@ -6729,6 +6324,10 @@ should not be restrictive in practice.
 @d YIM_ORDINAL_WIDTH 16
 @d YIM_ORDINAL_CLAMP(x) (((1<<(YIM_ORDINAL_WIDTH))-1) & (x))
 @d YIM_FATAL_THRESHOLD ((1<<(YIM_ORDINAL_WIDTH))-2)
+@d YIM_is_Rejected(yim) ((yim)->t_is_rejected)
+@d YIM_is_Active(yim) ((yim)->t_is_active)
+@d YIM_was_Scanned(yim) ((yim)->t_was_scanned)
+@d YIM_was_Fusion(yim) ((yim)->t_was_fusion)
 @<Earley item structure@> =
 struct s_earley_item_key {
      AHM t_aim;
@@ -6741,9 +6340,17 @@ struct s_earley_item {
      union u_source_container t_container;
      BITFIELD t_ordinal:YIM_ORDINAL_WIDTH;
     BITFIELD t_source_type:3;
-    BITFIELD t_rejected:1;
+    BITFIELD t_is_rejected:1;
+    BITFIELD t_is_active:1;
+    BITFIELD t_was_scanned:1;
+    BITFIELD t_was_fusion:1;
 };
 typedef struct s_earley_item YIM_Object;
+
+@ Signed as opposed to the the way it is kept (unsigned, for portability,
+because it is a bitfield.  I may have to change this.
+@<Private typedefs@> =
+typedef int YIMID;
 
 @*0 Constructor.
 Find an Earley item object, creating it if it does not exist.
@@ -6765,7 +6372,13 @@ PRIVATE YIM earley_item_create(const RECCE r,
   new_item = marpa_obs_new (r->t_obs, struct s_earley_item, 1);
   new_item->t_key = key;
   new_item->t_source_type = NO_SOURCE;
-  new_item->t_rejected = 0;
+  YIM_is_Rejected(new_item) = 0;
+  YIM_is_Active(new_item) = 1;
+  {
+    SRC unique_yim_src = SRC_of_YIM (new_item);
+    SRC_is_Rejected (unique_yim_src) = 0;
+    SRC_is_Active (unique_yim_src) = 1;
+  }
   Ord_of_YIM(new_item) = YIM_ORDINAL_CLAMP((unsigned int)count - 1);
   end_of_work_stack = WORK_YIM_PUSH(r);
   *end_of_work_stack = new_item;
@@ -6894,11 +6507,13 @@ with a |NULL| Earley item pointer.
 @d Next_PIM_of_LIM(leo) (Next_PIM_of_YIX(YIX_of_LIM(leo)))
 @d Origin_of_LIM(leo) ((leo)->t_origin)
 @d Top_AHM_of_LIM(leo) ((leo)->t_top_aim)
-@d Base_to_AHM_of_LIM(leo) ((leo)->t_base_to_aim)
+@d Trailhead_AHM_of_LIM(leo) ((leo)->t_trailhead_aim)
 @d Predecessor_LIM_of_LIM(leo) ((leo)->t_predecessor)
-@d Base_YIM_of_LIM(leo) ((leo)->t_base)
+@d Trailhead_YIM_of_LIM(leo) ((leo)->t_base)
 @d YS_of_LIM(leo) ((leo)->t_set)
 @d Earleme_of_LIM(lim) Earleme_of_YS(YS_of_LIM(lim))
+@d LIM_is_Rejected(lim) ((lim)->t_is_rejected)
+@d LIM_is_Active(lim) ((lim)->t_is_active)
 @<Private incomplete structures@> =
 struct s_leo_item;
 typedef struct s_leo_item* LIM;
@@ -6908,80 +6523,18 @@ struct s_leo_item {
     @<Widely aligned LIM elements@>@;
      YS t_origin;
      AHM t_top_aim;
-     AHM t_base_to_aim;
+     AHM t_trailhead_aim;
      LIM t_predecessor;
      YIM t_base;
      YS t_set;
+     BITFIELD t_is_rejected:1;
+     BITFIELD t_is_active:1;
 };
 typedef struct s_leo_item LIM_Object;
 
 @ @d CIL_of_LIM(lim) ((lim)->t_cil)
 @<Widely aligned LIM elements@> =
     CIL t_cil;
-
-@** Leo item (LIM) trace functions.
-The functions in this section are all accessors.
-The trace Leo item is selected by setting the trace postdot item
-to a Leo item.
-
-@ @<Function definitions@> =
-Marpa_Symbol_ID _marpa_r_leo_predecessor_symbol(Marpa_Recognizer r)
-{
-  const Marpa_Symbol_ID no_predecessor = -1;
-  @<Return |-2| on failure@>@;
-  PIM postdot_item = r->t_trace_postdot_item;
-  LIM predecessor_leo_item;
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@;
-  if (!postdot_item) {
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
-      return failure_indicator;
-  }
-  if (YIM_of_PIM(postdot_item)) {
-      MARPA_ERROR(MARPA_ERR_PIM_IS_NOT_LIM);
-      return failure_indicator;
-  }
-  predecessor_leo_item = Predecessor_LIM_of_LIM(LIM_of_PIM(postdot_item));
-  if (!predecessor_leo_item) return no_predecessor;
-  return Postdot_NSYID_of_LIM(predecessor_leo_item);
-}
-
-@ @<Function definitions@> =
-Marpa_Earley_Set_ID _marpa_r_leo_base_origin(Marpa_Recognizer r)
-{
-  const JEARLEME pim_is_not_a_leo_item = -1;
-  @<Return |-2| on failure@>@;
-  PIM postdot_item = r->t_trace_postdot_item;
-  @<Unpack recognizer objects@>@;
-  YIM base_earley_item;
-  @<Fail if not trace-safe@>@;
-  if (!postdot_item) {
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
-      return failure_indicator;
-  }
-  if (YIM_of_PIM(postdot_item)) return pim_is_not_a_leo_item;
-  base_earley_item = Base_YIM_of_LIM(LIM_of_PIM(postdot_item));
-  return Origin_Ord_of_YIM(base_earley_item);
-}
-
-@ Actually return AHM ID, not the obsolete AHFA ID.
-@<Function definitions@> =
-Marpa_AHM_ID _marpa_r_leo_base_state(Marpa_Recognizer r)
-{
-  const JEARLEME pim_is_not_a_leo_item = -1;
-  @<Return |-2| on failure@>@;
-  PIM postdot_item = r->t_trace_postdot_item;
-  YIM base_earley_item;
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@;
-  if (!postdot_item) {
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
-      return failure_indicator;
-  }
-  if (YIM_of_PIM(postdot_item)) return pim_is_not_a_leo_item;
-  base_earley_item = Base_YIM_of_LIM(LIM_of_PIM(postdot_item));
-  return AHMID_of_YIM(base_earley_item);
-}
 
 @** Postdot item (PIM) code.
 Postdot items are entries in an index,
@@ -7039,149 +6592,6 @@ PRIVATE PIM first_pim_of_ys_by_nsyid(YS set, NSYID nsyid)
    return pim_nsy_p ? *pim_nsy_p : NULL;
 }
 
-@** PIM Trace functions.
-Many of the
-trace functions use
-a ``trace postdot item".
-This is
-tracked on a per-recognizer basis.
-@<Widely aligned recognizer elements@> =
-union u_postdot_item** t_trace_pim_nsy_p;
-union u_postdot_item* t_trace_postdot_item;
-@ @<Initialize recognizer elements@> =
-r->t_trace_pim_nsy_p = NULL;
-r->t_trace_postdot_item = NULL;
-@ |marpa_r_postdot_symbol_trace|
-takes a recognizer and a symbol ID
-as an argument.
-It sets the trace postdot item to the first
-postdot item for the symbol ID.
-If there is no postdot item 
-for that symbol ID,
-it returns |-1|.
-On failure for other reasons,
-it returns |-2|
-and clears the trace postdot item.
-@<Function definitions@> =
-Marpa_Symbol_ID
-_marpa_r_postdot_symbol_trace (Marpa_Recognizer r,
-    Marpa_Symbol_ID xsy_id)
-{
-  @<Return |-2| on failure@>@;
-  YS current_ys = r->t_trace_earley_set;
-  PIM* pim_nsy_p;
-  PIM pim;
-  @<Unpack recognizer objects@>@;
-  @<Clear trace postdot item data@>@;
-  @<Fail if not trace-safe@>@;
-    @<Fail if |xsy_id| is malformed@>@;
-    @<Soft fail if |xsy_id| does not exist@>@;
-  if (!current_ys) {
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
-      return failure_indicator;
-  }
-  pim_nsy_p = PIM_NSY_P_of_YS_by_NSYID(current_ys, NSYID_by_XSYID(xsy_id));
-  pim = *pim_nsy_p;
-  if (!pim) return -1;
-  r->t_trace_pim_nsy_p = pim_nsy_p;
-  r->t_trace_postdot_item = pim;
-  return xsy_id;
-}
-
-@ @<Clear trace postdot item data@> =
-r->t_trace_pim_nsy_p = NULL;
-r->t_trace_postdot_item = NULL;
-
-@ Set trace postdot item to the first in the trace Earley set,
-and return its postdot symbol ID.
-If the trace Earley set has no postdot items, return -1 and
-clear the trace postdot item.
-On other failures, return -2 and clear the trace
-postdot item.
-@<Function definitions@> =
-Marpa_Symbol_ID
-_marpa_r_first_postdot_item_trace (Marpa_Recognizer r)
-{
-  @<Return |-2| on failure@>@;
-  YS current_earley_set = r->t_trace_earley_set;
-  PIM pim;
-  @<Unpack recognizer objects@>@;
-  PIM* pim_nsy_p;
-  @<Clear trace postdot item data@>@;
-  @<Fail if not trace-safe@>@;
-  if (!current_earley_set) {
-      @<Clear trace Earley item data@>@;
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
-      return failure_indicator;
-  }
-  if (current_earley_set->t_postdot_sym_count <= 0) return -1;
-  pim_nsy_p = current_earley_set->t_postdot_ary+0;
-  pim = pim_nsy_p[0];
-  r->t_trace_pim_nsy_p = pim_nsy_p;
-  r->t_trace_postdot_item = pim;
-  return Postdot_NSYID_of_PIM(pim);
-}
-
-@ Set the trace postdot item to the one after
-the current trace postdot item,
-and return its postdot symbol ID.
-If the current trace postdot item is the last,
-return -1 and clear the trace postdot item.
-On other failures, return -2 and clear the trace
-postdot item.
-@<Function definitions@> =
-Marpa_Symbol_ID
-_marpa_r_next_postdot_item_trace (Marpa_Recognizer r)
-{
-  const XSYID no_more_postdot_symbols = -1;
-  @<Return |-2| on failure@>@;
-  YS current_set = r->t_trace_earley_set;
-  PIM pim;
-  PIM* pim_nsy_p;
-  @<Unpack recognizer objects@>@;
-
-  pim_nsy_p = r->t_trace_pim_nsy_p;
-  pim = r->t_trace_postdot_item;
-  @<Clear trace postdot item data@>@;
-  if (!pim_nsy_p || !pim) {
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
-      return failure_indicator;
-  }
-  @<Fail if not trace-safe@>@;
-  if (!current_set) {
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
-      return failure_indicator;
-  }
-  pim = Next_PIM_of_PIM(pim);
-  if (!pim) { /* If no next postdot item for this symbol,
-       then look at next symbol */
-       pim_nsy_p++;
-       if (pim_nsy_p - current_set->t_postdot_ary
-           >= current_set->t_postdot_sym_count) {
-           return no_more_postdot_symbols;
-       }
-      pim = *pim_nsy_p;
-  }
-  r->t_trace_pim_nsy_p = pim_nsy_p;
-  r->t_trace_postdot_item = pim;
-  return Postdot_NSYID_of_PIM(pim);
-}
-
-@ @<Function definitions@> =
-Marpa_Symbol_ID _marpa_r_postdot_item_symbol(Marpa_Recognizer r)
-{
-  @<Return |-2| on failure@>@;
-  PIM postdot_item = r->t_trace_postdot_item;
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@;
-  if (!postdot_item) {
-      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
-      return failure_indicator;
-  }
-  return Postdot_NSYID_of_PIM(postdot_item);
-}
-
-
 @** Source objects.
 Nothing internally distinguishes the various source objects
 by type.
@@ -7228,13 +6638,26 @@ attention in the source links.
 @ @<Private typedefs@> =
 struct s_source;
 typedef struct s_source* SRC;
+typedef const struct s_source* SRC_Const;
 @ @<Source object structure@>= 
+struct s_token_source {
+    NSYID t_nsyid;
+    int t_value;
+};
+
+@ {\bf To Do}: @^To Do@>
+There are a lot of these and some tricks to reduce the
+space used can be justified.
+@<Source object structure@>= 
 struct s_source {
      void * t_predecessor;
      union {
          void * t_completion;
-         TOK t_token;
+         struct s_token_source t_token;
      } t_cause;
+     BITFIELD t_is_rejected:1;
+     BITFIELD t_is_active:1;
+     /* A type field could go here */
 };
 
 @ @<Private typedefs@> =
@@ -7262,6 +6685,7 @@ union u_source_container {
 
 @
 @d Source_of_SRCL(link) ((link)->t_source)
+@d SRC_of_SRCL(link) (&Source_of_SRCL(link))
 @d SRCL_of_YIM(yim) (&(yim)->t_container.t_unique)
 @d Source_of_YIM(yim) ((yim)->t_container.t_unique.t_source)
 @d SRC_of_YIM(yim) (&Source_of_YIM(yim))
@@ -7278,10 +6702,18 @@ union u_source_container {
 @d TOK_of_SRC(source) TOK_of_Source(*(source))
 @d TOK_of_YIM(yim) TOK_of_Source(Source_of_YIM(yim))
 @d TOK_of_SRCL(link) TOK_of_Source(Source_of_SRCL(link))
-@d NSYID_of_Source(srcd) NSYID_of_TOK(TOK_of_Source(srcd))
+@d NSYID_of_Source(srcd) ((srcd).t_cause.t_token.t_nsyid)
 @d NSYID_of_SRC(source) NSYID_of_Source(*(source))
 @d NSYID_of_YIM(yim) NSYID_of_Source(Source_of_YIM(yim))
 @d NSYID_of_SRCL(link) NSYID_of_Source(Source_of_SRCL(link))
+@d Value_of_Source(srcd) ((srcd).t_cause.t_token.t_value)
+@d Value_of_SRC(source) Value_of_Source(*(source))
+@d Value_of_SRCL(link) Value_of_Source(Source_of_SRCL(link))
+
+@d SRC_is_Active(src) ((src)->t_is_active)
+@d SRC_is_Rejected(src) ((src)->t_is_rejected)
+@d SRCL_is_Active(link) ((link)->t_source.t_is_active)
+@d SRCL_is_Rejected(link) ((link)->t_source.t_is_rejected)
 
 @ @d Cause_AHMID_of_SRCL(srcl)
     AHMID_of_YIM((YIM)Cause_of_SRCL(srcl))
@@ -7290,19 +6722,40 @@ union u_source_container {
 
 @ Macros for setting and finding the first |SRCL|'s of each type.
 @d LV_First_Completion_SRCL_of_YIM(item) ((item)->t_container.t_ambiguous.t_completion)
+@d First_Completion_SRCL_of_YIM(item)
+  ( Source_Type_of_YIM(item) == SOURCE_IS_COMPLETION ? (SRCL)SRCL_of_YIM(item) :
+  Source_Type_of_YIM(item) == SOURCE_IS_AMBIGUOUS ? 
+    LV_First_Completion_SRCL_of_YIM(item) : NULL)
+
 @d LV_First_Token_SRCL_of_YIM(item) ((item)->t_container.t_ambiguous.t_token)
+@d First_Token_SRCL_of_YIM(item)
+  ( Source_Type_of_YIM(item) == SOURCE_IS_TOKEN ? (SRCL)SRCL_of_YIM(item) :
+  Source_Type_of_YIM(item) == SOURCE_IS_AMBIGUOUS ? 
+    LV_First_Token_SRCL_of_YIM(item) : NULL)
+
 @d LV_First_Leo_SRCL_of_YIM(item) ((item)->t_container.t_ambiguous.t_leo)
 @d First_Leo_SRCL_of_YIM(item)
   ( Source_Type_of_YIM(item) == SOURCE_IS_LEO ? (SRCL)SRCL_of_YIM(item) :
   Source_Type_of_YIM(item) == SOURCE_IS_AMBIGUOUS ? 
     LV_First_Leo_SRCL_of_YIM(item) : NULL)
 
+@ Creates unique (that is, not ambiguous) SRCL's.
+@<Function definitions@> =
+PRIVATE
+SRCL unique_srcl_new( struct marpa_obstack* t_obs)
+{
+  const SRCL new_srcl = marpa_obs_new (t_obs, SRCL_Object, 1);
+  SRCL_is_Rejected(new_srcl) = 0;
+  SRCL_is_Active(new_srcl) = 1;
+  return new_srcl;
+}
+
 @ @<Function definitions@> = PRIVATE
 void
 tkn_link_add (RECCE r,
                 YIM item,
                 YIM predecessor,
-                TOK tkn)
+                ALT alternative)
 {
   SRCL new_link;
   unsigned int previous_source_type = Source_Type_of_YIM (item);
@@ -7311,7 +6764,8 @@ tkn_link_add (RECCE r,
       const SRCL source_link = SRCL_of_YIM(item);
       Source_Type_of_YIM (item) = SOURCE_IS_TOKEN;
       Predecessor_of_SRCL(source_link) = predecessor;
-      TOK_of_SRCL(source_link) = tkn;
+      NSYID_of_SRCL(source_link) = NSYID_of_ALT(alternative);
+      Value_of_SRCL(source_link) = Value_of_ALT(alternative);
       Next_SRCL_of_SRCL(source_link) = NULL;
       return;
     }
@@ -7319,65 +6773,15 @@ tkn_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
+  new_link = unique_srcl_new (r->t_obs);
   new_link->t_next = LV_First_Token_SRCL_of_YIM (item);
   new_link->t_source.t_predecessor = predecessor;
-  TOK_of_Source(new_link->t_source) = tkn;
+  NSYID_of_Source(new_link->t_source) = NSYID_of_ALT(alternative);
+  Value_of_Source(new_link->t_source) = Value_of_ALT(alternative);
   LV_First_Token_SRCL_of_YIM (item) = new_link;
 }
 
-@ Duplicate completion links can occur.
-Each possible cause
-link is only visited once.
-But a cause link may be paired with several different predecessors.
-Each cause may complete several different LHS symbols
-and Marpa will seek predecessors for each at
-the parent location.
-Two different completed LHS symbols might be postdot
-symbols for the same predecessor Earley item.
-For this reason,
-the same predecessor-cause pair
-may be chosen more than once.
-@ Since a completion link consists entirely of
-the predecessor-cause pair, a duplicate
-predecessor-cause pair means a duplicate
-completion link.
-The maximum possible number of such duplicates is the
-number of complete LHS symbols for the current AHFA state.
-This is always a constant and typically a small one,
-but it is also typically larger than 1.
-@ This is not an issue for unambiguous parsing.
-It {\bf is} an issue for iterating ambiguous parses.
-The strategy currently taken is to do nothing about duplicates
-in the recognition phase,
-and to eliminate them in the evaluation phase.
-Ultimately, duplicates must be eliminated by rule and
-position -- eliminating duplicates by AHFA state is
-{\bf not} sufficient.
-Since I do not pull out the
-individual rules and positions until the evaluation phase,
-at this writing it seems to make sense to deal with
-duplicates there.
-@ As shown above, the number of duplicate completion links
-is never more than $O(c \times n) = O(n)$,
-where $c$ is the number of LHS symbols in the grammar
-and $n$ is the number of Earley items.
-For academic purposes, it
-is probably possible to contrive a parse which generates
-a lot of duplicates.
-The actual numbers
-I have encountered have always been very small,
-even in grammars of only academic interest.
-@ The carrying cost of the extra completion links can be safely
-assumed to be very low,
-in comparision with the cost of searching for them.
-This means that the major consideration in deciding
-where to eliminate duplicates,
-is time efficiency.
-Duplicate completion links should be eliminated
-at the point where that elimination can be accomplished
-most efficiently.
-@<Function definitions@> =
+@ @<Function definitions@> =
 PRIVATE
 void
 completion_link_add (RECCE r,
@@ -7400,7 +6804,7 @@ completion_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
+  new_link = unique_srcl_new (r->t_obs);
   new_link->t_next = LV_First_Completion_SRCL_of_YIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -7429,7 +6833,7 @@ leo_link_add (RECCE r,
     { // If the sourcing is not already ambiguous, make it so
       earley_item_ambiguate (r, item);
     }
-  new_link = marpa_obs_new (r->t_obs, SRCL_Object, 1);
+  new_link = unique_srcl_new (r->t_obs);
   new_link->t_next = LV_First_Leo_SRCL_of_YIM (item);
   new_link->t_source.t_predecessor = predecessor;
   Cause_of_Source(new_link->t_source) = cause;
@@ -7497,477 +6901,6 @@ void earley_item_ambiguate (struct marpa_r * r, YIM item)
   LV_First_Token_SRCL_of_YIM (item) = NULL;
 }
 
-@** Link trace functions.
-Many trace functions track a ``trace source link".
-There is only one of these, shared among all types of
-source link.
-It is reported as an error if a trace function is called
-when it is
-inconsistent with the type of the current trace
-source link.
-@<Widely aligned recognizer elements@> =
-SRCL t_trace_source_link;
-@ @<Bit aligned recognizer elements@> =
-BITFIELD t_trace_source_type:3;
-@ @<Initialize recognizer elements@> =
-r->t_trace_source_link = NULL;
-r->t_trace_source_type = NO_SOURCE;
-
-@*1 Trace first token link.
-@ Set the trace source link to a token link,
-if there is one, otherwise clear the trace source link.
-Returns the symbol ID if there was a token source link,
-|-1| if there was none,
-and |-2| on some other kind of failure.
-@<Function definitions@> =
-Marpa_Symbol_ID _marpa_r_first_token_link_trace(Marpa_Recognizer r)
-{
-   @<Return |-2| on failure@>@;
-   SRCL source_link;
-   unsigned int source_type;
-    YIM item = r->t_trace_earley_item;
-  @<Unpack recognizer objects@>@;
-    @<Fail if not trace-safe@>@;
-    @<Set |item|, failing if necessary@>@;
-    source_type = Source_Type_of_YIM (item);
-    switch (source_type)
-      {
-      case SOURCE_IS_TOKEN:
-        r->t_trace_source_type = SOURCE_IS_TOKEN;
-        source_link = SRCL_of_YIM(item);
-        r->t_trace_source_link = source_link;
-        return NSYID_of_SRCL (source_link);
-      case SOURCE_IS_AMBIGUOUS:
-        {
-          source_link = LV_First_Token_SRCL_of_YIM (item);
-          if (source_link)
-            {
-              r->t_trace_source_type = SOURCE_IS_TOKEN;
-              r->t_trace_source_link = source_link;
-              return NSYID_of_SRCL (source_link);
-            }
-        }
-      }
-    trace_source_link_clear(r);
-    return -1;
-}
-
-@*1 Trace next token link.
-@ Set the trace source link to the next token link,
-if there is one.
-Otherwise clear the trace source link.
-@ Returns the symbol ID if there is
-a next token source link,
-|-1| if there was none,
-and |-2| on some other kind of failure.
-@<Function definitions@> =
-Marpa_Symbol_ID _marpa_r_next_token_link_trace(Marpa_Recognizer r)
-{
-   @<Return |-2| on failure@>@;
-   SRCL source_link;
-    YIM item;
-  @<Unpack recognizer objects@>@;
-    @<Fail if not trace-safe@>@;
-    @<Set |item|, failing if necessary@>@;
-    if (r->t_trace_source_type != SOURCE_IS_TOKEN) {
-        trace_source_link_clear(r);
-        MARPA_ERROR(MARPA_ERR_NOT_TRACING_TOKEN_LINKS);
-        return failure_indicator;
-    }
-    source_link = Next_SRCL_of_SRCL( r->t_trace_source_link);
-    if (!source_link) {
-        trace_source_link_clear(r);
-        return -1;
-    }
-    r->t_trace_source_link = source_link;
-    return NSYID_of_SRCL (source_link);
-}
-
-@*1 Trace first completion link.
-@ Set the trace source link to a completion link,
-if there is one, otherwise clear the completion source link.
-Returns the AHM ID
-(not the obsolete AHFA state ID) of the cause
-if there was a completion source link,
-|-1| if there was none,
-and |-2| on some other kind of failure.
-@<Function definitions@> =
-Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
-{
-   @<Return |-2| on failure@>@;
-   SRCL source_link;
-   unsigned int source_type;
-    YIM item = r->t_trace_earley_item;
-  @<Unpack recognizer objects@>@;
-    @<Fail if not trace-safe@>@;
-    @<Set |item|, failing if necessary@>@;
-    switch ((source_type = Source_Type_of_YIM (item)))
-      {
-      case SOURCE_IS_COMPLETION:
-        r->t_trace_source_type = SOURCE_IS_COMPLETION;
-        source_link = SRCL_of_YIM(item);
-        r->t_trace_source_link = source_link;
-        return Cause_AHMID_of_SRCL (source_link);
-      case SOURCE_IS_AMBIGUOUS:
-        {
-          source_link = LV_First_Completion_SRCL_of_YIM (item);
-          if (source_link)
-            {
-              r->t_trace_source_type = SOURCE_IS_COMPLETION;
-              r->t_trace_source_link = source_link;
-              return Cause_AHMID_of_SRCL (source_link);
-            }
-        }
-      }
-    trace_source_link_clear(r);
-    return -1;
-}
-
-@*1 Trace next completion link.
-@ Set the trace source link to the next completion link,
-if there is one.
-Otherwise clear the trace source link.
-@ Returns the cause AHM ID if there is
-a next completion source link,
-|-1| if there was none,
-and |-2| on some other kind of failure.
-@<Function definitions@> =
-Marpa_Symbol_ID _marpa_r_next_completion_link_trace(Marpa_Recognizer r)
-{
-   @<Return |-2| on failure@>@;
-   SRCL source_link;
-    YIM item;
-  @<Unpack recognizer objects@>@;
-    @<Fail if not trace-safe@>@;
-    @<Set |item|, failing if necessary@>@;
-    if (r->t_trace_source_type != SOURCE_IS_COMPLETION) {
-        trace_source_link_clear(r);
-        MARPA_ERROR(MARPA_ERR_NOT_TRACING_COMPLETION_LINKS);
-        return failure_indicator;
-    }
-    source_link = Next_SRCL_of_SRCL (r->t_trace_source_link);
-    if (!source_link) {
-        trace_source_link_clear(r);
-        return -1;
-    }
-    r->t_trace_source_link = source_link;
-    return Cause_AHMID_of_SRCL (source_link);
-}
-
-@*1 Trace first Leo link.
-@ Set the trace source link to a Leo link,
-if there is one, otherwise clear the Leo source link.
-Returns the AHM ID (not
-the obsolete AHFA state ID) of the cause
-if there was a Leo source link,
-|-1| if there was none,
-and |-2| on some other kind of failure.
-@<Function definitions@> =
-Marpa_Symbol_ID
-_marpa_r_first_leo_link_trace (Marpa_Recognizer r)
-{
-  @<Return |-2| on failure@>@;
-  SRCL source_link;
-  YIM item = r->t_trace_earley_item;
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@;
-  @<Set |item|, failing if necessary@>@;
-  source_link = First_Leo_SRCL_of_YIM(item);
-  if (source_link) {
-      r->t_trace_source_type = SOURCE_IS_LEO;
-      r->t_trace_source_link = source_link;
-      return Cause_AHMID_of_SRCL (source_link);
-  }
-  trace_source_link_clear (r);
-  return -1;
-}
-
-@*1 Trace next Leo link.
-@ Set the trace source link to the next Leo link,
-if there is one.
-Otherwise clear the trace source link.
-@ Returns the AHM ID if there is
-a next Leo source link,
-|-1| if there was none,
-and |-2| on some other kind of failure.
-@<Function definitions@> =
-Marpa_Symbol_ID
-_marpa_r_next_leo_link_trace (Marpa_Recognizer r)
-{
-  @<Return |-2| on failure@>@/
-  SRCL source_link;
-  YIM item;
-  @<Unpack recognizer objects@>@;
-  @<Fail if not trace-safe@>@/
-  @<Set |item|, failing if necessary@>@/
-  if (r->t_trace_source_type != SOURCE_IS_LEO)
-    {
-      trace_source_link_clear (r);
-      MARPA_ERROR(MARPA_ERR_NOT_TRACING_LEO_LINKS);
-      return failure_indicator;
-    }
-  source_link = Next_SRCL_of_SRCL(r->t_trace_source_link);
-  if (!source_link)
-    {
-      trace_source_link_clear (r);
-      return -1;
-    }
-  r->t_trace_source_link = source_link;
-  return Cause_AHMID_of_SRCL (source_link);
-}
-
-@ @<Set |item|, failing if necessary@> =
-    item = r->t_trace_earley_item;
-    if (!item) {
-        trace_source_link_clear(r);
-        MARPA_ERROR(MARPA_ERR_NO_TRACE_YIM);
-        return failure_indicator;
-    }
-
-@*1 Clear trace source link.
-@<Function definitions@> =
-PRIVATE void trace_source_link_clear(RECCE r)
-{
-    r->t_trace_source_link = NULL;
-    r->t_trace_source_type = NO_SOURCE;
-}
-
-@*1 Return the predecessor AHM ID.
-Returns the predecessor AHM ID,
-or -1 if there is no predecessor.
-If the recognizer is not trace-safe,
-if there is no trace source link,
-if the trace source link is a Leo source,
-or if there is some other failure,
-|-2| is returned.
-@<Function definitions@> =
-AHMID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
-{
-   @<Return |-2| on failure@>@/
-   unsigned int source_type;
-   SRCL source_link;
-  @<Unpack recognizer objects@>@;
-    @<Fail if not trace-safe@>@/
-   source_type = r->t_trace_source_type;
-    @<Set source link, failing if necessary@>@/
-    switch (source_type)
-    {
-    case SOURCE_IS_TOKEN:
-    case SOURCE_IS_COMPLETION: {
-        YIM predecessor = Predecessor_of_SRCL(source_link);
-        if (!predecessor) return -1;
-        return AHMID_of_YIM(predecessor);
-    }
-    }
-    MARPA_ERROR(invalid_source_type_code(source_type));
-    return failure_indicator;
-}
-
-@*1 Return the token.
-Returns the token.
-The symbol id is the return value,
-and the value is written to |*value_p|,
-if it is non-null.
-If the recognizer is not trace-safe,
-there is no trace source link,
-if the trace source link is not a token source,
-or there is some other failure,
-|-2| is returned.
-\par
-There is no function to return just the token value
-for two reasons.
-First, since token value can be anything
-an additional return value is needed to indicate errors,
-which means the symbol ID comes at essentially zero cost.
-Second, whenever the token value is
-wanted, the symbol ID is almost always wanted as well.
-@<Function definitions@> =
-Marpa_Symbol_ID _marpa_r_source_token(Marpa_Recognizer r, int *value_p)
-{
-   @<Return |-2| on failure@>@;
-   unsigned int source_type;
-   SRCL source_link;
-  @<Unpack recognizer objects@>@;
-    @<Fail if not trace-safe@>@;
-   source_type = r->t_trace_source_type;
-    @<Set source link, failing if necessary@>@;
-    if (source_type == SOURCE_IS_TOKEN) {
-        const TOK tkn = TOK_of_SRCL(source_link);
-        if (value_p) *value_p = Value_of_TOK(tkn);
-        return NSYID_of_TOK(tkn);
-    }
-    MARPA_ERROR(invalid_source_type_code(source_type));
-    return failure_indicator;
-}
-
-@*1 Return the Leo transition symbol.
-The Leo transition symbol is defined only for sources
-with a Leo predecessor.
-The transition from a predecessor to the Earley item
-containing a source will always be over exactly one symbol.
-In the case of a Leo source, this symbol will be
-the Leo transition symbol.
-@ Returns the symbol ID of the Leo transition symbol.
-If the recognizer is not trace-safe,
-if there is no trace source link,
-if the trace source link is not a Leo source,
-or there is some other failure,
-|-2| is returned.
-@<Function definitions@> =
-Marpa_Symbol_ID _marpa_r_source_leo_transition_symbol(Marpa_Recognizer r)
-{
-   @<Return |-2| on failure@>@/
-   unsigned int source_type;
-   SRCL source_link;
-  @<Unpack recognizer objects@>@;
-    @<Fail if not trace-safe@>@/
-   source_type = r->t_trace_source_type;
-    @<Set source link, failing if necessary@>@/
-    switch (source_type)
-    {
-    case SOURCE_IS_LEO:
-        return Leo_Transition_NSYID_of_SRCL(source_link);
-    }
-    MARPA_ERROR(invalid_source_type_code(source_type));
-    return failure_indicator;
-}
-
-@*1 Return the middle Earley set ordinal.
-Every source has the following defined:
-\li An origin (or start ordinal).
-\li An end ordinal (the current set).
-\li A ``middle ordinal".
-An Earley item can be thought of as covering a ``span"
-from its origin to the current set.
-For each source,
-this span is divided into two pieces at the middle
-ordinal.
-@ Informally, the middle ordinal can be thought of as
-dividing the span between the predecessor and either
-the source's cause or its token.
-If the source has no predecessor, the middle ordinal
-is the same as the origin.
-If there is a predecessor, the middle ordinal is
-the current set of the predecessor.
-If there is a cause, the middle ordinal is always the same
-as the origin of the cause.
-If there is a token,
-the middle ordinal is always where the token starts.
-On failure, such as
-there being no source link,
-|-2| is returned.
-@<Function definitions@> =
-Marpa_Earley_Set_ID _marpa_r_source_middle(Marpa_Recognizer r)
-{
-   @<Return |-2| on failure@>@/
-   YIM predecessor_yim = NULL;
-   unsigned int source_type;
-   SRCL source_link;
-  @<Unpack recognizer objects@>@;
-    @<Fail if not trace-safe@>@/
-   source_type = r->t_trace_source_type;
-    @<Set source link, failing if necessary@>@/
-
-  switch (source_type)
-    {
-    case SOURCE_IS_LEO:
-      {
-        LIM predecessor = LIM_of_SRCL (source_link);
-        if (predecessor)
-          predecessor_yim = Base_YIM_of_LIM (predecessor);
-        break;
-      }
-    case SOURCE_IS_TOKEN:
-    case SOURCE_IS_COMPLETION:
-      {
-        predecessor_yim = Predecessor_of_SRCL (source_link);
-        break;
-      }
-    default:
-      MARPA_ERROR (invalid_source_type_code (source_type));
-      return failure_indicator;
-  }
-
-  if (predecessor_yim)
-    return YS_Ord_of_YIM (predecessor_yim);
-  return Origin_Ord_of_YIM (r->t_trace_earley_item);
-}
-
-@ @<Set source link, failing if necessary@> =
-    source_link = r->t_trace_source_link;
-    if (!source_link) {
-        MARPA_ERROR(MARPA_ERR_NO_TRACE_SRCL);
-        return failure_indicator;
-    }
-
-@** Token code (TOK).
-@ Tokens are duples of symbol ID and token value.
-They do {\bf not} store location information,
-so the same token
-can occur many times in a parse.
-On the other hand, duplicate tokens are also allowed.
-How much, if any, trouble to take to avoid duplication
-is up to the application --
-duplicates have their cost, but so does the
-tracking necessary to avoid them.
-@ My strong preference is that token values
-{\bf always} be integers, but
-token values are |void *|'s to allow applications
-full generality.
-Using |glib|, integers can portably be stored in a
-|void *|, but the reverse is not true.
-@ In my prefered semantic scheme, the integers are
-used by the higher levels to index the actual data.
-In this way no direct pointer to any data "owned"
-by the higher level is ever under libmarpa's control.
-Problems with mismatches between libmarpa and the
-higher levels are almost impossible to avoid in
-development
-and once an application gets in maintenance mode
-things become, if possible, worse.
-@ "But," you say, "pointers are faster,
-and mismatches occur whether
-you index the data with an integer or directly.
-So if you are in trouble either way, why not go
-for speed?"
-\par
-The above objection is true, but overlooks a very
-important issue.  A bad pointer can cause very
-serious problems --
-a core dump, or even worse, undetected data corruption.
-There is no good way to detect a bad pointer before it
-does it's damage.
-\par
-If an integer index, on the other hand, is out of bounds,
-the higher levels can catch this and react.
-Worst case, the higher level may have to throw a controlled
-fatal error.
-This is a much better than a core dump
-and far better than undetected data corruption.
-@<Private incomplete structures@> =
-struct s_token;
-typedef struct s_token* TOK;
-@ The |t_type| field is to allow |TOK|
-objects to act as or-nodes.
-@d Type_of_TOK(tok) ((tok)->t_unvalued.t_type)
-@d NSYID_of_TOK(tok) ((tok)->t_unvalued.t_nsyid)
-@d Value_of_TOK(tok) ((tok)->t_value)
-@<Private structures@> =
-struct s_token_unvalued {
-    int t_type;
-    NSYID t_nsyid;
-};
-struct s_token {
-    struct s_token_unvalued t_unvalued;
-    int t_value;
-};
-
-@ @d TOK_Obs_of_R(r) TOK_Obs_of_I(I_of_R(r))
-@ @<Initialize recognizer elements@> =
-{
-  I_of_R(r) = input_new(g);
-}
-
 @** Alternative tokens (ALT) code.
 Because Marpa allows more than one token at every
 earleme, Marpa's tokens are also called ``alternatives".
@@ -7976,16 +6909,19 @@ struct s_alternative;
 typedef struct s_alternative* ALT;
 typedef const struct s_alternative* ALT_Const;
 @
-@d TOK_of_ALT(alt) ((alt)->t_token)
-@d NSYID_of_ALT(alt) NSYID_of_TOK(TOK_of_ALT(alt))
+@d NSYID_of_ALT(alt) ((alt)->t_nsyid)
+@d Value_of_ALT(alt) ((alt)->t_value)
+@d ALT_is_Valued(alt) ((alt)->t_is_valued)
 @d Start_YS_of_ALT(alt) ((alt)->t_start_earley_set)
 @d Start_Earleme_of_ALT(alt) Earleme_of_YS(Start_YS_of_ALT(alt))
 @d End_Earleme_of_ALT(alt) ((alt)->t_end_earleme)
 @<Private structures@> =
 struct s_alternative {
-    TOK t_token;
     YS t_start_earley_set;
     JEARLEME t_end_earleme;
+    NSYID t_nsyid;
+    int t_value;
+    BITFIELD t_is_valued:1;
 };
 typedef struct s_alternative ALT_Object;
 
@@ -8064,11 +7000,20 @@ call that adds data to the alternatives stack.
 @<Function definitions@> =
 PRIVATE ALT alternative_pop(RECCE r, JEARLEME earleme)
 {
-    MARPA_DSTACK alternatives = &r->t_alternatives;
-    ALT end_of_stack = MARPA_DSTACK_TOP(*alternatives, ALT_Object);
-    if (!end_of_stack) return NULL;
-    if (earleme != End_Earleme_of_ALT(end_of_stack)) return NULL;
-    return MARPA_DSTACK_POP(*alternatives, ALT_Object);
+  MARPA_DSTACK alternatives = &r->t_alternatives;
+  ALT end_of_stack = MARPA_DSTACK_TOP (*alternatives, ALT_Object);
+
+  if (!end_of_stack) return NULL;
+
+  @t}\comment{@>/* Stop looking if the next alternative is at
+  a later earleme.  We do {\bf not} test for earlier earlemes,
+  because we call |alternative_pop()| for each successive |earleme|
+  in integer order.
+  */
+  if (earleme < End_Earleme_of_ALT (end_of_stack))
+    return NULL;
+
+  return MARPA_DSTACK_POP (*alternatives, ALT_Object);
 }
 
 @ This function inserts an alternative into the stack, 
@@ -8076,6 +7021,9 @@ in sorted order,
 if the alternative is not a duplicate.
 It returns -1 if the alternative is a duplicate,
 and the insertion point (which must be zero or more) otherwise.
+@ {\bf To Do}: @^To Do@>
+I wonder if this would not have been better implemented as a
+linked list.
 @<Function definitions@> =
 PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
 {
@@ -8085,9 +7033,11 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
   int insertion_point = alternative_insertion_point (r, new_alternative);
   if (insertion_point < 0)
     return insertion_point;
-  // \comment may change base
+    @t}\comment{@>
+  /* may change base */
   end_of_stack = MARPA_DSTACK_PUSH(*alternatives, ALT_Object);
-  // \comment base will not change after this
+    @t}\comment{@>
+  /* base will not change after this */
   base_of_stack = MARPA_DSTACK_BASE(*alternatives, ALT_Object);
    for (ix = end_of_stack-base_of_stack; ix > insertion_point; ix--) {
        base_of_stack[ix] = base_of_stack[ix-1];
@@ -8157,9 +7107,9 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
           const IRLID prediction_irlid = Item_of_CIL (prediction_cil, cil_ix);
           if (!bv_bit_test_then_set(r->t_bv_irl_is_predicted, prediction_irlid)) {
           const IRL prediction_irl = IRL_by_ID(prediction_irlid);
-          const AHM prediction_aim = First_AHM_of_IRL(prediction_irl);
-          key.t_aim = prediction_aim;
-          if (1) { earley_item_create(r, key); }
+            const AHM prediction_aim = First_AHM_of_IRL(prediction_irl);
+            key.t_aim = prediction_aim;
+            earley_item_create(r, key);
           }
         }
     }
@@ -8268,6 +7218,11 @@ Marpa_Earleme marpa_r_alternative(
     const JEARLEME current_earleme = Current_Earleme_of_R (r);
     JEARLEME target_earleme;
     NSYID tkn_nsyid;
+    if (_MARPA_UNLIKELY (!R_is_Consistent (r)))
+      {
+        MARPA_ERROR (MARPA_ERR_RECCE_IS_INCONSISTENT);
+        return MARPA_ERR_RECCE_IS_INCONSISTENT;
+      }
     if (_MARPA_UNLIKELY (Input_Phase_of_R (r) != R_DURING_INPUT))
       {
         MARPA_ERROR (MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
@@ -8354,7 +7309,7 @@ are always unexpected.
       return MARPA_ERR_INACCESSIBLE_TOKEN;
     }
   tkn_nsyid = ID_of_NSY (tkn_nsy);
-  current_earley_set = Current_YS_of_R (r);
+  current_earley_set = YS_at_Current_Earleme_of_R (r);
   if (!current_earley_set)
     {
       MARPA_ERROR (MARPA_ERR_NO_TOKEN_EXPECTED_HERE);
@@ -8385,37 +7340,22 @@ The Earley sets and items will not have been
 altered by the attempt.
 @<Insert alternative into stack, failing if token is duplicate@> =
 {
-  TOK tkn;
-  ALT_Object alternative;
-  struct marpa_obstack *const tkn_obstack = TOK_Obs_of_I (input);
-  if (value)
-    {
-      tkn =
-	marpa_obs_start (TOK_Obs_of_I (input), sizeof (*tkn), ALIGNOF (TOK));
-      NSYID_of_TOK (tkn) = tkn_nsyid;
-      Type_of_TOK (tkn) = VALUED_TOKEN_OR_NODE;
-      Value_of_TOK (tkn) = value;
-    }
-  else
-    {
-      tkn =
-	marpa_obs_start (TOK_Obs_of_I (input), sizeof (tkn->t_unvalued),
-			 ALIGNOF (struct s_token_unvalued));
-      NSYID_of_TOK (tkn) = tkn_nsyid;
-      Type_of_TOK (tkn) = UNVALUED_TOKEN_OR_NODE;
-    }
+  ALT_Object alternative_object; /* This is safe on the stack,
+  because |alternative_insert()| will copy it if it is actually
+  going to be used */
+  const ALT alternative = &alternative_object;
+  NSYID_of_ALT (alternative) = tkn_nsyid;
+  Value_of_ALT (alternative) = value;
+  ALT_is_Valued(alternative) = value ? 1 : 0;
   if (Furthest_Earleme_of_R (r) < target_earleme)
     Furthest_Earleme_of_R (r) = target_earleme;
-  alternative.t_token = tkn;
-  alternative.t_start_earley_set = current_earley_set;
-  alternative.t_end_earleme = target_earleme;
-  if (alternative_insert (r, &alternative) < 0)
+  alternative->t_start_earley_set = current_earley_set;
+  End_Earleme_of_ALT(alternative) = target_earleme;
+  if (alternative_insert (r, alternative) < 0)
     {
-      marpa_obs_reject (tkn_obstack);
       MARPA_ERROR (MARPA_ERR_DUPLICATE_TOKEN);
       return MARPA_ERR_DUPLICATE_TOKEN;
     }
-  tkn = marpa_obs_finish (tkn_obstack);
 }
 
 @** Complete an Earley set.
@@ -8485,12 +7425,18 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
   YS current_earley_set;
   JEARLEME current_earleme;
 
-  /* \comment Initialized to -2 just in case.
+    @t}\comment{@>
+  /* Initialized to -2 just in case.
     Should be set before returning;
    */
   JEARLEME return_value = -2;
 
   @<Fail if recognizer not accepting input@>@;
+  if (_MARPA_UNLIKELY(!R_is_Consistent(r))) {
+      MARPA_ERROR(MARPA_ERR_RECCE_IS_INCONSISTENT);
+      return failure_indicator;
+  }
+
   {
     int count_of_expected_terminals;
     @<Declare |marpa_r_earleme_complete| locals@>@;
@@ -8507,15 +7453,16 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
       YIM cause = *cause_p;
         @<Add new Earley items for |cause|@>@;
     }
-    @<Add predictions@>@;
+    @<Add prediction to |current_earley_set|@>@;
     postdot_items_create(r, bv_ok_for_chain, current_earley_set);
 
-      /* \comment If no terminals are expected, and there are no Earley items in
+    @t}\comment{@>
+      /* If no terminals are expected, and there are no Earley items in
            uncompleted Earley sets, we can make no further progress.
            The parse is ``exhausted". */
     count_of_expected_terminals = bv_count (r->t_bv_nsyid_is_expected);
     if (count_of_expected_terminals <= 0
-        && Earleme_of_YS (current_earley_set) >= Furthest_Earleme_of_R (r))
+       && MARPA_DSTACK_LENGTH (r->t_alternatives ) <= 0)
       {
         @<Set |r| exhausted@>@;
       }
@@ -8575,27 +7522,38 @@ The return value means success, with no events.
 @ @<Scan from the alternative stack@> =
 {
   ALT alternative;
+    @t}\comment{@>
+    /* |alternative_pop()| does not return inactive alternatives */
   while ((alternative = alternative_pop (r, current_earleme)))
     @<Scan an Earley item from alternative@>@;
 }
 
-@ @<Scan an Earley item from alternative@> =
+@ The consequences of ignoring Leo items here is that a right
+recursion is always fully expanded when the cause of the Leo
+trailhead is a terminal.
+That's usually desireable, because a terminal at the bottom of the
+Leo trail is usually a sign that this is the trail that will be
+used in the parse.
+@ But there are exceptions.  These can occur in input models with
+ambiguous terminals, and when LHS terminals are used.
+These cases are not considered in the complexity claims,
+and as of this writing are not important in practical terms.
+@<Scan an Earley item from alternative@> =
 {
   YS start_earley_set = Start_YS_of_ALT (alternative);
-  TOK tkn = TOK_of_ALT (alternative);
-  NSYID tkn_nsyid = NSYID_of_TOK (tkn);
-  PIM pim = First_PIM_of_YS_by_NSYID (start_earley_set, tkn_nsyid);
+  PIM pim = First_PIM_of_YS_by_NSYID (start_earley_set,
+    NSYID_of_ALT(alternative));
   for (; pim; pim = Next_PIM_of_PIM (pim))
     {
+      @t}\comment{@>
+      /* Ignore Leo items when scanning */
       const YIM predecessor = YIM_of_PIM (pim);
-      if (!predecessor)
-	continue;		// Ignore Leo items when scanning
-
+      if (predecessor && YIM_is_Active(predecessor))
 	{
-          const AHM predecessor_aim = AHM_of_YIM(predecessor);
-          const AHM scanned_aim = Next_AHM_of_AHM(predecessor_aim);
-        @<Create the earley items for |scanned_aim|@> @;
-        }
+	  const AHM predecessor_aim = AHM_of_YIM (predecessor);
+	  const AHM scanned_aim = Next_AHM_of_AHM (predecessor_aim);
+	  @<Create the earley items for |scanned_aim|@>@;
+	}
     }
 }
 
@@ -8606,11 +7564,18 @@ The return value means success, with no events.
 						      Origin_of_YIM
 						      (predecessor),
 						      scanned_aim);
-  tkn_link_add (r, scanned_earley_item, predecessor, tkn);
+  YIM_was_Scanned(scanned_earley_item) = 1;
+  tkn_link_add (r, scanned_earley_item, predecessor, alternative);
 }
 
-@ @<Pre-populate the completion stack@> = {
-    /* We know the no new items are added to the stack in this scope */
+@ At this point we know that only scanned items newly added
+are on the YIM working stack.
+Since they are newly added, and would not have been added
+if they were not active, we know that the YIM's on the working stack
+are all active.
+@<Pre-populate the completion stack@> = {
+    @t}\comment{@>
+    /* We know that no new items are added to the stack in this scope */
     YIM* work_earley_items = MARPA_DSTACK_BASE (r->t_yim_work_stack, YIM );
     int no_of_work_earley_items = MARPA_DSTACK_LENGTH (r->t_yim_work_stack );
     int ix;
@@ -8620,7 +7585,7 @@ The return value means success, with no events.
          ix++) {
         YIM earley_item = work_earley_items[ix];
         YIM* end_of_stack;
-        if (!Earley_Item_is_Completion (earley_item))
+        if (!YIM_is_Completion (earley_item))
           continue;
         end_of_stack = MARPA_DSTACK_PUSH (r->t_completion_stack, YIM);
         *end_of_stack = earley_item;
@@ -8631,7 +7596,7 @@ The return value means success, with no events.
 add those Earley items it ``causes".
 @<Add new Earley items for |cause|@> =
 {
-  if (Earley_Item_is_Completion(cause))
+  if (YIM_is_Active(cause) && YIM_is_Completion(cause))
     {
       NSYID complete_nsyid = LHS_NSYID_of_YIM(cause);
       const YS middle = Origin_of_YIM (cause);
@@ -8646,50 +7611,76 @@ add those Earley items it ``causes".
        postdot_item; postdot_item = Next_PIM_of_PIM (postdot_item))
     {
       const YIM predecessor = YIM_of_PIM (postdot_item);
-      if (predecessor)
-        { /* Not a Leo item */
-            const AHM predecessor_aim = AHM_of_YIM(predecessor);
-            const AHM effect_aim = Next_AHM_of_AHM(predecessor_aim);
+      if (!predecessor) {
+           @t}\comment\hskip 1em{@>
+           /* A Leo item */
+           const LIM leo_item = LIM_of_PIM (postdot_item);
+
+           @t}\comment\hskip 1em{@>
+           /* A Leo item */
+           /* If the Leo item is not active, look at the other
+           item in the PIM, which might be active.  (There should be
+           exactly one other item, and it might be active if the LIM
+           was inactive because of its predecessor, but had
+           an active Leo trailhead */
+           if (!LIM_is_Active(leo_item)) goto NEXT_PIM;
+
+           @<Add effect of |leo_item|@>@;
+
+           @t}\comment\hskip 1em{@>
+           /* When I encounter an active Leo item,
+           I skip everything else for this postdot symbol */
+          goto LAST_PIM;
+      } else {
+            @t}\comment\hskip 1em{@>
+            /* Not a Leo item */
+            if (!YIM_is_Active(predecessor)) continue;
+
+            @t}\comment\hskip 1em{@>
+            /* If we are here, both cause and predecessor are active */
             @<Add |effect_aim|, plus any prediction,
               for non-Leo |predecessor|@>@;
         }
-      else
-        {                       /* A Leo item */
-          @<Add effect of Leo item@>@;
-          break;                /* When I encounter a Leo item,
-                                   I skip everything else for this postdot
-                                   symbol */
-        }
+        NEXT_PIM: ;
     }
+    LAST_PIM: ;
 }
 
 @ @<Add |effect_aim|, plus any prediction, for non-Leo |predecessor|@> =
 {
+   const AHM predecessor_aim = AHM_of_YIM(predecessor);
+   const AHM effect_aim = Next_AHM_of_AHM(predecessor_aim);
    const YS origin = Origin_of_YIM(predecessor);
    const YIM effect = earley_item_assign(r, current_earley_set,
         origin, effect_aim);
+   YIM_was_Fusion(effect) = 1;
    if (Earley_Item_has_No_Source(effect)) {
+       @t}\comment{@>
        /* If it has no source, then it is new */
-       if (Earley_Item_is_Completion(effect)) {
+       if (YIM_is_Completion(effect)) {
            @<Push |effect| onto completion stack@>@;
        }
    }
    completion_link_add(r, effect, predecessor, cause);
 }
 
-@ @<Push |effect| onto completion stack@> = {
+@ The context must make sure any YIM pushed on the stack is
+active.
+@<Push |effect| onto completion stack@> = {
     YIM* end_of_stack = MARPA_DSTACK_PUSH (r->t_completion_stack, YIM);
     *end_of_stack = effect;
 }
 
-@ @<Add effect of Leo item@> = {
-    const LIM leo_item = LIM_of_PIM (postdot_item);
+@ If we are here, |leo_item| is active.
+@<Add effect of |leo_item|@> = {
     const YS origin = Origin_of_LIM (leo_item);
     const AHM effect_aim = Top_AHM_of_LIM (leo_item);
     const YIM effect = earley_item_assign (r, current_earley_set,
                                  origin, effect_aim);
+    YIM_was_Fusion(effect) = 1;
     if (Earley_Item_has_No_Source (effect))
       {
+        @t}\comment{@>
         /* If it has no source, then it is new */
         @<Push |effect| onto completion stack@>@;
       }
@@ -8698,29 +7689,26 @@ add those Earley items it ``causes".
 
 @ Note that there may already be predictions on the stack from
 the Leo items.
-@<Add predictions@> =
+@<Add prediction to |current_earley_set|@> =
 {
   int ix;
-  const int no_of_work_earley_items = MARPA_DSTACK_LENGTH (r->t_yim_work_stack);
+  const int no_of_work_earley_items =
+    MARPA_DSTACK_LENGTH (r->t_yim_work_stack);
   for (ix = 0; ix < no_of_work_earley_items; ix++)
     {
-      YIM earley_item = WORK_YIM_ITEM(r, ix);
+      YIM earley_item = WORK_YIM_ITEM (r, ix);
 
-      if (1)
+      int cil_ix;
+      const AHM aim = AHM_of_YIM (earley_item);
+      const CIL prediction_cil = Predicted_IRL_CIL_of_AHM (aim);
+      const int prediction_count = Count_of_CIL (prediction_cil);
+      for (cil_ix = 0; cil_ix < prediction_count; cil_ix++)
 	{
-	  int cil_ix;
-	  const AHM aim = AHM_of_YIM (earley_item);
-	  const CIL prediction_cil = Predicted_IRL_CIL_of_AHM (aim);
-	  const int prediction_count = Count_of_CIL (prediction_cil);
-	  for (cil_ix = 0; cil_ix < prediction_count; cil_ix++)
-	    {
-	      const IRLID prediction_irlid =
-		Item_of_CIL (prediction_cil, cil_ix);
-	      const IRL prediction_irl = IRL_by_ID (prediction_irlid);
-	      const AHM prediction_aim = First_AHM_of_IRL (prediction_irl);
-	      earley_item_assign (r, current_earley_set, current_earley_set,
-				  prediction_aim);
-	    }
+	  const IRLID prediction_irlid = Item_of_CIL (prediction_cil, cil_ix);
+	  const IRL prediction_irl = IRL_by_ID (prediction_irlid);
+	  const AHM prediction_aim = First_AHM_of_IRL (prediction_irl);
+	  earley_item_assign (r, current_earley_set, current_earley_set,
+			      prediction_aim);
 	}
 
     }
@@ -9085,9 +8073,9 @@ Leo item have not been fully populated.
 		potential_leo_penult_aim = leo_base_aim;
             MARPA_ASSERT(potential_leo_penult_aim);
 	    {
-	      const AHM base_to_aim =
+	      const AHM trailhead_aim =
 		Next_AHM_of_AHM (potential_leo_penult_aim);
-	      if (AHM_is_Leo_Completion (base_to_aim))
+	      if (AHM_is_Leo_Completion (trailhead_aim))
 		{
 		  @<Create a new, unpopulated, LIM@>@;
 		}
@@ -9107,14 +8095,16 @@ once it is populated.
 @<Create a new, unpopulated, LIM@> = {
     LIM new_lim;
     new_lim = marpa_obs_new(r->t_obs, LIM_Object, 1);
+    LIM_is_Active(new_lim) = 1;
+    LIM_is_Rejected(new_lim) = 1;
     Postdot_NSYID_of_LIM(new_lim) = nsyid;
     YIM_of_PIM(new_lim) = NULL;
     Predecessor_LIM_of_LIM(new_lim) = NULL;
     Origin_of_LIM(new_lim) = NULL;
     CIL_of_LIM(new_lim) = NULL;
-    Top_AHM_of_LIM(new_lim) = base_to_aim;
-    Base_to_AHM_of_LIM(new_lim) = base_to_aim;
-    Base_YIM_of_LIM(new_lim) = leo_base;
+    Top_AHM_of_LIM(new_lim) = trailhead_aim;
+    Trailhead_AHM_of_LIM(new_lim) = trailhead_aim;
+    Trailhead_YIM_of_LIM(new_lim) = leo_base;
     YS_of_LIM(new_lim) = current_earley_set;
     Next_PIM_of_LIM(new_lim) = this_pim;
     r->t_pim_workarea[nsyid] = new_lim;
@@ -9248,11 +8238,11 @@ The code is used for unpopulated LIMs.
 In a populated LIM, this will not necessarily be the case.
 @<Find predecessor LIM of unpopulated LIM@> =
 {
-  const YIM base_yim = Base_YIM_of_LIM (lim_to_process);
+  const YIM base_yim = Trailhead_YIM_of_LIM (lim_to_process);
   const YS predecessor_set = Origin_of_YIM (base_yim);
-  const AHM base_to_aim = Base_to_AHM_of_LIM (lim_to_process);
+  const AHM trailhead_aim = Trailhead_AHM_of_LIM (lim_to_process);
   const NSYID predecessor_transition_nsyid =
-    LHSID_of_AHM (base_to_aim);
+    LHSID_of_AHM (trailhead_aim);
   PIM predecessor_pim;
   if (Ord_of_YS (predecessor_set) < Ord_of_YS (current_earley_set))
     {
@@ -9305,7 +8295,8 @@ problems.
      is not added to a LIM chain again for this Earley set */
   while (1)
     {
-      /* \comment I know at this point that
+    @t}\comment{@>
+      /* I know at this point that
        |predecessor_lim| is unpopulated, so I also know that
        |lim_to_process| is unpopulated.  This means I also know that
        |lim_to_process| is in the current Earley set, because all LIMs
@@ -9334,7 +8325,8 @@ problems.
                     postdot_nsyid_of_lim_to_process);
       /* Make sure this LIM
          is not added to a LIM chain again for this Earley set */
-        /* \comment |predecesssor_lim = NULL|,
+    @t}\comment{@>
+        /* |predecesssor_lim = NULL|,
        so that we are forced to break the LIM chain before it */
       if (!predecessor_lim)
         break;                 
@@ -9367,21 +8359,22 @@ Secondary optimzations ensure this is fairly cheap as well.
 {
   const AHM new_top_aim = Top_AHM_of_LIM (predecessor_lim);
   const CIL predecessor_cil = CIL_of_LIM (predecessor_lim);
-  /* \comment Initialize to be just the predcessor's list of AHM IDs.
+    @t}\comment{@>
+  /* Initialize to be just the predcessor's list of AHM IDs.
        Overwrite if we need to add another. */
   CIL_of_LIM (lim_to_process) = predecessor_cil;        
   Predecessor_LIM_of_LIM (lim_to_process) = predecessor_lim;
   Origin_of_LIM (lim_to_process) = Origin_of_LIM (predecessor_lim);
   if (Event_Group_Size_of_AHM (new_top_aim) > Count_of_CIL (predecessor_cil))
     {                           /* Might we need to add another AHM ID? */
-      const AHM base_to_aim = Base_to_AHM_of_LIM(lim_to_process);
-      const CIL base_to_aim_event_aimids =
-        Event_AHMIDs_of_AHM (base_to_aim);
-      if (Count_of_CIL (base_to_aim_event_aimids))
+      const AHM trailhead_aim = Trailhead_AHM_of_LIM(lim_to_process);
+      const CIL trailhead_aim_event_aimids =
+        Event_AHMIDs_of_AHM (trailhead_aim);
+      if (Count_of_CIL (trailhead_aim_event_aimids))
         {
           CIL new_cil = cil_merge_one (&g->t_cilar, predecessor_cil,
                                        Item_of_CIL
-                                       (base_to_aim_event_aimids, 0));
+                                       (trailhead_aim_event_aimids, 0));
           if (new_cil)
             {
               CIL_of_LIM (lim_to_process) = new_cil;
@@ -9404,10 +8397,10 @@ and do not need to be changed.
 The predecessor LIM was initialized to |NULL|.
 of the base YIM.
 @<Populate |lim_to_process| from its base Earley item@> = {
-  const AHM base_to_aim = Base_to_AHM_of_LIM(lim_to_process);
-  const YIM base_yim = Base_YIM_of_LIM(lim_to_process);
+  const AHM trailhead_aim = Trailhead_AHM_of_LIM(lim_to_process);
+  const YIM base_yim = Trailhead_YIM_of_LIM(lim_to_process);
   Origin_of_LIM (lim_to_process) = Origin_of_YIM (base_yim);
-  CIL_of_LIM(lim_to_process) = Event_AHMIDs_of_AHM(base_to_aim);
+  CIL_of_LIM(lim_to_process) = Event_AHMIDs_of_AHM(trailhead_aim);
 }
 
 @ @<Copy PIM workarea to postdot item array@> = {
@@ -9429,1723 +8422,416 @@ of the base YIM.
     }
 }
 
-@** Expand the Leo items.
-\libmarpa/ expands Leo items on a ``lazy" basis,
-when it creates the parse bocage.
-Some of the "virtual" Earley items in the Leo paths will also
-be real Earley items.
-Earley items in the Leo path may actually exist
-for several reasons:
-\li The Leo completion item itself always exists before
-this function call.
-It is counted in the total path lengths,
-once for each Leo path.
-This means that the total of the Leo path lengths will never be less
-than the number of Leo paths.
-\li Any Leo competion base items.
-One of these exists for every path
-whose base is a
-completed Earley item, and not a token.
-\li Any other Earley item in the Leo path item which was already created
-for other reasons.
-If an Earley item in a Leo path already exists, a new Earley
-item is not created ---
-instead a source link is added to the present Earley item.
 
-@** Some notes on evaluation.
+@** Rejecting Earley items.
+@ Notes for making the recognizer consistent after rejecting tokens:
+\li Clear all events.  Document that you should poll events before any
+rejections.
+\li Reset the vector of expected terminals.
+\li Re-determine if the parse is exhausted.
+\li What about postdot items?  If a LIM is now rejected, I should look
+at the YIM/PIM, I think, because it was {\bf not} necessarily rejected.
 
-@*0 Statistics on completed LHS symbols per AHFA state.
-An AHFA state may contain completions for more than one LHS,
-but that is rare in practical use, and the number of completed
-LHS symbols in the exceptions remains low.
-The very complex Perl AHFA contains 271 states with completions.
-Of these 268 have only one completed symbol.
-The other three AHFA states complete only two different LHS symbols.
-Two states have completions with both
-a |term_hi| and a |indirob| on the LHS.
-One state has completions for both a
-|sideff| and an |mexpr|.
-@ My HTML test grammars make the
-same point more strongly.
-My HTML parser generates grammars on the fly.
-These HTML grammars can differ from each other.
-because Marpa takes the HTML input into account when
-generating the grammar.
-In my HTML test suite,
-every single one
-of the 14,782 AHFA states
-has only one completed LHS symbol.
-
-@*0 CHAF duplicate and-nodes.
-There are three ways in which the same and-node can occur multiple
-times as the descendant of a single or-node.
-@ First, an or-node can have several different Earley items as
-its source.  This is dealt with by noticing that in building the
-or-node, we only use the source links of an Earley item, and
-that these are always identical.  Therefore we can arbitrarily
-select any one of the possible source Earley items to be
-the or-node's ``unique" Earley item source.
-@ The second source of duplication is duplicate source links
-for the same Earley item.
-I prevent token source links from duplicating,
-and the Leo logic does not allow duplicate Leo source links.
-@ Completion source links could be prevented from duplicating by
-making the transition symbol part of its ``signature",
-and making sure the source link transition symbol matches
-the predot symbol of the or-node.
-This would only impose a small overhead.
-But given that I need to look for duplicates from other
-sources, there does not seem to enough of a payoff to justify
-even a small overhead.
-@ A third source of duplication occurs
-when different source links
-have different AHFA states in their predecessors; but
-share the the same AHFA item.
-There will be
-pairs of these source links which share the same middle earleme,
-because if an AHFA item (dotted rule) in one is justified at a
-location, the same AHFA item in the other must be, also.
-This happens frequently enough to be an issue even for practical
-grammars.
-
-@*0 Sources of Leo path items.
-A Leo path consists of a series of Earley items:
-\li at the bottom, exactly one Leo base item;
-\li at the top, exactly one Leo completion item;
-\li in between, zero or more Leo path items.
-@ Leo base items and Leo completion items can have a variety
-of non-Leo sources.
-Leo completion items can have multiple Leo sources,
-though no other source can have the same middle earleme
-as a Leo source.
-@ When expanded, Leo path items can have multiple sources.
-However, the sources of a single Leo path item
-will result from the same Leo predecessor.
-As consequences:
-\li All the sources of an expanded Leo path item will have the same
-Earley item predecessor,
-the Leo base item of the Leo predecessor.
-\li All these sources will also have the same middle
-earleme, the Earley set of the Leo predecessor.
-\li Every source of the Leo path item will have a cause
-and the transition symbol of the Leo predecessor
-will be on the LHS of at least one completion in all of those causes.
-\li The Leo transition symbol will be the postdot symbol in exactly
-one AHFA item in the AHFA state of the Earley item predecessor.
-
-@** Ur-node (UR) code.
-Ur is a German word for ``primordial", which is used
-a lot in academic writing to designate precursors ---
-for example, scholars who believe that Shakespeare's
-{\it Hamlet} is based on another, now lost, play,
-call this play the ur-Hamlet.
-My ur-nodes are precursors of and-nodes and or-nodes.
-@<Private incomplete structures@> =
-struct s_ur_node_stack;
-struct s_ur_node;
-typedef struct s_ur_node_stack* URS;
-typedef struct s_ur_node* UR;
-typedef const struct s_ur_node* UR_Const;
-@
-{\bf To Do}: @^To Do@>
-It may make sense to reuse this stack
-for the alternatives.
-In that case some of these structures
-will need to be changed.
-@d Prev_UR_of_UR(ur) ((ur)->t_prev)
-@d Next_UR_of_UR(ur) ((ur)->t_next)
-@d YIM_of_UR(ur) ((ur)->t_earley_item)
-@d AEX_of_UR(ur) ((ur)->t_aex)
-
-@<Private structures@> =
-struct s_ur_node_stack {
-   struct marpa_obstack* t_obs;
-   UR t_base;
-   UR t_top;
-};
-
-@ @<Private structures@> =
-struct s_ur_node {
-   UR t_prev;
-   UR t_next;
-   YIM t_earley_item;
-   AEX t_aex;
-};
-typedef struct s_ur_node UR_Object;
-
-@ @d URS_of_R(r) (&(r)->t_ur_node_stack)
-@<Widely aligned recognizer elements@> =
-struct s_ur_node_stack t_ur_node_stack;
-@
-{\bf To Do}: @^To Do@>
-The lifetime of this stack should be reexamined once its uses
-are settled.
-@<Initialize recognizer elements@> =
-    ur_node_stack_init(URS_of_R(r));
-@ @<Destroy recognizer elements@> =
-    ur_node_stack_destroy(URS_of_R(r));
-
-@ @<Function definitions@> =
-PRIVATE void ur_node_stack_init(URS stack)
-{
-    stack->t_obs = marpa_obs_init;
-    stack->t_base = ur_node_new(stack, 0);
-    ur_node_stack_reset(stack);
-}
-
-@ @<Function definitions@> =
-PRIVATE void ur_node_stack_reset(URS stack)
-{
-    stack->t_top = stack->t_base;
-}
-
-@ @<Function definitions@> =
-PRIVATE void ur_node_stack_destroy(URS stack)
-{
-    if (stack->t_base) marpa_obs_free(stack->t_obs);
-    stack->t_base = NULL;
-}
-
-@ @<Function definitions@> =
-PRIVATE UR ur_node_new(URS stack, UR prev)
-{
-    UR new_ur_node;
-    new_ur_node = marpa_obs_new(stack->t_obs, UR_Object, 1);
-    Next_UR_of_UR(new_ur_node) = 0;
-    Prev_UR_of_UR(new_ur_node) = prev;
-    return new_ur_node;
-}
-
-@ @<Function definitions@> =
-PRIVATE void
-ur_node_push (URS stack, YIM earley_item, AEX aex)
-{
-  UR old_top = stack->t_top;
-  UR new_top = Next_UR_of_UR (old_top);
-  YIM_of_UR (old_top) = earley_item;
-  AEX_of_UR (old_top) = aex;
-  if (!new_top)
-    {
-      new_top = ur_node_new (stack, old_top);
-      Next_UR_of_UR (old_top) = new_top;
-    }
-  stack->t_top = new_top;
-}
-
-@ @<Function definitions@> =
-PRIVATE UR
-ur_node_pop (URS stack)
-{
-  UR new_top = Prev_UR_of_UR (stack->t_top);
-  if (!new_top) return NULL;
-  stack->t_top = new_top;
-  return new_top;
-}
-
-@
-{\bf To Do}: @^To Do@>
-No predictions are used in creating or-nodes.
-Most (all but the start?) are eliminating in creating the PSIA data,
-but then predictions are tested for when creating or-nodes.
-For efficiency, there should be only one check.
-I need to decide where to make it.
-
-@ |predecessor_aim| and |predot|
-are guaranteed to be defined,
-since predictions are
-never on the stack.
-@<Populate the PSIA data@>=
-{
-    UR_Const ur_node;
-    const URS ur_node_stack = URS_of_R(r);
-    ur_node_stack_reset(ur_node_stack);
-    {
-       const YIM ur_earley_item = start_yim;
-        @<Push ur-node if new@>@;
-    }
-    while ((ur_node = ur_node_pop(ur_node_stack)))
-    {
-        const YIM_Const parent_earley_item = YIM_of_UR(ur_node);
-        const AHM parent_aim = AHM_of_YIM(parent_earley_item);
-        MARPA_ASSERT(parent_aim >= AHM_by_ID(1))@;
-        const AHM predecessor_aim = parent_aim - 1;
-        /* Note that the postdot symbol of the predecessor is NOT necessarily the
-           predot symbol, because there may be nulling symbols in between. */
-        unsigned int source_type = Source_Type_of_YIM (parent_earley_item);
-        MARPA_ASSERT(!YIM_was_Predicted(parent_earley_item))@;
-        @<Push child Earley items from token sources@>@;
-        @<Push child Earley items from completion sources@>@;
-        @<Push child Earley items from Leo sources@>@;
-    }
-}
-
-@ There is now only one AHM unless the item is a prediction, which it never is
-if we are here.
-@<Push ur-node if new@> = {
-    if (!psia_test_and_set
-        (bocage_setup_obs, per_ys_data, ur_earley_item, 0))
-      {
-        ur_node_push (ur_node_stack, ur_earley_item, 0);
-      }
-}
-
-@ The |PSIA| is a container of data that is per Earley-set, per Earley item,
-and per AEX.  Thus, Per-Set-Item-Aex, or PSIA.
-This function ensures that the appropriate |PSIA| boolean is set.
-It returns that boolean's value {\bf prior} to the call.
-@<Function definitions@> = 
-PRIVATE int psia_test_and_set(
-    struct marpa_obstack* obs,
-    struct s_bocage_setup_per_ys* per_ys_data,
-    YIM earley_item,
-    AEX ahfa_element_ix)
-{
-    const Marpa_Earley_Set_ID set_ordinal = YS_Ord_of_YIM(earley_item);
-    OR** nodes_by_item = per_ys_data[set_ordinal].t_aexes_by_item;
-    const int item_ordinal = Ord_of_YIM(earley_item);
-    OR* nodes_by_aex = nodes_by_item[item_ordinal];
-    if (!nodes_by_aex) {
-        nodes_by_aex = nodes_by_item[item_ordinal] =
-            marpa_obs_new(obs, OR, 1);
-            nodes_by_aex[0] = NULL;
-    }
-    if (!nodes_by_aex[ahfa_element_ix]) {
-        nodes_by_aex[ahfa_element_ix] = dummy_or_node;
-        return 0;
-    }
-    return 1;
-}
-
-@ @<Push child Earley items from token sources@> =
-{
-  SRCL source_link = NULL;
-  YIM predecessor_earley_item = NULL;
-  switch (source_type)
-    {
-    case SOURCE_IS_TOKEN:
-      predecessor_earley_item = Predecessor_of_YIM (parent_earley_item);
-      break;
-    case SOURCE_IS_AMBIGUOUS:
-      source_link = LV_First_Token_SRCL_of_YIM (parent_earley_item);
-      if (source_link)
-        {
-          predecessor_earley_item = Predecessor_of_SRCL (source_link);
-          source_link = Next_SRCL_of_SRCL (source_link);
-        }
-    }
-  for (;;)
-    {
-      if (predecessor_earley_item)
-        {
-          if (YIM_was_Predicted (predecessor_earley_item))
-            {
-                Set_boolean_in_PSIA_for_initial_nulls (bocage_setup_obs, per_ys_data,
-                                                       predecessor_earley_item,
-                                                       predecessor_aim);
-            }
-          else
-            {
-              const YIM ur_earley_item = predecessor_earley_item;
-              @<Push ur-node if new@>@;
-            }
-        }
-      if (!source_link)
-        break;
-      predecessor_earley_item = Predecessor_of_SRCL (source_link);
-      source_link = Next_SRCL_of_SRCL (source_link);
-    }
-}
-
-@ If there are initial nulls, set a boolean in the PSIA
-so that I will know to create the chain of or-nodes for them.
-We don't need to stack the prediction, because it can have
-no other descendants.
+@ Various notes about revision:
+\li I need to make sure that the reading of alternatives
+and the rejection of rules and terminals cannot be mixed.
+Rejected must be made, and revision complete, before any
+alternatives can be attempted.
+Or, in other words, attempting to reject a rule or terminal
+once an alternative has been read must be a fatal error.
 @<Function definitions@> =
-PRIVATE int
-Set_boolean_in_PSIA_for_initial_nulls (struct marpa_obstack *bocage_setup_obs,
-				       struct s_bocage_setup_per_ys
-				       *per_ys_data, YIM yim, AHM aim)
+Marpa_Earleme
+marpa_r_clean(Marpa_Recognizer r)
 {
-  int null_count = 0;
-  if (Position_of_AHM (aim) > 0)
+  @<Return |-2| on failure@>@;
+  @<Unpack recognizer objects@>@;
+  YSID ysid_to_clean;
+
+    @t}\comment{@>
+  const YS current_ys = Latest_YS_of_R (r);
+  const YSID current_ys_id = Ord_of_YS(current_ys);
+
+  int count_of_expected_terminals;
+  @<Declare |marpa_r_clean| locals@>@;
+
+    @t}\comment{@>
+  /* Initialized to -2 just in case.
+    Should be set before returning;
+   */
+  const JEARLEME return_value = -2;
+
+  @<Fail if recognizer not accepting input@>@;
+
+  G_EVENTS_CLEAR(g);
+
+  @t}\comment{@>
+  /* Return success if recognizer is already consistent */
+  if (R_is_Consistent(r)) return 0;
+
+    @t}\comment{@>
+    /* Note this makes revision $O(n \log n)$.  I could do better
+       for constant "look-behind", but it does not seem worth the
+       bother */
+  earley_set_update_items(r, current_ys);
+
+  for (ysid_to_clean = First_Inconsistent_YS_of_R(r);
+        ysid_to_clean <= current_ys_id;
+        ysid_to_clean++) {
+      @<Clean Earley set |ysid_to_clean|@>@;
+  }
+
+  @t}\comment{@>
+  /* All Earley sets are now consistent */
+
+    @<Clean pending alternatives@>@;
+
+    bv_clear (r->t_bv_nsyid_is_expected);
+    @<Clean expected terminals@>@;
+    count_of_expected_terminals = bv_count (r->t_bv_nsyid_is_expected);
+    if (count_of_expected_terminals <= 0
+       && MARPA_DSTACK_LENGTH (r->t_alternatives ) <= 0)
+      {
+        @<Set |r| exhausted@>@;
+      }
+
+  First_Inconsistent_YS_of_R(r) = -1;
+  /* CLEANUP: ; -- not used at the moment */
+    @<Destroy |marpa_r_clean| locals@>@;
+  return return_value;
+}
+
+@ @<Declare |marpa_r_clean| locals@> =
+
+@t}\comment{@>
+/* An obstack whose lifetime is that of the external method */
+struct marpa_obstack* const method_obstack = marpa_obs_init;
+
+YIMID *prediction_by_irl =
+  marpa_obs_new (method_obstack, YIMID, IRL_Count_of_G (g));
+
+@ @<Destroy |marpa_r_clean| locals@> =
+{
+  marpa_obs_free(method_obstack);
+}
+
+@ @<Clean Earley set |ysid_to_clean|@> =
+{
+  const YS ys_to_clean = YS_of_R_by_Ord (r, ysid_to_clean);
+  const YIM *yims_to_clean = YIMs_of_YS (ys_to_clean);
+  const int yim_to_clean_count = YIM_Count_of_YS (ys_to_clean);
+  Bit_Matrix acceptance_matrix = matrix_obs_create (method_obstack,
+    yim_to_clean_count,
+    yim_to_clean_count);
+  @<Map prediction rules to YIM ordinals in array@>@;
+  @<First revision pass over |ys_to_clean|@>@;
+  transitive_closure(acceptance_matrix);
+  @<Mark accepted YIM's@>@;
+  @<Mark un-accepted YIM's rejected@>@;
+  @<Mark accepted SRCL's@>@;
+  @<Mark rejected LIM's@>@;
+}
+
+@ Rules not used in this YS
+do not need to be initialized because they
+will never be referred to.
+@<Map prediction rules to YIM ordinals in array@> =
+{
+    int yim_ix = yim_to_clean_count - 1;
+    YIM yim = yims_to_clean[yim_ix];
+
+    @t}\comment{@>
+    /* Assumes that predictions are last in the YS.
+    There will always be a non-prediction to end the loop,
+    because there is always a scanned or an initial YIM.
+    */
+    while (YIM_was_Predicted(yim)) {
+      prediction_by_irl[IRLID_of_YIM(yim)] = yim_ix;
+      yim = yims_to_clean[--yim_ix];
+    }
+}
+
+@ @<First revision pass over |ys_to_clean|@> = {
+    int yim_to_clean_ix;
+    for (yim_to_clean_ix = 0;
+         yim_to_clean_ix < yim_to_clean_count;
+         yim_to_clean_ix++)
+      {
+        const YIM yim_to_clean = yims_to_clean[yim_to_clean_ix];
+
+        @t}\comment{@>
+        /* The initial YIM is always active and can {\bf never}
+        be rejected. */
+        MARPA_ASSERT (!YIM_is_Initial(yim_to_clean) || 
+            (YIM_is_Active(yim_to_clean) && !YIM_is_Rejected(yim_to_clean)));
+
+        @t}\comment{@>
+        /* Non-initial YIM's are inactive until proven active. */
+        if (!YIM_is_Initial(yim_to_clean)) YIM_is_Active(yim_to_clean) = 0;
+
+        @t}\comment{@>
+        /* If a YIM is rejected, which at this point means that it
+        was directly rejected, that is the end of the story.
+        We don't use it to update
+        the acceptance matrix.  */
+        if (YIM_is_Rejected(yim_to_clean)) continue;
+
+        @t}\comment{@>
+        /* Add un-rejected predictions to acceptance matrix. */
+        @<Add predictions from |yim_to_clean| to acceptance matrix@>@;
+
+        @t}\comment{@>
+        /* YIM's may have both scanned and fusion links.
+        Change the following so it looks at both kinds of link
+        for all YIM's. */
+
+      }
+}
+
+@ @<Add predictions from |yim_to_clean| to acceptance matrix@> =
+{
+  const NSYID postdot_nsyid = Postdot_NSYID_of_YIM (yim_to_clean);
+  if (postdot_nsyid >= 0)
     {
-      null_count = Null_Count_of_AHM (aim);
-      if (null_count)
+      int cil_ix;
+      const CIL lhs_cil = LHS_CIL_of_NSYID (postdot_nsyid);
+      const int cil_count = Count_of_CIL (lhs_cil);
+      for (cil_ix = 0; cil_ix < cil_count; cil_ix++)
 	{
-	  // the AEX is now always zero.
-          const int aex = 0;
-	  psia_test_and_set (bocage_setup_obs, per_ys_data, (yim), aex);
+	  const IRLID irlid = Item_of_CIL (lhs_cil, cil_ix);
+	  const int predicted_yim_ix = prediction_by_irl[irlid];
+          const YIM predicted_yim = yims_to_clean[predicted_yim_ix];
+          if (YIM_is_Rejected(predicted_yim)) continue;
+	  matrix_bit_set (acceptance_matrix, yim_to_clean_ix,
+			  predicted_yim_ix);
 	}
     }
-  return null_count;
 }
 
-@ @<Push child Earley items from completion sources@> =
-{
-  SRCL source_link = NULL;
-  YIM predecessor_earley_item = NULL;
-  YIM cause_earley_item = NULL;
-  switch (source_type)
-    {
-    case SOURCE_IS_COMPLETION:
-      predecessor_earley_item = Predecessor_of_YIM (parent_earley_item);
-      cause_earley_item = Cause_of_YIM (parent_earley_item);
-      break;
-    case SOURCE_IS_AMBIGUOUS:
-      source_link = LV_First_Completion_SRCL_of_YIM (parent_earley_item);
-      if (source_link)
-	{
-	  predecessor_earley_item = Predecessor_of_SRCL (source_link);
-	  cause_earley_item = Cause_of_SRCL (source_link);
-	  source_link = Next_SRCL_of_SRCL (source_link);
-	}
-      break;
-    }
-  while (cause_earley_item)
-    {
-      if (predecessor_earley_item)
-	{
-	  if (YIM_was_Predicted (predecessor_earley_item))
-	    {
-	       Set_boolean_in_PSIA_for_initial_nulls
-		(bocage_setup_obs, per_ys_data,
-		 predecessor_earley_item, predecessor_aim);
-	    }
-	  else
-	    {
-	      const YIM ur_earley_item = predecessor_earley_item;
-	      @<Push ur-node if new@>@;
-	    }
-	}
+@ Mark YIM's not active if not scanned.
+If scanned, we can make a preliminary determination whether
+it is accepted based on
+the absence direct rejection and the presence of
+at least one unrejected token link.
+(A scanned YIM may have fusion links.)
+If this preliminary determination indicates that the
+scanned YIM is active, we mark it that way.
+@ We need the preliminary indication, because when we
+compute the accepted YIM's from
+the transition closure of acceptances, we need a set of YIM's
+as a starting point.
+In Earley set 0, the initial YIM is the starting point,
+but in all later sets, the scanned YIM's are the starting
+points.
+We know that
+every unrejected YIM will trace back, in its YS,
+to either the initial YIM or
+an unrejected token SRCL in an unrejected scanned YIM.
+@ A scanned YIM may have only rejected token SRCL's,
+but an accepted fusion SRCL.
+In effect, after the rejections, it is now a purely fusion
+YIM.
+We do not use
+such a now-purely-fusion, no-longer-scanned YIM as a
+starting point.
+We know this is safe, since
+in order to be accepted, every YIM must trace back to
+an unrejected YIM with unrejected token SRCL's,
+or to the initial YIM.
+@ If not rejected, scan SRCL's.
+For each SRCL, reject if predecessor or cause if rejected;
+otherwise, record as a dependency on cause.
+Add dependencies to acceptance matrix.
+If any dependency was recorded, also add any direct
+predictions of un-rejected YIM's.
+
+@ For every scanned or initial YIM in transitive closure,
+mark the to-YIM's of the dependency active.
+Mark all others rejected.
+@<Mark accepted YIM's@> = {
+    int cause_yim_ix;
+    for (cause_yim_ix = 0; cause_yim_ix < yim_to_clean_count; cause_yim_ix++) {
+      const YIM cause_yim = yims_to_clean[cause_yim_ix];
+
+      @t}\comment{@>
+      /* We only need look at the indirect effects of
+      initial and scanned YIM's, because they are the indirect
+      cause of all other YIM's in the YS. */
+      if (!YIM_is_Initial(cause_yim) &&
+        !YIM_was_Scanned(cause_yim)) break;
+
+      @t}\comment{@>
+      /* an indirect cause YIM may have been directly
+      rejected, if which cause we do not use it, but keep
+      looking for other indirect causes. */
+      if (YIM_is_Rejected(cause_yim)) continue;
+
       {
-	const YIM ur_earley_item = cause_earley_item;
-	/* There is now only one AEX in a completion */
-	@<Push ur-node if new@>@;
-      }
-      if (!source_link)
-	break;
-      predecessor_earley_item = Predecessor_of_SRCL (source_link);
-      cause_earley_item = Cause_of_SRCL (source_link);
-      source_link = Next_SRCL_of_SRCL (source_link);
-    }
-}
-
-@ @<Push child Earley items from Leo sources@> =
-{
-  SRCL source_link;
-  for (source_link = First_Leo_SRCL_of_YIM (parent_earley_item);
-       source_link; source_link = Next_SRCL_of_SRCL (source_link))
-    {
-      const YIM cause_earley_item = Cause_of_SRCL (source_link);
-      LIM leo_predecessor = LIM_of_SRCL (source_link);
-      {
-        const YIM ur_earley_item = cause_earley_item;
-        /* There is now only one AEX in a completion */
-        @<Push ur-node if new@>@;
-      }
-      while (leo_predecessor)
-        {
-          const YIM leo_base_yim = Base_YIM_of_LIM (leo_predecessor);
-          if (YIM_was_Predicted (leo_base_yim))
-            {
-                const AHM leo_final_aim = Base_to_AHM_of_LIM(leo_predecessor);
-                const AHM prediction_aim = Prev_AHM_of_AHM(leo_final_aim);
-                Set_boolean_in_PSIA_for_initial_nulls (bocage_setup_obs, per_ys_data,
-                                                       leo_base_yim, prediction_aim);
-            }
-          else
-            {
-              const YIM ur_earley_item = leo_base_yim;
-              @<Push ur-node if new@>@;
-            }
-          leo_predecessor = Predecessor_LIM_of_LIM (leo_predecessor);
-        }
-    }
-}
-
-@** Or-node (OR) code.
-The or-nodes are part of the parse bocage
-and are similar to the or-nodes of a standard parse forest.
-Unlike a parse forest,
-a parse bocage can contain cycles.
-
-@<Public typedefs@> =
-typedef int Marpa_Or_Node_ID;
-@ @<Private typedefs@> =
-typedef Marpa_Or_Node_ID ORID;
-
-@*0 Relationship of Earley items to or-nodes.
-Several Earley items may be the source of the same or-node,
-but the or-node only keeps track of one.  This is sufficient,
-because the Earley item is tracked by the or-node only for its
-links and,
-by the following theorem,
-the links for every Earley item which is the source
-of the same or-node must be the same.
-
-@ {\bf Theorem}: If two Earley items are sources of the same or-node,
-they have the same links.
-{\bf Outline of Proof}:
-No or-node results from a predicted Earley
-item, so every Earley item which is the source of an or-node
-is itself the result of a transition over a symbol from
-another Earley item.  
-So I can restrict my discussion to discovered Earley items.
-For the same reason, I can assume all source links have
-predecessors defined.
-
-@ {\bf Shared Predot Lemma}: An AHFA state is either predicted,
-or all its LR0 items share the same predot symbol.
-{\bf Proof}:  Straightforward, based on the construction of
-an AHFA.
-
-@ {\bf YIM Lemma }: If two Earley items are sources of the same or-node,
-they share the same origin YS, the same current YS and the same
-predot symbol.
-{\bf Proof of Lemma}:
-Showing that the Earley items share the same origin and current
-YS is straightforward, based on the or-node's construction.
-They share at least one LR0 item in their AHFA states ---
-the LR0 item which defines the or-node.
-Because they share at least one LR0 item and because, by the
-Shared Predot Lemma, every LR0
-item in a discovered AHFA state has the same predot symbol,
-the two Earley items also
-share the same predot symbol.
-
-@ {\bf Completion Source Lemma}:
-A discovered Earley item has a completion source link if and only if
-the origin YS of the link's predecessor,
-the current YS of the link's cause
-and the transition symbol match, respectively,
-the origin YS, current YS and predot symbol of the discovered YIM.
-{\bf Proof}: Based on the construction of YIMs.
-
-@ {\bf Token Source Lemma}:
-A discovered Earley item has a token source link if and only if
-origin YS of the link's predecessor, the current YS of the link's cause
-and the token symbol match, respectively,
-the origin YS, current YS and predot symbol of the discovered YIM.
-{\bf Proof}: Based on the construction of YIMs.
-
-@ Source links are either completion source links or token source links.
-The theorem for completion source links follows from the YIM Lemma and the
-Completion Source Lemma.
-The theorem for token source links follows from the YIM Lemma and the
-Token Source Lemma.
-{\bf QED}.
-
-@ @<Private incomplete structures@> =
-union u_or_node;
-typedef union u_or_node* OR;
-@ The type is contained in same word as the position is
-for final or-nodes.
-@s OR int
-Position is |DUMMY_OR_NODE| for dummy or-nodes,
-and less than or equal to |MAX_TOKEN_OR_NODE|
-if the or-node is actually a symbol.
-It is |VALUED_TOKEN_OR_NODE} if the token has
-a value assigned,
-|NULLING_TOKEN_OR_NODE} if the token is nulling,
-and |UNVALUED_TOKEN_OR_NODE} if the token is non-nulling,
-but has no value assigned.
-Position is the dot position.
-@d DUMMY_OR_NODE -1
-@d MAX_TOKEN_OR_NODE -2
-@d VALUED_TOKEN_OR_NODE -2
-@d NULLING_TOKEN_OR_NODE -3
-@d UNVALUED_TOKEN_OR_NODE -4
-@d OR_is_Token(or) (Type_of_OR(or) <= MAX_TOKEN_OR_NODE)
-@d Position_of_OR(or) ((or)->t_final.t_position)
-@d Type_of_OR(or) ((or)->t_final.t_position)
-@d IRL_of_OR(or) ((or)->t_final.t_irl)
-@d Origin_Ord_of_OR(or) ((or)->t_final.t_start_set_ordinal)
-@d ID_of_OR(or) ((or)->t_final.t_id)
-@d YS_Ord_of_OR(or) ((or)->t_draft.t_end_set_ordinal)
-@d DANDs_of_OR(or) ((or)->t_draft.t_draft_and_node)
-@d First_ANDID_of_OR(or) ((or)->t_final.t_first_and_node_id)
-@d AND_Count_of_OR(or) ((or)->t_final.t_and_node_count)
-@ C89 guarantees that common initial sequences
-may be accessed via different members of a union.
-@<Or-node common initial sequence@> =
-int t_position;
-int t_end_set_ordinal;
-IRL t_irl;
-int t_start_set_ordinal;
-ORID t_id;
-@ @<Private structures@> =
-struct s_draft_or_node
-{
-    @<Or-node common initial sequence@>@;
-  DAND t_draft_and_node;
-};
-@ @<Private structures@> =
-struct s_final_or_node
-{
-    @<Or-node common initial sequence@>@;
-    int t_first_and_node_id;
-    int t_and_node_count;
-};
-@
-@d TOK_of_OR(or) (&(or)->t_token)
-@d NSYID_of_OR(or) NSYID_of_TOK(TOK_of_OR(or))
-@d Value_of_OR(or) Value_of_TOK(TOK_of_OR(or))
-@<Private structures@> =
-union u_or_node {
-    struct s_draft_or_node t_draft;
-    struct s_final_or_node t_final;
-    struct s_token t_token;
-};
-typedef union u_or_node OR_Object;
-
-@ @<Global constant variables@> =
-static const int dummy_or_node_type = DUMMY_OR_NODE;
-static const OR dummy_or_node = (OR)&dummy_or_node_type;
-
-@ @d ORs_of_B(b) ((b)->t_or_nodes)
-@d OR_of_B_by_ID(b, id) (ORs_of_B(b)[(id)])
-@d OR_Count_of_B(b) ((b)->t_or_node_count)
-@d OR_Capacity_of_B(b) ((b)->t_or_node_capacity)
-@d ANDs_of_B(b) ((b)->t_and_nodes)
-@d AND_Count_of_B(b) ((b)->t_and_node_count)
-@d Top_ORID_of_B(b) ((b)->t_top_or_node_id)
-@<Widely aligned bocage elements@> =
-OR* t_or_nodes;
-AND t_and_nodes;
-@ @<Int aligned bocage elements@> =
-int t_or_node_capacity;
-int t_or_node_count;
-int t_and_node_count;
-ORID t_top_or_node_id;
-
-@ @<Initialize bocage elements@> =
-ORs_of_B(b) = NULL;
-OR_Count_of_B(b) = 0;
-ANDs_of_B(b) = NULL;
-AND_Count_of_B(b) = 0;
-Top_ORID_of_B(b) = -1;
-
-@ @<Destroy bocage elements, main phase@> =
-{
-  OR* or_nodes = ORs_of_B (b);
-  AND and_nodes = ANDs_of_B (b);
-  my_free (or_nodes);
-  ORs_of_B (b) = NULL;
-  my_free (and_nodes);
-  ANDs_of_B (b) = NULL;
-}
-
-@*0 Create the or-nodes.
-@<Create the or-nodes for all earley sets@> =
-{
-  PSAR_Object or_per_ys_arena;
-  const PSAR or_psar = &or_per_ys_arena;
-  int work_earley_set_ordinal;
-  OR last_or_node = NULL ;
-  OR_Capacity_of_B(b) = count_of_earley_items_in_parse;
-  ORs_of_B (b) = marpa_new (OR, OR_Capacity_of_B(b));
-  psar_init (or_psar, SYMI_Count_of_G (g));
-  for (work_earley_set_ordinal = 0;
-      work_earley_set_ordinal < earley_set_count_of_r;
-      work_earley_set_ordinal++)
-  {
-      const YS_Const earley_set = YS_of_R_by_Ord (r, work_earley_set_ordinal);
-    YIM* const yims_of_ys = YIMs_of_YS(earley_set);
-    const int item_count = YIM_Count_of_YS (earley_set);
-      PSL this_earley_set_psl;
-    OR** const nodes_by_item = per_ys_data[work_earley_set_ordinal].t_aexes_by_item;
-      psar_dealloc(or_psar);
-      {
-        const int psl_ys_ord = work_earley_set_ordinal;
-        PSL claimed_psl;
-        @<Claim the or-node PSL for |psl_ys_ord| as |claimed_psl|@>@;
-        this_earley_set_psl = claimed_psl;
-      }
-    @<Create the or-nodes for |work_earley_set_ordinal|@>@;
-    @<Create the draft and-nodes for |work_earley_set_ordinal|@>@;
-  }
-  psar_destroy (or_psar);
-  ORs_of_B(b) = marpa_renew (OR, ORs_of_B(b), OR_Count_of_B(b));
-}
-
-@ @<Create the or-nodes for |work_earley_set_ordinal|@> =
-{
-  int item_ordinal;
-  for (item_ordinal = 0; item_ordinal < item_count;
-       item_ordinal++)
-    {
-      OR *const work_nodes_by_aex =
-        nodes_by_item[item_ordinal];
-      if (work_nodes_by_aex)
-        {
-          const YIM work_earley_item =
-            yims_of_ys[item_ordinal];
-          const AEX work_aex = 0;
-          const int work_origin_ordinal =
-            Ord_of_YS (Origin_of_YIM (work_earley_item));
-              if (work_nodes_by_aex[work_aex])
-            {
-              @<Create the or-nodes for
-                  |work_earley_item| and |work_aex|@>@;
-            }
-        }
-    }
-}
-
-@ @<Create the or-nodes for |work_earley_item| and |work_aex|@> =
-{
-  AHM aim = AHM_of_YIM(work_earley_item);
-  SYMI aim_symbol_instance;
-  OR psia_or_node = NULL;
-  aim_symbol_instance = SYMI_of_AHM(aim);
-  {
-        PSL or_psl;
-        {
-          const int psl_ys_ord = work_origin_ordinal;
-          PSL claimed_psl;
-          @<Claim the or-node PSL for |psl_ys_ord| as |claimed_psl|@>@;
-          or_psl = claimed_psl;
-        }
-        @<Add main or-node@>@;
-        @<Add nulling token or-nodes@>@;
-    }
-    /* Replace the dummy or-node with
-    the last one added */
-    /* The following assertion is now not necessarily true.
-    it is kept for documentation, but eventually should be removed */
-    MARPA_OFF_ASSERT (psia_or_node)@;
-    work_nodes_by_aex[work_aex] = psia_or_node;
-    @<Add Leo or-nodes for |work_earley_item| and |work_aex|@>@;
-}
-
-@*0 Non-Leo or-nodes.
-@ Add the main or-node ---
-the one that corresponds directly to this AHM.
-The exception are predicted AHM's.
-Or-nodes are not added for predicted AHM's.
-@<Add main or-node@> =
-{
-  if (aim_symbol_instance >= 0)
-    {
-      OR or_node;
-MARPA_ASSERT(aim_symbol_instance < SYMI_Count_of_G(g))@;
-      or_node = PSL_Datum (or_psl, aim_symbol_instance);
-      if (!or_node || YS_Ord_of_OR(or_node) != work_earley_set_ordinal)
-        {
-          const IRL irl = IRL_of_AHM(aim);
-          @<Set |last_or_node| to a new or-node@>@;
-          or_node = last_or_node;
-          PSL_Datum (or_psl, aim_symbol_instance) = last_or_node;
-          Origin_Ord_of_OR(or_node) = Origin_Ord_of_YIM(work_earley_item);
-          YS_Ord_of_OR(or_node) = work_earley_set_ordinal;
-          IRL_of_OR(or_node) = irl;
-          Position_of_OR (or_node) =
-              aim_symbol_instance - SYMI_of_IRL (irl) + 1;
-          DANDs_of_OR(or_node) = NULL;
-        }
-        psia_or_node = or_node;
-    }
-}
-
-@ The resizing of the or-node array here presents an issue.
-It should not be invoked, which means it is never tested,
-which raises the question of either having confidence in the logic
-and deleting the code,
-or arranging to test it.
-r
-@<Set |last_or_node| to a new or-node@> =
-{
-  const int or_node_id = OR_Count_of_B (b)++;
-  last_or_node = (OR)marpa_obs_new (OBS_of_B(b), OR_Object, 1);
-  ID_of_OR(last_or_node) = or_node_id;
-  if (_MARPA_UNLIKELY(or_node_id >= OR_Capacity_of_B(b)))
-    {
-      OR_Capacity_of_B(b) *= 2;
-      ORs_of_B (b) =
-        marpa_renew (OR, ORs_of_B(b), OR_Capacity_of_B(b));
-    }
-  OR_of_B_by_ID(b,or_node_id) = last_or_node;
-}
-
-
-@  In the following logic, the order matters.
-The one added last in this logic,
-or in the logic for adding the main item,
-will be used as the or-node
-in the PSIA.
-@ In building the final or-node, the predecessor can be
-determined using the PSIA for $|symbol_instance|-1$.
-The exception is where there is no predecessor,
-and this is the case if |Position_of_OR(or_node) == 0|.
-@<Add nulling token or-nodes@> =
-{
-  const int null_count = Null_Count_of_AHM (aim);
-  if (null_count > 0)
-    {
-      const IRL irl = IRL_of_AHM (aim);
-      const int symbol_instance_of_rule = SYMI_of_IRL(irl);
-        const int first_null_symbol_instance =
-          aim_symbol_instance <
-          0 ? symbol_instance_of_rule : aim_symbol_instance + 1;
-      int i;
-      for (i = 0; i < null_count; i++)
-        {
-          const int symbol_instance = first_null_symbol_instance + i;
-          OR or_node = PSL_Datum (or_psl, symbol_instance);
-          if (!or_node || YS_Ord_of_OR (or_node) != work_earley_set_ordinal) {
-                DAND draft_and_node;
-                const int rhs_ix = symbol_instance - symbol_instance_of_rule;
-                const OR predecessor = rhs_ix ? last_or_node : NULL;
-                const OR cause = Nulling_OR_by_NSYID( RHSID_of_IRL (irl, rhs_ix ) );
-                @<Set |last_or_node| to a new or-node@>@;
-                or_node = PSL_Datum (or_psl, symbol_instance) = last_or_node ;
-                Origin_Ord_of_OR (or_node) = work_origin_ordinal;
-                YS_Ord_of_OR (or_node) = work_earley_set_ordinal;
-                IRL_of_OR (or_node) = irl;
-                Position_of_OR (or_node) = rhs_ix + 1;
-MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
-                draft_and_node = DANDs_of_OR (or_node) =
-                  draft_and_node_new (bocage_setup_obs, predecessor,
-                      cause);
-                Next_DAND_of_DAND (draft_and_node) = NULL;
-              }
-              psia_or_node = or_node;
-        }
-    }
-}
-
-@*0 Leo or-nodes.
-@<Add Leo or-nodes for |work_earley_item| and |work_aex|@> =
-{
-  SRCL source_link;
-  for (source_link = First_Leo_SRCL_of_YIM (work_earley_item);
-       source_link; source_link = Next_SRCL_of_SRCL (source_link))
-    {
-      LIM leo_predecessor = LIM_of_SRCL (source_link);
-      if (leo_predecessor) {
-        @<Add or-nodes for chain starting with |leo_predecessor|@>@;
-      }
-    }
-}
-
-@ The main loop in this code deliberately skips the first Leo predecessor.
-The successor of the first Leo predecessor is the base of the Leo path,
-which already exists, and therefore the first Leo predecessor is not
-expanded.
-@ The unwrapping of the information for the Leo path item is quite the
-process, and some memoization might be useful.
-But it is not clear that memoization does more than move
-the processing from one place to another, increasing space
-requirements in the process.
-@<Add or-nodes for chain starting with |leo_predecessor|@> =
-{
-  LIM this_leo_item = leo_predecessor;
-  LIM previous_leo_item = this_leo_item;
-  while ((this_leo_item = Predecessor_LIM_of_LIM (this_leo_item)))
-    {
-      const int ordinal_of_set_of_this_leo_item = Ord_of_YS(YS_of_LIM(this_leo_item));
-      const AHM path_aim = Base_to_AHM_of_LIM(previous_leo_item);
-      const IRL path_irl = IRL_of_AHM(path_aim);
-      const int symbol_instance_of_path_aim = SYMI_of_AHM(path_aim);
-      @<Add main Leo path or-node@>@;
-      @<Add Leo path nulling token or-nodes@>@;
-      previous_leo_item = this_leo_item;
-    }
-}
-
-@ Adds the main Leo path or-node ---
-the non-nulling or-node which
-corresponds to the Leo predecessor.
-@<Add main Leo path or-node@> =
-{
-    {
-      OR or_node;
-      PSL leo_psl;
-      {
-        const int psl_ys_ord = ordinal_of_set_of_this_leo_item;
-        PSL claimed_psl;
-        @<Claim the or-node PSL for |psl_ys_ord| as |claimed_psl|@>@;
-        leo_psl = claimed_psl ;
-      }
-      or_node = PSL_Datum (leo_psl, symbol_instance_of_path_aim);
-      if (!or_node || YS_Ord_of_OR(or_node) != work_earley_set_ordinal)
-        {
-          @<Set |last_or_node| to a new or-node@>@;
-          PSL_Datum (leo_psl, symbol_instance_of_path_aim) = or_node =
-              last_or_node;
-          Origin_Ord_of_OR(or_node) = ordinal_of_set_of_this_leo_item;
-          YS_Ord_of_OR(or_node) = work_earley_set_ordinal;
-          IRL_of_OR(or_node) = path_irl;
-          Position_of_OR (or_node) =
-              symbol_instance_of_path_aim - SYMI_of_IRL (path_irl) + 1;
-          DANDs_of_OR(or_node) = NULL;
-        }
-    }
-}
-
-@ In building the final or-node, the predecessor can be
-determined using the PSIA for $|symbol_instance|-1$.
-There will always be a predecessor, since these nulling
-or-nodes follow a completion.
-@<Add Leo path nulling token or-nodes@> =
-{
-  int i;
-  const int null_count = Null_Count_of_AHM (path_aim);
-  for (i = 1; i <= null_count; i++)
-    {
-      const int symbol_instance = symbol_instance_of_path_aim + i;
-      OR or_node = PSL_Datum (this_earley_set_psl, symbol_instance);
-      MARPA_ASSERT (symbol_instance < SYMI_Count_of_G (g)) @;
-      if (!or_node || YS_Ord_of_OR (or_node) != work_earley_set_ordinal)
-        {
-          DAND draft_and_node;
-          const int rhs_ix = symbol_instance - SYMI_of_IRL(path_irl);
-          MARPA_ASSERT (rhs_ix < Length_of_IRL (path_irl)) @;
-          const OR predecessor = rhs_ix ? last_or_node : NULL;
-          const OR cause = Nulling_OR_by_NSYID( RHSID_of_IRL (path_irl, rhs_ix ) );
-          MARPA_ASSERT (symbol_instance < Length_of_IRL (path_irl)) @;
-          MARPA_ASSERT (symbol_instance >= 0) @;
-          @<Set |last_or_node| to a new or-node@>@;
-          PSL_Datum (this_earley_set_psl, symbol_instance) = or_node = last_or_node;
-          Origin_Ord_of_OR (or_node) = ordinal_of_set_of_this_leo_item;
-          YS_Ord_of_OR (or_node) = work_earley_set_ordinal;
-          IRL_of_OR (or_node) = path_irl;
-          Position_of_OR (or_node) = rhs_ix + 1;
-MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
-          DANDs_of_OR (or_node) = draft_and_node =
-              draft_and_node_new (bocage_setup_obs, predecessor, cause);
-          Next_DAND_of_DAND (draft_and_node) = NULL;
-        }
-      MARPA_ASSERT (Position_of_OR (or_node) <=
-                    SYMI_of_IRL (path_irl) + Length_of_IRL (path_irl)) @;
-      MARPA_ASSERT (Position_of_OR (or_node) >= SYMI_of_IRL (path_irl)) @;
-    }
-}
-
-@** Or-node trace functions.
-
-@ This is common logic in the or-node trace functions.
-In the case of a nulling bocage, the or count of
-the bocage is zero,
-so that any |or_node_id| is either a soft
-or a hard error,
-depending on whether it is non-negative
-or negative.
-@<Check |or_node_id|@> =
-{
-  if (_MARPA_UNLIKELY (or_node_id >= OR_Count_of_B (b)))
-    {
-      return -1;
-    }
-  if (_MARPA_UNLIKELY (or_node_id < 0))
-    {
-      MARPA_ERROR (MARPA_ERR_ORID_NEGATIVE);
-      return failure_indicator;
-    }
-}
-@ @<Set |or_node| or fail@> =
-{
-  if (_MARPA_UNLIKELY (!ORs_of_B(b)))
-    {
-      MARPA_ERROR (MARPA_ERR_NO_OR_NODES);
-      return failure_indicator;
-    }
-  or_node = OR_of_B_by_ID(b, or_node_id);
-}
-
-@ @<Function definitions@> =
-int _marpa_b_or_node_set(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return YS_Ord_of_OR(or_node);
-}
-
-@ @<Function definitions@> =
-int _marpa_b_or_node_origin(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return Origin_Ord_of_OR(or_node);
-}
-
-@ @<Function definitions@> =
-Marpa_IRL_ID _marpa_b_or_node_irl(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return ID_of_IRL(IRL_of_OR(or_node));
-}
-
-@ @<Function definitions@> =
-int _marpa_b_or_node_position(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return Position_of_OR(or_node);
-}
-
-@ @<Function definitions@> =
-int _marpa_b_or_node_is_whole(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return Position_of_OR(or_node) >= Length_of_IRL(IRL_of_OR(or_node)) ? 1 : 0;
-}
-
-@ @<Function definitions@> =
-int _marpa_b_or_node_is_semantic(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return ! IRL_has_Virtual_LHS(IRL_of_OR(or_node));
-}
-
-@ @<Function definitions@> =
-int _marpa_b_or_node_first_and(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return First_ANDID_of_OR(or_node);
-}
-
-@ @<Function definitions@> =
-int _marpa_b_or_node_last_and(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return First_ANDID_of_OR(or_node)
-      + AND_Count_of_OR(or_node) - 1;
-}
-
-@ @<Function definitions@> =
-int _marpa_b_or_node_and_count(Marpa_Bocage b,
-  Marpa_Or_Node_ID or_node_id)
-{
-  OR or_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  @<Set |or_node| or fail@>@;
-  return AND_Count_of_OR(or_node);
-}
-
-@** Ordering trace functions.
-
-@ This is common logic in the ordering trace functions.
-In the case of a nulling ordering, the or count of
-the ordering is zero,
-so that any |or_node_id| is either a soft
-or a hard error,
-depending on whether it is non-negative
-or negative.
-
-@ @<Function definitions@> =
-int _marpa_o_or_node_and_node_count(Marpa_Order o,
-  Marpa_Or_Node_ID or_node_id)
-{
-  @<Return |-2| on failure@>@;
-  @<Unpack order objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  if (!O_is_Default(o))
-  {
-    ANDID ** const and_node_orderings = o->t_and_node_orderings;
-    ANDID *ordering = and_node_orderings[or_node_id];
-    if (ordering) return ordering[0];
-  }
-  {
-    OR or_node;
-    @<Set |or_node| or fail@>@;
-    return AND_Count_of_OR (or_node);
-  }
-}
-
-@ @<Function definitions@> =
-int _marpa_o_or_node_and_node_id_by_ix(Marpa_Order o,
-  Marpa_Or_Node_ID or_node_id, int ix)
-{
-  @<Return |-2| on failure@>@;
-  @<Unpack order objects@>@;
-  @<Fail if fatal error@>@;
-  @<Check |or_node_id|@>@;
-  if (!O_is_Default(o))
-  {
-      ANDID ** const and_node_orderings = o->t_and_node_orderings;
-      ANDID *ordering = and_node_orderings[or_node_id];
-      if (ordering) return ordering[1 + ix];
-  }
-  {
-    OR or_node;
-    @<Set |or_node| or fail@>@;
-    return First_ANDID_of_OR (or_node) + ix;
-  }
-}
-
-@** Whole element ID (WHEID) code.
-The "whole elements" of the grammar are the symbols
-and the completed rules.
-{\bf To Do}: @^To Do@>
-{\bf Restriction}: @^Restriction@>
-Note that this puts a limit on the number of symbols
-and internal rules in a grammar --- their total must fit in an
-int.
-@d WHEID_of_NSYID(nsyid) (irl_count+(nsyid))
-@d WHEID_of_IRLID(irlid) (irlid)
-@d WHEID_of_IRL(irl) WHEID_of_IRLID(ID_of_IRL(irl))
-@d WHEID_of_OR(or) (
-    wheid = OR_is_Token(or) ?
-        WHEID_of_NSYID(NSYID_of_OR(or)) :
-        WHEID_of_IRL(IRL_of_OR(or))
-    )
-
-@<Private typedefs@> =
-typedef int WHEID;
-
-@** Draft and-node (DAND) code.
-The draft and-nodes are used while the bocage is
-being built.
-Both draft and final and-nodes contain the predecessor
-and cause.
-Draft and-nodes need to be in a linked list,
-so they have a link to the next and-node.
-@s DAND int
-@<Private incomplete structures@> =
-struct s_draft_and_node;
-typedef struct s_draft_and_node* DAND;
-@
-@d Next_DAND_of_DAND(dand) ((dand)->t_next)
-@d Predecessor_OR_of_DAND(dand) ((dand)->t_predecessor)
-@d Cause_OR_of_DAND(dand) ((dand)->t_cause)
-@<Private structures@> =
-struct s_draft_and_node {
-    DAND t_next;
-    OR t_predecessor;
-    OR t_cause;
-};
-typedef struct s_draft_and_node DAND_Object;
-
-@ @<Function definitions@> =
-PRIVATE
-DAND draft_and_node_new(struct marpa_obstack *obs, OR predecessor, OR cause)
-{
-    DAND draft_and_node = marpa_obs_new (obs, DAND_Object, 1);
-    Predecessor_OR_of_DAND(draft_and_node) = predecessor;
-    Cause_OR_of_DAND(draft_and_node) = cause;
-    MARPA_ASSERT(cause != NULL);
-    return draft_and_node;
-}
-
-@ Currently, I do not check draft and-nodes for duplicates.
-This will be done when they are copied to final and-nodes.
-In the future, it may be more efficient to do a linear search for
-duplicates until the number of draft and-nodes reaches a small
-constant $n$.
-(Optimal $n$ is perhaps something like 7.)
-Alernatively, it could always check for duplicates, but limit
-the search to the first $n$ draft and-nodes.
-@ In that case, the logic to copy the final and-nodes can
-rely on chains of length less than $n$ being non-duplicated,
-and the PSARs can be reserved for the unusual case where this
-is not sufficient.
-@<Function definitions@> =
-PRIVATE
-void draft_and_node_add(struct marpa_obstack *obs, OR parent, OR predecessor, OR cause)
-{
-    MARPA_OFF_ASSERT(Position_of_OR(parent) <= 1 || predecessor)
-    const DAND new = draft_and_node_new(obs, predecessor, cause);
-    Next_DAND_of_DAND(new) = DANDs_of_OR(parent);
-    DANDs_of_OR(parent) = new;
-}
-
-@ @<Create the draft and-nodes for |work_earley_set_ordinal|@> =
-{
-    int item_ordinal;
-    for (item_ordinal = 0; item_ordinal < item_count; item_ordinal++)
-    {
-        OR* const nodes_by_aex = nodes_by_item[item_ordinal];
-        if (nodes_by_aex) {
-            const YIM work_earley_item = yims_of_ys[item_ordinal];
-            const int work_origin_ordinal = Ord_of_YS (Origin_of_YIM (work_earley_item));
-            const AEX work_aex = 0;
-            OR or_node = nodes_by_aex[work_aex];
-            @<Move |or_node| to proper predecessor@>@;
-            if (or_node) {
-                @<Create draft and-nodes for |or_node|@>@;
-            }
-        }
-    }
-}
-
-@ From an or-node, which may be nulling, determine its proper
-predecessor.  Set |or_node| to 0 if there is none.
-@<Move |or_node| to proper predecessor@> =
-{
-    while (or_node)  {
-        DAND draft_and_node = DANDs_of_OR(or_node);
-        OR predecessor_or;
-        if (!draft_and_node) break;
-        predecessor_or = Predecessor_OR_of_DAND (draft_and_node);
-        if (predecessor_or &&
-            YS_Ord_of_OR (predecessor_or) != work_earley_set_ordinal)
-          break;
-        or_node = predecessor_or;
-    }
-}
-
-@ @<Create draft and-nodes for |or_node|@> =
-{
-    unsigned int work_source_type = Source_Type_of_YIM (work_earley_item);
-    const AHM work_aim = AHM_of_YIM (work_earley_item);
-    MARPA_ASSERT (work_aim >= AHM_by_ID (1))@;
-    const AHM work_predecessor_aim = work_aim - 1;
-    const int work_symbol_instance = SYMI_of_AHM (work_aim);
-    OR work_proper_or_node;
-    {
-      const int origin = work_origin_ordinal;
-      const SYMI symbol_instance = work_symbol_instance;
-      OR* const p_or_node = &work_proper_or_node;
-      @<Set |*p_or_node| from Ord |origin| and SYMI |symbol_instance|@>@;
-    }
-    @<Create Leo draft and-nodes@>@;
-    @<Create draft and-nodes for token sources@>@;
-    @<Create draft and-nodes for completion sources@>@;
-}
-
-@ @<Create Leo draft and-nodes@> =
-{
-  SRCL source_link;
-  for (source_link = First_Leo_SRCL_of_YIM (work_earley_item);
-       source_link; source_link = Next_SRCL_of_SRCL (source_link))
-    {
-      YIM cause_earley_item = Cause_of_SRCL (source_link);
-      LIM leo_predecessor = LIM_of_SRCL (source_link);
-      if (leo_predecessor) {
-        @<Add draft and-nodes for chain starting with |leo_predecessor|@>@;
-      }
-    }
-}
-
-@ Note that in a trivial path the bottom is also the top.
-@<Add draft and-nodes for chain starting with |leo_predecessor|@> =
-{
-    /* The rule for the Leo path Earley item */
-    IRL path_irl = NULL;
-    /* The rule for the previous Leo path Earley item */
-    IRL previous_path_irl;
-    LIM path_leo_item = leo_predecessor;
-    LIM higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
-    OR dand_predecessor;
-    OR path_or_node;
-    YIM base_earley_item = Base_YIM_of_LIM(path_leo_item);
-    Set_OR_from_YIM(dand_predecessor, base_earley_item);
-    @<Set |path_or_node|@>@;
-    @<Add draft and-nodes to the bottom or-node@>@;
-    previous_path_irl = path_irl;
-    while (higher_path_leo_item) {
-        path_leo_item = higher_path_leo_item;
-        higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
-        base_earley_item = Base_YIM_of_LIM(path_leo_item);
-        Set_OR_from_YIM(dand_predecessor, base_earley_item);
-        @<Set |path_or_node|@>@;
-        @<Add the draft and-nodes to an upper Leo path or-node@>@;
-        previous_path_irl = path_irl;
-    }
-}
-
-@ @<Set |path_or_node|@> =
-{
-  if (higher_path_leo_item) {
-      @<Use Leo base data to set |path_or_node|@>@;
-  } else {
-      path_or_node = work_proper_or_node;
-  }
-}
-
-@ @<Set |*p_or_node| from Ord |origin| and SYMI |symbol_instance|@> =
-{
-  const PSL or_psl_at_origin = per_ys_data[(origin)].t_or_psl;
-  (*p_or_node) = PSL_Datum (or_psl_at_origin, (symbol_instance));
-}
-
-@ @<Add draft and-nodes to the bottom or-node@> =
-{
-  OR dand_cause;
-    /* There is now only one AEX in a completion */
-  Set_OR_from_YIM(dand_cause, cause_earley_item);
-  draft_and_node_add (bocage_setup_obs, path_or_node,
-		      dand_predecessor, dand_cause);
-}
-
-@ It is assumed that there is an or-node entry for
-|psia_yim| at index 0.
-(The index is obsolete now that the LR(0) states have
-been eliminated.)
-@d Set_OR_from_YIM(psia_or, psia_yim) {
-  const YIM psia_earley_item = psia_yim;
-  const int psia_earley_set_ordinal = YS_Ord_of_YIM (psia_earley_item);
-  OR **const psia_nodes_by_item =
-    per_ys_data[psia_earley_set_ordinal].t_aexes_by_item;
-  const int psia_item_ordinal = Ord_of_YIM (psia_earley_item);
-  OR *const psia_nodes_by_aex = psia_nodes_by_item[psia_item_ordinal];
-  psia_or = psia_nodes_by_aex ? psia_nodes_by_aex[0] : NULL;
-}
-
-@ @<Use Leo base data to set |path_or_node|@> =
-{
-  int symbol_instance;
-  const int origin_ordinal = Origin_Ord_of_YIM (base_earley_item);
-  const AHM aim = AHM_of_YIM (base_earley_item);
-  path_irl = IRL_of_AHM (aim);
-  symbol_instance = Last_Proper_SYMI_of_IRL (path_irl);
-  {
-     OR* const p_or_node = &path_or_node;
-     const int origin = origin_ordinal;
-    @<Set |*p_or_node| from Ord |origin| and SYMI |symbol_instance|@>@;
-  }
-}
-
-@ @<Add the draft and-nodes to an upper Leo path or-node@> =
-{
-  OR dand_cause;
-  const SYMI symbol_instance = SYMI_of_Completed_IRL(previous_path_irl);
-  const int origin = Ord_of_YS(YS_of_LIM(path_leo_item));
-  OR* const p_or_node = &dand_cause;
-  @<Set |*p_or_node| from Ord |origin| and SYMI |symbol_instance|@>@;
-  draft_and_node_add (bocage_setup_obs, path_or_node,
-          dand_predecessor, dand_cause);
-}
-
-@ @<Create draft and-nodes for token sources@> =
-{
-  SRCL source_link = NULL;
-  YIM predecessor_earley_item = NULL;
-  TOK tkn = NULL;
-  switch (work_source_type)
-    {
-    case SOURCE_IS_TOKEN:
-      predecessor_earley_item = Predecessor_of_YIM (work_earley_item);
-      tkn = TOK_of_YIM(work_earley_item);
-      break;
-    case SOURCE_IS_AMBIGUOUS:
-      source_link = LV_First_Token_SRCL_of_YIM (work_earley_item);
-      if (source_link)
-        {
-          predecessor_earley_item = Predecessor_of_SRCL (source_link);
-          tkn = TOK_of_SRCL(source_link);
-          source_link = Next_SRCL_of_SRCL (source_link);
-        }
-    }
-    while (tkn) 
-      {
-        @<Add draft and-node for token source@>@;
-        if (!source_link) break;
-        predecessor_earley_item = Predecessor_of_SRCL (source_link);
-        tkn = TOK_of_SRCL(source_link);
-        source_link = Next_SRCL_of_SRCL (source_link);
-      }
-}
-
-@ @<Add draft and-node for token source@> =
-{
-  OR dand_predecessor;
-  @<Set |dand_predecessor|@>@;
-  draft_and_node_add (bocage_setup_obs, work_proper_or_node,
-          dand_predecessor, (OR)tkn);
-}
-
-@ @<Set |dand_predecessor|@> =
-{
-  if (Position_of_AHM (work_predecessor_aim) < 1)
-    {
-      dand_predecessor = NULL;
-    }
-  else
-    {
-      Set_OR_from_YIM (dand_predecessor, predecessor_earley_item);
-    }
-}
-
-@ @<Create draft and-nodes for completion sources@> =
-{
-  SRCL source_link = NULL;
-  YIM predecessor_earley_item = NULL;
-  YIM cause_earley_item = NULL;
-  switch (work_source_type)
-    {
-    case SOURCE_IS_COMPLETION:
-      predecessor_earley_item = Predecessor_of_YIM (work_earley_item);
-      cause_earley_item = Cause_of_YIM (work_earley_item);
-      break;
-    case SOURCE_IS_AMBIGUOUS:
-      source_link = LV_First_Completion_SRCL_of_YIM (work_earley_item);
-      if (source_link)
-        {
-          predecessor_earley_item = Predecessor_of_SRCL (source_link);
-          cause_earley_item = Cause_of_SRCL (source_link);
-          source_link = Next_SRCL_of_SRCL (source_link);
-        }
-        break;
-    }
-  while (cause_earley_item)
-    {
-            @<Add draft and-node for completion source@>@;
-      if (!source_link) break;
-      predecessor_earley_item = Predecessor_of_SRCL (source_link);
-      cause_earley_item = Cause_of_SRCL (source_link);
-      source_link = Next_SRCL_of_SRCL (source_link);
-    }
-}
-
-@ @<Add draft and-node for completion source@> =
-{
-  OR dand_predecessor;
-  OR dand_cause;
-  const int middle_ordinal = Origin_Ord_of_YIM(cause_earley_item);
-  /* There is now only one AEX in a completion */
-  const AHM cause_aim = AHM_of_YIM(cause_earley_item);
-  const SYMI cause_symbol_instance =
-      SYMI_of_Completed_IRL(IRL_of_AHM(cause_aim));
-  @<Set |dand_predecessor|@>@;
-  {
-    const int origin = middle_ordinal;
-    const SYMI symbol_instance = cause_symbol_instance;
-    OR* const p_or_node = &dand_cause;
-    @<Set |*p_or_node| from Ord |origin| and SYMI |symbol_instance|@>@;
-  }
-  draft_and_node_add (bocage_setup_obs, work_proper_or_node,
-          dand_predecessor, dand_cause);
-}
-
-@ @<Mark duplicate draft and-nodes@> =
-{
-  const int or_node_count_of_b = OR_Count_of_B(b);
-  PSAR_Object and_per_ys_arena;
-  const PSAR and_psar = &and_per_ys_arena;
-  int or_node_id = 0;
-  psar_init (and_psar, irl_count+nsy_count);
-  while (or_node_id < or_node_count_of_b) {
-      const OR work_or_node = OR_of_B_by_ID(b, or_node_id);
-    @<Mark the duplicate draft and-nodes for |work_or_node|@>@;
-    or_node_id++;
-  }
-  psar_destroy (and_psar);
-}
-
-@ I think the and-PSL's and or-PSL's are not actually used at the
-same time, so the same field might be used for both.
-More significantly, a simple $O(n^2)$ sort of the 
-draft and-nodes would spot duplicates more efficiently in 99\%
-of cases, although it would not be $O(n)$ as the PSL's are.
-The best of both worlds could be had by using the sort when
-there are less than, say, 7 and-nodes, and the PSL's otherwise.
-@ The use of PSL's is slightly different here.
-The PSL is not needed to find the draft and-nodes -- it's
-essentially just a boolean to indicate whether it exists.
-But "stale" booleans must still be detected.
-The solution adopted is to put the parent or-node
-into the PSL.
-If the PSL contains the current parent or-node,
-the draft and-node is a duplicate within that or-node.
-Otherwise, it's the first such draft and-node.
-@<Mark the duplicate draft and-nodes for |work_or_node|@> =
-{
-  DAND dand = DANDs_of_OR (work_or_node);
-  DAND next_dand = Next_DAND_of_DAND (dand);
-  ORID work_or_node_id = ID_of_OR(work_or_node);
-  /* Only if there is more than one draft and-node */
-  if (next_dand)
-    {
-      int origin_ordinal = Origin_Ord_of_OR (work_or_node);
-      psar_dealloc(and_psar);
-      while (dand)
-        {
-          OR psl_or_node;
-          OR predecessor = Predecessor_OR_of_DAND (dand);
-          WHEID wheid = WHEID_of_OR(Cause_OR_of_DAND(dand));
-          const int middle_ordinal =
-            predecessor ? YS_Ord_of_OR (predecessor) : origin_ordinal;
-          PSL and_psl;
-          PSL *psl_owner = &per_ys_data[middle_ordinal].t_and_psl;
-          /* The or-node used as a boolean in the PSL */
-          if (!*psl_owner) psl_claim (psl_owner, and_psar);
-          and_psl = *psl_owner;
-          psl_or_node = PSL_Datum(and_psl, wheid);
-          if (psl_or_node && ID_of_OR(psl_or_node) == work_or_node_id)
+        const Bit_Vector bv_yims_to_accept
+          = matrix_row (acceptance_matrix, cause_yim_ix);
+        int min, max, start;
+        for (start = 0; bv_scan (bv_yims_to_accept, start, &min, &max);
+             start = max + 2)
           {
-              /* Mark this draft and-node as a duplicate */
-              Cause_OR_of_DAND(dand) = NULL;
-          } else {
-              /* Increment the count of unique draft and-nodes */
-              PSL_Datum(and_psl, wheid) = work_or_node;
-              unique_draft_and_node_count++;
+            int yim_to_accept_ix;
+            for (yim_to_accept_ix = min;
+                 yim_to_accept_ix <= max; yim_to_accept_ix++)
+              {
+                const YIM yim_to_accept = yims_to_clean[yim_to_accept_ix];
+                YIM_is_Active (yim_to_accept) = 1;
+              }
           }
-          dand = Next_DAND_of_DAND (dand);
-        }
-    } else {
-          unique_draft_and_node_count++;
-    }
-}
-
-@** And-node (AND) code.
-The and-nodes are part of the parse bocage.
-They are analogous to the and-nodes of a standard parse forest,
-except that they are binary -- restricted to two children.
-This means that the parse bocage stores the parse in a kind
-of Chomsky Normal Form.
-(A second difference between a parse bocage and a parse forest,
-is that the parse bocage can contain cycles.)
-
-@<Public typedefs@> =
-typedef int Marpa_And_Node_ID;
-@ @<Private typedefs@> =
-typedef Marpa_And_Node_ID ANDID;
-
-@ @s AND int
-@<Private incomplete structures@> =
-struct s_and_node;
-typedef struct s_and_node* AND;
-@
-@d OR_of_AND(and) ((and)->t_current)
-@d Predecessor_OR_of_AND(and) ((and)->t_predecessor)
-@d Cause_OR_of_AND(and) ((and)->t_cause)
-@<Private structures@> =
-struct s_and_node {
-    OR t_current;
-    OR t_predecessor;
-    OR t_cause;
-};
-typedef struct s_and_node AND_Object;
-
-@ @<Create the final and-nodes for all earley sets@> =
-{
-  int unique_draft_and_node_count = 0;
-  @<Mark duplicate draft and-nodes@>@;
-  @<Create the final and-node array@>@;
-}
-
-@ @<Create the final and-node array@> =
-{
-  const int or_count_of_b = OR_Count_of_B (b);
-  int or_node_id;
-  int and_node_id = 0;
-  const AND ands_of_b = ANDs_of_B (b) =
-    marpa_new (AND_Object, unique_draft_and_node_count);
-  for (or_node_id = 0; or_node_id < or_count_of_b; or_node_id++)
-    {
-      int and_count_of_parent_or = 0;
-      const OR or_node = OR_of_B_by_ID(b, or_node_id);
-      DAND dand = DANDs_of_OR (or_node);
-        First_ANDID_of_OR(or_node) = and_node_id;
-      while (dand)
-        {
-          const OR cause_or_node = Cause_OR_of_DAND (dand);
-          if (cause_or_node)
-            { /* Duplicates draft and-nodes
-            were marked by nulling the cause or-node */
-              const AND and_node = ands_of_b + and_node_id;
-              OR_of_AND (and_node) = or_node;
-              Predecessor_OR_of_AND (and_node) =
-                Predecessor_OR_of_DAND (dand);
-              Cause_OR_of_AND (and_node) = cause_or_node;
-              and_node_id++;
-              and_count_of_parent_or++;
-            }
-            dand = Next_DAND_of_DAND(dand);
-        }
-        AND_Count_of_OR(or_node) = and_count_of_parent_or;
-        Ambiguity_Metric_of_B (b) =
-          MAX (Ambiguity_Metric_of_B (b), and_count_of_parent_or);
-    }
-    AND_Count_of_B (b) = and_node_id;
-    MARPA_ASSERT(and_node_id == unique_draft_and_node_count);
-}
-
-@** And-node trace functions.
-
-@ @<Function definitions@> =
-int _marpa_b_and_node_count(Marpa_Bocage b)
-{
-  @<Unpack bocage objects@>@;
-  @<Return |-2| on failure@>@;
-  @<Fail if fatal error@>@;
-  return AND_Count_of_B(b);
-}
-
-@ @<Check bocage |and_node_id|; set |and_node|@> =
-{
-  if (and_node_id >= AND_Count_of_B (b))
-    {
-      return -1;
-    }
-  if (and_node_id < 0)
-    {
-      MARPA_ERROR (MARPA_ERR_ANDID_NEGATIVE);
-      return failure_indicator;
-    }
-  {
-    AND and_nodes = ANDs_of_B (b);
-    if (!and_nodes)
-      {
-        MARPA_ERROR (MARPA_ERR_NO_AND_NODES);
-        return failure_indicator;
       }
-    and_node = and_nodes + and_node_id;
+    }
+}
+
+@ This pass is probably not necessary, because I should be checking
+the active boolean from here on.
+But it restores the "consistent" state where a YIM is either rejected
+or accepted.
+@<Mark un-accepted YIM's rejected@> = {
+    int yim_ix;
+    for (yim_ix = 0; yim_ix < yim_to_clean_count; yim_ix++) {
+      const YIM yim = yims_to_clean[yim_ix];
+      if (!YIM_is_Active(yim)) continue;
+      YIM_is_Rejected(yim) = 1;
+    }
+}
+
+@ {\bf To Do}: @^To Do@>
+Deferred while we are only dealing with YS 0.
+@ We now have a full census of accepted and rejected YIM's.
+Use this to go back over SRCL's.
+These will all be resolveable one way or the other.
+@<Mark accepted SRCL's@> = {}
+
+@ Mark LIM's as accepted or rejected, based on
+their predecessors and trailhead YIM's.
+@<Mark rejected LIM's@> =
+{
+  int postdot_sym_ix;
+  const int postdot_sym_count = Postdot_SYM_Count_of_YS(ys_to_clean);
+  const PIM* postdot_array = ys_to_clean->t_postdot_ary;
+
+  @t}\comment{@>
+  /* For every postdot symbol */
+  for (postdot_sym_ix = 0; postdot_sym_ix < postdot_sym_count; postdot_sym_ix++) {
+      @t}\comment{@>
+      /* If there is a LIM, there will be only one,
+      and it will be the first PIM. */
+     const PIM first_pim = postdot_array[postdot_sym_ix];
+     if (PIM_is_LIM(first_pim)) {
+         const LIM lim = LIM_of_PIM(first_pim);
+
+         @t}\comment{@>
+         /* Reject LIM by default */
+         LIM_is_Rejected(lim) = 1;
+         LIM_is_Active(lim) = 0;
+
+         @t}\comment{@>
+         /* Reject, because the base-to YIM is not active */
+         if (!YIM_is_Active(Trailhead_YIM_of_LIM(lim))) continue;
+         {
+           const LIM predecessor_lim = Predecessor_LIM_of_LIM(lim);
+           @t}\comment{@>
+           /* Reject, because the predecessor LIM exists and is not active */
+           if (predecessor_lim && !LIM_is_Active(predecessor_lim)) continue;
+         }
+
+         @t}\comment{@>
+         /* No reason found to reject, so accept this LIM */
+         LIM_is_Rejected(lim) = 0;
+         LIM_is_Active(lim) = 1;
+     }
   }
 }
 
-@ @<Function definitions@> =
-int _marpa_b_and_node_parent(Marpa_Bocage b,
-  Marpa_And_Node_ID and_node_id)
-{
-  AND and_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Check bocage |and_node_id|; set |and_node|@>@;
-  return ID_of_OR (OR_of_AND (and_node));
-}
+@ For all pending alternatives, determine if
+they have unrejected predecessors.
+If not, remove them from the stack.
+Readjust furthest earleme.
+Note that moving the furthest earleme may
+change the parse to exhausted state.
+@<Clean pending alternatives@> = {
+    int old_alt_ix;
+    int no_of_alternatives = MARPA_DSTACK_LENGTH (r->t_alternatives );
 
-@ @<Function definitions@> =
-int _marpa_b_and_node_predecessor(Marpa_Bocage b,
-  Marpa_And_Node_ID and_node_id)
-{
-  AND and_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Check bocage |and_node_id|; set |and_node|@>@;
-    {
-      const OR predecessor_or = Predecessor_OR_of_AND (and_node);
-      const ORID predecessor_or_id =
-        predecessor_or ? ID_of_OR (predecessor_or) : -1;
-      return predecessor_or_id;
+   @t}\comment{@>
+   /* Increment |old_alt_ix| until it is one past the initial run
+   of accept-able alternatives.  If there were none, this leaves
+   |old_alt_ix| at 0.  If all alternatives were acceptable, this
+   leaves |old_alt_ix| at |no_of_alternatives|. */
+    for (old_alt_ix = 0;
+         old_alt_ix < no_of_alternatives;
+         old_alt_ix++)
+   {
+        const ALT alternative = MARPA_DSTACK_INDEX(
+          r->t_alternatives, ALT_Object, old_alt_ix);
+        if (!alternative_is_acceptable(alternative)) break;
+    }
+
+    @t}\comment{@>
+    /* If we found an un-acceptable alternative, we need to adjust the alterntives
+    stack.  First we shorten the alternatives stack, copying acceptable alternatives
+    to newly emptied slots in the stack until there are no gaps left. */
+    if (old_alt_ix < no_of_alternatives) {
+        @t}\comment{@>
+        /* |empty_alt_ix| is the empty slot, into which the next acceptable alternative
+        should be copied. */
+        int empty_alt_ix = old_alt_ix;
+        for (old_alt_ix++; old_alt_ix < no_of_alternatives; old_alt_ix++) 
+          {
+            const ALT alternative = MARPA_DSTACK_INDEX(
+              r->t_alternatives, ALT_Object, old_alt_ix);
+            if (!alternative_is_acceptable(alternative)) continue;
+            *MARPA_DSTACK_INDEX(r->t_alternatives, ALT_Object, empty_alt_ix)
+              = *alternative;
+            empty_alt_ix++;
+          }
+
+      @t}\comment{@>
+      /* |empty_alt_ix| points to the first available slot, so it is now the same
+      as the new stack length */
+      MARPA_DSTACK_COUNT_SET(r->t_alternatives, empty_alt_ix);
+      
+      if (empty_alt_ix) {
+        Furthest_Earleme_of_R(r) = Earleme_of_YS(current_ys);
+      } else {
+        const ALT furthest_alternative
+          = MARPA_DSTACK_INDEX(r->t_alternatives, ALT_Object, 0);
+        Furthest_Earleme_of_R(r) = End_Earleme_of_ALT(furthest_alternative);
       }
-}
 
-@ @<Function definitions@> =
-int _marpa_b_and_node_cause(Marpa_Bocage b,
-  Marpa_And_Node_ID and_node_id)
-{
-  AND and_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-    @<Check bocage |and_node_id|; set |and_node|@>@;
-    {
-      const OR cause_or = Cause_OR_of_AND (and_node);
-      const ORID cause_or_id =
-        OR_is_Token(cause_or) ? -1 : ID_of_OR (cause_or);
-      return cause_or_id;
     }
+
 }
 
 @ @<Function definitions@> =
-int _marpa_b_and_node_symbol(Marpa_Bocage b,
-  Marpa_And_Node_ID and_node_id)
+PRIVATE int alternative_is_acceptable(ALT alternative)
 {
-  AND and_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Check bocage |and_node_id|; set |and_node|@>@;
+  PIM pim;
+  const NSYID token_symbol_id = NSYID_of_ALT(alternative);
+  const YS start_ys = Start_YS_of_ALT(alternative);
+  for (pim= First_PIM_of_YS_by_NSYID(start_ys, token_symbol_id);
+      pim;
+      pim = Next_PIM_of_PIM(pim))
   {
-    const OR cause_or = Cause_OR_of_AND (and_node);
-    const XSYID symbol_id =
-      OR_is_Token (cause_or) ? NSYID_of_OR (cause_or) : -1;
-    return symbol_id;
+      YIM predecessor_yim = YIM_of_PIM(pim);
+
+      @t}\comment{@>
+      /* If the trailhead PIM is non-active, the LIM will not
+      be active, so we don't bother looking at the LIM.
+      Instead we will wait for the source, which will be next 
+      in the list of PIM's */
+      if (!predecessor_yim) continue;
+
+      /* We have an active predecessor, so this alternative is
+      OK. Move on to look at the next alterntive */
+      if (YIM_is_Active(predecessor_yim)) return 1;
   }
+  return 0;
 }
 
-@ @<Function definitions@> =
-Marpa_Symbol_ID _marpa_b_and_node_token(Marpa_Bocage b,
-    Marpa_And_Node_ID and_node_id, int* value_p)
-{
-  TOK tkn;
-  AND and_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-    @<Check bocage |and_node_id|; set |and_node|@>@;
-    tkn = and_node_token(and_node);
-    if (tkn) {
-      if (value_p)
-        *value_p = Value_of_TOK (tkn);
-      return NSYID_of_TOK (tkn);
-    }
-    return -1;
-}
-@ @<Function definitions@> =
-PRIVATE TOK and_node_token(AND and_node)
-{
-  const OR cause_or = Cause_OR_of_AND (and_node);
-  if (OR_is_Token (cause_or))
-    {
-      return TOK_of_OR (cause_or);
-    }
-    return NULL;
-}
-
-@ The ``middle'' earley set of the and-node.
-It is most simply defined as equivalent to
-the start of the cause, but the cause can be token,
-and in that case the simpler definition is not helpful.
-Instead, the end of the predecessor is used, if there is one.
-If there is no predecessor, the origin of the parent or-node will
-always be the same as ``middle'' of the or-node.
-@<Function definitions@> =
-Marpa_Earley_Set_ID _marpa_b_and_node_middle(Marpa_Bocage b,
-    Marpa_And_Node_ID and_node_id)
-{
-  AND and_node;
-  @<Return |-2| on failure@>@;
-  @<Unpack bocage objects@>@;
-  @<Check bocage |and_node_id|; set |and_node|@>@;
-  {
-    const OR predecessor_or = Predecessor_OR_of_AND (and_node);
-    if (predecessor_or)
-      {
-        return YS_Ord_of_OR (predecessor_or);
-      }
-  }
-  return Origin_Ord_of_OR (OR_of_AND (and_node));
-}
+@ @<Clean expected terminals@> = {}
 
 @** Progress report code.
 @<Private typedefs@> =
@@ -11231,6 +8917,8 @@ int marpa_r_progress_report_start(
     for (earley_item_id = 0; earley_item_id < earley_item_count;
          earley_item_id++)
       {
+        const YIM earley_item = earley_items[earley_item_id];
+        if (!YIM_is_Active(earley_item)) continue;
         @<Do the progress report for |earley_item|@>@;
       }
     r->t_progress_report_traverser = _marpa_avl_t_init(report_tree);
@@ -11251,68 +8939,37 @@ int marpa_r_progress_report_reset( Marpa_Recognizer r)
   return 1;
 }
 
-@ @<Do the progress report for |earley_item|@> =
+@ Caller ensures this YIM is active.
+@<Do the progress report for |earley_item|@> =
 {
-  const int initial_phase = 1;
-  const int leo_source_link_phase = 2;
-  const int leo_path_item_phase = 3;
-  int next_phase = initial_phase;
   SRCL leo_source_link = NULL;
-  LIM next_leo_item = NULL;
-  const YIM earley_item = earley_items[earley_item_id];
-  while (1)
+  progress_report_item_insert (report_tree, AHM_of_YIM (earley_item),
+			       Origin_Ord_of_YIM (earley_item));
+  for (leo_source_link = First_Leo_SRCL_of_YIM (earley_item);
+       leo_source_link; leo_source_link = Next_SRCL_of_SRCL (leo_source_link))
     {
-      YSID report_origin;
-      AHM report_aim;
-      while (1)
-        {                       // this loop finds the next AHM to report
-          const int phase = next_phase;
-          if (phase == initial_phase)
-            {
-              report_origin = Origin_Ord_of_YIM (earley_item);
-              report_aim = AHM_of_YIM (earley_item);
-              next_phase = leo_source_link_phase;
-              goto INSERT_ITEMS_INTO_TREE;
-            }
-          if (phase == leo_source_link_phase)
-            {
-              leo_source_link = leo_source_link ?
-                Next_SRCL_of_SRCL (leo_source_link) :
-                First_Leo_SRCL_of_YIM (earley_item);
-              if (leo_source_link)
-                {
-                  next_leo_item = LIM_of_SRCL (leo_source_link);
-                  next_phase = leo_path_item_phase;
-                  goto NEXT_PHASE;
-                }
-              goto NEXT_EARLEY_ITEM;
-              // If there are no more Leo source links,
-              // we are finished with this Earley item
-            }
-          if (phase == leo_path_item_phase)
-            {
-              const LIM leo_item = next_leo_item;
-              if (!leo_item)
-                {
-                  next_phase = leo_source_link_phase;
-                  goto NEXT_PHASE;
-                }
-              {
-                report_origin = Ord_of_YS (YS_of_LIM (leo_item));
-                report_aim = Base_to_AHM_of_LIM(leo_item);
-                next_leo_item = Predecessor_LIM_of_LIM (leo_item);
-                goto INSERT_ITEMS_INTO_TREE;
-              }
-            }
-        NEXT_PHASE:;
-        }
-    INSERT_ITEMS_INTO_TREE:
-      @<Insert items into tree for |report_aim| and |report_origin|@>@;
+      LIM leo_item;
+      if (!SRCL_is_Active (leo_source_link)) continue;
+
+      @t}\comment{@>
+      /* If the SRCL at the Leo summit is active, then the whole path
+      is active. */
+      for (leo_item = LIM_of_SRCL (leo_source_link);
+	   leo_item; leo_item = Predecessor_LIM_of_LIM (leo_item))
+	{
+	  const YSID report_origin = Ord_of_YS (YS_of_LIM (leo_item));
+	  const AHM report_aim = Trailhead_AHM_of_LIM (leo_item);
+	  progress_report_item_insert (report_tree, report_aim,
+				       report_origin);
+	}
     }
-NEXT_EARLEY_ITEM:;
 }
 
-@ @<Insert items into tree for |report_aim| and |report_origin|@> =
+@ @<Function definitions@> =
+PRIVATE void
+progress_report_item_insert(MARPA_AVL_TREE report_tree,
+  AHM report_aim, 
+    YSID report_origin)
 {
   const IRL irl = IRL_of_AHM (report_aim);
   const XRL source_xrl = Source_XRL_of_IRL (irl);
@@ -11329,8 +8986,7 @@ NEXT_EARLEY_ITEM:;
 	{
 	  if (IRL_has_Virtual_LHS (irl))
 	    {
-	      if (irl_position <= 0)
-		goto NEXT_AHM;
+	      if (irl_position <= 0) return;
 	      xrl_position = -1;
 	    }
 	  else
@@ -11349,7 +9005,7 @@ NEXT_EARLEY_ITEM:;
 	_marpa_avl_insert (report_tree, new_report_item);
       }
     }
-NEXT_AHM:;
+   return;
 }
 
 @ @<Function definitions@> =
@@ -11398,6 +9054,1275 @@ Marpa_Rule_ID marpa_r_progress_item(
     }
 }
 
+@** Some notes on evaluation.
+
+@*0 Sources of Leo path items.
+A Leo path consists of a series of Earley items:
+\li at the bottom, exactly one Leo base item;
+\li at the top, exactly one Leo completion item;
+\li in between, zero or more Leo path items.
+@ Leo base items and Leo completion items can have a variety
+of non-Leo sources.
+Leo completion items can have multiple Leo sources,
+though no other source can have the same middle earleme
+as a Leo source.
+@ When expanded, Leo path items can have multiple sources.
+However, the sources of a single Leo path item
+will result from the same Leo predecessor.
+As consequences:
+\li All the sources of an expanded Leo path item will have the same
+Earley item predecessor,
+the Leo base item of the Leo predecessor.
+\li All these sources will also have the same middle
+earleme and the same origin,
+both taken from the Earley item predecessor.
+\li If the cause is a token, the transition symbol will
+be the token symbol.
+Only one source may have a token cause.
+\li If the cause is a rule completion, the transition symbol
+will be the LHS of that rule.
+Several source may have rule completion causes, but the maximum
+number is limited by the number of rule's with the transition symbol
+on their LHS.
+\li The number of sources of a Leo path item is therefore limited
+by a constant that depends on the grammar.
+
+@ {\bf To Do}: @^To Do@>
+Determine exactly when Leo path items may come from multiple
+souces.
+\li When can a Leo path item also be an item from a non-Leo
+source?  The top item can, but can any others?
+\li In the case of LHS terminals, any item can be scanned.
+\li A top item on a path is {\bf not} a transition over a Leo
+symbol, and so may have any number of predecessors,
+as long as any Leo sources have a unique middle Earley set.
+\li The bottom item does result does match a Leo transition,
+and so can only be matched one predecessor.
+But it itself may have many sources.
+It may, for example, be the top item of a Leo path for
+a different right recursion.
+
+@ In the following, I refer to Leo path bases, and Leo path
+top items.  It is assumed that these Earley items are active
+items in a consistent parse.
+Also, any SRCL's referred to are assumed to be active SRCL's
+in a consistent parse.
+
+@ Also in the following:
+\li Origin($y_{YIM}$) is the origin, or start, location of
+the YIM $y_{YIM}$.
+\li Symbol($cause$) if the LHS symbol of the YIM's rule is $cause$
+is a YIM.
+Symbol($cause$) is the token symbol if $cause$ is a token.
+
+@ {\bf Theorem:} Consider a Leo path with a base $b$, which
+is the cause of a Leo SRCL in the Leo path top YIM, $t$.
+$b$ will only be the base of that SRCL in that YIM.
+@ {\bf Proof:} Suppose it was the base of two different SRCL's.
+Since both SRCL's will have the same middle (the origin of $b$)
+and the same transition symbol (either the token symbol of $b$, or its LHS, call
+that $sym$), both
+will have the same Leo transition.
+SRCL must have a LIM at Origin($b$) with transition symbol $sym$.
+By the construction of LIM's, there can be other predecessor for $b$
+at Origin($b$).  So $b$'s Leo SRCL in $t$ is the only SRCL in which
+it is the cause.
+{\bf QED}
+
+@ Note, in the above theorem, that while $b$ must be unique to its
+SRCL, this is not true of Leo predecessors.  A Leo predecessor may
+be in more than one SRCL, so long as the symbols of the cause's in
+those SRCL's are the same: $sym$.  This means the number of SRCL's
+which can contain a given predecessor is a constant that depends on
+the grammar.  (Specifically, it is the number of rules with $sym$ on
+their LHS, plus one for a terminal.)
+
+@ {\bf Theorem:}
+Consider a item on a Leo path other than the top
+item.  Call this item $p_i$.
+$p_i$ must have an effect YIM, $p_{i+1}$.
+In other words, there must be an YIM above it on
+the Leo path.
+@ {\bf Proof:}
+Since we assumed that the top and bottom items are active items
+in a consistent parse, by the properties of Earley parsing we know
+that $p_i$ has a predecessor, and an effect.
+{\bf QED}
+
+@ {\bf Theorem:}
+Consider, $p_i$, a item on a Leo path other than the top
+item.
+All SRCL's containing $p_i$ as a cause have the same predecessor.
+@ {\bf Proof:}
+Since $p_i$ is on a Leo path, the transition over Symbol($p_i$)
+from Origin($p_i$) must be from a unique YIM.
+This YIM is Pred($p_i$), the unique predecessor of $p_i$.
+{\bf QED}
+
+@ {\bf Theorem:}
+Consider, $p_i$, a item on a Leo path other than the top
+item.
+Its effect, $p_{i+1}$ is unique.
+@ {\bf Proof:}
+Consider multiple effect YIM's of $p_i$.
+Call two of these $p_{i+1}$, $q_{i+1}$.
+By a previous theorem, both have the same predecessor,
+Pred($p_i$).
+Because
+$p_{i+1}$ and $q_{i+1}$ have
+the same predecessor and the same cause ($p_i$),
+we know that
+$p_{i+1}$ and $q_{i+1}$ also have the same origin, dotted rule
+and current earley set.
+If two YIM's
+have the same origin, dotted rule, and current earley set,
+they are identical.
+This shows that the effect YIM of the cause $p_i$ is unique.
+{\bf QED}
+
+@** Ur-node (UR) code.
+Ur is a German word for ``primordial", which is used
+a lot in academic writing to designate precursors ---
+for example, scholars who believe that Shakespeare's
+{\it Hamlet} is based on another, now lost, play,
+call this play the ur-Hamlet.
+My ur-nodes are precursors of and-nodes and or-nodes.
+@<Private incomplete structures@> =
+struct s_ur_node_stack;
+struct s_ur_node;
+typedef struct s_ur_node_stack* URS;
+typedef struct s_ur_node* UR;
+typedef const struct s_ur_node* UR_Const;
+@
+{\bf To Do}: @^To Do@>
+It may make sense to reuse this stack
+for the alternatives.
+In that case some of these structures
+will need to be changed.
+@d Prev_UR_of_UR(ur) ((ur)->t_prev)
+@d Next_UR_of_UR(ur) ((ur)->t_next)
+@d YIM_of_UR(ur) ((ur)->t_earley_item)
+
+@<Private structures@> =
+struct s_ur_node_stack {
+   struct marpa_obstack* t_obs;
+   UR t_base;
+   UR t_top;
+};
+
+@ @<Private structures@> =
+struct s_ur_node {
+   UR t_prev;
+   UR t_next;
+   YIM t_earley_item;
+};
+typedef struct s_ur_node UR_Object;
+
+@ @d URS_of_R(r) (&(r)->t_ur_node_stack)
+@<Widely aligned recognizer elements@> =
+struct s_ur_node_stack t_ur_node_stack;
+@
+{\bf To Do}: @^To Do@>
+The lifetime of this stack should be reexamined once its uses
+are settled.
+@<Initialize recognizer elements@> =
+    ur_node_stack_init(URS_of_R(r));
+@ @<Destroy recognizer elements@> =
+    ur_node_stack_destroy(URS_of_R(r));
+
+@ @<Function definitions@> =
+PRIVATE void ur_node_stack_init(URS stack)
+{
+    stack->t_obs = marpa_obs_init;
+    stack->t_base = ur_node_new(stack, 0);
+    ur_node_stack_reset(stack);
+}
+
+@ @<Function definitions@> =
+PRIVATE void ur_node_stack_reset(URS stack)
+{
+    stack->t_top = stack->t_base;
+}
+
+@ @<Function definitions@> =
+PRIVATE void ur_node_stack_destroy(URS stack)
+{
+    if (stack->t_base) marpa_obs_free(stack->t_obs);
+    stack->t_base = NULL;
+}
+
+@ @<Function definitions@> =
+PRIVATE UR ur_node_new(URS stack, UR prev)
+{
+    UR new_ur_node;
+    new_ur_node = marpa_obs_new(stack->t_obs, UR_Object, 1);
+    Next_UR_of_UR(new_ur_node) = 0;
+    Prev_UR_of_UR(new_ur_node) = prev;
+    return new_ur_node;
+}
+
+@ @<Function definitions@> =
+PRIVATE void
+ur_node_push (URS stack, YIM earley_item)
+{
+  UR old_top = stack->t_top;
+  UR new_top = Next_UR_of_UR (old_top);
+  YIM_of_UR (old_top) = earley_item;
+  if (!new_top)
+    {
+      new_top = ur_node_new (stack, old_top);
+      Next_UR_of_UR (old_top) = new_top;
+    }
+  stack->t_top = new_top;
+}
+
+@ @<Function definitions@> =
+PRIVATE UR
+ur_node_pop (URS stack)
+{
+  UR new_top = Prev_UR_of_UR (stack->t_top);
+  if (!new_top) return NULL;
+  stack->t_top = new_top;
+  return new_top;
+}
+
+@
+{\bf To Do}: @^To Do@>
+No predictions are used in creating or-nodes.
+Most (all?) are eliminating in creating the PSI data.
+But I think predictions are tested for, when creating or-nodes,
+which should not be necessary.
+I need to decide where to look at this.
+
+@<Populate the PSI data@>=
+{
+    UR_Const ur_node;
+    const URS ur_node_stack = URS_of_R(r);
+    ur_node_stack_reset(ur_node_stack);
+    @t}\comment{@>
+    /* |start_yim| is never rejected */
+    push_ur_if_new (per_ys_data, ur_node_stack, start_yim);
+    while ((ur_node = ur_node_pop(ur_node_stack)))
+    {
+        @t}\comment{@>/* rejected YIM's are never put on the ur-node stack */
+        const YIM parent_earley_item = YIM_of_UR(ur_node);
+        MARPA_ASSERT(!YIM_was_Predicted(parent_earley_item))@;
+        @<Push child Earley items from token sources@>@;
+        @<Push child Earley items from completion sources@>@;
+        @<Push child Earley items from Leo sources@>@;
+    }
+}
+
+@ @<Function definitions@> = 
+PRIVATE void push_ur_if_new(
+    struct s_bocage_setup_per_ys* per_ys_data,
+    URS ur_node_stack, YIM yim)
+{
+  if (!psi_test_and_set (per_ys_data, yim))
+    {
+      ur_node_push (ur_node_stack, yim);
+    }
+}
+
+@ The |PSI| is a container of data that is per Earley-set,
+and within that, per Earley item.
+(In the past, it has also been called the PSIA.)
+This function ensures that the appropriate |PSI| boolean is set.
+It returns that boolean's value {\bf prior} to the call.
+@<Function definitions@> = 
+PRIVATE int psi_test_and_set(
+    struct s_bocage_setup_per_ys* per_ys_data,
+    YIM earley_item
+    )
+{
+  const YSID set_ordinal = YS_Ord_of_YIM (earley_item);
+  const int item_ordinal = Ord_of_YIM (earley_item);
+  const OR previous_or_node =
+    OR_by_PSI (per_ys_data, set_ordinal, item_ordinal);
+  if (!previous_or_node)
+    {
+      OR_by_PSI (per_ys_data, set_ordinal, item_ordinal) = dummy_or_node;
+      return 0;
+    }
+  return 1;
+}
+
+@ @<Push child Earley items from token sources@> =
+{
+  SRCL source_link;
+  for (source_link = First_Token_SRCL_of_YIM (parent_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
+    {
+      YIM predecessor_earley_item;
+      if (!SRCL_is_Active (source_link)) continue;
+      predecessor_earley_item = Predecessor_of_SRCL (source_link);
+      if (!predecessor_earley_item) continue;
+      if (YIM_was_Predicted (predecessor_earley_item))
+	{
+	  Set_boolean_in_PSI_for_initial_nulls (per_ys_data,
+						predecessor_earley_item);
+	  continue;
+	}
+      push_ur_if_new (per_ys_data, ur_node_stack, predecessor_earley_item);
+    }
+}
+
+@ If there are initial nulls, set a boolean in the PSI
+so that I will know to create the chain of or-nodes for them.
+We don't need to stack the prediction, because it can have
+no other descendants.
+@<Function definitions@> =
+PRIVATE void
+Set_boolean_in_PSI_for_initial_nulls (struct s_bocage_setup_per_ys *per_ys_data,
+  YIM yim)
+{
+  const AHM ahm = AHM_of_YIM(yim);
+  if (Null_Count_of_AHM (ahm))
+	  psi_test_and_set (per_ys_data, (yim));
+}
+
+@ @<Push child Earley items from completion sources@> =
+{
+  SRCL source_link;
+  for (source_link = First_Completion_SRCL_of_YIM (parent_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
+    {
+      YIM predecessor_earley_item;
+      YIM cause_earley_item;
+      if (!SRCL_is_Active(source_link)) continue;
+      cause_earley_item = Cause_of_SRCL (source_link);
+      push_ur_if_new (per_ys_data, ur_node_stack, cause_earley_item);
+      predecessor_earley_item = Predecessor_of_SRCL (source_link);
+      if (!predecessor_earley_item) continue;
+      if (YIM_was_Predicted (predecessor_earley_item))
+	{
+	  Set_boolean_in_PSI_for_initial_nulls (per_ys_data,
+						predecessor_earley_item);
+	  continue;
+	}
+      push_ur_if_new (per_ys_data, ur_node_stack, predecessor_earley_item);
+    }
+}
+
+@ @<Push child Earley items from Leo sources@> =
+{
+  SRCL source_link;
+    @t}\comment{@>/* For every Leo source link */
+  for (source_link = First_Leo_SRCL_of_YIM (parent_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
+    {
+      LIM leo_predecessor;
+      YIM cause_earley_item;
+      @t}\comment{@>
+      /* Ignore if not active -- if it {\bf is} active, then the whole chain
+      must be */
+      if (!SRCL_is_Active (source_link))
+	continue;
+      cause_earley_item = Cause_of_SRCL (source_link);
+      push_ur_if_new (per_ys_data, ur_node_stack, cause_earley_item);
+      for (leo_predecessor = LIM_of_SRCL (source_link); leo_predecessor;
+    @t}\comment{@>/* Follow the predecessors chain back */
+	   leo_predecessor = Predecessor_LIM_of_LIM (leo_predecessor))
+	{
+	  const YIM leo_base_yim = Trailhead_YIM_of_LIM (leo_predecessor);
+	  if (YIM_was_Predicted (leo_base_yim))
+	    {
+	      Set_boolean_in_PSI_for_initial_nulls (per_ys_data,
+						    leo_base_yim);
+	    }
+	  else
+	    {
+	      push_ur_if_new (per_ys_data, ur_node_stack, leo_base_yim);
+	    }
+	}
+    }
+}
+
+@** Or-node (OR) code.
+The or-nodes are part of the parse bocage
+and are similar to the or-nodes of a standard parse forest.
+Unlike a parse forest,
+a parse bocage can contain cycles.
+
+@<Public typedefs@> =
+typedef int Marpa_Or_Node_ID;
+@ @<Private typedefs@> =
+typedef Marpa_Or_Node_ID ORID;
+
+@ @<Private incomplete structures@> =
+union u_or_node;
+typedef union u_or_node* OR;
+@ The type is contained in same word as the position is
+for final or-nodes.
+@s OR int
+Position is |DUMMY_OR_NODE| for dummy or-nodes,
+and less than or equal to |MAX_TOKEN_OR_NODE|
+if the or-node is actually a symbol.
+It is |VALUED_TOKEN_OR_NODE| if the token has
+a value assigned,
+|NULLING_TOKEN_OR_NODE| if the token is nulling,
+and |UNVALUED_TOKEN_OR_NODE| if the token is non-nulling,
+but has no value assigned.
+Position is the dot position.
+@d DUMMY_OR_NODE -1
+@d MAX_TOKEN_OR_NODE -2
+@d VALUED_TOKEN_OR_NODE -2
+@d NULLING_TOKEN_OR_NODE -3
+@d UNVALUED_TOKEN_OR_NODE -4
+@d OR_is_Token(or) (Type_of_OR(or) <= MAX_TOKEN_OR_NODE)
+@d Position_of_OR(or) ((or)->t_final.t_position)
+@d Type_of_OR(or) ((or)->t_final.t_position)
+@d IRL_of_OR(or) ((or)->t_final.t_irl)
+@d IRLID_of_OR(or) ID_of_IRL(IRL_of_OR(or))
+@d Origin_Ord_of_OR(or) ((or)->t_final.t_start_set_ordinal)
+@d ID_of_OR(or) ((or)->t_final.t_id)
+@d YS_Ord_of_OR(or) ((or)->t_draft.t_end_set_ordinal)
+@d DANDs_of_OR(or) ((or)->t_draft.t_draft_and_node)
+@d First_ANDID_of_OR(or) ((or)->t_final.t_first_and_node_id)
+@d AND_Count_of_OR(or) ((or)->t_final.t_and_node_count)
+@ C89 guarantees that common initial sequences
+may be accessed via different members of a union.
+@<Or-node common initial sequence@> =
+int t_position;
+
+@ @<Or-node less common initial sequence@> =
+  @<Or-node common initial sequence@>@;
+  int t_end_set_ordinal;
+  int t_start_set_ordinal;
+  ORID t_id;
+  IRL t_irl;
+
+@ @<Private structures@> =
+struct s_draft_or_node
+{
+    @<Or-node less common initial sequence@>@;
+  DAND t_draft_and_node;
+};
+
+@ @<Private structures@> =
+struct s_final_or_node
+{
+    @<Or-node less common initial sequence@>@;
+    int t_first_and_node_id;
+    int t_and_node_count;
+};
+
+@ @<Private structures@> =
+struct s_valued_token_or_node
+{
+  @<Or-node common initial sequence@>@;
+  NSYID t_nsyid;
+  int t_value;
+};
+
+@
+@d NSYID_of_OR(or) ((or)->t_token.t_nsyid)
+@d Value_of_OR(or) ((or)->t_token.t_value)
+@<Private structures@> =
+union u_or_node {
+    struct s_draft_or_node t_draft;
+    struct s_final_or_node t_final;
+    struct s_valued_token_or_node t_token;
+};
+typedef union u_or_node OR_Object;
+
+@ @<Global constant variables@> =
+static const int dummy_or_node_type = DUMMY_OR_NODE;
+static const OR dummy_or_node = (OR)&dummy_or_node_type;
+
+@ @d ORs_of_B(b) ((b)->t_or_nodes)
+@d OR_of_B_by_ID(b, id) (ORs_of_B(b)[(id)])
+@d OR_Count_of_B(b) ((b)->t_or_node_count)
+@d OR_Capacity_of_B(b) ((b)->t_or_node_capacity)
+@d ANDs_of_B(b) ((b)->t_and_nodes)
+@d AND_Count_of_B(b) ((b)->t_and_node_count)
+@d Top_ORID_of_B(b) ((b)->t_top_or_node_id)
+@<Widely aligned bocage elements@> =
+OR* t_or_nodes;
+AND t_and_nodes;
+@ @<Int aligned bocage elements@> =
+int t_or_node_capacity;
+int t_or_node_count;
+int t_and_node_count;
+ORID t_top_or_node_id;
+
+@ @<Initialize bocage elements@> =
+ORs_of_B(b) = NULL;
+OR_Count_of_B(b) = 0;
+ANDs_of_B(b) = NULL;
+AND_Count_of_B(b) = 0;
+Top_ORID_of_B(b) = -1;
+
+@ @<Destroy bocage elements, main phase@> =
+{
+  OR* or_nodes = ORs_of_B (b);
+  AND and_nodes = ANDs_of_B (b);
+
+  grammar_unref (G_of_B(b));
+  my_free (or_nodes);
+  ORs_of_B (b) = NULL;
+  my_free (and_nodes);
+  ANDs_of_B (b) = NULL;
+}
+
+@ @d G_of_B(b) ((b)->t_grammar)
+@<Widely aligned bocage elements@> =
+    GRAMMAR t_grammar;
+
+@ @<Initialize bocage elements@> =
+{
+    G_of_B(b) = G_of_R(r);
+    grammar_ref(g);
+}
+
+@*0 Create the or-nodes.
+@<Create the or-nodes for all earley sets@> =
+{
+  PSAR_Object or_per_ys_arena;
+  const PSAR or_psar = &or_per_ys_arena;
+  int work_earley_set_ordinal;
+  OR_Capacity_of_B(b) = count_of_earley_items_in_parse;
+  ORs_of_B (b) = marpa_new (OR, OR_Capacity_of_B(b));
+  psar_init (or_psar, SYMI_Count_of_G (g));
+  for (work_earley_set_ordinal = 0;
+      work_earley_set_ordinal < earley_set_count_of_r;
+      work_earley_set_ordinal++)
+  {
+      const YS_Const earley_set = YS_of_R_by_Ord (r, work_earley_set_ordinal);
+    YIM* const yims_of_ys = YIMs_of_YS(earley_set);
+    const int item_count = YIM_Count_of_YS (earley_set);
+      PSL this_earley_set_psl;
+      psar_dealloc(or_psar);
+      this_earley_set_psl
+        = psl_claim_by_es(or_psar, per_ys_data, work_earley_set_ordinal);
+    @<Create the or-nodes for |work_earley_set_ordinal|@>@;
+    @<Create draft and-nodes for |work_earley_set_ordinal|@>@;
+  }
+  psar_destroy (or_psar);
+  ORs_of_B(b) = marpa_renew (OR, ORs_of_B(b), OR_Count_of_B(b));
+}
+
+@ @<Create the or-nodes for |work_earley_set_ordinal|@> =
+{
+  int item_ordinal;
+  for (item_ordinal = 0; item_ordinal < item_count;
+       item_ordinal++)
+    {
+      if (OR_by_PSI(per_ys_data, work_earley_set_ordinal, item_ordinal))
+        {
+          const YIM work_earley_item = yims_of_ys[item_ordinal];
+            {
+              @<Create the or-nodes for |work_earley_item|@>@;
+            }
+        }
+    }
+}
+
+@ @<Create the or-nodes for |work_earley_item|@> =
+{
+  AHM aim = AHM_of_YIM(work_earley_item);
+  const int working_ys_ordinal = YS_Ord_of_YIM(work_earley_item);
+  const int working_yim_ordinal = Ord_of_YIM(work_earley_item);
+  const int work_origin_ordinal =
+            Ord_of_YS (Origin_of_YIM (work_earley_item));
+  SYMI aim_symbol_instance;
+  OR psi_or_node = NULL;
+  aim_symbol_instance = SYMI_of_AHM(aim);
+  {
+        PSL or_psl = psl_claim_by_es(or_psar, per_ys_data, work_origin_ordinal);
+        OR last_or_node = NULL;
+        @<Add main or-node@>@;
+          @<Add nulling token or-nodes@>@;
+    }
+    @t}\comment{@>
+    /* The following assertion is now not necessarily true.
+    it is kept for documentation, but eventually should be removed */
+    MARPA_OFF_ASSERT (psi_or_node)@;
+
+    @t}\comment{@>
+    /* Replace the dummy or-node with
+    the last one added */
+    OR_by_PSI(per_ys_data, working_ys_ordinal, working_yim_ordinal)
+      = psi_or_node;
+    @<Add Leo or-nodes for |work_earley_item|@>@;
+}
+
+@*0 Non-Leo or-nodes.
+@ Add the main or-node ---
+the one that corresponds directly to this AHM.
+The exception are predicted AHM's.
+Or-nodes are not added for predicted AHM's.
+@<Add main or-node@> =
+{
+  if (aim_symbol_instance >= 0)
+    {
+      OR or_node;
+MARPA_ASSERT(aim_symbol_instance < SYMI_Count_of_G(g))@;
+      or_node = PSL_Datum (or_psl, aim_symbol_instance);
+      if (!or_node || YS_Ord_of_OR(or_node) != work_earley_set_ordinal)
+        {
+          const IRL irl = IRL_of_AHM(aim);
+          or_node = last_or_node = or_node_new(b);
+          PSL_Datum (or_psl, aim_symbol_instance) = last_or_node;
+          Origin_Ord_of_OR(or_node) = Origin_Ord_of_YIM(work_earley_item);
+          YS_Ord_of_OR(or_node) = work_earley_set_ordinal;
+          IRL_of_OR(or_node) = irl;
+          Position_of_OR (or_node) =
+              aim_symbol_instance - SYMI_of_IRL (irl) + 1;
+        }
+        psi_or_node = or_node;
+    }
+}
+
+@ @<Function definitions@> =
+PRIVATE OR or_node_new(BOCAGE b)
+{
+  const int or_node_id = OR_Count_of_B (b)++;
+  const OR new_or_node = (OR)marpa_obs_new (OBS_of_B(b), OR_Object, 1);
+  ID_of_OR(new_or_node) = or_node_id;
+  DANDs_of_OR(new_or_node) = NULL;
+  if (_MARPA_UNLIKELY(or_node_id >= OR_Capacity_of_B(b)))
+    {
+      OR_Capacity_of_B(b) *= 2;
+      ORs_of_B (b) =
+        marpa_renew (OR, ORs_of_B(b), OR_Capacity_of_B(b));
+    }
+  OR_of_B_by_ID(b,or_node_id) = new_or_node;
+  return new_or_node;
+}
+
+@  In the following logic, the order matters.
+The one added last in this logic,
+or in the logic for adding the main item,
+will be used as the or-node
+in the PSI.
+@ In building the final or-node, the predecessor can be
+determined using the PSI for $|symbol_instance|-1$.
+The exception is where there is no predecessor,
+and this is the case if |Position_of_OR(or_node) == 0|.
+@<Add nulling token or-nodes@> =
+{
+  const int null_count = Null_Count_of_AHM (aim);
+  if (null_count > 0)
+    {
+      const IRL irl = IRL_of_AHM (aim);
+      const int symbol_instance_of_rule = SYMI_of_IRL(irl);
+        const int first_null_symbol_instance =
+          aim_symbol_instance <
+          0 ? symbol_instance_of_rule : aim_symbol_instance + 1;
+      int i;
+      for (i = 0; i < null_count; i++)
+        {
+          const int symbol_instance = first_null_symbol_instance + i;
+          OR or_node = PSL_Datum (or_psl, symbol_instance);
+          if (!or_node || YS_Ord_of_OR (or_node) != work_earley_set_ordinal) {
+                const int rhs_ix = symbol_instance - symbol_instance_of_rule;
+                const OR predecessor = rhs_ix ? last_or_node : NULL;
+                const OR cause = Nulling_OR_by_NSYID( RHSID_of_IRL (irl, rhs_ix ) );
+                or_node = PSL_Datum (or_psl, symbol_instance)
+                  = last_or_node = or_node_new(b);
+                Origin_Ord_of_OR (or_node) = work_origin_ordinal;
+                YS_Ord_of_OR (or_node) = work_earley_set_ordinal;
+                IRL_of_OR (or_node) = irl;
+                Position_of_OR (or_node) = rhs_ix + 1;
+MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
+    MARPA_DEBUG2("At %s", STRLOC);
+                draft_and_node_add (bocage_setup_obs, or_node, predecessor,
+                      cause);
+              }
+              psi_or_node = or_node;
+        }
+    }
+}
+
+@*0 Leo or-nodes.
+@<Add Leo or-nodes for |work_earley_item|@> =
+{
+  SRCL source_link;
+  for (source_link = First_Leo_SRCL_of_YIM (work_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
+    {
+      LIM leo_predecessor = LIM_of_SRCL (source_link);
+      if (leo_predecessor) {
+        @<Add or-nodes for chain starting with |leo_predecessor|@>@;
+      }
+    }
+}
+
+@ The main loop in this code deliberately skips the first Leo predecessor.
+The successor of the first Leo predecessor is the base of the Leo path,
+which already exists, and therefore the first Leo predecessor is not
+expanded.
+@<Add or-nodes for chain starting with |leo_predecessor|@> =
+{
+  LIM this_leo_item = leo_predecessor;
+  LIM previous_leo_item = this_leo_item;
+  while ((this_leo_item = Predecessor_LIM_of_LIM (this_leo_item)))
+    {
+      const int ordinal_of_set_of_this_leo_item = Ord_of_YS(YS_of_LIM(this_leo_item));
+      const AHM path_aim = Trailhead_AHM_of_LIM(previous_leo_item);
+      const IRL path_irl = IRL_of_AHM(path_aim);
+      const int symbol_instance_of_path_aim = SYMI_of_AHM(path_aim);
+      {
+        OR last_or_node = NULL;
+        @<Add main Leo path or-node@>@;
+        @<Add Leo path nulling token or-nodes@>@;
+      }
+      previous_leo_item = this_leo_item;
+    }
+}
+
+@ Adds the main Leo path or-node ---
+the non-nulling or-node which
+corresponds to the Leo predecessor.
+@<Add main Leo path or-node@> =
+{
+    {
+      OR or_node;
+      PSL leo_psl
+        = psl_claim_by_es(or_psar, per_ys_data, ordinal_of_set_of_this_leo_item);
+      or_node = PSL_Datum (leo_psl, symbol_instance_of_path_aim);
+      if (!or_node || YS_Ord_of_OR(or_node) != work_earley_set_ordinal)
+        {
+          last_or_node = or_node_new(b);
+          PSL_Datum (leo_psl, symbol_instance_of_path_aim) = or_node =
+              last_or_node;
+          Origin_Ord_of_OR(or_node) = ordinal_of_set_of_this_leo_item;
+          YS_Ord_of_OR(or_node) = work_earley_set_ordinal;
+          IRL_of_OR(or_node) = path_irl;
+          Position_of_OR (or_node) =
+              symbol_instance_of_path_aim - SYMI_of_IRL (path_irl) + 1;
+        }
+    }
+}
+
+@ In building the final or-node, the predecessor can be
+determined using the PSI for $|symbol_instance|-1$.
+There will always be a predecessor, since these nulling
+or-nodes follow a completion.
+@<Add Leo path nulling token or-nodes@> =
+{
+  int i;
+  const int null_count = Null_Count_of_AHM (path_aim);
+  for (i = 1; i <= null_count; i++)
+    {
+      const int symbol_instance = symbol_instance_of_path_aim + i;
+      OR or_node = PSL_Datum (this_earley_set_psl, symbol_instance);
+      MARPA_ASSERT (symbol_instance < SYMI_Count_of_G (g)) @;
+      if (!or_node || YS_Ord_of_OR (or_node) != work_earley_set_ordinal)
+        {
+          const int rhs_ix = symbol_instance - SYMI_of_IRL(path_irl);
+          MARPA_ASSERT (rhs_ix < Length_of_IRL (path_irl)) @;
+          const OR predecessor = rhs_ix ? last_or_node : NULL;
+          const OR cause = Nulling_OR_by_NSYID( RHSID_of_IRL (path_irl, rhs_ix ) );
+          MARPA_ASSERT (symbol_instance < Length_of_IRL (path_irl)) @;
+          MARPA_ASSERT (symbol_instance >= 0) @;
+          or_node = last_or_node = or_node_new(b);
+          PSL_Datum (this_earley_set_psl, symbol_instance) = or_node;
+          Origin_Ord_of_OR (or_node) = ordinal_of_set_of_this_leo_item;
+          YS_Ord_of_OR (or_node) = work_earley_set_ordinal;
+          IRL_of_OR (or_node) = path_irl;
+          Position_of_OR (or_node) = rhs_ix + 1;
+MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
+    MARPA_DEBUG2("At %s", STRLOC);
+          draft_and_node_add (bocage_setup_obs, or_node, predecessor, cause);
+        }
+      MARPA_ASSERT (Position_of_OR (or_node) <=
+                    SYMI_of_IRL (path_irl) + Length_of_IRL (path_irl)) @;
+      MARPA_ASSERT (Position_of_OR (or_node) >= SYMI_of_IRL (path_irl)) @;
+    }
+}
+
+@** Whole element ID (WHEID) code.
+The "whole elements" of the grammar are the symbols
+and the completed rules.
+{\bf To Do}: @^To Do@>
+{\bf Restriction}: @^Restriction@>
+Note that this puts a limit on the number of symbols
+and internal rules in a grammar --- their total must fit in an
+int.
+@d WHEID_of_NSYID(nsyid) (irl_count+(nsyid))
+@d WHEID_of_IRLID(irlid) (irlid)
+@d WHEID_of_IRL(irl) WHEID_of_IRLID(ID_of_IRL(irl))
+@d WHEID_of_OR(or) (
+    wheid = OR_is_Token(or) ?
+        WHEID_of_NSYID(NSYID_of_OR(or)) :
+        WHEID_of_IRL(IRL_of_OR(or))
+    )
+
+@<Private typedefs@> =
+typedef int WHEID;
+
+@** Draft and-node (DAND) code.
+The draft and-nodes are used while the bocage is
+being built.
+Both draft and final and-nodes contain the predecessor
+and cause.
+Draft and-nodes need to be in a linked list,
+so they have a link to the next and-node.
+@s DAND int
+@<Private incomplete structures@> =
+struct s_draft_and_node;
+typedef struct s_draft_and_node* DAND;
+@
+@d Next_DAND_of_DAND(dand) ((dand)->t_next)
+@d Predecessor_OR_of_DAND(dand) ((dand)->t_predecessor)
+@d Cause_OR_of_DAND(dand) ((dand)->t_cause)
+@<Private structures@> =
+struct s_draft_and_node {
+    DAND t_next;
+    OR t_predecessor;
+    OR t_cause;
+};
+typedef struct s_draft_and_node DAND_Object;
+
+@ @<Function definitions@> =
+PRIVATE
+DAND draft_and_node_new(struct marpa_obstack *obs, OR predecessor, OR cause)
+{
+    DAND draft_and_node = marpa_obs_new (obs, DAND_Object, 1);
+    Predecessor_OR_of_DAND(draft_and_node) = predecessor;
+    Cause_OR_of_DAND(draft_and_node) = cause;
+    MARPA_ASSERT(cause != NULL);
+    return draft_and_node;
+}
+
+@ @<Function definitions@> =
+PRIVATE
+void draft_and_node_add(struct marpa_obstack *obs, OR parent, OR predecessor, OR cause)
+{
+    MARPA_OFF_ASSERT(Position_of_OR(parent) <= 1 || predecessor)
+    const DAND new = draft_and_node_new(obs, predecessor, cause);
+    Next_DAND_of_DAND(new) = DANDs_of_OR(parent);
+    DANDs_of_OR(parent) = new;
+}
+
+@ @<Create draft and-nodes for |work_earley_set_ordinal|@> =
+{
+    int item_ordinal;
+    for (item_ordinal = 0; item_ordinal < item_count; item_ordinal++)
+    {
+        OR or_node = OR_by_PSI(per_ys_data, work_earley_set_ordinal, item_ordinal);
+        const YIM work_earley_item = yims_of_ys[item_ordinal];
+        const int work_origin_ordinal = Ord_of_YS (Origin_of_YIM (work_earley_item));
+        @<Reset |or_node| to proper predecessor@>@;
+        if (or_node) {
+            @<Create draft and-nodes for |or_node|@>@;
+        }
+    }
+}
+
+@ From an or-node, which may be nulling, determine its proper
+predecessor.  Set |or_node| to 0 if there is none.
+@<Reset |or_node| to proper predecessor@> =
+{
+    while (or_node)  {
+        DAND draft_and_node = DANDs_of_OR(or_node);
+        OR predecessor_or;
+        if (!draft_and_node) break;
+        predecessor_or = Predecessor_OR_of_DAND (draft_and_node);
+        if (predecessor_or &&
+            YS_Ord_of_OR (predecessor_or) != work_earley_set_ordinal)
+          break;
+        or_node = predecessor_or;
+    }
+}
+
+@ @<Create draft and-nodes for |or_node|@> =
+{
+    const AHM work_aim = AHM_of_YIM (work_earley_item);
+    MARPA_ASSERT (work_aim >= AHM_by_ID (1))@;
+    const int work_symbol_instance = SYMI_of_AHM (work_aim);
+    const OR work_proper_or_node = or_by_origin_and_symi(per_ys_data,
+      work_origin_ordinal, work_symbol_instance);
+    @<Create Leo draft and-nodes@>@;
+    @<Create draft and-nodes for token sources@>@;
+    @<Create draft and-nodes for completion sources@>@;
+}
+
+@ {\bf To Do}: @^To Do@>
+I believe there's an easier and faster way to do this.
+I need to double-check the proofs, but it
+relies on these facts:
+\li Each item on a Leo path, other than the top node,
+had one and only one effect node.
+\li Each expanded item on a Leo path has exactly one
+Leo SRCL.  (An expanded YIM is a YIM which was not
+in the Earley sets, but which needed to be expanded later.
+All Leo YIM's, except the summit and trailhead YIM's are
+expanded nodes.)
+\li In ascending a Leo trail, adding SRCL as I proceed,
+I can stop when I hit the first YIM that already has
+a Leo SRCL, because I can assume that the process that
+added its Leo SRCL must have added Leo SRCL's to all the
+current Leo trail YIM's
+indirect effect YIM's, which are above it on this Leo trail.
+@ Therefore, the following should work:  For each draft or-node
+track whether it is a Leo trail or-node, and whether it has a Leo
+SRCL.
+(This is two booleans.)
+The summit Leo or-node counts as a Leo trail or-node
+for this purpose.
+The summit Leo YIM will have its "Leo-SRCL-added" boolean
+set when it is initialized.
+All other Leo trail or-nodes will have the
+"Leo-SRCL-added" bits unset, initially.
+For each Leo trailhead, ascend the trail, adding SRCL's as I
+climb, until I find a Leo path item  with the "Leo-SRCL-added"
+bit set.  At that point I can stop the ascent.
+@<Create Leo draft and-nodes@> =
+{
+  SRCL source_link;
+  for (source_link = First_Leo_SRCL_of_YIM (work_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
+    {
+      YIM cause_earley_item;
+      LIM leo_predecessor;
+
+    @t}\comment{@>/* If |source_link| is active,
+    everything on the Leo path is active. */
+      if (!SRCL_is_Active(source_link)) continue;
+      cause_earley_item = Cause_of_SRCL (source_link);
+      leo_predecessor = LIM_of_SRCL (source_link);
+      if (leo_predecessor) {
+        @<Add draft and-nodes for chain starting with |leo_predecessor|@>@;
+      }
+    }
+}
+
+@ Note that in a trivial path the bottom is also the top.
+@<Add draft and-nodes for chain starting with |leo_predecessor|@> =
+{
+    /* The rule for the Leo path Earley item */
+    IRL path_irl = NULL;
+    /* The rule for the previous Leo path Earley item */
+    IRL previous_path_irl;
+    LIM path_leo_item = leo_predecessor;
+    LIM higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
+    OR dand_predecessor;
+    OR path_or_node;
+    YIM base_earley_item = Trailhead_YIM_of_LIM(path_leo_item);
+    dand_predecessor = set_or_from_yim(per_ys_data, base_earley_item);
+    @<Set |path_or_node|@>@;
+    @<Add draft and-nodes to the bottom or-node@>@;
+    previous_path_irl = path_irl;
+    while (higher_path_leo_item) {
+        path_leo_item = higher_path_leo_item;
+        higher_path_leo_item = Predecessor_LIM_of_LIM(path_leo_item);
+        base_earley_item = Trailhead_YIM_of_LIM(path_leo_item);
+        dand_predecessor
+          = set_or_from_yim(per_ys_data, base_earley_item);
+        @<Set |path_or_node|@>@;
+        @<Add the draft and-nodes to an upper Leo path or-node@>@;
+        previous_path_irl = path_irl;
+    }
+}
+
+@ @<Set |path_or_node|@> =
+{
+  if (higher_path_leo_item) {
+      @<Use Leo base data to set |path_or_node|@>@;
+  } else {
+      path_or_node = work_proper_or_node;
+  }
+}
+
+@ @<Function definitions@> =
+PRIVATE
+OR or_by_origin_and_symi ( struct s_bocage_setup_per_ys *per_ys_data,
+    YSID origin,
+    SYMI symbol_instance)
+{
+  const PSL or_psl_at_origin = per_ys_data[(origin)].t_or_psl;
+  return PSL_Datum (or_psl_at_origin, (symbol_instance));
+}
+
+@ @<Add draft and-nodes to the bottom or-node@> =
+{
+  const OR dand_cause
+    = set_or_from_yim(per_ys_data, cause_earley_item);
+  if (!dand_is_duplicate(path_or_node, dand_predecessor, dand_cause)) {
+    MARPA_DEBUG2("At %s", STRLOC);
+    draft_and_node_add (bocage_setup_obs, path_or_node,
+		      dand_predecessor, dand_cause);
+  }
+}
+
+@ The test for duplication is necessary, because while a single
+Leo path
+is deterministic, there can be multiple Leo paths, and they can
+overlap, and they can overlap with nodes from other sources.
+@ {\bf To Do}: @^To Do@> I need to justify the claim
+that the time complexity is not altered by the check for duplicates.
+In the case of unambiguous grammars, there is only one Leo path and
+only once source, so the proof is straightforward.
+For ambiguous grammars, I believe I can show that the number of traversals
+of each Leo path item is bounded by a constant, and the time
+complexity bound follows.
+@ {\bf To Do}: @^To Do@>
+On the more practical side, I conjecture that, once a duplicate has
+been found when ascending a Leo path, it can be assumed that all attempts
+to add |DAND|'s to higher Leo path items will also duplicate.
+If so, the loop that ascends the Leo path can be ended at that point.
+@<Add the draft and-nodes to an upper Leo path or-node@> =
+{
+  const SYMI symbol_instance = SYMI_of_Completed_IRL(previous_path_irl);
+  const int origin = Ord_of_YS(YS_of_LIM(path_leo_item));
+  const OR dand_cause = or_by_origin_and_symi(per_ys_data, origin, symbol_instance);
+  if (!dand_is_duplicate(path_or_node, dand_predecessor, dand_cause)) {
+    MARPA_DEBUG2("At %s", STRLOC);
+    draft_and_node_add (bocage_setup_obs, path_or_node,
+          dand_predecessor, dand_cause);
+  }
+}
+
+@ Assuming they have the same parent, would the DANDs made up from these
+OR node's be equivalent.
+For locations, the parent dictates the beginning and end, so only the start
+of the cause and the end of predecessor matter.  These must be the same
+(the ``middle'' location) so that only this middle location needs to be
+compared.
+For the predecessors, dotted rule is a function of the parent.
+For token causes, the alternative reading logic guaranteed that there would
+be no two tokens which differed only in value, so only the symbols needs to
+be compared.
+For component causes, they are always completions, so that only the IRL ID
+needs to be compared.
+@<Function definitions@> =
+PRIVATE
+int dands_are_equal(OR predecessor_a, OR cause_a,
+  OR predecessor_b, OR cause_b)
+{
+  const int a_is_token = OR_is_Token(cause_a);
+  const int b_is_token = OR_is_Token(cause_b);
+  if (a_is_token != b_is_token) return 0;
+  {
+    /* -1 means equal to the
+       start of the parent, which is sufficient for comparision purposes */
+    const int middle_of_a = predecessor_a ? YS_Ord_of_OR (predecessor_a) : -1;
+    const int middle_of_b = predecessor_b ? YS_Ord_of_OR (predecessor_b) : -1;
+    if (middle_of_a != middle_of_b)
+      return 0;
+  }
+  if (a_is_token)
+    {
+	const NSYID nsyid_of_a = NSYID_of_OR (cause_a);
+	const NSYID nsyid_of_b = NSYID_of_OR (cause_b);
+	return nsyid_of_a == nsyid_of_b;
+    }
+  {
+    /* If here, we know that both causes are rule completions. */
+    const IRLID irlid_of_a = IRLID_of_OR (cause_a);
+    const IRLID irlid_of_b = IRLID_of_OR (cause_b);
+    return irlid_of_a == irlid_of_b;
+  }
+  // Not reached
+}
+
+@ Return 1 if a new dand made up of |predecessor| and |cause| would
+duplicate any already in |parent|.
+Otherwise, return 0.
+@<Function definitions@> =
+PRIVATE
+int dand_is_duplicate(OR parent, OR predecessor, OR cause)
+{
+  DAND dand;
+  for (dand = DANDs_of_OR (parent); dand; dand = Next_DAND_of_DAND (dand)) {
+      if (dands_are_equal(predecessor, cause,
+        Predecessor_OR_of_DAND(dand), Cause_OR_of_DAND(dand)))
+      {
+          MARPA_DEBUG2("Would-be Duplicate DAND for or %s",
+            or_tag(parent));
+          MARPA_DEBUG2("Would-be Duplicate DAND predcessor is or %s",
+            or_tag(predecessor));
+          MARPA_DEBUG2("Would-be Duplicate DAND cause is or %s",
+            or_tag(cause));
+          return 1;
+      }
+  }
+  return 0;
+}
+
+@ @<Function definitions@> =
+PRIVATE
+OR set_or_from_yim ( struct s_bocage_setup_per_ys *per_ys_data,
+  YIM psi_yim)
+{
+  const YIM psi_earley_item = psi_yim;
+  const int psi_earley_set_ordinal = YS_Ord_of_YIM (psi_earley_item);
+  const int psi_item_ordinal = Ord_of_YIM (psi_earley_item);
+  return OR_by_PSI(per_ys_data, psi_earley_set_ordinal, psi_item_ordinal);
+}
+
+@ @<Use Leo base data to set |path_or_node|@> =
+{
+  int symbol_instance;
+  const int origin_ordinal = Origin_Ord_of_YIM (base_earley_item);
+  const AHM aim = AHM_of_YIM (base_earley_item);
+  path_irl = IRL_of_AHM (aim);
+  symbol_instance = Last_Proper_SYMI_of_IRL (path_irl);
+  path_or_node = or_by_origin_and_symi(per_ys_data, origin_ordinal, symbol_instance);
+}
+
+
+@ Token or-nodes are pseudo-or-nodes.
+They are not included in the count of or-nodes,
+are not coverted to final or-nodes,
+and are not traversed when traversing or-nodes by ID.
+@<Create draft and-nodes for token sources@> =
+{
+  SRCL tkn_source_link;
+  for (tkn_source_link = First_Token_SRCL_of_YIM (work_earley_item);
+       tkn_source_link; tkn_source_link = Next_SRCL_of_SRCL (tkn_source_link))
+    {
+      OR new_token_or_node;
+      const NSYID token_nsyid = NSYID_of_SRCL (tkn_source_link);
+      const YIM predecessor_earley_item = Predecessor_of_SRCL (tkn_source_link);
+      const OR dand_predecessor = safe_or_from_yim (per_ys_data,
+					      predecessor_earley_item);
+      if (NSYID_is_Valued_in_B (b, token_nsyid))
+	{
+          @t}\comment{@>
+	  /* I probably can and should use a smaller allocation,
+          sized just for a token or-node */
+	  new_token_or_node = (OR) marpa_obs_new (OBS_of_B (b), OR_Object, 1);
+	  Type_of_OR (new_token_or_node) = VALUED_TOKEN_OR_NODE;
+	  NSYID_of_OR (new_token_or_node) = token_nsyid;
+	  Value_of_OR (new_token_or_node) = Value_of_SRCL (tkn_source_link);
+	}
+      else
+	{
+	  new_token_or_node = Unvalued_OR_by_NSYID (token_nsyid);
+	}
+      draft_and_node_add (bocage_setup_obs, work_proper_or_node,
+			  dand_predecessor, new_token_or_node);
+    }
+}
+
+@ ``Safe'' because it does not require called to ensure the such
+an or-node exists.
+@<Function definitions@> =
+PRIVATE
+OR safe_or_from_yim(
+  struct s_bocage_setup_per_ys* per_ys_data,
+  YIM yim)
+{
+  if (Position_of_AHM (AHM_of_YIM(yim)) < 1) return NULL;
+  return set_or_from_yim (per_ys_data, yim);
+}
+
+@ @<Create draft and-nodes for completion sources@> =
+{
+  SRCL source_link;
+  for (source_link = First_Completion_SRCL_of_YIM (work_earley_item);
+       source_link; source_link = Next_SRCL_of_SRCL (source_link))
+    {
+      YIM predecessor_earley_item = Predecessor_of_SRCL (source_link);
+      YIM cause_earley_item = Cause_of_SRCL (source_link);
+      const int middle_ordinal = Origin_Ord_of_YIM (cause_earley_item);
+      const AHM cause_aim = AHM_of_YIM (cause_earley_item);
+      const SYMI cause_symbol_instance =
+	SYMI_of_Completed_IRL (IRL_of_AHM (cause_aim));
+      OR dand_predecessor = safe_or_from_yim (per_ys_data,
+					      predecessor_earley_item);
+      const OR dand_cause =
+	or_by_origin_and_symi (per_ys_data, middle_ordinal,
+			       cause_symbol_instance);
+      draft_and_node_add (bocage_setup_obs, work_proper_or_node,
+			  dand_predecessor, dand_cause);
+    }
+}
+
+@ The need for this count is a vestige of duplicate checking.
+Now that duplicates no longer occur,
+the whole process probably can and should be simplified.
+@<Count draft and-nodes@> =
+{
+  const int or_node_count_of_b = OR_Count_of_B (b);
+  int or_node_id = 0;
+  while (or_node_id < or_node_count_of_b)
+    {
+      const OR work_or_node = OR_of_B_by_ID (b, or_node_id);
+      DAND dand = DANDs_of_OR (work_or_node);
+      while (dand)
+	{
+	  unique_draft_and_node_count++;
+	  dand = Next_DAND_of_DAND (dand);
+	}
+      or_node_id++;
+    }
+}
+
+@** And-node (AND) code.
+The and-nodes are part of the parse bocage.
+They are analogous to the and-nodes of a standard parse forest,
+except that they are binary -- restricted to two children.
+This means that the parse bocage stores the parse in a kind
+of Chomsky Normal Form.
+(A second difference between a parse bocage and a parse forest,
+is that the parse bocage can contain cycles.)
+
+@<Public typedefs@> =
+typedef int Marpa_And_Node_ID;
+@ @<Private typedefs@> =
+typedef Marpa_And_Node_ID ANDID;
+
+@ @s AND int
+@<Private incomplete structures@> =
+struct s_and_node;
+typedef struct s_and_node* AND;
+@
+@d OR_of_AND(and) ((and)->t_current)
+@d Predecessor_OR_of_AND(and) ((and)->t_predecessor)
+@d Cause_OR_of_AND(and) ((and)->t_cause)
+@<Private structures@> =
+struct s_and_node {
+    OR t_current;
+    OR t_predecessor;
+    OR t_cause;
+};
+typedef struct s_and_node AND_Object;
+
+@ @<Create the final and-nodes for all earley sets@> =
+{
+  int unique_draft_and_node_count = 0;
+  @<Count draft and-nodes@>@;
+  @<Create the final and-node array@>@;
+}
+
+@ @<Create the final and-node array@> =
+{
+  const int or_count_of_b = OR_Count_of_B (b);
+  int or_node_id;
+  int and_node_id = 0;
+  const AND ands_of_b = ANDs_of_B (b) =
+    marpa_new (AND_Object, unique_draft_and_node_count);
+  for (or_node_id = 0; or_node_id < or_count_of_b; or_node_id++)
+    {
+      int and_count_of_parent_or = 0;
+      const OR or_node = OR_of_B_by_ID (b, or_node_id);
+      DAND dand = DANDs_of_OR (or_node);
+      First_ANDID_of_OR (or_node) = and_node_id;
+      while (dand)
+	{
+	  const OR cause_or_node = Cause_OR_of_DAND (dand);
+	  const AND and_node = ands_of_b + and_node_id;
+	  OR_of_AND (and_node) = or_node;
+	  Predecessor_OR_of_AND (and_node) = Predecessor_OR_of_DAND (dand);
+	  Cause_OR_of_AND (and_node) = cause_or_node;
+	  and_node_id++;
+	  and_count_of_parent_or++;
+	  dand = Next_DAND_of_DAND (dand);
+	}
+      AND_Count_of_OR (or_node) = and_count_of_parent_or;
+      Ambiguity_Metric_of_B (b) =
+	MAX (Ambiguity_Metric_of_B (b), and_count_of_parent_or);
+    }
+  AND_Count_of_B (b) = and_node_id;
+  MARPA_ASSERT (and_node_id == unique_draft_and_node_count);
+}
+
+
 @** Parse bocage code (B, BOCAGE).
 @ Pre-initialization is making the elements safe for the deallocation logic
 to be called.  Often it is setting the value to zero, so that the deallocation
@@ -11416,13 +10341,9 @@ struct marpa_bocage {
 };
 
 @*0 The base objects of the bocage.
-@ @d I_of_B(b) ((b)->t_input)
-@<Widely aligned bocage elements@> =
-    INPUT t_input;
 
 @ @<Unpack bocage objects@> =
-    const INPUT input = I_of_B(b);
-    const GRAMMAR g @,@, UNUSED = G_of_I(input);
+    const GRAMMAR g @,@, UNUSED = G_of_B(b);
 
 @*0 The bocage obstack.
 An obstack with the lifetime of the bocage.
@@ -11439,7 +10360,6 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
 {
     @<Return |NULL| on failure@>@;
     @<Declare bocage locals@>@;
-    INPUT input;
     @<Fail if fatal error@>@;
     @<Fail if recognizer not started@>@;
     {
@@ -11448,8 +10368,6 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
         OBS_of_B(b) = obstack;
     }
     @<Initialize bocage elements@>@;
-    input = I_of_B(b) = I_of_R(r);
-    input_ref(input);
 
     if (G_is_Trivial(g)) {
         if (ordinal_arg > 0) goto NO_PARSE;
@@ -11469,7 +10387,7 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     if (!start_yim) goto NO_PARSE;
     bocage_setup_obs = marpa_obs_init;
     @<Allocate bocage setup working data@>@;
-    @<Populate the PSIA data@>@;
+    @<Populate the PSI data@>@;
     @<Create the or-nodes for all earley sets@>@;
     @<Create the final and-nodes for all earley sets@>@;
     @<Set top or node id in |b|@>;
@@ -11477,7 +10395,6 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
     return b;
     NO_PARSE: ;
           MARPA_ERROR(MARPA_ERR_NO_PARSE);
-    input_unref(input);
     if (b) {
         @<Destroy bocage elements, all phases@>;
     }
@@ -11486,6 +10403,10 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
 
 @ @d Valued_BV_of_B(b) ((b)->t_valued_bv)
 @d Valued_Locked_BV_of_B(b) ((b)->t_valued_locked_bv)
+@d XSYID_is_Valued_in_B(b, xsyid)
+  (lbv_bit_test(Valued_BV_of_B(b), (xsyid)))
+@d NSYID_is_Valued_in_B(b, nsyid)
+  XSYID_is_Valued_in_B((b), Source_XSYID_of_NSYID(nsyid))
 @<Widely aligned bocage elements@> =
     LBV t_valued_bv;
     LBV t_valued_locked_bv;
@@ -11497,23 +10418,24 @@ Marpa_Bocage marpa_b_new(Marpa_Recognizer r,
 
 @ @<Declare bocage locals@> =
 const GRAMMAR g = G_of_R(r);
-const int nsy_count = NSY_Count_of_G(g);
 const int xsy_count = XSY_Count_of_G(g);
-const IRLID irl_count = IRL_Count_of_G(g);
 BOCAGE b = NULL;
 YS end_of_parse_earley_set;
 JEARLEME end_of_parse_earleme;
 YIM start_yim = NULL;
-const AEX start_aex = 0;
 struct marpa_obstack* bocage_setup_obs = NULL;
 int count_of_earley_items_in_parse;
 const int earley_set_count_of_r = YS_Count_of_R (r);
 
 @ @<Private incomplete structures@> =
 struct s_bocage_setup_per_ys;
-@ @<Private structures@> =
+@ These macros were introduced for development.
+They may be worth keeping.
+@d OR_by_PSI(psi_data, set_ordinal, item_ordinal)
+   (((psi_data)[(set_ordinal)].t_or_node_by_item)[(item_ordinal)])
+@<Private structures@> =
 struct s_bocage_setup_per_ys {
-     OR ** t_aexes_by_item;
+     OR * t_or_node_by_item;
      PSL t_or_psl;
      PSL t_and_psl;
 };
@@ -11524,7 +10446,7 @@ struct s_bocage_setup_per_ys* per_ys_data = NULL;
 {
   if (ordinal_arg == -1)
     {
-      end_of_parse_earley_set = Current_YS_of_R (r);
+      end_of_parse_earley_set = YS_at_Current_Earleme_of_R (r);
     }
   else
     {                           /* |ordinal_arg| != -1 */
@@ -11544,29 +10466,30 @@ struct s_bocage_setup_per_ys* per_ys_data = NULL;
 @
 @<Allocate bocage setup working data@>=
 {
-  int ix;
+  int earley_set_ordinal;
   int earley_set_count = YS_Count_of_R (r);
   count_of_earley_items_in_parse = 0;
-  per_ys_data =
-    marpa_obs_new (bocage_setup_obs, struct s_bocage_setup_per_ys, earley_set_count);
-  for (ix = 0; ix < earley_set_count; ix++)
+  per_ys_data = marpa_obs_new (
+    bocage_setup_obs, struct s_bocage_setup_per_ys, earley_set_count);
+  for (earley_set_ordinal = 0; earley_set_ordinal < earley_set_count;
+       earley_set_ordinal++)
     {
-      const YS_Const earley_set = YS_of_R_by_Ord (r, ix);
+      const YS_Const earley_set = YS_of_R_by_Ord (r, earley_set_ordinal);
       const int item_count = YIM_Count_of_YS (earley_set);
       count_of_earley_items_in_parse += item_count;
-        {
-          struct s_bocage_setup_per_ys *per_ys = per_ys_data + ix;
-          OR ** const per_yim_yixes = per_ys->t_aexes_by_item =
-            marpa_obs_new (bocage_setup_obs, OR *, item_count);
-          int item_ordinal;
-          per_ys->t_or_psl = NULL;
-          per_ys->t_and_psl = NULL;
-          for (item_ordinal = 0; item_ordinal < item_count; item_ordinal++)
-            {
-              per_yim_yixes[item_ordinal] = NULL;
-            }
-        }
-    }
+      {
+        int item_ordinal;
+        struct s_bocage_setup_per_ys *per_ys = per_ys_data + earley_set_ordinal;
+        per_ys->t_or_node_by_item =
+          marpa_obs_new (bocage_setup_obs, OR, item_count);
+        per_ys->t_or_psl = NULL;
+        per_ys->t_and_psl = NULL;
+        for (item_ordinal = 0; item_ordinal < item_count; item_ordinal++)
+          {
+            OR_by_PSI (per_ys_data, earley_set_ordinal, item_ordinal) = NULL;
+          }
+      }
+  }
 }
 
 @ Predicted AHFA states can be skipped since they
@@ -11609,11 +10532,9 @@ to make sense.
 @ @<Set top or node id in |b|@> =
 {
   const YSID end_of_parse_ordinal = Ord_of_YS (end_of_parse_earley_set);
-  OR **const nodes_by_item =
-    per_ys_data[end_of_parse_ordinal].t_aexes_by_item;
   const int start_earley_item_ordinal = Ord_of_YIM (start_yim);
-  OR *const nodes_by_aex = nodes_by_item[start_earley_item_ordinal];
-  const OR root_or_node = nodes_by_aex[start_aex];
+  const OR root_or_node =
+    OR_by_PSI(per_ys_data, end_of_parse_ordinal, start_earley_item_ordinal);
   Top_ORID_of_B (b) = ID_of_OR (root_or_node);
 }
 
@@ -11697,7 +10618,6 @@ PRIVATE void
 bocage_free (BOCAGE b)
 {
   @<Unpack bocage objects@>@;
-  input_unref (input);
   if (b)
     {
       @<Destroy bocage elements, all phases@>;
@@ -12655,98 +11575,6 @@ struct s_nook {
 };
 typedef struct s_nook NOOK_Object;
 
-@** Nook trace functions.
-
-@ This is common logic in the |NOOK| trace functions.
-@<Check |r| and |nook_id|;
-set |nook|@> = {
-  NOOK base_nook;
-  @<Fail if fatal error@>@;
-  if (T_is_Exhausted(t)) {
-      MARPA_ERROR(MARPA_ERR_BOCAGE_ITERATION_EXHAUSTED);
-      return failure_indicator;
-  }
-  if (nook_id < 0) {
-      MARPA_ERROR(MARPA_ERR_NOOKID_NEGATIVE);
-      return failure_indicator;
-  }
-  if (nook_id >= Size_of_T(t)) {
-      return -1;
-  }
-  base_nook = FSTACK_BASE(t->t_nook_stack, NOOK_Object);
-  nook = base_nook + nook_id;
-}
-
-@ @<Function definitions@> =
-int _marpa_t_nook_or_node(Marpa_Tree t, int nook_id)
-{
-  NOOK nook;
-  @<Return |-2| on failure@>@;
-  @<Unpack tree objects@>@;
-   @<Check |r| and |nook_id|; set |nook|@>@;
-  return ID_of_OR(OR_of_NOOK(nook));
-}
-
-@ @<Function definitions@> =
-int _marpa_t_nook_choice(Marpa_Tree t, int nook_id)
-{
-  NOOK nook;
-  @<Return |-2| on failure@>@;
-  @<Unpack tree objects@>@;
-   @<Check |r| and |nook_id|; set |nook|@>@;
-    return Choice_of_NOOK(nook);
-}
-
-@ @<Function definitions@> =
-int _marpa_t_nook_parent(Marpa_Tree t, int nook_id)
-{
-  NOOK nook;
-  @<Return |-2| on failure@>@;
-  @<Unpack tree objects@>@;
-   @<Check |r| and |nook_id|; set |nook|@>@;
-    return Parent_of_NOOK(nook);
-}
-
-@ @<Function definitions@> =
-int _marpa_t_nook_cause_is_ready(Marpa_Tree t, int nook_id)
-{
-  NOOK nook;
-  @<Return |-2| on failure@>@;
-  @<Unpack tree objects@>@;
-   @<Check |r| and |nook_id|; set |nook|@>@;
-    return NOOK_Cause_is_Expanded(nook);
-}
-
-@ @<Function definitions@> =
-int _marpa_t_nook_predecessor_is_ready(Marpa_Tree t, int nook_id)
-{
-  NOOK nook;
-  @<Return |-2| on failure@>@;
-  @<Unpack tree objects@>@;
-   @<Check |r| and |nook_id|; set |nook|@>@;
-    return NOOK_Predecessor_is_Expanded(nook);
-}
-
-@ @<Function definitions@> =
-int _marpa_t_nook_is_cause(Marpa_Tree t, int nook_id)
-{
-  NOOK nook;
-  @<Return |-2| on failure@>@;
-  @<Unpack tree objects@>@;
-   @<Check |r| and |nook_id|; set |nook|@>@;
-    return NOOK_is_Cause(nook);
-}
-
-@ @<Function definitions@> =
-int _marpa_t_nook_is_predecessor(Marpa_Tree t, int nook_id)
-{
-  NOOK nook;
-  @<Return |-2| on failure@>@;
-  @<Unpack tree objects@>@;
-   @<Check |r| and |nook_id|; set |nook|@>@;
-    return NOOK_is_Predecessor(nook);
-}
-
 @** Evaluation (V, VALUE) code.
 @ This code helps
 compute a value for
@@ -13291,8 +12119,10 @@ for the rule.
               return Step_Type_of_V (v) = MARPA_STEP_NULLING_SYMBOL;
           }
           
-          /* \comment No tracing of nulling valuators, at least at this point */
-          /* \comment Fall through */
+    @t}\comment{@>
+          /* No tracing of nulling valuators, at least at this point */
+    @t}\comment{@>
+          /* Fall through */
         }
     }
 }
@@ -13301,7 +12131,8 @@ for the rule.
 {
     AND and_nodes;
 
-    /* \comment flag to indicate whether the arguments of
+    @t}\comment{@>
+    /* flag to indicate whether the arguments of
        a rule should be popped off the stack.  Coming
        into this loop that is always the case -- if
        no rule was executed, this is a no-op. */
@@ -13314,112 +12145,131 @@ for the rule.
         NOOK_of_V(v) = Size_of_TREE(t);
     }
 
-    while (1) {
+    while (1)
+      {
         OR or;
         IRL nook_irl;
-        Token_Value_of_V(v) = -1;
-        RULEID_of_V(v) = -1;
-        NOOK_of_V(v)--;
-        if (NOOK_of_V(v) < 0) {
-            Next_Value_Type_of_V(v) = MARPA_STEP_INACTIVE;
-            break;
-        }
-        if (pop_arguments) {
-          /* Pop the arguments for the last rule execution off of
-          the stack */
-          Arg_N_of_V(v) = Arg_0_of_V(v);
-          pop_arguments = 0;
-        }
-        {
-          ANDID and_node_id;
-          AND and_node;
-          TOK tkn;
-          int tkn_type;
-          const NOOK nook = NOOK_of_TREE_by_IX (t, NOOK_of_V (v));
-          const int choice = Choice_of_NOOK (nook);
-          or = OR_of_NOOK (nook);
-          YS_ID_of_V(v) = YS_Ord_of_OR(or);
-          and_node_id = and_order_get (o, or, choice);
-          and_node = and_nodes + and_node_id;
-          tkn = and_node_token (and_node);
-          tkn_type = tkn ? Type_of_TOK(tkn) : DUMMY_OR_NODE;
-          Token_Type_of_V (v) = tkn_type;
-          if (tkn_type != DUMMY_OR_NODE)
+        Token_Value_of_V (v) = -1;
+        RULEID_of_V (v) = -1;
+        NOOK_of_V (v)--;
+        if (NOOK_of_V (v) < 0)
           {
-            const NSYID tkn_nsyid = NSYID_of_TOK (tkn);
-            Arg_0_of_V (v) = ++Arg_N_of_V (v);
-            if (tkn_type == VALUED_TOKEN_OR_NODE)
+            Next_Value_Type_of_V (v) = MARPA_STEP_INACTIVE;
+            break;
+          }
+        if (pop_arguments)
+          {
+            /* Pop the arguments for the last rule execution off of
+               the stack */
+            Arg_N_of_V (v) = Arg_0_of_V (v);
+            pop_arguments = 0;
+          }
+          {
+            ANDID and_node_id;
+            AND and_node;
+            int cause_or_node_type;
+            OR cause_or_node;
+            const NOOK nook = NOOK_of_TREE_by_IX (t, NOOK_of_V (v));
+            const int choice = Choice_of_NOOK (nook);
+            or = OR_of_NOOK (nook);
+            YS_ID_of_V (v) = YS_Ord_of_OR (or);
+            and_node_id = and_order_get (o, or, choice);
+            and_node = and_nodes + and_node_id;
+            cause_or_node = Cause_OR_of_AND (and_node);
+            cause_or_node_type = Type_of_OR (cause_or_node);
+            switch (cause_or_node_type)
               {
-                const OR predecessor = Predecessor_OR_of_AND (and_node);
-                XSYID_of_V (v) = ID_of_XSY (Source_XSY_of_NSYID (tkn_nsyid));
-                Token_Start_of_V (v) =
-                  predecessor ? YS_Ord_of_OR (predecessor) : Origin_Ord_of_OR (or);
-                Token_Value_of_V (v) = Value_of_TOK (tkn);
+              case VALUED_TOKEN_OR_NODE:
+                Token_Type_of_V (v) = cause_or_node_type;
+                Arg_0_of_V (v) = ++Arg_N_of_V (v);
+                {
+                  const OR predecessor = Predecessor_OR_of_AND (and_node);
+                  XSYID_of_V (v) =
+                    ID_of_XSY (Source_XSY_of_NSYID (NSYID_of_OR (cause_or_node)));
+                  Token_Start_of_V (v) =
+                    predecessor ? YS_Ord_of_OR (predecessor) : Origin_Ord_of_OR (or);
+                  Token_Value_of_V (v) = Value_of_OR (cause_or_node);
+                }
+
+                break;
+              case NULLING_TOKEN_OR_NODE:
+                Token_Type_of_V (v) = cause_or_node_type;
+                Arg_0_of_V (v) = ++Arg_N_of_V (v);
+                {
+                  const XSY source_xsy =
+                    Source_XSY_of_NSYID (NSYID_of_OR (cause_or_node));
+                  const XSYID source_xsy_id = ID_of_XSY (source_xsy);
+                  if (bv_bit_test (XSY_is_Valued_BV_of_V (v), source_xsy_id))
+                    {
+                      XSYID_of_V (v) = source_xsy_id;
+                      Token_Start_of_V (v) = YS_ID_of_V (v);
+                    }
+                  else
+                    {
+                      Token_Type_of_V (v) = DUMMY_OR_NODE;
+                      /* |DUMMY_OR_NODE| indicates arbitrary semantics for
+                         this token */
+                    }
+                }
+
+                break;
+              default:
+                Token_Type_of_V (v) = DUMMY_OR_NODE;
               }
-            else if (tkn_type == NULLING_TOKEN_OR_NODE)
+          }
+        nook_irl = IRL_of_OR (or);
+        if (Position_of_OR (or) == Length_of_IRL (nook_irl))
+          {
+            int virtual_rhs = IRL_has_Virtual_RHS (nook_irl);
+            int virtual_lhs = IRL_has_Virtual_LHS (nook_irl);
+            int real_symbol_count;
+            const MARPA_DSTACK virtual_stack = &VStack_of_V (v);
+            if (virtual_lhs)
               {
-                const XSY source_xsy = Source_XSY_of_NSYID(tkn_nsyid);
-                const XSYID source_xsy_id = ID_of_XSY(source_xsy);
-                if (bv_bit_test (XSY_is_Valued_BV_of_V (v), source_xsy_id))
+                real_symbol_count = Real_SYM_Count_of_IRL (nook_irl);
+                if (virtual_rhs)
                   {
-                    XSYID_of_V (v) = source_xsy_id;
-                    Token_Start_of_V(v) = YS_ID_of_V(v);
+                    *(MARPA_DSTACK_TOP (*virtual_stack, int)) += real_symbol_count;
                   }
                 else
                   {
-                    Token_Type_of_V (v) = DUMMY_OR_NODE;
-                    /* |DUMMY_OR_NODE| indicates arbitrary semantics for
-                       this token */
+                    *MARPA_DSTACK_PUSH (*virtual_stack, int) = real_symbol_count;
                   }
               }
             else
               {
-                Token_Type_of_V (v) = DUMMY_OR_NODE;
-                /* |DUMMY_OR_NODE| indicates arbitrary semantics for
-                   this token */
-              }
-          }
-        }
-        nook_irl = IRL_of_OR(or);
-        if (Position_of_OR(or) == Length_of_IRL(nook_irl)) {
-            int virtual_rhs = IRL_has_Virtual_RHS(nook_irl);
-            int virtual_lhs = IRL_has_Virtual_LHS(nook_irl);
-            int real_symbol_count;
-            const MARPA_DSTACK virtual_stack = &VStack_of_V(v);
-            if (virtual_lhs) {
-                real_symbol_count = Real_SYM_Count_of_IRL(nook_irl);
-                if (virtual_rhs) {
-                    *(MARPA_DSTACK_TOP(*virtual_stack, int)) += real_symbol_count;
-                } else {
-                    *MARPA_DSTACK_PUSH(*virtual_stack, int) = real_symbol_count;
-                }
-            } else {
 
-                if (virtual_rhs) {
-                    real_symbol_count = Real_SYM_Count_of_IRL(nook_irl);
-                    real_symbol_count += *MARPA_DSTACK_POP(*virtual_stack, int);
-                } else {
-                    real_symbol_count = Length_of_IRL(nook_irl);
-                }
+                if (virtual_rhs)
+                  {
+                    real_symbol_count = Real_SYM_Count_of_IRL (nook_irl);
+                    real_symbol_count += *MARPA_DSTACK_POP (*virtual_stack, int);
+                  }
+                else
+                  {
+                    real_symbol_count = Length_of_IRL (nook_irl);
+                  }
                 {
                   // Currently all rules with a non-virtual LHS are
                   // "semantic" rules.
                   XRLID original_rule_id = ID_of_XRL (Source_XRL_of_IRL (nook_irl));
                   Arg_0_of_V (v) = Arg_N_of_V (v) - real_symbol_count + 1;
                   pop_arguments = 1;
-              if (lbv_bit_test(XRL_is_Valued_BV_of_V(v), original_rule_id))
+                  if (lbv_bit_test (XRL_is_Valued_BV_of_V (v), original_rule_id))
                     {
                       RULEID_of_V (v) = original_rule_id;
                       Rule_Start_of_V (v) = Origin_Ord_of_OR (or);
                     }
                 }
 
-            }
-        }
-        if ( RULEID_of_V(v) >= 0 ) break;
-        if ( Token_Type_of_V(v) != DUMMY_OR_NODE ) break;
-        if ( V_is_Trace(v)) break;
-    }
+              }
+          }
+        if (RULEID_of_V (v) >= 0)
+          break;
+        if (Token_Type_of_V (v) != DUMMY_OR_NODE)
+          break;
+        if (V_is_Trace (v))
+          break;
+      }
 }
 
 @** Lightweight boolean vectors (LBV).
@@ -14398,7 +13248,8 @@ PRIVATE void cil_buffer_clear(CILAR cilar)
 {
   const MARPA_DSTACK dstack = &cilar->t_buffer;
   MARPA_DSTACK_CLEAR(*dstack);
-  /* \comment Has same effect as 
+    @t}\comment{@>
+  /* Has same effect as 
   |Count_of_CIL (cil_in_buffer) = 0|, except that it sets
   the |MARPA_DSTACK| up properly */
   *MARPA_DSTACK_PUSH(*dstack, int) = 0;
@@ -14413,7 +13264,8 @@ PRIVATE CIL cil_buffer_push(CILAR cilar, int new_item)
   CIL cil_in_buffer;
   MARPA_DSTACK dstack = &cilar->t_buffer;
   *MARPA_DSTACK_PUSH (*dstack, int) = new_item;
-/* \comment Note that the buffer CIL might have been moved
+    @t}\comment{@>
+/* Note that the buffer CIL might have been moved
                    by the |MARPA_DSTACK_PUSH| */
   cil_in_buffer = MARPA_DSTACK_BASE (*dstack, int);
   Count_of_CIL (cil_in_buffer)++;
@@ -14774,12 +13626,17 @@ PRIVATE void psl_claim(
      new_psl->t_owner = psl_owner;
 }
 
-@ @<Claim the or-node PSL for |psl_ys_ord| as |claimed_psl|@> =
+
+@ @<Function definitions@> =
+PRIVATE PSL psl_claim_by_es(
+    PSAR or_psar,
+    struct s_bocage_setup_per_ys* per_ys_data,
+    YSID ysid)
 {
-      PSL *psl_owner = &per_ys_data[psl_ys_ord].t_or_psl;
-      if (!*psl_owner)
-        psl_claim (psl_owner, or_psar);
-      claimed_psl = *psl_owner;
+    PSL *psl_owner = &(per_ys_data[ysid].t_or_psl);
+    if (!*psl_owner)
+      psl_claim (psl_owner, or_psar);
+    return *psl_owner;
 }
 
 @ This function ``allocates" a PSL.
@@ -14902,7 +13759,9 @@ if (_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))) {
 }
 
 @ ``AIMID'' in the error code name is a legacy
-of a previous implementation, and must be kept
+of a previous implementation.
+The name
+of the error code must be kept the same
 for backward compatibility.
 @<Fail if |item_id| is invalid@> =
 if (_MARPA_UNLIKELY(!aim_is_valid(g, item_id))) {
@@ -14926,6 +13785,11 @@ if (_MARPA_UNLIKELY(Input_Phase_of_R(r) == R_BEFORE_INPUT)) {
 @ @<Fail if recognizer not accepting input@> =
 if (_MARPA_UNLIKELY(Input_Phase_of_R(r) != R_DURING_INPUT)) {
     MARPA_ERROR(MARPA_ERR_RECCE_NOT_ACCEPTING_INPUT);
+    return failure_indicator;
+}
+
+if (_MARPA_UNLIKELY(!R_is_Consistent(r))) {
+    MARPA_ERROR(MARPA_ERR_RECCE_IS_INCONSISTENT);
     return failure_indicator;
 }
 
@@ -15035,8 +13899,8 @@ First, it is not tested.
 Second,
 What else an application can do is not at all clear.
 Nearly universal practice
-is to treatment memory allocation errors are
-fatal, irrecoverable problems.
+is to treat memory allocation errors as
+irrecoverable and fatal.
 These functions all return |void*| in order
 to avoid compiler warnings about void returns.
 @<Function definitions@> =
@@ -15053,6 +13917,1254 @@ extern void* (* const marpa__out_of_memory)(void);
 
 @ @<Public typedefs@> =
 typedef const char* Marpa_Message_ID;
+
+@** Trace functions.
+
+@** Earley set trace functions.
+Many of the
+trace functions use
+a ``trace Earley set" which is
+tracked on a per-recognizer basis.
+The ``trace Earley set" is tracked separately
+from the current Earley set for the parse.
+The two may coincide, but should not be confused.
+@<Widely aligned recognizer elements@> =
+struct s_earley_set* t_trace_earley_set;
+@ @<Initialize recognizer elements@> =
+r->t_trace_earley_set = NULL;
+
+@ @<Function definitions@> =
+Marpa_Earley_Set_ID _marpa_r_trace_earley_set(Marpa_Recognizer r)
+{
+  @<Return |-2| on failure@>@;
+  @<Unpack recognizer objects@>@;
+  YS trace_earley_set = r->t_trace_earley_set;
+  @<Fail if not trace-safe@>@;
+  if (!trace_earley_set) {
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
+      return failure_indicator;
+  }
+  return Ord_of_YS(trace_earley_set);
+}
+
+@ @<Function definitions@> =
+Marpa_Earley_Set_ID marpa_r_latest_earley_set(Marpa_Recognizer r)
+{
+  @<Return |-2| on failure@>@;
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@;
+  return Ord_of_YS(Latest_YS_of_R(r));
+}
+
+@ @<Function definitions@> =
+Marpa_Earleme marpa_r_earleme(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
+{
+  @<Unpack recognizer objects@>@;
+    @<Return |-2| on failure@>@;
+    YS earley_set;
+    @<Fail if recognizer not started@>@;
+    @<Fail if fatal error@>@;
+    if (set_id < 0) {
+        MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
+        return failure_indicator;
+    }
+    r_update_earley_sets (r);
+    if (!YS_Ord_is_Valid (r, set_id))
+      {
+        MARPA_ERROR(MARPA_ERR_NO_EARLEY_SET_AT_LOCATION);
+        return failure_indicator;
+      }
+    earley_set = YS_of_R_by_Ord (r, set_id);
+    return Earleme_of_YS (earley_set);
+}
+
+@ Note that this trace function returns the earley set size
+of the {\bf current earley set}.
+It includes rejected |YIM|'s.
+@ @<Function definitions@> =
+int _marpa_r_earley_set_size(Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
+{
+    @<Return |-2| on failure@>@;
+    YS earley_set;
+  @<Unpack recognizer objects@>@;
+    @<Fail if recognizer not started@>@;
+    @<Fail if fatal error@>@;
+    r_update_earley_sets (r);
+    if (!YS_Ord_is_Valid (r, set_id))
+      {
+        MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
+        return failure_indicator;
+      }
+    earley_set = YS_of_R_by_Ord (r, set_id);
+    return YIM_Count_of_YS (earley_set);
+}
+
+@ Many of the
+trace functions use
+a ``trace Earley item" which is
+tracked on a per-recognizer basis.
+@<Widely aligned recognizer elements@> =
+YIM t_trace_earley_item;
+@ @<Initialize recognizer elements@> =
+r->t_trace_earley_item = NULL;
+
+@ This function sets
+the trace Earley set to the one indicated
+by the ID
+of the argument.
+On success,
+the earleme of the new trace Earley set is
+returned.
+@ Various other trace data depends on the Earley
+set, and must be consistent with it.
+This function clears all such data,
+unless it is called while the recognizer is in
+a trace-unsafe state (initial, fatal, etc.)
+or unless the the Earley set requested by the
+argument is already the trace Earley set.
+On failure because the ID is for a non-existent
+Earley set which does not
+exist, |-1| is returned.
+The upper levels may choose to treat this as a soft failure.
+This may be treated as a soft failure by the upper levels.
+On failure because the ID is illegal (less than zero)
+or for other failures, |-2| is returned.
+The upper levels may choose to treat these as hard failures.
+@ @<Function definitions@> =
+Marpa_Earleme
+_marpa_r_earley_set_trace (Marpa_Recognizer r, Marpa_Earley_Set_ID set_id)
+{
+  YS earley_set;
+  const int es_does_not_exist = -1;
+  @<Return |-2| on failure@>@/
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@;
+    if (r->t_trace_earley_set && Ord_of_YS (r->t_trace_earley_set) == set_id)
+      { /* If the set is already
+           the current earley set,
+           return successfully without resetting any of the dependant data */
+        return Earleme_of_YS (r->t_trace_earley_set);
+      }
+  @<Clear trace Earley set dependent data@>@;
+    if (set_id < 0)
+    {
+        MARPA_ERROR(MARPA_ERR_INVALID_LOCATION);
+        return failure_indicator;
+    }
+  r_update_earley_sets (r);
+    if (set_id >= MARPA_DSTACK_LENGTH (r->t_earley_set_stack))
+      {
+        return es_does_not_exist;
+      }
+    earley_set = YS_of_R_by_Ord (r, set_id);
+  r->t_trace_earley_set = earley_set;
+  return Earleme_of_YS(earley_set);
+}
+
+@ @<Clear trace Earley set dependent data@> = {
+  r->t_trace_earley_set = NULL;
+  trace_earley_item_clear(r);
+  @<Clear trace postdot item data@>@;
+}
+
+@ @<Function definitions@> =
+Marpa_AHM_ID
+_marpa_r_earley_item_trace (Marpa_Recognizer r, Marpa_Earley_Item_ID item_id)
+{
+  const int yim_does_not_exist = -1;
+  @<Return |-2| on failure@>@;
+  YS trace_earley_set;
+  YIM earley_item;
+  YIM *earley_items;
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@;
+  trace_earley_set = r->t_trace_earley_set;
+  if (!trace_earley_set)
+    {
+      @<Clear trace Earley set dependent data@>@;
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
+      return failure_indicator;
+    }
+  trace_earley_item_clear (r);
+  if (item_id < 0)
+    {
+      MARPA_ERROR (MARPA_ERR_YIM_ID_INVALID);
+      return failure_indicator;
+    }
+  if (item_id >= YIM_Count_of_YS (trace_earley_set))
+    {
+      return yim_does_not_exist;
+    }
+  earley_items = YIMs_of_YS (trace_earley_set);
+  earley_item = earley_items[item_id];
+  r->t_trace_earley_item = earley_item;
+  return AHMID_of_YIM (earley_item);
+}
+
+@ Clear all the data elements specifically
+for the trace Earley item.
+The difference between this code and
+|trace_earley_item_clear| is
+that |trace_earley_item_clear| 
+also clears the source link.
+@<Clear trace Earley item data@> =
+      r->t_trace_earley_item = NULL;
+
+@ @<Function definitions@> =
+PRIVATE void trace_earley_item_clear(RECCE r)
+{
+    @<Clear trace Earley item data@>@/
+    trace_source_link_clear(r);
+}
+
+@ @<Function definitions@> =
+Marpa_Earley_Set_ID _marpa_r_earley_item_origin(Marpa_Recognizer r)
+{
+    @<Return |-2| on failure@>@;
+    YIM item = r->t_trace_earley_item;
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@;
+    if (!item) {
+        @<Clear trace Earley item data@>@;
+        MARPA_ERROR(MARPA_ERR_NO_TRACE_YIM);
+        return failure_indicator;
+    }
+    return Origin_Ord_of_YIM(item);
+}
+
+@** Leo item (LIM) trace functions.
+The functions in this section are all accessors.
+The trace Leo item is selected by setting the trace postdot item
+to a Leo item.
+
+@ @<Function definitions@> =
+Marpa_Symbol_ID _marpa_r_leo_predecessor_symbol(Marpa_Recognizer r)
+{
+  const Marpa_Symbol_ID no_predecessor = -1;
+  @<Return |-2| on failure@>@;
+  PIM postdot_item = r->t_trace_postdot_item;
+  LIM predecessor_leo_item;
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@;
+  if (!postdot_item) {
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
+      return failure_indicator;
+  }
+  if (YIM_of_PIM(postdot_item)) {
+      MARPA_ERROR(MARPA_ERR_PIM_IS_NOT_LIM);
+      return failure_indicator;
+  }
+  predecessor_leo_item = Predecessor_LIM_of_LIM(LIM_of_PIM(postdot_item));
+  if (!predecessor_leo_item) return no_predecessor;
+  return Postdot_NSYID_of_LIM(predecessor_leo_item);
+}
+
+@ @<Function definitions@> =
+Marpa_Earley_Set_ID _marpa_r_leo_base_origin(Marpa_Recognizer r)
+{
+  const JEARLEME pim_is_not_a_leo_item = -1;
+  @<Return |-2| on failure@>@;
+  PIM postdot_item = r->t_trace_postdot_item;
+  @<Unpack recognizer objects@>@;
+  YIM base_earley_item;
+  @<Fail if not trace-safe@>@;
+  if (!postdot_item) {
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
+      return failure_indicator;
+  }
+  if (YIM_of_PIM(postdot_item)) return pim_is_not_a_leo_item;
+  base_earley_item = Trailhead_YIM_of_LIM(LIM_of_PIM(postdot_item));
+  return Origin_Ord_of_YIM(base_earley_item);
+}
+
+@ Actually return AHM ID, not the obsolete AHFA ID.
+@<Function definitions@> =
+Marpa_AHM_ID _marpa_r_leo_base_state(Marpa_Recognizer r)
+{
+  const JEARLEME pim_is_not_a_leo_item = -1;
+  @<Return |-2| on failure@>@;
+  PIM postdot_item = r->t_trace_postdot_item;
+  YIM base_earley_item;
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@;
+  if (!postdot_item) {
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
+      return failure_indicator;
+  }
+  if (YIM_of_PIM(postdot_item)) return pim_is_not_a_leo_item;
+  base_earley_item = Trailhead_YIM_of_LIM(LIM_of_PIM(postdot_item));
+  return AHMID_of_YIM(base_earley_item);
+}
+
+@*0 PIM Trace functions.
+Many of the
+trace functions use
+a ``trace postdot item".
+This is
+tracked on a per-recognizer basis.
+@<Widely aligned recognizer elements@> =
+union u_postdot_item** t_trace_pim_nsy_p;
+union u_postdot_item* t_trace_postdot_item;
+@ @<Initialize recognizer elements@> =
+r->t_trace_pim_nsy_p = NULL;
+r->t_trace_postdot_item = NULL;
+@ |marpa_r_postdot_symbol_trace|
+takes a recognizer and a symbol ID
+as an argument.
+It sets the trace postdot item to the first
+postdot item for the symbol ID.
+If there is no postdot item 
+for that symbol ID,
+it returns |-1|.
+On failure for other reasons,
+it returns |-2|
+and clears the trace postdot item.
+@<Function definitions@> =
+Marpa_Symbol_ID
+_marpa_r_postdot_symbol_trace (Marpa_Recognizer r,
+    Marpa_Symbol_ID xsy_id)
+{
+  @<Return |-2| on failure@>@;
+  YS current_ys = r->t_trace_earley_set;
+  PIM* pim_nsy_p;
+  PIM pim;
+  @<Unpack recognizer objects@>@;
+  @<Clear trace postdot item data@>@;
+  @<Fail if not trace-safe@>@;
+    @<Fail if |xsy_id| is malformed@>@;
+    @<Soft fail if |xsy_id| does not exist@>@;
+  if (!current_ys) {
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
+      return failure_indicator;
+  }
+  pim_nsy_p = PIM_NSY_P_of_YS_by_NSYID(current_ys, NSYID_by_XSYID(xsy_id));
+  pim = *pim_nsy_p;
+  if (!pim) return -1;
+  r->t_trace_pim_nsy_p = pim_nsy_p;
+  r->t_trace_postdot_item = pim;
+  return xsy_id;
+}
+
+@ @<Clear trace postdot item data@> =
+r->t_trace_pim_nsy_p = NULL;
+r->t_trace_postdot_item = NULL;
+
+@ Set trace postdot item to the first in the trace Earley set,
+and return its postdot symbol ID.
+If the trace Earley set has no postdot items, return -1 and
+clear the trace postdot item.
+On other failures, return -2 and clear the trace
+postdot item.
+@<Function definitions@> =
+Marpa_Symbol_ID
+_marpa_r_first_postdot_item_trace (Marpa_Recognizer r)
+{
+  @<Return |-2| on failure@>@;
+  YS current_earley_set = r->t_trace_earley_set;
+  PIM pim;
+  @<Unpack recognizer objects@>@;
+  PIM* pim_nsy_p;
+  @<Clear trace postdot item data@>@;
+  @<Fail if not trace-safe@>@;
+  if (!current_earley_set) {
+      @<Clear trace Earley item data@>@;
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
+      return failure_indicator;
+  }
+  if (current_earley_set->t_postdot_sym_count <= 0) return -1;
+  pim_nsy_p = current_earley_set->t_postdot_ary+0;
+  pim = pim_nsy_p[0];
+  r->t_trace_pim_nsy_p = pim_nsy_p;
+  r->t_trace_postdot_item = pim;
+  return Postdot_NSYID_of_PIM(pim);
+}
+
+@ Set the trace postdot item to the one after
+the current trace postdot item,
+and return its postdot symbol ID.
+If the current trace postdot item is the last,
+return -1 and clear the trace postdot item.
+On other failures, return -2 and clear the trace
+postdot item.
+@<Function definitions@> =
+Marpa_Symbol_ID
+_marpa_r_next_postdot_item_trace (Marpa_Recognizer r)
+{
+  const XSYID no_more_postdot_symbols = -1;
+  @<Return |-2| on failure@>@;
+  YS current_set = r->t_trace_earley_set;
+  PIM pim;
+  PIM* pim_nsy_p;
+  @<Unpack recognizer objects@>@;
+
+  pim_nsy_p = r->t_trace_pim_nsy_p;
+  pim = r->t_trace_postdot_item;
+  @<Clear trace postdot item data@>@;
+  if (!pim_nsy_p || !pim) {
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
+      return failure_indicator;
+  }
+  @<Fail if not trace-safe@>@;
+  if (!current_set) {
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_YS);
+      return failure_indicator;
+  }
+  pim = Next_PIM_of_PIM(pim);
+  if (!pim) { /* If no next postdot item for this symbol,
+       then look at next symbol */
+       pim_nsy_p++;
+       if (pim_nsy_p - current_set->t_postdot_ary
+           >= current_set->t_postdot_sym_count) {
+           return no_more_postdot_symbols;
+       }
+      pim = *pim_nsy_p;
+  }
+  r->t_trace_pim_nsy_p = pim_nsy_p;
+  r->t_trace_postdot_item = pim;
+  return Postdot_NSYID_of_PIM(pim);
+}
+
+@ @<Function definitions@> =
+Marpa_Symbol_ID _marpa_r_postdot_item_symbol(Marpa_Recognizer r)
+{
+  @<Return |-2| on failure@>@;
+  PIM postdot_item = r->t_trace_postdot_item;
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@;
+  if (!postdot_item) {
+      MARPA_ERROR(MARPA_ERR_NO_TRACE_PIM);
+      return failure_indicator;
+  }
+  return Postdot_NSYID_of_PIM(postdot_item);
+}
+
+@*0 Link trace functions.
+Many trace functions track a ``trace source link".
+There is only one of these, shared among all types of
+source link.
+It is reported as an error if a trace function is called
+when it is
+inconsistent with the type of the current trace
+source link.
+@<Widely aligned recognizer elements@> =
+SRCL t_trace_source_link;
+@ @<Bit aligned recognizer elements@> =
+BITFIELD t_trace_source_type:3;
+@ @<Initialize recognizer elements@> =
+r->t_trace_source_link = NULL;
+r->t_trace_source_type = NO_SOURCE;
+
+@*1 Trace first token link.
+@ Set the trace source link to a token link,
+if there is one, otherwise clear the trace source link.
+Returns the symbol ID if there was a token source link,
+|-1| if there was none,
+and |-2| on some other kind of failure.
+@<Function definitions@> =
+Marpa_Symbol_ID _marpa_r_first_token_link_trace(Marpa_Recognizer r)
+{
+   @<Return |-2| on failure@>@;
+   SRCL source_link;
+   unsigned int source_type;
+    YIM item = r->t_trace_earley_item;
+  @<Unpack recognizer objects@>@;
+    @<Fail if not trace-safe@>@;
+    @<Set |item|, failing if necessary@>@;
+    source_type = Source_Type_of_YIM (item);
+    switch (source_type)
+      {
+      case SOURCE_IS_TOKEN:
+        r->t_trace_source_type = SOURCE_IS_TOKEN;
+        source_link = SRCL_of_YIM(item);
+        r->t_trace_source_link = source_link;
+        return NSYID_of_SRCL (source_link);
+      case SOURCE_IS_AMBIGUOUS:
+        {
+          source_link = LV_First_Token_SRCL_of_YIM (item);
+          if (source_link)
+            {
+              r->t_trace_source_type = SOURCE_IS_TOKEN;
+              r->t_trace_source_link = source_link;
+              return NSYID_of_SRCL (source_link);
+            }
+        }
+      }
+    trace_source_link_clear(r);
+    return -1;
+}
+
+@*1 Trace next token link.
+@ Set the trace source link to the next token link,
+if there is one.
+Otherwise clear the trace source link.
+@ Returns the symbol ID if there is
+a next token source link,
+|-1| if there was none,
+and |-2| on some other kind of failure.
+@<Function definitions@> =
+Marpa_Symbol_ID _marpa_r_next_token_link_trace(Marpa_Recognizer r)
+{
+   @<Return |-2| on failure@>@;
+   SRCL source_link;
+    YIM item;
+  @<Unpack recognizer objects@>@;
+    @<Fail if not trace-safe@>@;
+    @<Set |item|, failing if necessary@>@;
+    if (r->t_trace_source_type != SOURCE_IS_TOKEN) {
+        trace_source_link_clear(r);
+        MARPA_ERROR(MARPA_ERR_NOT_TRACING_TOKEN_LINKS);
+        return failure_indicator;
+    }
+    source_link = Next_SRCL_of_SRCL( r->t_trace_source_link);
+    if (!source_link) {
+        trace_source_link_clear(r);
+        return -1;
+    }
+    r->t_trace_source_link = source_link;
+    return NSYID_of_SRCL (source_link);
+}
+
+@*1 Trace first completion link.
+@ Set the trace source link to a completion link,
+if there is one, otherwise clear the completion source link.
+Returns the AHM ID
+(not the obsolete AHFA state ID) of the cause
+if there was a completion source link,
+|-1| if there was none,
+and |-2| on some other kind of failure.
+@<Function definitions@> =
+Marpa_Symbol_ID _marpa_r_first_completion_link_trace(Marpa_Recognizer r)
+{
+   @<Return |-2| on failure@>@;
+   SRCL source_link;
+   unsigned int source_type;
+    YIM item = r->t_trace_earley_item;
+  @<Unpack recognizer objects@>@;
+    @<Fail if not trace-safe@>@;
+    @<Set |item|, failing if necessary@>@;
+    switch ((source_type = Source_Type_of_YIM (item)))
+      {
+      case SOURCE_IS_COMPLETION:
+        r->t_trace_source_type = SOURCE_IS_COMPLETION;
+        source_link = SRCL_of_YIM(item);
+        r->t_trace_source_link = source_link;
+        return Cause_AHMID_of_SRCL (source_link);
+      case SOURCE_IS_AMBIGUOUS:
+        {
+          source_link = LV_First_Completion_SRCL_of_YIM (item);
+          if (source_link)
+            {
+              r->t_trace_source_type = SOURCE_IS_COMPLETION;
+              r->t_trace_source_link = source_link;
+              return Cause_AHMID_of_SRCL (source_link);
+            }
+        }
+      }
+    trace_source_link_clear(r);
+    return -1;
+}
+
+@*1 Trace next completion link.
+@ Set the trace source link to the next completion link,
+if there is one.
+Otherwise clear the trace source link.
+@ Returns the cause AHM ID if there is
+a next completion source link,
+|-1| if there was none,
+and |-2| on some other kind of failure.
+@<Function definitions@> =
+Marpa_Symbol_ID _marpa_r_next_completion_link_trace(Marpa_Recognizer r)
+{
+   @<Return |-2| on failure@>@;
+   SRCL source_link;
+    YIM item;
+  @<Unpack recognizer objects@>@;
+    @<Fail if not trace-safe@>@;
+    @<Set |item|, failing if necessary@>@;
+    if (r->t_trace_source_type != SOURCE_IS_COMPLETION) {
+        trace_source_link_clear(r);
+        MARPA_ERROR(MARPA_ERR_NOT_TRACING_COMPLETION_LINKS);
+        return failure_indicator;
+    }
+    source_link = Next_SRCL_of_SRCL (r->t_trace_source_link);
+    if (!source_link) {
+        trace_source_link_clear(r);
+        return -1;
+    }
+    r->t_trace_source_link = source_link;
+    return Cause_AHMID_of_SRCL (source_link);
+}
+
+@*1 Trace first Leo link.
+@ Set the trace source link to a Leo link,
+if there is one, otherwise clear the Leo source link.
+Returns the AHM ID (not
+the obsolete AHFA state ID) of the cause
+if there was a Leo source link,
+|-1| if there was none,
+and |-2| on some other kind of failure.
+@<Function definitions@> =
+Marpa_Symbol_ID
+_marpa_r_first_leo_link_trace (Marpa_Recognizer r)
+{
+  @<Return |-2| on failure@>@;
+  SRCL source_link;
+  YIM item = r->t_trace_earley_item;
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@;
+  @<Set |item|, failing if necessary@>@;
+  source_link = First_Leo_SRCL_of_YIM(item);
+  if (source_link) {
+      r->t_trace_source_type = SOURCE_IS_LEO;
+      r->t_trace_source_link = source_link;
+      return Cause_AHMID_of_SRCL (source_link);
+  }
+  trace_source_link_clear (r);
+  return -1;
+}
+
+@*1 Trace next Leo link.
+@ Set the trace source link to the next Leo link,
+if there is one.
+Otherwise clear the trace source link.
+@ Returns the AHM ID if there is
+a next Leo source link,
+|-1| if there was none,
+and |-2| on some other kind of failure.
+@<Function definitions@> =
+Marpa_Symbol_ID
+_marpa_r_next_leo_link_trace (Marpa_Recognizer r)
+{
+  @<Return |-2| on failure@>@/
+  SRCL source_link;
+  YIM item;
+  @<Unpack recognizer objects@>@;
+  @<Fail if not trace-safe@>@/
+  @<Set |item|, failing if necessary@>@/
+  if (r->t_trace_source_type != SOURCE_IS_LEO)
+    {
+      trace_source_link_clear (r);
+      MARPA_ERROR(MARPA_ERR_NOT_TRACING_LEO_LINKS);
+      return failure_indicator;
+    }
+  source_link = Next_SRCL_of_SRCL(r->t_trace_source_link);
+  if (!source_link)
+    {
+      trace_source_link_clear (r);
+      return -1;
+    }
+  r->t_trace_source_link = source_link;
+  return Cause_AHMID_of_SRCL (source_link);
+}
+
+@ @<Set |item|, failing if necessary@> =
+    item = r->t_trace_earley_item;
+    if (!item) {
+        trace_source_link_clear(r);
+        MARPA_ERROR(MARPA_ERR_NO_TRACE_YIM);
+        return failure_indicator;
+    }
+
+@*1 Clear trace source link.
+@<Function definitions@> =
+PRIVATE void trace_source_link_clear(RECCE r)
+{
+    r->t_trace_source_link = NULL;
+    r->t_trace_source_type = NO_SOURCE;
+}
+
+@*1 Return the predecessor AHM ID.
+Returns the predecessor AHM ID,
+or -1 if there is no predecessor.
+If the recognizer is not trace-safe,
+if there is no trace source link,
+if the trace source link is a Leo source,
+or if there is some other failure,
+|-2| is returned.
+@<Function definitions@> =
+AHMID _marpa_r_source_predecessor_state(Marpa_Recognizer r)
+{
+   @<Return |-2| on failure@>@/
+   unsigned int source_type;
+   SRCL source_link;
+  @<Unpack recognizer objects@>@;
+    @<Fail if not trace-safe@>@/
+   source_type = r->t_trace_source_type;
+    @<Set source link, failing if necessary@>@/
+    switch (source_type)
+    {
+    case SOURCE_IS_TOKEN:
+    case SOURCE_IS_COMPLETION: {
+        YIM predecessor = Predecessor_of_SRCL(source_link);
+        if (!predecessor) return -1;
+        return AHMID_of_YIM(predecessor);
+    }
+    }
+    MARPA_ERROR(invalid_source_type_code(source_type));
+    return failure_indicator;
+}
+
+@*1 Return the token.
+Returns the token.
+The symbol id is the return value,
+and the value is written to |*value_p|,
+if it is non-null.
+If the recognizer is not trace-safe,
+there is no trace source link,
+if the trace source link is not a token source,
+or there is some other failure,
+|-2| is returned.
+\par
+There is no function to return just the token value
+for two reasons.
+First, since token value can be anything
+an additional return value is needed to indicate errors,
+which means the symbol ID comes at essentially zero cost.
+Second, whenever the token value is
+wanted, the symbol ID is almost always wanted as well.
+@<Function definitions@> =
+Marpa_Symbol_ID _marpa_r_source_token(Marpa_Recognizer r, int *value_p)
+{
+   @<Return |-2| on failure@>@;
+   unsigned int source_type;
+   SRCL source_link;
+  @<Unpack recognizer objects@>@;
+    @<Fail if not trace-safe@>@;
+   source_type = r->t_trace_source_type;
+    @<Set source link, failing if necessary@>@;
+    if (source_type == SOURCE_IS_TOKEN) {
+        if (value_p) *value_p = Value_of_SRCL(source_link);
+        return NSYID_of_SRCL(source_link);
+    }
+    MARPA_ERROR(invalid_source_type_code(source_type));
+    return failure_indicator;
+}
+
+@*1 Return the Leo transition symbol.
+The Leo transition symbol is defined only for sources
+with a Leo predecessor.
+The transition from a predecessor to the Earley item
+containing a source will always be over exactly one symbol.
+In the case of a Leo source, this symbol will be
+the Leo transition symbol.
+@ Returns the symbol ID of the Leo transition symbol.
+If the recognizer is not trace-safe,
+if there is no trace source link,
+if the trace source link is not a Leo source,
+or there is some other failure,
+|-2| is returned.
+@<Function definitions@> =
+Marpa_Symbol_ID _marpa_r_source_leo_transition_symbol(Marpa_Recognizer r)
+{
+   @<Return |-2| on failure@>@/
+   unsigned int source_type;
+   SRCL source_link;
+  @<Unpack recognizer objects@>@;
+    @<Fail if not trace-safe@>@/
+   source_type = r->t_trace_source_type;
+    @<Set source link, failing if necessary@>@/
+    switch (source_type)
+    {
+    case SOURCE_IS_LEO:
+        return Leo_Transition_NSYID_of_SRCL(source_link);
+    }
+    MARPA_ERROR(invalid_source_type_code(source_type));
+    return failure_indicator;
+}
+
+@*1 Return the middle Earley set ordinal.
+Every source has the following defined:
+\li An origin (or start ordinal).
+\li An end ordinal (the current set).
+\li A ``middle ordinal".
+An Earley item can be thought of as covering a ``span"
+from its origin to the current set.
+For each source,
+this span is divided into two pieces at the middle
+ordinal.
+@ Informally, the middle ordinal can be thought of as
+dividing the span between the predecessor and either
+the source's cause or its token.
+If the source has no predecessor, the middle ordinal
+is the same as the origin.
+If there is a predecessor, the middle ordinal is
+the current set of the predecessor.
+If there is a cause, the middle ordinal is always the same
+as the origin of the cause.
+If there is a token,
+the middle ordinal is always where the token starts.
+On failure, such as
+there being no source link,
+|-2| is returned.
+@<Function definitions@> =
+Marpa_Earley_Set_ID _marpa_r_source_middle(Marpa_Recognizer r)
+{
+   @<Return |-2| on failure@>@/
+   YIM predecessor_yim = NULL;
+   unsigned int source_type;
+   SRCL source_link;
+  @<Unpack recognizer objects@>@;
+    @<Fail if not trace-safe@>@/
+   source_type = r->t_trace_source_type;
+    @<Set source link, failing if necessary@>@/
+
+  switch (source_type)
+    {
+    case SOURCE_IS_LEO:
+      {
+        LIM predecessor = LIM_of_SRCL (source_link);
+        if (predecessor)
+          predecessor_yim = Trailhead_YIM_of_LIM (predecessor);
+        break;
+      }
+    case SOURCE_IS_TOKEN:
+    case SOURCE_IS_COMPLETION:
+      {
+        predecessor_yim = Predecessor_of_SRCL (source_link);
+        break;
+      }
+    default:
+      MARPA_ERROR (invalid_source_type_code (source_type));
+      return failure_indicator;
+  }
+
+  if (predecessor_yim)
+    return YS_Ord_of_YIM (predecessor_yim);
+  return Origin_Ord_of_YIM (r->t_trace_earley_item);
+}
+
+@ @<Set source link, failing if necessary@> =
+    source_link = r->t_trace_source_link;
+    if (!source_link) {
+        MARPA_ERROR(MARPA_ERR_NO_TRACE_SRCL);
+        return failure_indicator;
+    }
+
+@*0 Or-node trace functions.
+
+@ This is common logic in the or-node trace functions.
+In the case of a nulling bocage, the or count of
+the bocage is zero,
+so that any |or_node_id| is either a soft
+or a hard error,
+depending on whether it is non-negative
+or negative.
+@<Check |or_node_id|@> =
+{
+  if (_MARPA_UNLIKELY (or_node_id >= OR_Count_of_B (b)))
+    {
+      return -1;
+    }
+  if (_MARPA_UNLIKELY (or_node_id < 0))
+    {
+      MARPA_ERROR (MARPA_ERR_ORID_NEGATIVE);
+      return failure_indicator;
+    }
+}
+@ @<Set |or_node| or fail@> =
+{
+  if (_MARPA_UNLIKELY (!ORs_of_B(b)))
+    {
+      MARPA_ERROR (MARPA_ERR_NO_OR_NODES);
+      return failure_indicator;
+    }
+  or_node = OR_of_B_by_ID(b, or_node_id);
+}
+
+@ @<Function definitions@> =
+int _marpa_b_or_node_set(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return YS_Ord_of_OR(or_node);
+}
+
+@ @<Function definitions@> =
+int _marpa_b_or_node_origin(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return Origin_Ord_of_OR(or_node);
+}
+
+@ @<Function definitions@> =
+Marpa_IRL_ID _marpa_b_or_node_irl(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return IRLID_of_OR(or_node);
+}
+
+@ @<Function definitions@> =
+int _marpa_b_or_node_position(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return Position_of_OR(or_node);
+}
+
+@ @<Function definitions@> =
+int _marpa_b_or_node_is_whole(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return Position_of_OR(or_node) >= Length_of_IRL(IRL_of_OR(or_node)) ? 1 : 0;
+}
+
+@ @<Function definitions@> =
+int _marpa_b_or_node_is_semantic(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return ! IRL_has_Virtual_LHS(IRL_of_OR(or_node));
+}
+
+@ @<Function definitions@> =
+int _marpa_b_or_node_first_and(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return First_ANDID_of_OR(or_node);
+}
+
+@ @<Function definitions@> =
+int _marpa_b_or_node_last_and(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return First_ANDID_of_OR(or_node)
+      + AND_Count_of_OR(or_node) - 1;
+}
+
+@ @<Function definitions@> =
+int _marpa_b_or_node_and_count(Marpa_Bocage b,
+  Marpa_Or_Node_ID or_node_id)
+{
+  OR or_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  @<Set |or_node| or fail@>@;
+  return AND_Count_of_OR(or_node);
+}
+
+@*0 Ordering trace functions.
+
+@ This is common logic in the ordering trace functions.
+In the case of a nulling ordering, the or count of
+the ordering is zero,
+so that any |or_node_id| is either a soft
+or a hard error,
+depending on whether it is non-negative
+or negative.
+
+@ @<Function definitions@> =
+int _marpa_o_or_node_and_node_count(Marpa_Order o,
+  Marpa_Or_Node_ID or_node_id)
+{
+  @<Return |-2| on failure@>@;
+  @<Unpack order objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  if (!O_is_Default(o))
+  {
+    ANDID ** const and_node_orderings = o->t_and_node_orderings;
+    ANDID *ordering = and_node_orderings[or_node_id];
+    if (ordering) return ordering[0];
+  }
+  {
+    OR or_node;
+    @<Set |or_node| or fail@>@;
+    return AND_Count_of_OR (or_node);
+  }
+}
+
+@ @<Function definitions@> =
+int _marpa_o_or_node_and_node_id_by_ix(Marpa_Order o,
+  Marpa_Or_Node_ID or_node_id, int ix)
+{
+  @<Return |-2| on failure@>@;
+  @<Unpack order objects@>@;
+  @<Fail if fatal error@>@;
+  @<Check |or_node_id|@>@;
+  if (!O_is_Default(o))
+  {
+      ANDID ** const and_node_orderings = o->t_and_node_orderings;
+      ANDID *ordering = and_node_orderings[or_node_id];
+      if (ordering) return ordering[1 + ix];
+  }
+  {
+    OR or_node;
+    @<Set |or_node| or fail@>@;
+    return First_ANDID_of_OR (or_node) + ix;
+  }
+}
+
+@*0 And-node trace functions.
+
+@ @<Function definitions@> =
+int _marpa_b_and_node_count(Marpa_Bocage b)
+{
+  @<Unpack bocage objects@>@;
+  @<Return |-2| on failure@>@;
+  @<Fail if fatal error@>@;
+  return AND_Count_of_B(b);
+}
+
+@ @<Check bocage |and_node_id|; set |and_node|@> =
+{
+  if (and_node_id >= AND_Count_of_B (b))
+    {
+      return -1;
+    }
+  if (and_node_id < 0)
+    {
+      MARPA_ERROR (MARPA_ERR_ANDID_NEGATIVE);
+      return failure_indicator;
+    }
+  {
+    AND and_nodes = ANDs_of_B (b);
+    if (!and_nodes)
+      {
+        MARPA_ERROR (MARPA_ERR_NO_AND_NODES);
+        return failure_indicator;
+      }
+    and_node = and_nodes + and_node_id;
+  }
+}
+
+@ @<Function definitions@> =
+int _marpa_b_and_node_parent(Marpa_Bocage b,
+  Marpa_And_Node_ID and_node_id)
+{
+  AND and_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Check bocage |and_node_id|; set |and_node|@>@;
+  return ID_of_OR (OR_of_AND (and_node));
+}
+
+@ @<Function definitions@> =
+int _marpa_b_and_node_predecessor(Marpa_Bocage b,
+  Marpa_And_Node_ID and_node_id)
+{
+  AND and_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Check bocage |and_node_id|; set |and_node|@>@;
+    {
+      const OR predecessor_or = Predecessor_OR_of_AND (and_node);
+      const ORID predecessor_or_id =
+        predecessor_or ? ID_of_OR (predecessor_or) : -1;
+      return predecessor_or_id;
+      }
+}
+
+@ @<Function definitions@> =
+int _marpa_b_and_node_cause(Marpa_Bocage b,
+  Marpa_And_Node_ID and_node_id)
+{
+  AND and_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+    @<Check bocage |and_node_id|; set |and_node|@>@;
+    {
+      const OR cause_or = Cause_OR_of_AND (and_node);
+      const ORID cause_or_id =
+        OR_is_Token(cause_or) ? -1 : ID_of_OR (cause_or);
+      return cause_or_id;
+    }
+}
+
+@ @<Function definitions@> =
+int _marpa_b_and_node_symbol(Marpa_Bocage b,
+  Marpa_And_Node_ID and_node_id)
+{
+  AND and_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Check bocage |and_node_id|; set |and_node|@>@;
+  {
+    const OR cause_or = Cause_OR_of_AND (and_node);
+    const XSYID symbol_id =
+      OR_is_Token (cause_or) ? NSYID_of_OR (cause_or) : -1;
+    return symbol_id;
+  }
+}
+
+@ @<Function definitions@> =
+Marpa_Symbol_ID _marpa_b_and_node_token(Marpa_Bocage b,
+    Marpa_And_Node_ID and_node_id, int* value_p)
+{
+  AND and_node;
+  OR cause_or;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+    @<Check bocage |and_node_id|; set |and_node|@>@;
+
+  cause_or = Cause_OR_of_AND (and_node);
+  if (!OR_is_Token (cause_or)) return -1;
+  if (value_p) *value_p = Value_of_OR (cause_or);
+  return NSYID_of_OR (cause_or);
+}
+
+@ The ``middle'' earley set of the and-node.
+It is most simply defined as equivalent to
+the start of the cause, but the cause can be token,
+and in that case the simpler definition is not helpful.
+Instead, the end of the predecessor is used, if there is one.
+If there is no predecessor, the origin of the parent or-node will
+always be the same as ``middle'' of the or-node.
+@<Function definitions@> =
+Marpa_Earley_Set_ID _marpa_b_and_node_middle(Marpa_Bocage b,
+    Marpa_And_Node_ID and_node_id)
+{
+  AND and_node;
+  @<Return |-2| on failure@>@;
+  @<Unpack bocage objects@>@;
+  @<Check bocage |and_node_id|; set |and_node|@>@;
+  {
+    const OR predecessor_or = Predecessor_OR_of_AND (and_node);
+    if (predecessor_or)
+      {
+        return YS_Ord_of_OR (predecessor_or);
+      }
+  }
+  return Origin_Ord_of_OR (OR_of_AND (and_node));
+}
+
+@*0 Nook trace functions.
+
+@ This is common logic in the |NOOK| trace functions.
+@<Check |r| and |nook_id|;
+set |nook|@> = {
+  NOOK base_nook;
+  @<Fail if fatal error@>@;
+  if (T_is_Exhausted(t)) {
+      MARPA_ERROR(MARPA_ERR_BOCAGE_ITERATION_EXHAUSTED);
+      return failure_indicator;
+  }
+  if (nook_id < 0) {
+      MARPA_ERROR(MARPA_ERR_NOOKID_NEGATIVE);
+      return failure_indicator;
+  }
+  if (nook_id >= Size_of_T(t)) {
+      return -1;
+  }
+  base_nook = FSTACK_BASE(t->t_nook_stack, NOOK_Object);
+  nook = base_nook + nook_id;
+}
+
+@ @<Function definitions@> =
+int _marpa_t_nook_or_node(Marpa_Tree t, int nook_id)
+{
+  NOOK nook;
+  @<Return |-2| on failure@>@;
+  @<Unpack tree objects@>@;
+   @<Check |r| and |nook_id|; set |nook|@>@;
+  return ID_of_OR(OR_of_NOOK(nook));
+}
+
+@ @<Function definitions@> =
+int _marpa_t_nook_choice(Marpa_Tree t, int nook_id)
+{
+  NOOK nook;
+  @<Return |-2| on failure@>@;
+  @<Unpack tree objects@>@;
+   @<Check |r| and |nook_id|; set |nook|@>@;
+    return Choice_of_NOOK(nook);
+}
+
+@ @<Function definitions@> =
+int _marpa_t_nook_parent(Marpa_Tree t, int nook_id)
+{
+  NOOK nook;
+  @<Return |-2| on failure@>@;
+  @<Unpack tree objects@>@;
+   @<Check |r| and |nook_id|; set |nook|@>@;
+    return Parent_of_NOOK(nook);
+}
+
+@ @<Function definitions@> =
+int _marpa_t_nook_cause_is_ready(Marpa_Tree t, int nook_id)
+{
+  NOOK nook;
+  @<Return |-2| on failure@>@;
+  @<Unpack tree objects@>@;
+   @<Check |r| and |nook_id|; set |nook|@>@;
+    return NOOK_Cause_is_Expanded(nook);
+}
+
+@ @<Function definitions@> =
+int _marpa_t_nook_predecessor_is_ready(Marpa_Tree t, int nook_id)
+{
+  NOOK nook;
+  @<Return |-2| on failure@>@;
+  @<Unpack tree objects@>@;
+   @<Check |r| and |nook_id|; set |nook|@>@;
+    return NOOK_Predecessor_is_Expanded(nook);
+}
+
+@ @<Function definitions@> =
+int _marpa_t_nook_is_cause(Marpa_Tree t, int nook_id)
+{
+  NOOK nook;
+  @<Return |-2| on failure@>@;
+  @<Unpack tree objects@>@;
+   @<Check |r| and |nook_id|; set |nook|@>@;
+    return NOOK_is_Cause(nook);
+}
+
+@ @<Function definitions@> =
+int _marpa_t_nook_is_predecessor(Marpa_Tree t, int nook_id)
+{
+  NOOK nook;
+  @<Return |-2| on failure@>@;
+  @<Unpack tree objects@>@;
+   @<Check |r| and |nook_id|; set |nook|@>@;
+    return NOOK_is_Predecessor(nook);
+}
 
 @** Debugging functions.
 Much of the debugging logic is in other documents.
@@ -15093,12 +15205,13 @@ int marpa__debug_level = 0;
 A function to print a descriptive tag for
 an Earley item.
 @<Debug function prototypes@> =
-static const char* yim_tag_safe(char *buffer, YIM yim) @,@, UNUSED;
-static const char* yim_tag(YIM yim) @,@, UNUSED;
+static const char* yim_tag_safe(
+  char *buffer, GRAMMAR g, YIM yim) @,@, UNUSED;
+static const char* yim_tag(GRAMMAR g, YIM yim) @,@, UNUSED;
 @ It is passed a buffer to keep it thread-safe.
 @<Debug function definitions@> =
 static const char *
-yim_tag_safe (char * buffer, YIM yim)
+yim_tag_safe (char * buffer, GRAMMAR g, YIM yim)
 {
   if (!yim) return "NULL";
   sprintf (buffer, "S%d@@%d-%d",
@@ -15109,9 +15222,9 @@ yim_tag_safe (char * buffer, YIM yim)
 
 static char DEBUG_yim_tag_buffer[1000];
 static const char*
-yim_tag (YIM yim)
+yim_tag (GRAMMAR g, YIM yim)
 {
-  return yim_tag_safe (DEBUG_yim_tag_buffer, yim);
+  return yim_tag_safe (DEBUG_yim_tag_buffer, g, yim);
 }
 
 @*0 Leo item tag.
@@ -15155,7 +15268,7 @@ or_tag_safe (char * buffer, OR or)
   if (OR_is_Token(or)) return "TOKEN";
   if (Type_of_OR(or) == DUMMY_OR_NODE) return "DUMMY";
   sprintf (buffer, "R%d:%d@@%d-%d",
-           ID_of_IRL(IRL_of_OR (or)), Position_of_OR (or),
+           IRLID_of_OR (or), Position_of_OR (or),
            Origin_Ord_of_OR (or),
            YS_Ord_of_OR (or));
   return buffer;
