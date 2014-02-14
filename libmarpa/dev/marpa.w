@@ -2812,9 +2812,9 @@ int _marpa_g_irl_length(Marpa_Grammar g, Marpa_IRL_ID irl_id) {
 @ An IRL is a unit rule (that is, a rule of length one,
 not counting nullable symbols) if and only if its AHM
 count is 2 -- the predicted AHM and the final AHM.
-@d IRL_is_Unit_Rule(irl) ((irl)->t_aim_count == 2)
-@d AHM_Count_of_IRL(irl) ((irl)->t_aim_count)
-@<Int aligned IRL elements@> = int t_aim_count;
+@d IRL_is_Unit_Rule(irl) ((irl)->t_ahm_count == 2)
+@d AHM_Count_of_IRL(irl) ((irl)->t_ahm_count)
+@<Int aligned IRL elements@> = int t_ahm_count;
 
 @*0 IRL has virtual LHS?.
 This is for Marpa's ``internal semantics".
@@ -3000,51 +3000,11 @@ Currently, this is not used after grammar precomputation,
 and there may be an optimization here.
 Perhaps later Marpa objects {\bf should}
 be using it.
-@d First_AHM_of_IRL(irl) ((irl)->t_first_aim)
-@<Widely aligned IRL elements@> = AHM t_first_aim;
+@d First_AHM_of_IRL(irl) ((irl)->t_first_ahm)
+@d First_AHM_of_IRLID(irlid) (IRL_by_ID(irlid)->t_first_ahm)
+@<Widely aligned IRL elements@> = AHM t_first_ahm;
 @ @<Initialize IRL elements@> =
     First_AHM_of_IRL(irl) = NULL;
-
-@** Symbol instance (SYMI) code.
-The symbol instance identifies the instance of a symbol in the internal grammar,
-That is, it identifies not just the symbol, but the specific use of a symbol in
-a rule.
-@<Private typedefs@> = typedef int SYMI;
-@ @d SYMI_Count_of_G(g) ((g)->t_symbol_instance_count)
-@<Int aligned grammar elements@> =
-int t_symbol_instance_count;
-@ @d SYMI_of_IRL(irl) ((irl)->t_symbol_instance_base)
-@d Last_Proper_SYMI_of_IRL(irl) ((irl)->t_last_proper_symi)
-@d SYMI_of_Completed_IRL(irl)
-    (SYMI_of_IRL(irl) + Length_of_IRL(irl)-1)
-@d SYMI_of_AHM(aim) (symbol_instance_of_aim_get(aim))
-@<Int aligned IRL elements@> =
-int t_symbol_instance_base;
-int t_last_proper_symi;
-@ @<Initialize IRL elements@> =
-Last_Proper_SYMI_of_IRL(irl) = -1;
-@ Symbol instances are for the {\bf predot} symbol.
-In parsing the emphasis is on what is to come ---
-on what follows the dot.
-Symbol instances are used in evaluation.
-In evaluation we are looking at what we have,
-so the emphasis is on what precedes the dot position.
-@ The symbol instance of a prediction is $-1$.
-If the AHM is not a prediction, then it has a preceding
-AHM for the same rule.
-In that case the symbol instance is the
-base symbol instance for
-the rule, offset by the position of that preceding AHM.
-@<Function definitions@> =
-PRIVATE int
-symbol_instance_of_aim_get (AHM aim)
-{
-  if (!AHM_is_Prediction(aim)) {
-      const IRL irl = IRL_of_AHM (aim);
-      return SYMI_of_IRL(irl) + Position_of_AHM(aim-1);
-  }
-  return -1;
-}
 
 @** Precomputing the grammar.
 Marpa's logic divides roughly into three pieces -- grammar precomputation,
@@ -3112,6 +3072,8 @@ int marpa_g_precompute(Marpa_Grammar g)
           and nulled symbol CILs@>@;
         @<Mark the event AHMs@>@;
         @<Calculate AHM Event Group Sizes@>@;
+        @<Find the direct ZWA's for each AHM's@>@;
+        @<Find the indirect ZWA's for each AHM's@>@;
     }
     g->t_is_precomputed = 1;
     if (g->t_has_cycle)
@@ -3134,7 +3096,7 @@ bewteen a base grammar and its recognizers.
 A large allocation may be required in the grammar, which
 thereafter would be wasted space.
 @<Reinitialize the CILAR@> =
-{ cilar_reinit(&g->t_cilar); }
+{ cilar_buffer_reinit(&g->t_cilar); }
 @ {\bf To Do}: @^To Do@>
 Perhaps someday there should be a CILAR for each recognizer.
 This probably is an issue to be dealt with,
@@ -4701,14 +4663,14 @@ much a part of Marpa's parsing strategy.
 @<Public typedefs@> =
 typedef int Marpa_AHM_ID;
 @ @<Private structures@> =
-struct s_aim {
+struct s_ahm {
     @<Widely aligned AHM elements@>@;
     @<Int aligned AHM elements@>@;
     @<Bit aligned AHM elements@>@;
 };
 @ @<Private incomplete structures@> =
-struct s_aim;
-typedef struct s_aim* AHM;
+struct s_ahm;
+typedef struct s_ahm* AHM;
 typedef Marpa_AHM_ID AHMID;
 
 @ Because AHM's are in an array, the predecessor can
@@ -4716,37 +4678,37 @@ be found by incrementing the AHM pointer,
 the successor can be found by decrementing it,
 and AHM pointers can be portably compared.
 A lot of code relies on these facts.
-@d AHM_by_ID(id) (g->t_aims+(id))
-@d ID_of_AHM(aim) ((aim) - g->t_aims)
+@d AHM_by_ID(id) (g->t_ahms+(id))
+@d ID_of_AHM(ahm) ((ahm) - g->t_ahms)
 @ These require the caller to make sure all the |AHM|'s
 involved exist.
-@d Next_AHM_of_AHM(aim) ((aim)+1)
-@d Prev_AHM_of_AHM(aim) ((aim)-1)
+@d Next_AHM_of_AHM(ahm) ((ahm)+1)
+@d Prev_AHM_of_AHM(ahm) ((ahm)-1)
 
 @<Widely aligned grammar elements@> =
-   AHM t_aims;
+   AHM t_ahms;
 @
-@d AHM_Count_of_G(g) ((g)->t_aim_count)
+@d AHM_Count_of_G(g) ((g)->t_ahm_count)
 @<Int aligned grammar elements@> =
-   int t_aim_count;
+   int t_ahm_count;
 @ The space is allocated during precomputation.
 Because the grammar may be destroyed before precomputation,
-I test that |g->t_aims| is non-zero.
+I test that |g->t_ahms| is non-zero.
 @ @<Initialize grammar elements@> =
-g->t_aims = NULL;
+g->t_ahms = NULL;
 @ @<Destroy grammar elements@> =
-     my_free(g->t_aims);
+     my_free(g->t_ahms);
 
 @ Check that AHM ID is in valid range.
 @<Function definitions@> =
-PRIVATE int aim_is_valid(
+PRIVATE int ahm_is_valid(
 GRAMMAR g, AHMID item_id)
 {
 return item_id < (AHMID)AHM_Count_of_G(g) && item_id >= 0;
 }
 
 @*0 Rule.
-@d IRL_of_AHM(aim) ((aim)->t_irl)
+@d IRL_of_AHM(ahm) ((ahm)->t_irl)
 @d IRLID_of_AHM(item) ID_of_IRL(IRL_of_AHM(item))
 @d LHS_NSYID_of_AHM(item) LHSID_of_IRL(IRL_of_AHM(item))
 @d LHSID_of_AHM(item) LHS_NSYID_of_AHM(item)
@@ -4756,10 +4718,10 @@ return item_id < (AHMID)AHM_Count_of_G(g) && item_id >= 0;
 @*0 Postdot symbol.
 |-1| if the item is a completion.
 @d Postdot_NSYID_of_AHM(item) ((item)->t_postdot_nsyid)
-@d AHM_is_Completion(aim) (Postdot_NSYID_of_AHM(aim) < 0)
-@d AHM_is_Leo(aim) (IRL_is_Leo(IRL_of_AHM(aim)))
-@d AHM_is_Leo_Completion(aim)
-  (AHM_is_Completion(aim) && AHM_is_Leo(aim))
+@d AHM_is_Completion(ahm) (Postdot_NSYID_of_AHM(ahm) < 0)
+@d AHM_is_Leo(ahm) (IRL_is_Leo(IRL_of_AHM(ahm)))
+@d AHM_is_Leo_Completion(ahm)
+  (AHM_is_Completion(ahm) && AHM_is_Leo(ahm))
 @<Int aligned AHM elements@> = NSYID t_postdot_nsyid;
 
 @*0 Leading nulls.
@@ -4768,14 +4730,18 @@ of a nulling symbol.  (Due to rewriting, every nullable symbol
 is also a nulling symbol.)
 This element contains the count of nulling symbols preceding
 this AHM's dot position.
-@d Null_Count_of_AHM(aim) ((aim)->t_leading_nulls)
+@d Null_Count_of_AHM(ahm) ((ahm)->t_leading_nulls)
 @<Int aligned AHM elements@> =
 int t_leading_nulls;
 
 @*0 RHS Position.
-RHS position include nulling symbols.
+RHS position, including nulling symbols.
 Position in the RHS, -1 for a completion.
-@d Position_of_AHM(aim) ((aim)->t_position)
+Raw position is the same as position except
+for completions, in which case it is the length of the IRL.
+@d Position_of_AHM(ahm) ((ahm)->t_position)
+@d Raw_Position_of_AHM(ahm)
+  (Position_of_AHM(ahm) < 0 ? Length_of_IRL(IRL_of_AHM(ahm)))
 @<Int aligned AHM elements@> =
 int t_position;
 
@@ -4786,20 +4752,76 @@ a prediction.
 |AHM_was_Predicted| indicates whether the AHM is the result
 of a prediction.
 In the case of the start AHM, it is result of Initialization.
-@d AHM_is_Prediction(aim) (Quasi_Position_of_AHM(aim) == 0)
+@d AHM_is_Prediction(ahm) (Quasi_Position_of_AHM(ahm) == 0)
 
 @*0 Quasi-position.
-Quasi-positions are those modulo nulling symbols.
-@d Quasi_Position_of_AHM(aim) ((aim)->t_quasi_position)
+Quasi-positions are positions
+calculated without counting nulling symbols.
+@d Quasi_Position_of_AHM(ahm) ((ahm)->t_quasi_position)
 @<Int aligned AHM elements@> =
   int t_quasi_position;
 
+@*0 Symbol Instance.
+The symbol instance identifies the instance of a symbol in the internal grammar,
+That is, it identifies not just the symbol, but the specific use of a symbol in
+a rule.
+The SYMI count differs from the AHM count, in that predictions are not included,
+but nulling symbols are.
+Predictions are not included, because the count is of predot symbols.
+The symbol instance of a prediction is set to $-1$.
+
+@ Symbol instances are for the {\bf predot} symbol
+because symbol instances are used in evaluation.
+In parsing the emphasis is on what is to come ---
+on what follows the dot.
+In evaluation we are looking at what we have,
+so the emphasis is on what precedes the dot position.
+
+@d SYMI_of_AHM(ahm) ((ahm)->t_symbol_instance)
+@<Int aligned AHM elements@> =
+  int t_symbol_instance;
+@ @<Private typedefs@> = typedef int SYMI;
+@ @d SYMI_Count_of_G(g) ((g)->t_symbol_instance_count)
+@<Int aligned grammar elements@> =
+int t_symbol_instance_count;
+@ @d SYMI_of_IRL(irl) ((irl)->t_symbol_instance_base)
+@d Last_Proper_SYMI_of_IRL(irl) ((irl)->t_last_proper_symi)
+@d SYMI_of_Completed_IRL(irl)
+    (SYMI_of_IRL(irl) + Length_of_IRL(irl)-1)
+@<Int aligned IRL elements@> =
+int t_symbol_instance_base;
+int t_last_proper_symi;
+@ @<Initialize IRL elements@> =
+Last_Proper_SYMI_of_IRL(irl) = -1;
+
 @*0 Predicted IRL's.
-A CIL representing the predicted IRL's.
-The empty CIL if there are none.
-@d Predicted_IRL_CIL_of_AHM(aim) ((aim)->t_predicted_irl_cil)
+One CIL representing the predicted IRL's,
+and another representing the directly predicted IRL's.
+Both are empty CIL if there are no predictions.
+@ {\bf To Do}: @^To Do@>
+It is not clear whether both of these will be needed,
+or if not, which one will be needed.
+@d Predicted_IRL_CIL_of_AHM(ahm) ((ahm)->t_predicted_irl_cil)
+@d LHS_CIL_of_AHM(ahm) ((ahm)->t_lhs_cil)
 @<Widely aligned AHM elements@> =
     CIL t_predicted_irl_cil;
+    CIL t_lhs_cil;
+
+@*0 Zero-width assertions at this AHM.
+A CIL representing the zero-width assertions at this AHM.
+The empty CIL if there are none.
+@d ZWA_CIL_of_AHM(ahm) ((ahm)->t_zwa_cil)
+@<Widely aligned AHM elements@> =
+    CIL t_zwa_cil;
+
+@*0 Does this AHM predict any zero-width assertions?.
+A flag indicating that some of the predictions
+from this AHM may have zero-width assertions.
+Note this boolean is independent of whether the
+AHM itself has zero-width assertions.
+@d AHM_predicts_ZWA(ahm) ((ahm)->t_predicts_zwa)
+@<Bit aligned AHM elements@> =
+    BITFIELD t_predicts_zwa:1;
 
 @*0 AHM external accessors.
 @<Function definitions@> =
@@ -4842,7 +4864,7 @@ Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
 @ @<Create AHMs@> =
 {
     IRLID irl_id;
-    int aim_count = 0;
+    int ahm_count = 0;
     AHM base_item;
     AHM current_item;
     int symbol_instance_of_next_rule = 0;
@@ -4850,19 +4872,19 @@ Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
       const IRL irl = IRL_by_ID(irl_id);
       @<Count the AHMs in a rule@>@;
     }
-    current_item = base_item = marpa_new(struct s_aim, aim_count);
+    current_item = base_item = marpa_new(struct s_ahm, ahm_count);
     for (irl_id = 0; irl_id < irl_count; irl_id++) {
       const IRL irl = IRL_by_ID(irl_id);
+      SYMI_of_IRL(irl) = symbol_instance_of_next_rule;
       @<Create the AHMs for |irl|@>@;
       {
-        SYMI_of_IRL(irl) = symbol_instance_of_next_rule;
         symbol_instance_of_next_rule += Length_of_IRL(irl);
       }
     }
     SYMI_Count_of_G(g) = symbol_instance_of_next_rule;
-    MARPA_ASSERT(aim_count == current_item - base_item);
-    AHM_Count_of_G(g) = aim_count;
-    g->t_aims = marpa_renew(struct s_aim, base_item, aim_count);
+    MARPA_ASSERT(ahm_count == current_item - base_item);
+    AHM_Count_of_G(g) = ahm_count;
+    g->t_ahms = marpa_renew(struct s_ahm, base_item, ahm_count);
     @<Populate the first |AHM|'s of the |RULE|'s@>@;
 }
 
@@ -4870,7 +4892,7 @@ Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
 {
   int leading_nulls = 0;
   int rhs_ix;
-  const AHM first_aim_of_irl = current_item;
+  const AHM first_ahm_of_irl = current_item;
   for (rhs_ix = 0; rhs_ix < Length_of_IRL(irl); rhs_ix++)
     {
       NSYID rh_nsyid = RHSID_of_IRL (irl, rhs_ix);
@@ -4888,7 +4910,7 @@ Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
     }
   @<Create an AHM for a completion@>@;
   current_item++;
-  AHM_Count_of_IRL(irl) = current_item - first_aim_of_irl;
+  AHM_Count_of_IRL(irl) = current_item - first_ahm_of_irl;
 }
 
 @ @<Count the AHMs in a rule@> =
@@ -4898,16 +4920,23 @@ Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
     {
       const NSYID rh_nsyid = RHSID_of_IRL (irl, rhs_ix);
       const NSY nsy = NSY_by_ID (rh_nsyid);
-      if (!NSY_is_Nulling(nsy)) aim_count++;
+      if (!NSY_is_Nulling(nsy)) ahm_count++;
     }
-  aim_count++;
+  ahm_count++;
 }
 
 @ @<Create an AHM for a precompletion@> =
 {
   @<Initializations common to all AHMs@>@;
+  AHM_predicts_ZWA(current_item) = 0;
+  // Initially unset, this bit will be populated later.
   Postdot_NSYID_of_AHM (current_item) = rh_nsyid;
   Position_of_AHM (current_item) = rhs_ix;
+  SYMI_of_AHM (current_item)
+    = AHM_is_Prediction (current_item)
+      ? -1
+      : SYMI_of_IRL (irl) + Position_of_AHM (current_item - 1);
+  @<Memoize XRL data for AHM@>@;
 }
 
 @ @<Create an AHM for a completion@> =
@@ -4915,13 +4944,15 @@ Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
   @<Initializations common to all AHMs@>@;
   Postdot_NSYID_of_AHM (current_item) = -1;
   Position_of_AHM (current_item) = -1;
+  SYMI_of_AHM(current_item) = SYMI_of_IRL(irl) + Position_of_AHM(current_item-1);
+  @<Memoize XRL data for AHM@>@;
 }
 
 @ @<Initializations common to all AHMs@> =
 {
   IRL_of_AHM (current_item) = irl;
   Null_Count_of_AHM (current_item) = leading_nulls;
-  Quasi_Position_of_AHM (current_item) = current_item - first_aim_of_irl;
+  Quasi_Position_of_AHM (current_item) = current_item - first_ahm_of_irl;
   if (Quasi_Position_of_AHM (current_item) == 0) {
      if (ID_of_IRL(irl) == ID_of_IRL (g->t_start_irl))
      {
@@ -4938,6 +4969,34 @@ Marpa_Symbol_ID _marpa_g_ahm_postdot(Marpa_Grammar g,
   @<Initialize event data for |current_item|@>@;
 }
 
+@ @<Memoize XRL data for AHM@> =
+{
+  XRL source_xrl = Source_XRL_of_IRL(irl);
+  XRL_of_AHM(current_item) = source_xrl;
+  if (!source_xrl) {
+    @t}\comment{@>
+    /* |source_xrl = NULL|, which is the case only for the start rule */
+    XRL_Position_of_AHM(current_item) = -2;
+  } else {
+    const int virtual_start = Virtual_Start_of_IRL (irl);
+    const int irl_position = Position_of_AHM (current_item);
+    int xrl_position = irl_position;
+    if (virtual_start >= 0)
+      {
+        xrl_position += virtual_start;
+      }
+    if (XRL_is_Sequence (source_xrl))
+      {
+        @t}\comment{@>
+        /* Note that a sequence XRL,
+          because of the way it is rewritten, may have several
+         IRL's, and therefore several AHM's at position 0. */
+        xrl_position = irl_position > 0 ? -1 : 0;
+      }
+    XRL_Position_of_AHM(current_item) = xrl_position;
+  }
+}
+
 @ This is done after creating the AHMs, because in
 theory the |marpa_renew| might have moved them.
 This is not likely since the |marpa_renew| shortened the array,
@@ -4948,8 +5007,8 @@ first of its |IRL|.  Last setting wins, which works since
 we are traversing backwards.
 @<Populate the first |AHM|'s of the |RULE|'s@> =
 {
-  AHM items = g->t_aims;
-  AHMID item_id = (AHMID) aim_count;
+  AHM items = g->t_ahms;
+  AHMID item_id = (AHMID) ahm_count;
   for (item_id--; item_id >= 0; item_id--)
     {
       AHM item = items + item_id;
@@ -4960,9 +5019,9 @@ we are traversing backwards.
 
 @*0 XSYID Events.
 @
-@d Completion_XSYIDs_of_AHM(aim) ((aim)->t_completion_xsyids)
-@d Nulled_XSYIDs_of_AHM(aim) ((aim)->t_nulled_xsyids)
-@d Prediction_XSYIDs_of_AHM(aim) ((aim)->t_prediction_xsyids)
+@d Completion_XSYIDs_of_AHM(ahm) ((ahm)->t_completion_xsyids)
+@d Nulled_XSYIDs_of_AHM(ahm) ((ahm)->t_nulled_xsyids)
+@d Prediction_XSYIDs_of_AHM(ahm) ((ahm)->t_prediction_xsyids)
 @ @<Widely aligned AHM elements@> =
   CIL t_completion_xsyids;
   CIL t_nulled_xsyids;
@@ -4980,13 +5039,24 @@ prediction.
 This is relevant in the case of the the
 initial AHM, which contains a predicted,
 but for which ``was predicted'' is false.
-@d AHM_was_Predicted(aim) ((aim)->t_was_predicted)
+@d AHM_was_Predicted(ahm) ((ahm)->t_was_predicted)
 @d YIM_was_Predicted(yim) AHM_was_Predicted(AHM_of_YIM(yim))
-@d AHM_is_Initial(aim) ((aim)->t_is_initial)
+@d AHM_is_Initial(ahm) ((ahm)->t_is_initial)
 @d YIM_is_Initial(yim) AHM_is_Initial(AHM_of_YIM(yim))
 @<Bit aligned AHM elements@> =
 BITFIELD t_was_predicted:1;
 BITFIELD t_is_initial:1;
+
+@ We memoize the XRL data for the AHM,
+XRL position is complicated to compute,
+and it depends on XRL -- in particular if
+the XRL is |NULL|, XRL position is not defined.
+@d XRL_of_AHM(ahm) ((ahm)->t_xrl)
+@<Widely aligned AHM elements@> =
+   XRL t_xrl;
+@ @d XRL_Position_of_AHM(ahm) ((ahm)->t_xrl_position)
+@<Int aligned AHM elements@> =
+   int t_xrl_position;
 
 @*0 Event data.
 A boolean tracks whether this is an
@@ -5000,14 +5070,14 @@ AHM's right recursion group is called an
 These data are used in various optimizations --
 the event processing can ignore AHM's
 without events.
-@d Event_Group_Size_of_AHM(aim) ((aim)->t_event_group_size)
-@d Event_AHMIDs_of_AHM(aim) ((aim)->t_event_aimids)
-@d AHM_has_Event(aim) (Count_of_CIL(Event_AHMIDs_of_AHM(aim)) != 0)
+@d Event_Group_Size_of_AHM(ahm) ((ahm)->t_event_group_size)
+@d Event_AHMIDs_of_AHM(ahm) ((ahm)->t_event_ahmids)
+@d AHM_has_Event(ahm) (Count_of_CIL(Event_AHMIDs_of_AHM(ahm)) != 0)
 @ This CIL is at most of size 1.
 It is either the singleton containing the AHM's
 own ID, or the empty CIL.
 @<Widely aligned AHM elements@> =
-CIL t_event_aimids;
+CIL t_event_ahmids;
 @ A counter tracks the number of AHMs in
 this AHM's event group.
 @<Int aligned AHM elements@> =
@@ -5279,21 +5349,23 @@ with |S2| on its LHS.
 @** Populating the predicted IRL CIL's in the AHM's.
 @ @<Populate the predicted IRL CIL's in the AHM's@> =
 {
-  AHMID aim_id;
-  const int aim_count = AHM_Count_of_G (g);
-  for (aim_id = 0; aim_id < aim_count; aim_id++)
+  AHMID ahm_id;
+  const int ahm_count = AHM_Count_of_G (g);
+  for (ahm_id = 0; ahm_id < ahm_count; ahm_id++)
     {
-      const AHM aim = AHM_by_ID (aim_id);
-      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM (aim);
+      const AHM ahm = AHM_by_ID (ahm_id);
+      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM (ahm);
       if (postdot_nsyid < 0)
 	{
-	  Predicted_IRL_CIL_of_AHM (aim) = cil_empty (&g->t_cilar);
+	  Predicted_IRL_CIL_of_AHM (ahm) = cil_empty (&g->t_cilar);
+	  LHS_CIL_of_AHM (ahm) = cil_empty (&g->t_cilar);
 	}
       else
 	{
-	  Predicted_IRL_CIL_of_AHM (aim) =
+	  Predicted_IRL_CIL_of_AHM (ahm) =
 	    cil_bv_add (&g->t_cilar,
 			matrix_row (prediction_nsy_by_irl_matrix, postdot_nsyid));
+	  LHS_CIL_of_AHM (ahm) = LHS_CIL_of_NSYID(postdot_nsyid);
 	}
     }
 }
@@ -5345,23 +5417,23 @@ with |S2| on its LHS.
 
 @ @<Populate the prediction and nulled symbol CILs@> =
 {
-  AHMID aim_id;
-  const int aim_count_of_g = AHM_Count_of_G (g);
+  AHMID ahm_id;
+  const int ahm_count_of_g = AHM_Count_of_G (g);
   const LBV bv_completion_xsyid = bv_create (xsy_count);
   const LBV bv_prediction_xsyid = bv_create (xsy_count);
   const LBV bv_nulled_xsyid = bv_create (xsy_count);
   const CILAR cilar = &g->t_cilar;
-  for (aim_id = 0; aim_id < aim_count_of_g; aim_id++)
+  for (ahm_id = 0; ahm_id < ahm_count_of_g; ahm_id++)
     {
-      const AHM aim = AHM_by_ID (aim_id);
-      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM (aim);
-      const IRL irl = IRL_of_AHM (aim);
+      const AHM ahm = AHM_by_ID (ahm_id);
+      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM (ahm);
+      const IRL irl = IRL_of_AHM (ahm);
       bv_clear (bv_completion_xsyid);
       bv_clear (bv_prediction_xsyid);
       bv_clear (bv_nulled_xsyid);
         {
           int rhs_ix;
-          int raw_position = Position_of_AHM (aim);
+          int raw_position = Position_of_AHM (ahm);
           if (raw_position < 0)
             {                   // Completion
               raw_position = Length_of_IRL (irl);
@@ -5382,7 +5454,7 @@ with |S2| on its LHS.
               const XSYID xsyid = ID_of_XSY (xsy);
               bv_bit_set (bv_prediction_xsyid, xsyid);
             }
-          for (rhs_ix = raw_position - Null_Count_of_AHM (aim);
+          for (rhs_ix = raw_position - Null_Count_of_AHM (ahm);
                rhs_ix < raw_position; rhs_ix++)
             {
               int cil_ix;
@@ -5398,10 +5470,10 @@ with |S2| on its LHS.
                 }
             }
         }
-      Completion_XSYIDs_of_AHM (aim) =
+      Completion_XSYIDs_of_AHM (ahm) =
         cil_bv_add (cilar, bv_completion_xsyid);
-      Nulled_XSYIDs_of_AHM (aim) = cil_bv_add (cilar, bv_nulled_xsyid);
-      Prediction_XSYIDs_of_AHM (aim) =
+      Nulled_XSYIDs_of_AHM (ahm) = cil_bv_add (cilar, bv_nulled_xsyid);
+      Prediction_XSYIDs_of_AHM (ahm) =
         cil_bv_add (cilar, bv_prediction_xsyid);
     }
   bv_free (bv_completion_xsyid);
@@ -5411,62 +5483,294 @@ with |S2| on its LHS.
 
 @ @<Mark the event AHMs@> =
 {
-  AHMID aim_id;
-  for (aim_id = 0; aim_id < AHM_Count_of_G (g); aim_id++)
+  AHMID ahm_id;
+  for (ahm_id = 0; ahm_id < AHM_Count_of_G (g); ahm_id++)
     {
       const CILAR cilar = &g->t_cilar;
-      const AHM aim = AHM_by_ID(aim_id);
-      const int aim_is_event =
-        Count_of_CIL (Completion_XSYIDs_of_AHM (aim))
-        || Count_of_CIL (Nulled_XSYIDs_of_AHM (aim))
-        || Count_of_CIL (Prediction_XSYIDs_of_AHM (aim));
-      Event_AHMIDs_of_AHM (aim) =
-        aim_is_event ? cil_singleton (cilar, aim_id) : cil_empty (cilar);
+      const AHM ahm = AHM_by_ID(ahm_id);
+      const int ahm_is_event =
+        Count_of_CIL (Completion_XSYIDs_of_AHM (ahm))
+        || Count_of_CIL (Nulled_XSYIDs_of_AHM (ahm))
+        || Count_of_CIL (Prediction_XSYIDs_of_AHM (ahm));
+      Event_AHMIDs_of_AHM (ahm) =
+        ahm_is_event ? cil_singleton (cilar, ahm_id) : cil_empty (cilar);
     }
 }
 
 @ @<Calculate AHM Event Group Sizes@> =
 {
-  const int aim_count_of_g = AHM_Count_of_G (g);
-  AHMID outer_aim_id;
-  for (outer_aim_id = 0; outer_aim_id < aim_count_of_g; outer_aim_id++)
+  const int ahm_count_of_g = AHM_Count_of_G (g);
+  AHMID outer_ahm_id;
+  for (outer_ahm_id = 0; outer_ahm_id < ahm_count_of_g; outer_ahm_id++)
     {
-      AHMID inner_aim_id;
-      const AHM outer_aim = AHM_by_ID (outer_aim_id);
-      /* There is no test that |outer_aim|
+      AHMID inner_ahm_id;
+      const AHM outer_ahm = AHM_by_ID (outer_ahm_id);
+      /* There is no test that |outer_ahm|
          is an event AHM.
          An AHM, even if it is not itself an event AHM,
          may be in a non-empty AHM event group.  */
       NSYID outer_nsyid;
-      if (!AHM_is_Leo_Completion(outer_aim)) {
-          if (AHM_has_Event (outer_aim)) {
-              Event_Group_Size_of_AHM (outer_aim) = 1;
+      if (!AHM_is_Leo_Completion(outer_ahm)) {
+          if (AHM_has_Event (outer_ahm)) {
+              Event_Group_Size_of_AHM (outer_ahm) = 1;
           }
         continue;               /* This AHM is not a Leo completion,
                                    so we are done. */
        }
-      outer_nsyid = LHSID_of_AHM (outer_aim);
-      for (inner_aim_id = 0; inner_aim_id < aim_count_of_g;
-           inner_aim_id++)
+      outer_nsyid = LHSID_of_AHM (outer_ahm);
+      for (inner_ahm_id = 0; inner_ahm_id < ahm_count_of_g;
+           inner_ahm_id++)
         {
           NSYID inner_nsyid;
-          const AHM inner_aim = AHM_by_ID (inner_aim_id);
-          if (!AHM_has_Event (inner_aim))
+          const AHM inner_ahm = AHM_by_ID (inner_ahm_id);
+          if (!AHM_has_Event (inner_ahm))
             continue;           /* Not in the group, because it
                                    is not an event AHM. */
-          if (!AHM_is_Leo_Completion(inner_aim))
+          if (!AHM_is_Leo_Completion(inner_ahm))
             continue;           /* This AHM is not a Leo completion,
                                    so we are done. */
-          inner_nsyid = LHSID_of_AHM (inner_aim);
+          inner_nsyid = LHSID_of_AHM (inner_ahm);
           if (matrix_bit_test (nsy_by_right_nsy_matrix,
                                outer_nsyid,
                                inner_nsyid))
             {
-              /* |inner_aim == outer_aim|
+              /* |inner_ahm == outer_ahm|
               is not treated as special case
               */
-              Event_Group_Size_of_AHM (outer_aim)++; 
+              Event_Group_Size_of_AHM (outer_ahm)++; 
             }
+        }
+    }
+}
+
+@** Zero-width assertion (ZWA) code.
+@<Private incomplete structures@> =
+struct s_g_zwa;
+struct s_r_zwa;
+@
+@s GZWA int
+@s ZWA int
+@s ZWAID int
+@d ZWAID_is_Malformed(zwaid) ((zwaid) < 0)
+@d ZWAID_of_G_Exists(zwaid) ((zwaid) < ZWA_Count_of_G(g))
+@<Private typedefs@> =
+typedef Marpa_Assertion_ID ZWAID;
+typedef struct s_g_zwa* GZWA;
+typedef struct s_r_zwa* ZWA;
+
+@ @d ZWA_Count_of_G(g) (MARPA_DSTACK_LENGTH((g)->t_gzwa_stack))
+@d GZWA_by_ID(id) (*MARPA_DSTACK_INDEX((g)->t_gzwa_stack, GZWA, (id)))
+@<Widely aligned grammar elements@> =
+    MARPA_DSTACK_DECLARE(t_gzwa_stack);
+@ @<Initialize grammar elements@> =
+    MARPA_DSTACK_INIT2(g->t_gzwa_stack, GZWA);
+@ @<Destroy grammar elements@> =
+    MARPA_DSTACK_DESTROY(g->t_gzwa_stack);
+
+@ @s Marpa_Assertion_ID int
+@<Public typedefs@> =
+typedef int Marpa_Assertion_ID;
+
+@
+@d ID_of_GZWA(zwa) ((zwa)->t_id)
+@d Default_Value_of_GZWA(zwa) ((zwa)->t_default_value)
+@<Private structures@> =
+struct s_g_zwa {
+    ZWAID t_id;
+    BITFIELD t_default_value:1;
+};
+typedef struct s_g_zwa GZWA_Object;
+
+@ @<Private incomplete structures@> =
+struct s_zwp;
+@ @s ZWP int
+@<Private typedefs@> =
+typedef struct s_zwp* ZWP;
+typedef const struct s_zwp* ZWP_Const;
+@
+@d XRLID_of_ZWP(zwp) ((zwp)->t_xrl_id)
+@d Dot_of_ZWP(zwp) ((zwp)->t_dot)
+@d ZWAID_of_ZWP(zwp) ((zwp)->t_zwaid)
+@<Private structures@> =
+struct s_zwp {
+    XRLID t_xrl_id;
+    int t_dot;
+    ZWAID t_zwaid;
+};
+typedef struct s_zwp ZWP_Object;
+
+@ @<Widely aligned grammar elements@> =
+MARPA_AVL_TREE t_zwp_tree;
+@ @<Initialize grammar elements@> =
+  (g)->t_zwp_tree = _marpa_avl_create (zwp_cmp, NULL);
+@ @<Destroy grammar elements@> =
+{
+    _marpa_avl_destroy ((g)->t_zwp_tree);
+    (g)->t_zwp_tree = NULL;
+}
+
+@ @<Destroy grammar elements@> =
+  @<Clear rule duplication tree@>@;
+
+@ @<Function definitions@> =
+PRIVATE_NOT_INLINE int zwp_cmp (
+    const void* ap,
+    const void* bp,
+    void *param @,@, UNUSED)
+{
+   const ZWP_Const zwp_a = ap;
+   const ZWP_Const zwp_b = bp;
+   int subkey = XRLID_of_ZWP(zwp_a) - XRLID_of_ZWP(zwp_b);
+   if (subkey) return subkey;
+   subkey = Dot_of_ZWP(zwp_a) - Dot_of_ZWP(zwp_b);
+   if (subkey) return subkey;
+   return ZWAID_of_ZWP(zwp_a) - ZWAID_of_ZWP(zwp_b);
+}
+
+@ @<Function definitions@> =
+Marpa_Assertion_ID
+marpa_g_zwa_new (Marpa_Grammar g, int default_value)
+{
+  @<Return |-2| on failure@>@;
+  ZWAID zwa_id;
+  GZWA gzwa;
+  @<Fail if fatal error@>@;
+  @<Fail if precomputed@>@;
+    if (_MARPA_UNLIKELY (default_value < 0 || default_value > 1))
+      {
+        MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+        return failure_indicator;
+      }
+  gzwa = marpa_obs_new(g->t_obs, GZWA_Object, 1);
+  zwa_id = MARPA_DSTACK_LENGTH ((g)->t_gzwa_stack);
+  *MARPA_DSTACK_PUSH ((g)->t_gzwa_stack, GZWA) = gzwa;
+  gzwa->t_id = zwa_id;
+  gzwa->t_default_value = default_value ? 1 : 0;
+  return zwa_id;
+}
+
+@ @<Function definitions@> =
+Marpa_Assertion_ID
+marpa_g_highest_zwa_id (Marpa_Grammar g)
+{
+  @<Return |-2| on failure@>@;
+  @<Fail if fatal error@>@;
+  return ZWA_Count_of_G(g);
+}
+
+@ An attempt to insert a duplicate is treated as a soft failure,
+and -1 is returned.
+On success, returns a non-negative number.
+@<Function definitions@> =
+int
+marpa_g_zwa_place(Marpa_Grammar g,
+    Marpa_Assertion_ID zwaid,
+    Marpa_Rule_ID xrl_id, int rhs_ix)
+{
+  @<Return |-2| on failure@>@;
+  void* avl_insert_result;
+  ZWP zwp;
+  XRL xrl;
+  int xrl_length;
+  @<Fail if fatal error@>@;
+  @<Fail if precomputed@>@;
+  @<Fail if |xrl_id| is malformed@>@;
+  @<Soft fail if |xrl_id| does not exist@>@;
+  @<Fail if |zwaid| is malformed@>@;
+  @<Fail if |zwaid| does not exist@>@;
+  xrl = XRL_by_ID(xrl_id);
+  if (rhs_ix < -1) {
+    MARPA_ERROR(MARPA_ERR_RHS_IX_NEGATIVE);
+    return failure_indicator;
+  }
+  xrl_length = Length_of_XRL(xrl);
+  if (xrl_length <= rhs_ix) {
+    MARPA_ERROR(MARPA_ERR_RHS_IX_OOB);
+    return failure_indicator;
+  }
+  if (rhs_ix == -1) {
+     rhs_ix = XRL_is_Sequence(xrl) ? 1 : xrl_length;
+  }
+  zwp = marpa_obs_new(g->t_obs, ZWP_Object, 1);
+  XRLID_of_ZWP(zwp) = xrl_id;
+  Dot_of_ZWP(zwp) = rhs_ix;
+  ZWAID_of_ZWP(zwp) = zwaid;
+  avl_insert_result = _marpa_avl_insert (g->t_zwp_tree, zwp);
+  return avl_insert_result ? -1 : 0;
+}
+
+@ The direct ZWA's are the zero-width assertions triggered
+directly by the AHM.  ZWA's triggered via predictions are called
+``indirect''.
+@<Find the direct ZWA's for each AHM's@> =
+{
+  AHMID ahm_id;
+  const int ahm_count_of_g = AHM_Count_of_G (g);
+  for (ahm_id = 0; ahm_id < ahm_count_of_g; ahm_id++)
+    {
+      ZWP_Object sought_zwp_object;
+      ZWP sought_zwp = &sought_zwp_object;
+      ZWP found_zwp;
+      MARPA_AVL_TRAV traverser;
+      const AHM ahm = AHM_by_ID (ahm_id);
+      const XRL ahm_xrl = XRL_of_AHM (ahm);
+      cil_buffer_clear (&g->t_cilar);
+      if (ahm_xrl)
+	{
+	  const int xrl_dot_end = XRL_Position_of_AHM (ahm);
+	  const int xrl_dot_start = xrl_dot_end - Null_Count_of_AHM (ahm);
+          /* We assume the null count is zero for a sequence rule */
+
+          const XRLID sought_xrlid = ID_of_XRL (ahm_xrl);
+	  XRLID_of_ZWP (sought_zwp) = sought_xrlid;
+	  Dot_of_ZWP (sought_zwp) = xrl_dot_start;
+	  ZWAID_of_ZWP (sought_zwp) = 0;
+	  traverser = _marpa_avl_t_init ((g)->t_zwp_tree);
+	  found_zwp = _marpa_avl_t_at_or_after (traverser, sought_zwp);
+
+          @t}\comment{@>
+          /* While we are in the dot range of the sought XRL */
+          while (
+              found_zwp
+              && XRLID_of_ZWP(found_zwp) == sought_xrlid
+              && Dot_of_ZWP(found_zwp) <= xrl_dot_end)
+          {
+              cil_buffer_push (&g->t_cilar, ZWAID_of_ZWP(found_zwp));
+              found_zwp = _marpa_avl_t_next (traverser);
+          }
+	}
+        ZWA_CIL_of_AHM(ahm) = cil_buffer_add (&g->t_cilar);
+    }
+}
+
+@ The indirect ZWA's are the zero-width assertions triggered
+via predictions.
+They do {\bf not} include the ZWA's triggered directly by
+the AHM itself.
+@<Find the indirect ZWA's for each AHM's@> =
+{
+  AHMID ahm_id;
+  const int ahm_count_of_g = AHM_Count_of_G (g);
+  for (ahm_id = 0; ahm_id < ahm_count_of_g; ahm_id++)
+    {
+      const AHM ahm_to_populate = AHM_by_ID (ahm_id);
+
+      @t}\comment{@>
+      /* The ``predicts ZWA'' bit was
+      initialized to assume no prediction */
+      const CIL prediction_cil = Predicted_IRL_CIL_of_AHM (ahm_to_populate);
+      const int prediction_count = Count_of_CIL (prediction_cil);
+
+      int cil_ix;
+      for (cil_ix = 0; cil_ix < prediction_count; cil_ix++)
+        {
+          const IRLID prediction_irlid = Item_of_CIL (prediction_cil, cil_ix);
+          const AHM prediction_ahm_of_irl = First_AHM_of_IRLID(prediction_irlid);
+          const CIL zwaids_of_prediction = ZWA_CIL_of_AHM(prediction_ahm_of_irl);
+          if (Count_of_CIL (zwaids_of_prediction) > 0) {
+            AHM_predicts_ZWA(ahm_to_populate) = 1;
+            break;
+          }
         }
     }
 }
@@ -5688,23 +5992,39 @@ in the grammar.
 @<Function definitions@> =
 int marpa_r_terminals_expected(Marpa_Recognizer r, Marpa_Symbol_ID* buffer)
 {
-    @<Return |-2| on failure@>@;
-      @<Unpack recognizer objects@>@;
-    int min, max, start;
-    int ix = 0;
-    @<Fail if fatal error@>@;
-    @<Fail if recognizer not started@>@;
-    for (start = 0; bv_scan (r->t_bv_nsyid_is_expected, start, &min, &max);
-         start = max + 2)
-      {
-        NSYID nsyid;
-        for (nsyid = min; nsyid <= max; nsyid++)
-          {
-            const XSY xsy = Source_XSY_of_NSYID(nsyid);
-            buffer[ix++] = ID_of_XSY(xsy);
-          }
-      }
-    return ix;
+  @<Return |-2| on failure@>@;
+  @<Unpack recognizer objects@>@;
+  NSYID xsy_count;
+  Bit_Vector bv_terminals;
+  int min, max, start;
+  int next_buffer_ix = 0;
+
+  @<Fail if fatal error@>@;
+  @<Fail if recognizer not started@>@;
+
+  xsy_count = XSY_Count_of_G (g);
+  bv_terminals = bv_create (xsy_count);
+  for (start = 0; bv_scan (r->t_bv_nsyid_is_expected, start, &min, &max);
+       start = max + 2)
+    {
+      NSYID nsyid;
+      for (nsyid = min; nsyid <= max; nsyid++)
+	{
+	  const XSY xsy = Source_XSY_of_NSYID (nsyid);
+	  bv_bit_set (bv_terminals, ID_of_XSY (xsy));
+	}
+    }
+
+  for (start = 0; bv_scan (bv_terminals, start, &min, &max); start = max + 2)
+    {
+      XSYID xsyid;
+      for (xsyid = min; xsyid <= max; xsyid++)
+	{
+	  buffer[next_buffer_ix++] = xsyid;
+	}
+    }
+  bv_free (bv_terminals);
+  return next_buffer_ix;
 }
 
 @ @<Function definitions@> =
@@ -6000,14 +6320,19 @@ Marpa_Recognizer r, int value)
     return r->t_use_leo_flag = value ? 1 : 0;
 }
 
-@*0 Predicted IRL boolean vector.
+@*0 Predicted IRL boolean vector and stack.
 A boolean vector by IRL ID,
 used while building the Earley sets.
 It is set if an IRL has already been predicted,
 unset otherwise.
-@<Widely aligned recognizer elements@> = Bit_Vector t_bv_irl_is_predicted;
+@<Widely aligned recognizer elements@> =
+  Bit_Vector t_bv_irl_seen;
+  MARPA_DSTACK_DECLARE(t_irl_cil_stack);
 @ @<Initialize recognizer elements@> = 
-    r->t_bv_irl_is_predicted = bv_obs_create( r->t_obs, irl_count );
+  r->t_bv_irl_seen = bv_obs_create( r->t_obs, irl_count );
+  MARPA_DSTACK_INIT2(r->t_irl_cil_stack, CIL);
+@ @<Destroy recognizer elements@> =
+  MARPA_DSTACK_DESTROY(r->t_irl_cil_stack);
 
 @*1 Is the parser exhausted?.
 A parser is ``exhausted" if it cannot accept any more input.
@@ -6057,6 +6382,40 @@ resized and which will have the same lifetime as the recognizer.
 @<Widely aligned recognizer elements@> = struct marpa_obstack *t_obs;
 @ @<Initialize recognizer obstack@> = r->t_obs = marpa_obs_init;
 @ @<Destroy recognizer obstack@> = marpa_obs_free(r->t_obs);
+
+@*1 The ZWA Array.
+@d ID_of_ZWA(zwa) ((zwa)->t_id)
+@d Memo_YSID_of_ZWA(zwa) ((zwa)->t_memoized_ysid)
+@d Memo_Value_of_ZWA(zwa) ((zwa)->t_memoized_value)
+@d Default_Value_of_ZWA(zwa) ((zwa)->t_default_value)
+@<Private structures@> =
+struct s_r_zwa {
+    ZWAID t_id;
+    YSID t_memoized_ysid;
+    BITFIELD t_default_value:1;
+    BITFIELD t_memoized_value:1;
+};
+typedef struct s_r_zwa ZWA_Object;
+
+@ The grammar and recce ZWA counts are always the same.
+@d ZWA_Count_of_R(r) (ZWA_Count_of_G(G_of_R(r)))
+@d RZWA_by_ID(id) (&(r)->t_zwas[(zwaid)])
+@<Widely aligned recognizer elements@> =
+    ZWA t_zwas;
+@ @<Initialize recognizer elements@> =
+{
+    ZWAID zwaid;
+    const int zwa_count = ZWA_Count_of_R(r);
+    (r)->t_zwas = marpa_obs_new(r->t_obs, ZWA_Object, ZWA_Count_of_R(r));
+    for (zwaid = 0; zwaid < zwa_count; zwaid++) {
+        const GZWA gzwa = GZWA_by_ID(zwaid);
+        const ZWA zwa = RZWA_by_ID(zwaid);
+        ID_of_ZWA(zwa) = ID_of_GZWA(gzwa);
+        Default_Value_of_ZWA(zwa) = Default_Value_of_GZWA(gzwa);
+        Memo_Value_of_ZWA(zwa) = Default_Value_of_GZWA(gzwa);
+        Memo_YSID_of_ZWA(zwa) = -1;
+    }
+}
 
 @** Earlemes.
 In most parsers, the input is modeled as a token stream ---
@@ -6299,7 +6658,7 @@ the Earley set.
 @d YS_Ord_of_YIM(yim) (Ord_of_YS(YS_of_YIM(yim)))
 @d Ord_of_YIM(yim) ((yim)->t_ordinal)
 @d Earleme_of_YIM(yim) Earleme_of_YS(YS_of_YIM(yim))
-@d AHM_of_YIM(yim) ((yim)->t_key.t_aim)
+@d AHM_of_YIM(yim) ((yim)->t_key.t_ahm)
 @d AHMID_of_YIM(yim) ID_of_AHM(AHM_of_YIM(yim))
 @d Postdot_NSYID_of_YIM(yim) Postdot_NSYID_of_AHM(AHM_of_YIM(yim))
 @d IRL_of_YIM(yim) IRL_of_AHM(AHM_of_YIM(yim))
@@ -6330,7 +6689,7 @@ should not be restrictive in practice.
 @d YIM_was_Fusion(yim) ((yim)->t_was_fusion)
 @<Earley item structure@> =
 struct s_earley_item_key {
-     AHM t_aim;
+     AHM t_ahm;
      YS t_origin;
      YS t_set;
 };
@@ -6388,20 +6747,20 @@ PRIVATE YIM earley_item_create(const RECCE r,
 @ @<Function definitions@> =
 PRIVATE YIM
 earley_item_assign (const RECCE r, const YS set, const YS origin,
-                    const AHM aim)
+                    const AHM ahm)
 {
   const GRAMMAR g = G_of_R (r);
   YIK_Object key;
   YIM yim;
   PSL psl;
-  AHMID aim_id = ID_of_AHM(aim);
+  AHMID ahm_id = ID_of_AHM(ahm);
   PSL *psl_owner = &Dot_PSL_of_YS (origin);
   if (!*psl_owner)
     {
       psl_claim (psl_owner, Dot_PSAR_of_R(r));
     }
   psl = *psl_owner;
-  yim = PSL_Datum (psl, aim_id);
+  yim = PSL_Datum (psl, ahm_id);
   if (yim
       && Earleme_of_YIM (yim) == Earleme_of_YS (set)
       && Earleme_of_YS (Origin_of_YIM (yim)) == Earleme_of_YS (origin))
@@ -6409,10 +6768,10 @@ earley_item_assign (const RECCE r, const YS set, const YS origin,
       return yim;
     }
   key.t_origin = origin;
-  key.t_aim = aim;
+  key.t_ahm = ahm;
   key.t_set = set;
   yim = earley_item_create (r, key);
-  PSL_Datum (psl, aim_id) = yim;
+  PSL_Datum (psl, ahm_id) = yim;
   return yim;
 }
 
@@ -6506,8 +6865,8 @@ with a |NULL| Earley item pointer.
 @d Postdot_NSYID_of_LIM(leo) (Postdot_NSYID_of_YIX(YIX_of_LIM(leo)))
 @d Next_PIM_of_LIM(leo) (Next_PIM_of_YIX(YIX_of_LIM(leo)))
 @d Origin_of_LIM(leo) ((leo)->t_origin)
-@d Top_AHM_of_LIM(leo) ((leo)->t_top_aim)
-@d Trailhead_AHM_of_LIM(leo) ((leo)->t_trailhead_aim)
+@d Top_AHM_of_LIM(leo) ((leo)->t_top_ahm)
+@d Trailhead_AHM_of_LIM(leo) ((leo)->t_trailhead_ahm)
 @d Predecessor_LIM_of_LIM(leo) ((leo)->t_predecessor)
 @d Trailhead_YIM_of_LIM(leo) ((leo)->t_base)
 @d YS_of_LIM(leo) ((leo)->t_set)
@@ -6522,8 +6881,8 @@ struct s_leo_item {
      YIX_Object t_earley_ix;
     @<Widely aligned LIM elements@>@;
      YS t_origin;
-     AHM t_top_aim;
-     AHM t_trailhead_aim;
+     AHM t_top_ahm;
+     AHM t_trailhead_ahm;
      LIM t_predecessor;
      YIM t_base;
      YS t_set;
@@ -7054,7 +7413,7 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     YIK_Object key;
 
     IRL start_irl;
-    AHM start_aim;
+    AHM start_ahm;
 
   @<Unpack recognizer objects@>@;
   @<Return |-2| on failure@>@;
@@ -7089,30 +7448,49 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
     First_YS_of_R(r) = set0;
 
     start_irl = g->t_start_irl;
-    start_aim = First_AHM_of_IRL(start_irl);
+    start_ahm = First_AHM_of_IRL(start_irl);
 
+    @t}\comment{@>
+    /* These will stay constant in every YIM added in this method */
     key.t_origin = set0;
-    key.t_aim = start_aim;
     key.t_set = set0;
-    earley_item_create(r, key);
-    bv_clear (r->t_bv_irl_is_predicted);
-    bv_bit_set (r->t_bv_irl_is_predicted, ID_of_IRL(start_irl));
 
-    {
-      int cil_ix;
-      const CIL prediction_cil = Predicted_IRL_CIL_of_AHM(start_aim);
-      const int prediction_count = Count_of_CIL (prediction_cil);
-      for (cil_ix = 0; cil_ix < prediction_count; cil_ix++)
+    key.t_ahm = start_ahm;
+    earley_item_create(r, key);
+
+    bv_clear (r->t_bv_irl_seen);
+    bv_bit_set (r->t_bv_irl_seen, ID_of_IRL(start_irl));
+    MARPA_DSTACK_CLEAR(r->t_irl_cil_stack);
+    *MARPA_DSTACK_PUSH(r->t_irl_cil_stack, CIL) = LHS_CIL_of_AHM(start_ahm);
+
+    while (1) 
+      {
+        const CIL* const p_cil = MARPA_DSTACK_POP (r->t_irl_cil_stack, CIL);
+        if (!p_cil)
+          break;
         {
-          const IRLID prediction_irlid = Item_of_CIL (prediction_cil, cil_ix);
-          if (!bv_bit_test_then_set(r->t_bv_irl_is_predicted, prediction_irlid)) {
-          const IRL prediction_irl = IRL_by_ID(prediction_irlid);
-            const AHM prediction_aim = First_AHM_of_IRL(prediction_irl);
-            key.t_aim = prediction_aim;
-            earley_item_create(r, key);
-          }
+          int cil_ix;
+          const CIL this_cil = *p_cil;
+          const int prediction_count = Count_of_CIL (this_cil);
+          for (cil_ix = 0; cil_ix < prediction_count; cil_ix++)
+            {
+              const IRLID prediction_irlid = Item_of_CIL (this_cil, cil_ix);
+              if (!bv_bit_test_then_set (r->t_bv_irl_seen, prediction_irlid))
+                {
+                  const IRL prediction_irl = IRL_by_ID (prediction_irlid);
+                  const AHM prediction_ahm = First_AHM_of_IRL (prediction_irl);
+                  @t}\comment{@>
+                  /* If any of the assertions fail, do not add this AHM to
+                  the YS, or look at anything predicted by it. */
+                  if (!evaluate_zwas(r, 0, prediction_ahm)) continue;
+                  key.t_ahm = prediction_ahm;
+                  earley_item_create (r, key);
+                  *MARPA_DSTACK_PUSH(r->t_irl_cil_stack, CIL)
+                    = LHS_CIL_of_AHM(prediction_ahm);
+                }
+            }
         }
-    }
+      }
 
     postdot_items_create(r, bv_ok_for_chain, set0);
     earley_set_update_items(r, set0);
@@ -7123,6 +7501,41 @@ PRIVATE int alternative_insert(RECCE r, ALT new_alternative)
   }
   return return_value;
 }
+
+@ @<Function definitions@> =
+PRIVATE
+int evaluate_zwas(RECCE r, YSID ysid, AHM ahm)
+{
+  int cil_ix;
+  const CIL zwa_cil = ZWA_CIL_of_AHM(ahm);
+  const int cil_count = Count_of_CIL (zwa_cil);
+  for (cil_ix = 0; cil_ix < cil_count; cil_ix++)
+  {
+     int value;
+     const ZWAID zwaid = Item_of_CIL (zwa_cil, cil_ix);
+     const ZWA zwa = RZWA_by_ID(zwaid);
+      @t}\comment{@>
+      /* Use the memoized value, if it is for this YS */
+     if (Memo_YSID_of_ZWA(zwa) == ysid) {
+         if (Memo_Value_of_ZWA(zwa)) continue;
+         return 0;
+     }
+
+      @t}\comment{@>
+      /* Calculate the value (currently always the default)
+      and memoize it */
+     value = Memo_Value_of_ZWA(zwa) = Default_Value_of_ZWA(zwa);
+     Memo_YSID_of_ZWA(zwa) = ysid;
+
+      @t}\comment{@>
+      /* If the assertion fails we are done
+      Otherwise, continue to check assertions.
+      */
+     if (!value) return 0;
+  }
+  return 1;
+}
+
 
 @ @<Declare |marpa_r_start_input| locals@> =
     const NSYID nsy_count = NSY_Count_of_G(g);
@@ -7443,7 +7856,7 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
     G_EVENTS_CLEAR(g);
     psar_dealloc(Dot_PSAR_of_R(r));
     bv_clear (r->t_bv_nsyid_is_expected);
-    bv_clear (r->t_bv_irl_is_predicted);
+    bv_clear (r->t_bv_irl_seen);
     @<Initialize |current_earleme|@>@;
     @<Return 0 if no alternatives@>@;
     @<Initialize |current_earley_set|@>@;
@@ -7453,7 +7866,7 @@ marpa_r_earleme_complete(Marpa_Recognizer r)
       YIM cause = *cause_p;
         @<Add new Earley items for |cause|@>@;
     }
-    @<Add prediction to |current_earley_set|@>@;
+    @<Add predictions to |current_earley_set|@>@;
     postdot_items_create(r, bv_ok_for_chain, current_earley_set);
 
     @t}\comment{@>
@@ -7550,20 +7963,20 @@ and as of this writing are not important in practical terms.
       const YIM predecessor = YIM_of_PIM (pim);
       if (predecessor && YIM_is_Active(predecessor))
 	{
-	  const AHM predecessor_aim = AHM_of_YIM (predecessor);
-	  const AHM scanned_aim = Next_AHM_of_AHM (predecessor_aim);
-	  @<Create the earley items for |scanned_aim|@>@;
+	  const AHM predecessor_ahm = AHM_of_YIM (predecessor);
+	  const AHM scanned_ahm = Next_AHM_of_AHM (predecessor_ahm);
+	  @<Create the earley items for |scanned_ahm|@>@;
 	}
     }
 }
 
-@ @<Create the earley items for |scanned_aim|@> =
+@ @<Create the earley items for |scanned_ahm|@> =
 {
   const YIM scanned_earley_item = earley_item_assign (r,
 						      current_earley_set,
 						      Origin_of_YIM
 						      (predecessor),
-						      scanned_aim);
+						      scanned_ahm);
   YIM_was_Scanned(scanned_earley_item) = 1;
   tkn_link_add (r, scanned_earley_item, predecessor, alternative);
 }
@@ -7638,21 +8051,20 @@ add those Earley items it ``causes".
 
             @t}\comment\hskip 1em{@>
             /* If we are here, both cause and predecessor are active */
-            @<Add |effect_aim|, plus any prediction,
-              for non-Leo |predecessor|@>@;
+            @<Add |effect_ahm| for non-Leo |predecessor|@>@;
         }
         NEXT_PIM: ;
     }
     LAST_PIM: ;
 }
 
-@ @<Add |effect_aim|, plus any prediction, for non-Leo |predecessor|@> =
+@ @<Add |effect_ahm| for non-Leo |predecessor|@> =
 {
-   const AHM predecessor_aim = AHM_of_YIM(predecessor);
-   const AHM effect_aim = Next_AHM_of_AHM(predecessor_aim);
+   const AHM predecessor_ahm = AHM_of_YIM(predecessor);
+   const AHM effect_ahm = Next_AHM_of_AHM(predecessor_ahm);
    const YS origin = Origin_of_YIM(predecessor);
    const YIM effect = earley_item_assign(r, current_earley_set,
-        origin, effect_aim);
+        origin, effect_ahm);
    YIM_was_Fusion(effect) = 1;
    if (Earley_Item_has_No_Source(effect)) {
        @t}\comment{@>
@@ -7674,9 +8086,9 @@ active.
 @ If we are here, |leo_item| is active.
 @<Add effect of |leo_item|@> = {
     const YS origin = Origin_of_LIM (leo_item);
-    const AHM effect_aim = Top_AHM_of_LIM (leo_item);
+    const AHM effect_ahm = Top_AHM_of_LIM (leo_item);
     const YIM effect = earley_item_assign (r, current_earley_set,
-                                 origin, effect_aim);
+                                 origin, effect_ahm);
     YIM_was_Fusion(effect) = 1;
     if (Earley_Item_has_No_Source (effect))
       {
@@ -7687,9 +8099,7 @@ active.
     leo_link_add (r, effect, leo_item, cause);
 }
 
-@ Note that there may already be predictions on the stack from
-the Leo items.
-@<Add prediction to |current_earley_set|@> =
+@ @<Add predictions to |current_earley_set|@> =
 {
   int ix;
   const int no_of_work_earley_items =
@@ -7699,16 +8109,16 @@ the Leo items.
       YIM earley_item = WORK_YIM_ITEM (r, ix);
 
       int cil_ix;
-      const AHM aim = AHM_of_YIM (earley_item);
-      const CIL prediction_cil = Predicted_IRL_CIL_of_AHM (aim);
+      const AHM ahm = AHM_of_YIM (earley_item);
+      const CIL prediction_cil = Predicted_IRL_CIL_of_AHM (ahm);
       const int prediction_count = Count_of_CIL (prediction_cil);
       for (cil_ix = 0; cil_ix < prediction_count; cil_ix++)
 	{
 	  const IRLID prediction_irlid = Item_of_CIL (prediction_cil, cil_ix);
 	  const IRL prediction_irl = IRL_by_ID (prediction_irlid);
-	  const AHM prediction_aim = First_AHM_of_IRL (prediction_irl);
+	  const AHM prediction_ahm = First_AHM_of_IRL (prediction_irl);
 	  earley_item_assign (r, current_earley_set, current_earley_set,
-			      prediction_aim);
+			      prediction_ahm);
 	}
 
     }
@@ -7724,24 +8134,24 @@ PRIVATE void trigger_events(RECCE r)
   struct marpa_obstack *const trigger_events_obs = marpa_obs_init;
   const YIM *yims = YIMs_of_YS (current_earley_set);
   const XSYID xsy_count = XSY_Count_of_G (g);
-  const int aim_count = AHM_Count_of_G (g);
+  const int ahm_count = AHM_Count_of_G (g);
   Bit_Vector bv_completion_event_trigger =
     bv_obs_create (trigger_events_obs, xsy_count);
   Bit_Vector bv_nulled_event_trigger =
     bv_obs_create (trigger_events_obs, xsy_count);
   Bit_Vector bv_prediction_event_trigger =
     bv_obs_create (trigger_events_obs, xsy_count);
-  Bit_Vector bv_aim_event_trigger =
-    bv_obs_create (trigger_events_obs, aim_count);
+  Bit_Vector bv_ahm_event_trigger =
+    bv_obs_create (trigger_events_obs, ahm_count);
   const int working_earley_item_count = YIM_Count_of_YS (current_earley_set);
   for (yim_ix = 0; yim_ix < working_earley_item_count; yim_ix++)
     {
       const YIM yim = yims[yim_ix];
-      const AHM root_aim = AHM_of_YIM (yim);
-      if (AHM_has_Event (root_aim))
+      const AHM root_ahm = AHM_of_YIM (yim);
+      if (AHM_has_Event (root_ahm))
         {                       /* Note that we go on to look at the Leo path, even if
                                    the top AHM is not an event AHM */
-          bv_bit_set (bv_aim_event_trigger, ID_of_AHM(root_aim));
+          bv_bit_set (bv_ahm_event_trigger, ID_of_AHM(root_ahm));
         }
       {
         /* Now do the NSYs for any Leo links */
@@ -7752,13 +8162,13 @@ PRIVATE void trigger_events(RECCE r)
           {
             int cil_ix;
             const LIM lim = LIM_of_SRCL (setup_source_link);
-            const CIL event_aimids = CIL_of_LIM (lim);
-            const int event_aim_count = Count_of_CIL (event_aimids);
-            for (cil_ix = 0; cil_ix < event_aim_count; cil_ix++)
+            const CIL event_ahmids = CIL_of_LIM (lim);
+            const int event_ahm_count = Count_of_CIL (event_ahmids);
+            for (cil_ix = 0; cil_ix < event_ahm_count; cil_ix++)
               {
-                const NSYID leo_path_aimid =
-                  Item_of_CIL (event_aimids, cil_ix);
-                bv_bit_set (bv_aim_event_trigger, leo_path_aimid);
+                const NSYID leo_path_ahmid =
+                  Item_of_CIL (event_ahmids, cil_ix);
+                bv_bit_set (bv_ahm_event_trigger, leo_path_ahmid);
                 /* No need to test if AHM is an event AHM --
                    all paths in the LIM's CIL will be */
               }
@@ -7766,18 +8176,18 @@ PRIVATE void trigger_events(RECCE r)
       }
     }
 
-  for (start = 0; bv_scan (bv_aim_event_trigger, start, &min, &max);
+  for (start = 0; bv_scan (bv_ahm_event_trigger, start, &min, &max);
        start = max + 2)
     {
-      XSYID event_aimid;
-      for (event_aimid = (NSYID) min; event_aimid <= (NSYID) max;
-           event_aimid++)
+      XSYID event_ahmid;
+      for (event_ahmid = (NSYID) min; event_ahmid <= (NSYID) max;
+           event_ahmid++)
         {
           int cil_ix;
-          const AHM event_aim = AHM_by_ID(event_aimid);
+          const AHM event_ahm = AHM_by_ID(event_ahmid);
           {
             const CIL completion_xsyids =
-              Completion_XSYIDs_of_AHM (event_aim);
+              Completion_XSYIDs_of_AHM (event_ahm);
             const int event_xsy_count = Count_of_CIL (completion_xsyids);
             for (cil_ix = 0; cil_ix < event_xsy_count; cil_ix++)
               {
@@ -7786,7 +8196,7 @@ PRIVATE void trigger_events(RECCE r)
               }
           }
           {
-            const CIL nulled_xsyids = Nulled_XSYIDs_of_AHM (event_aim);
+            const CIL nulled_xsyids = Nulled_XSYIDs_of_AHM (event_ahm);
             const int event_xsy_count = Count_of_CIL (nulled_xsyids);
             for (cil_ix = 0; cil_ix < event_xsy_count; cil_ix++)
               {
@@ -7796,7 +8206,7 @@ PRIVATE void trigger_events(RECCE r)
           }
           {
             const CIL prediction_xsyids =
-              Prediction_XSYIDs_of_AHM (event_aim);
+              Prediction_XSYIDs_of_AHM (event_ahm);
             const int event_xsy_count = Count_of_CIL (prediction_xsyids);
             for (cil_ix = 0; cil_ix < event_xsy_count; cil_ix++)
               {
@@ -8015,8 +8425,8 @@ At this point there are no Leo items.
          ix++)
      {
         YIM earley_item = work_earley_items[ix];
-      AHM aim = AHM_of_YIM (earley_item);
-      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM(aim);
+      AHM ahm = AHM_of_YIM (earley_item);
+      const NSYID postdot_nsyid = Postdot_NSYID_of_AHM(ahm);
       if (postdot_nsyid < 0) continue;
         {
           PIM old_pim = NULL;
@@ -8064,18 +8474,18 @@ Leo item have not been fully populated.
                    than one YIX */
           {
 	    const YIM leo_base = YIM_of_PIM (this_pim);
-	    AHM potential_leo_penult_aim = NULL;
-		const AHM leo_base_aim = AHM_of_YIM (leo_base);
-		const IRL leo_base_irl = IRL_of_AHM (leo_base_aim);
+	    AHM potential_leo_penult_ahm = NULL;
+		const AHM leo_base_ahm = AHM_of_YIM (leo_base);
+		const IRL leo_base_irl = IRL_of_AHM (leo_base_ahm);
 
 		if (!IRL_is_Leo (leo_base_irl))
 		  goto NEXT_NSYID;
-		potential_leo_penult_aim = leo_base_aim;
-            MARPA_ASSERT(potential_leo_penult_aim);
+		potential_leo_penult_ahm = leo_base_ahm;
+            MARPA_ASSERT(potential_leo_penult_ahm);
 	    {
-	      const AHM trailhead_aim =
-		Next_AHM_of_AHM (potential_leo_penult_aim);
-	      if (AHM_is_Leo_Completion (trailhead_aim))
+	      const AHM trailhead_ahm =
+		Next_AHM_of_AHM (potential_leo_penult_ahm);
+	      if (AHM_is_Leo_Completion (trailhead_ahm))
 		{
 		  @<Create a new, unpopulated, LIM@>@;
 		}
@@ -8102,8 +8512,8 @@ once it is populated.
     Predecessor_LIM_of_LIM(new_lim) = NULL;
     Origin_of_LIM(new_lim) = NULL;
     CIL_of_LIM(new_lim) = NULL;
-    Top_AHM_of_LIM(new_lim) = trailhead_aim;
-    Trailhead_AHM_of_LIM(new_lim) = trailhead_aim;
+    Top_AHM_of_LIM(new_lim) = trailhead_ahm;
+    Trailhead_AHM_of_LIM(new_lim) = trailhead_ahm;
     Trailhead_YIM_of_LIM(new_lim) = leo_base;
     YS_of_LIM(new_lim) = current_earley_set;
     Next_PIM_of_LIM(new_lim) = this_pim;
@@ -8240,9 +8650,9 @@ In a populated LIM, this will not necessarily be the case.
 {
   const YIM base_yim = Trailhead_YIM_of_LIM (lim_to_process);
   const YS predecessor_set = Origin_of_YIM (base_yim);
-  const AHM trailhead_aim = Trailhead_AHM_of_LIM (lim_to_process);
+  const AHM trailhead_ahm = Trailhead_AHM_of_LIM (lim_to_process);
   const NSYID predecessor_transition_nsyid =
-    LHSID_of_AHM (trailhead_aim);
+    LHSID_of_AHM (trailhead_ahm);
   PIM predecessor_pim;
   if (Ord_of_YS (predecessor_set) < Ord_of_YS (current_earley_set))
     {
@@ -8357,7 +8767,7 @@ which stabilizes short of closure.
 Secondary optimzations ensure this is fairly cheap as well.
 @<Populate |lim_to_process| from |predecessor_lim|@> =
 {
-  const AHM new_top_aim = Top_AHM_of_LIM (predecessor_lim);
+  const AHM new_top_ahm = Top_AHM_of_LIM (predecessor_lim);
   const CIL predecessor_cil = CIL_of_LIM (predecessor_lim);
     @t}\comment{@>
   /* Initialize to be just the predcessor's list of AHM IDs.
@@ -8365,23 +8775,23 @@ Secondary optimzations ensure this is fairly cheap as well.
   CIL_of_LIM (lim_to_process) = predecessor_cil;        
   Predecessor_LIM_of_LIM (lim_to_process) = predecessor_lim;
   Origin_of_LIM (lim_to_process) = Origin_of_LIM (predecessor_lim);
-  if (Event_Group_Size_of_AHM (new_top_aim) > Count_of_CIL (predecessor_cil))
+  if (Event_Group_Size_of_AHM (new_top_ahm) > Count_of_CIL (predecessor_cil))
     {                           /* Might we need to add another AHM ID? */
-      const AHM trailhead_aim = Trailhead_AHM_of_LIM(lim_to_process);
-      const CIL trailhead_aim_event_aimids =
-        Event_AHMIDs_of_AHM (trailhead_aim);
-      if (Count_of_CIL (trailhead_aim_event_aimids))
+      const AHM trailhead_ahm = Trailhead_AHM_of_LIM(lim_to_process);
+      const CIL trailhead_ahm_event_ahmids =
+        Event_AHMIDs_of_AHM (trailhead_ahm);
+      if (Count_of_CIL (trailhead_ahm_event_ahmids))
         {
           CIL new_cil = cil_merge_one (&g->t_cilar, predecessor_cil,
                                        Item_of_CIL
-                                       (trailhead_aim_event_aimids, 0));
+                                       (trailhead_ahm_event_ahmids, 0));
           if (new_cil)
             {
               CIL_of_LIM (lim_to_process) = new_cil;
             }
         }
     }
-  Top_AHM_of_LIM (lim_to_process) = new_top_aim;
+  Top_AHM_of_LIM (lim_to_process) = new_top_ahm;
 }
 
 @ If we have reached this code, either we do not have a predecessor
@@ -8397,10 +8807,10 @@ and do not need to be changed.
 The predecessor LIM was initialized to |NULL|.
 of the base YIM.
 @<Populate |lim_to_process| from its base Earley item@> = {
-  const AHM trailhead_aim = Trailhead_AHM_of_LIM(lim_to_process);
+  const AHM trailhead_ahm = Trailhead_AHM_of_LIM(lim_to_process);
   const YIM base_yim = Trailhead_YIM_of_LIM(lim_to_process);
   Origin_of_LIM (lim_to_process) = Origin_of_YIM (base_yim);
-  CIL_of_LIM(lim_to_process) = Event_AHMIDs_of_AHM(trailhead_aim);
+  CIL_of_LIM(lim_to_process) = Event_AHMIDs_of_AHM(trailhead_ahm);
 }
 
 @ @<Copy PIM workarea to postdot item array@> = {
@@ -8833,6 +9243,31 @@ PRIVATE int alternative_is_acceptable(ALT alternative)
 
 @ @<Clean expected terminals@> = {}
 
+@** Recognizer zero-width assertion code.
+@<Function definitions@> =
+int
+marpa_r_zwa_default_set(Marpa_Recognizer r,
+    Marpa_Assertion_ID zwaid,
+    int default_value)
+{
+  @<Return |-2| on failure@>@;
+  @<Unpack recognizer objects@>@;
+  ZWA zwa;
+  int old_default_value;
+  @<Fail if fatal error@>@;
+  @<Fail if |zwaid| is malformed@>@;
+  @<Fail if |zwaid| does not exist@>@;
+    if (_MARPA_UNLIKELY (default_value < 0 || default_value > 1))
+      {
+        MARPA_ERROR (MARPA_ERR_INVALID_BOOLEAN);
+        return failure_indicator;
+      }
+    zwa = RZWA_by_ID(zwaid);
+    old_default_value = Default_Value_of_ZWA(zwa);
+    Default_Value_of_ZWA(zwa) = default_value ? 1 : 0;
+    return old_default_value;
+}
+
 @** Progress report code.
 @<Private typedefs@> =
    typedef struct marpa_progress_item* PROGRESS;
@@ -8958,8 +9393,8 @@ int marpa_r_progress_report_reset( Marpa_Recognizer r)
 	   leo_item; leo_item = Predecessor_LIM_of_LIM (leo_item))
 	{
 	  const YSID report_origin = Ord_of_YS (YS_of_LIM (leo_item));
-	  const AHM report_aim = Trailhead_AHM_of_LIM (leo_item);
-	  progress_report_item_insert (report_tree, report_aim,
+	  const AHM report_ahm = Trailhead_AHM_of_LIM (leo_item);
+	  progress_report_item_insert (report_tree, report_ahm,
 				       report_origin);
 	}
     }
@@ -8968,44 +9403,31 @@ int marpa_r_progress_report_reset( Marpa_Recognizer r)
 @ @<Function definitions@> =
 PRIVATE void
 progress_report_item_insert(MARPA_AVL_TREE report_tree,
-  AHM report_aim, 
+  AHM report_ahm, 
     YSID report_origin)
 {
-  const IRL irl = IRL_of_AHM (report_aim);
-  const XRL source_xrl = Source_XRL_of_IRL (irl);
-  if (source_xrl)
-    {
-      const int irl_position = Position_of_AHM (report_aim);
-      int xrl_position = irl_position;
-      const int virtual_start = Virtual_Start_of_IRL (irl);
-      if (virtual_start >= 0)
-	{
-	  xrl_position += virtual_start;
-	}
-      if (XRL_is_Sequence (source_xrl))
-	{
-	  if (IRL_has_Virtual_LHS (irl))
-	    {
-	      if (irl_position <= 0) return;
-	      xrl_position = -1;
-	    }
-	  else
-	    {
-	      xrl_position = irl_position > 0 ? -1 : 0;
-	    }
-	}
-      {
-	const PROGRESS new_report_item =
-	  marpa_obs_new (MARPA_AVL_OBSTACK (report_tree),
-			 struct marpa_progress_item,
-			 1);
-	Position_of_PROGRESS (new_report_item) = xrl_position;
-	Origin_of_PROGRESS (new_report_item) = report_origin;
-	RULEID_of_PROGRESS (new_report_item) = ID_of_XRL (source_xrl);
-	_marpa_avl_insert (report_tree, new_report_item);
-      }
-    }
-   return;
+  PROGRESS new_report_item;
+  const XRL source_xrl = XRL_of_AHM (report_ahm);
+  const int xrl_position = XRL_Position_of_AHM (report_ahm);
+  if (!source_xrl)
+    return;
+
+  @t}\comment{@>
+  /* As a special case, for the starting rules of a sequence rewrite, we
+  skip all but the top one, which is the one with a semantic LHS */
+  if (XRL_is_Sequence (source_xrl)
+      && Position_of_AHM(report_ahm) <= 0
+      && IRL_has_Virtual_LHS (IRL_of_AHM (report_ahm)))
+    return;
+
+  new_report_item =
+    marpa_obs_new (MARPA_AVL_OBSTACK (report_tree),
+		   struct marpa_progress_item, 1);
+  Position_of_PROGRESS (new_report_item) = xrl_position;
+  Origin_of_PROGRESS (new_report_item) = report_origin;
+  RULEID_of_PROGRESS (new_report_item) = ID_of_XRL (source_xrl);
+  _marpa_avl_insert (report_tree, new_report_item);
+  return;
 }
 
 @ @<Function definitions@> =
@@ -9620,14 +10042,14 @@ Top_ORID_of_B(b) = -1;
 
 @ @<Create the or-nodes for |work_earley_item|@> =
 {
-  AHM aim = AHM_of_YIM(work_earley_item);
+  AHM ahm = AHM_of_YIM(work_earley_item);
   const int working_ys_ordinal = YS_Ord_of_YIM(work_earley_item);
   const int working_yim_ordinal = Ord_of_YIM(work_earley_item);
   const int work_origin_ordinal =
             Ord_of_YS (Origin_of_YIM (work_earley_item));
-  SYMI aim_symbol_instance;
+  SYMI ahm_symbol_instance;
   OR psi_or_node = NULL;
-  aim_symbol_instance = SYMI_of_AHM(aim);
+  ahm_symbol_instance = SYMI_of_AHM(ahm);
   {
         PSL or_psl = psl_claim_by_es(or_psar, per_ys_data, work_origin_ordinal);
         OR last_or_node = NULL;
@@ -9654,21 +10076,21 @@ The exception are predicted AHM's.
 Or-nodes are not added for predicted AHM's.
 @<Add main or-node@> =
 {
-  if (aim_symbol_instance >= 0)
+  if (ahm_symbol_instance >= 0)
     {
       OR or_node;
-MARPA_ASSERT(aim_symbol_instance < SYMI_Count_of_G(g))@;
-      or_node = PSL_Datum (or_psl, aim_symbol_instance);
+MARPA_ASSERT(ahm_symbol_instance < SYMI_Count_of_G(g))@;
+      or_node = PSL_Datum (or_psl, ahm_symbol_instance);
       if (!or_node || YS_Ord_of_OR(or_node) != work_earley_set_ordinal)
         {
-          const IRL irl = IRL_of_AHM(aim);
+          const IRL irl = IRL_of_AHM(ahm);
           or_node = last_or_node = or_node_new(b);
-          PSL_Datum (or_psl, aim_symbol_instance) = last_or_node;
+          PSL_Datum (or_psl, ahm_symbol_instance) = last_or_node;
           Origin_Ord_of_OR(or_node) = Origin_Ord_of_YIM(work_earley_item);
           YS_Ord_of_OR(or_node) = work_earley_set_ordinal;
           IRL_of_OR(or_node) = irl;
           Position_of_OR (or_node) =
-              aim_symbol_instance - SYMI_of_IRL (irl) + 1;
+              ahm_symbol_instance - SYMI_of_IRL (irl) + 1;
         }
         psi_or_node = or_node;
     }
@@ -9702,14 +10124,14 @@ The exception is where there is no predecessor,
 and this is the case if |Position_of_OR(or_node) == 0|.
 @<Add nulling token or-nodes@> =
 {
-  const int null_count = Null_Count_of_AHM (aim);
+  const int null_count = Null_Count_of_AHM (ahm);
   if (null_count > 0)
     {
-      const IRL irl = IRL_of_AHM (aim);
+      const IRL irl = IRL_of_AHM (ahm);
       const int symbol_instance_of_rule = SYMI_of_IRL(irl);
         const int first_null_symbol_instance =
-          aim_symbol_instance <
-          0 ? symbol_instance_of_rule : aim_symbol_instance + 1;
+          ahm_symbol_instance <
+          0 ? symbol_instance_of_rule : ahm_symbol_instance + 1;
       int i;
       for (i = 0; i < null_count; i++)
         {
@@ -9760,9 +10182,9 @@ expanded.
   while ((this_leo_item = Predecessor_LIM_of_LIM (this_leo_item)))
     {
       const int ordinal_of_set_of_this_leo_item = Ord_of_YS(YS_of_LIM(this_leo_item));
-      const AHM path_aim = Trailhead_AHM_of_LIM(previous_leo_item);
-      const IRL path_irl = IRL_of_AHM(path_aim);
-      const int symbol_instance_of_path_aim = SYMI_of_AHM(path_aim);
+      const AHM path_ahm = Trailhead_AHM_of_LIM(previous_leo_item);
+      const IRL path_irl = IRL_of_AHM(path_ahm);
+      const int symbol_instance_of_path_ahm = SYMI_of_AHM(path_ahm);
       {
         OR last_or_node = NULL;
         @<Add main Leo path or-node@>@;
@@ -9781,17 +10203,17 @@ corresponds to the Leo predecessor.
       OR or_node;
       PSL leo_psl
         = psl_claim_by_es(or_psar, per_ys_data, ordinal_of_set_of_this_leo_item);
-      or_node = PSL_Datum (leo_psl, symbol_instance_of_path_aim);
+      or_node = PSL_Datum (leo_psl, symbol_instance_of_path_ahm);
       if (!or_node || YS_Ord_of_OR(or_node) != work_earley_set_ordinal)
         {
           last_or_node = or_node_new(b);
-          PSL_Datum (leo_psl, symbol_instance_of_path_aim) = or_node =
+          PSL_Datum (leo_psl, symbol_instance_of_path_ahm) = or_node =
               last_or_node;
           Origin_Ord_of_OR(or_node) = ordinal_of_set_of_this_leo_item;
           YS_Ord_of_OR(or_node) = work_earley_set_ordinal;
           IRL_of_OR(or_node) = path_irl;
           Position_of_OR (or_node) =
-              symbol_instance_of_path_aim - SYMI_of_IRL (path_irl) + 1;
+              symbol_instance_of_path_ahm - SYMI_of_IRL (path_irl) + 1;
         }
     }
 }
@@ -9803,10 +10225,10 @@ or-nodes follow a completion.
 @<Add Leo path nulling token or-nodes@> =
 {
   int i;
-  const int null_count = Null_Count_of_AHM (path_aim);
+  const int null_count = Null_Count_of_AHM (path_ahm);
   for (i = 1; i <= null_count; i++)
     {
-      const int symbol_instance = symbol_instance_of_path_aim + i;
+      const int symbol_instance = symbol_instance_of_path_ahm + i;
       OR or_node = PSL_Datum (this_earley_set_psl, symbol_instance);
       MARPA_ASSERT (symbol_instance < SYMI_Count_of_G (g)) @;
       if (!or_node || YS_Ord_of_OR (or_node) != work_earley_set_ordinal)
@@ -9930,9 +10352,9 @@ predecessor.  Set |or_node| to 0 if there is none.
 
 @ @<Create draft and-nodes for |or_node|@> =
 {
-    const AHM work_aim = AHM_of_YIM (work_earley_item);
-    MARPA_ASSERT (work_aim >= AHM_by_ID (1))@;
-    const int work_symbol_instance = SYMI_of_AHM (work_aim);
+    const AHM work_ahm = AHM_of_YIM (work_earley_item);
+    MARPA_ASSERT (work_ahm >= AHM_by_ID (1))@;
+    const int work_symbol_instance = SYMI_of_AHM (work_ahm);
     const OR work_proper_or_node = or_by_origin_and_symi(per_ys_data,
       work_origin_ordinal, work_symbol_instance);
     @<Create Leo draft and-nodes@>@;
@@ -10158,8 +10580,8 @@ OR set_or_from_yim ( struct s_bocage_setup_per_ys *per_ys_data,
 {
   int symbol_instance;
   const int origin_ordinal = Origin_Ord_of_YIM (base_earley_item);
-  const AHM aim = AHM_of_YIM (base_earley_item);
-  path_irl = IRL_of_AHM (aim);
+  const AHM ahm = AHM_of_YIM (base_earley_item);
+  path_irl = IRL_of_AHM (ahm);
   symbol_instance = Last_Proper_SYMI_of_IRL (path_irl);
   path_or_node = or_by_origin_and_symi(per_ys_data, origin_ordinal, symbol_instance);
 }
@@ -10220,9 +10642,9 @@ OR safe_or_from_yim(
       YIM predecessor_earley_item = Predecessor_of_SRCL (source_link);
       YIM cause_earley_item = Cause_of_SRCL (source_link);
       const int middle_ordinal = Origin_Ord_of_YIM (cause_earley_item);
-      const AHM cause_aim = AHM_of_YIM (cause_earley_item);
+      const AHM cause_ahm = AHM_of_YIM (cause_earley_item);
       const SYMI cause_symbol_instance =
-	SYMI_of_Completed_IRL (IRL_of_AHM (cause_aim));
+	SYMI_of_Completed_IRL (IRL_of_AHM (cause_ahm));
       OR dand_predecessor = safe_or_from_yim (per_ys_data,
 					      predecessor_earley_item);
       const OR dand_cause =
@@ -10520,8 +10942,8 @@ to make sense.
         if (Origin_Earleme_of_YIM(earley_item) > 0) continue; // Not a start YIM
         if (YIM_was_Predicted(earley_item)) continue;
         {
-           const AHM aim = AHM_of_YIM(earley_item);
-           if (IRLID_of_AHM(aim) == sought_irl_id) {
+           const AHM ahm = AHM_of_YIM(earley_item);
+           if (IRLID_of_AHM(ahm) == sought_irl_id) {
                 start_yim = earley_item;
                       break;
             }
@@ -13156,7 +13578,7 @@ Once things settle, |MARPA_DSTACK_INIT| should be changed to
 |MARPA_DSTACK_INIT2|.
 @<Function definitions@> =
 PRIVATE void
-cilar_reinit (const CILAR cilar)
+cilar_buffer_reinit (const CILAR cilar)
 {
   MARPA_DSTACK_DESTROY(cilar->t_buffer);
   MARPA_DSTACK_INIT(cilar->t_buffer, int, 2);
@@ -13746,6 +14168,7 @@ if (_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))) {
     MARPA_ERROR (MARPA_ERR_NO_SUCH_RULE_ID);
     return -1;
     }
+
 @ @<Fail if |xrl_id| does not exist@> =
 if (_MARPA_UNLIKELY(!XRLID_of_G_Exists(xrl_id))) {
     MARPA_ERROR (MARPA_ERR_NO_SUCH_RULE_ID);
@@ -13758,13 +14181,25 @@ if (_MARPA_UNLIKELY(XRLID_is_Malformed(xrl_id))) {
     return failure_indicator;
 }
 
+@ @<Fail if |zwaid| does not exist@> =
+if (_MARPA_UNLIKELY(!ZWAID_of_G_Exists(zwaid))) {
+    MARPA_ERROR (MARPA_ERR_NO_SUCH_ASSERTION_ID);
+    return failure_indicator;
+}
+@
+@<Fail if |zwaid| is malformed@> =
+if (_MARPA_UNLIKELY(ZWAID_is_Malformed(zwaid))) {
+    MARPA_ERROR (MARPA_ERR_INVALID_ASSERTION_ID);
+    return failure_indicator;
+}
+
 @ ``AIMID'' in the error code name is a legacy
 of a previous implementation.
 The name
 of the error code must be kept the same
 for backward compatibility.
 @<Fail if |item_id| is invalid@> =
-if (_MARPA_UNLIKELY(!aim_is_valid(g, item_id))) {
+if (_MARPA_UNLIKELY(!ahm_is_valid(g, item_id))) {
     MARPA_ERROR(MARPA_ERR_INVALID_AIMID);
     return failure_indicator;
 }
@@ -15289,27 +15724,27 @@ The other uses a global buffer,
 which is not thread-safe, but
 convenient when debugging in a non-threaded environment.
 @<Debug function prototypes@> =
-static const char* aim_tag_safe(char *buffer, AHM aim) @,@, UNUSED;
-static const char* aim_tag(AHM aim) @,@, UNUSED;
+static const char* ahm_tag_safe(char *buffer, AHM ahm) @,@, UNUSED;
+static const char* ahm_tag(AHM ahm) @,@, UNUSED;
 @ @<Debug function definitions@> =
 static const char *
-aim_tag_safe (char * buffer, AHM aim)
+ahm_tag_safe (char * buffer, AHM ahm)
 {
-  if (!aim) return "NULL";
-  const int aim_position = Position_of_AHM (aim);
-  if (aim_position >= 0) {
-      sprintf (buffer, "R%d@@%d", IRLID_of_AHM (aim), Position_of_AHM (aim));
+  if (!ahm) return "NULL";
+  const int ahm_position = Position_of_AHM (ahm);
+  if (ahm_position >= 0) {
+      sprintf (buffer, "R%d@@%d", IRLID_of_AHM (ahm), Position_of_AHM (ahm));
   } else {
-      sprintf (buffer, "R%d@@end", IRLID_of_AHM (aim));
+      sprintf (buffer, "R%d@@end", IRLID_of_AHM (ahm));
   }
   return buffer;
 }
 
-static char DEBUG_aim_tag_buffer[1000];
+static char DEBUG_ahm_tag_buffer[1000];
 static const char*
-aim_tag (AHM aim)
+ahm_tag (AHM ahm)
 {
-  return aim_tag_safe (DEBUG_aim_tag_buffer, aim);
+  return ahm_tag_safe (DEBUG_ahm_tag_buffer, ahm);
 }
 
 @** File layout.  

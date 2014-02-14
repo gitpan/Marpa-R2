@@ -127,6 +127,8 @@ const struct marpa_error_description_s marpa_error_description[] = {
   { 93, "MARPA_ERR_SYMBOL_IS_NOT_NULLED_EVENT", "Symbol is not set up for nulled events" },
   { 94, "MARPA_ERR_SYMBOL_IS_NOT_PREDICTION_EVENT", "Symbol is not set up for prediction events" },
   { 95, "MARPA_ERR_RECCE_IS_INCONSISTENT", "MARPA_ERR_RECCE_IS_INCONSISTENT" },
+  { 96, "MARPA_ERR_INVALID_ASSERTION_ID", "Assertion ID is malformed" },
+  { 97, "MARPA_ERR_NO_SUCH_ASSERTION_ID", "No assertion with this ID exists" },
 };
 
 

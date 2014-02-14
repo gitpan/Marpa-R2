@@ -49,6 +49,7 @@ if ( @ARGV == 1 ) {
 
 my %format_by_type = (
    int => '%d',
+   Marpa_Assertion_ID => '%d',
    Marpa_IRL_ID => '%d',
    Marpa_NSY_ID => '%d',
    Marpa_Or_Node_ID => '%d',
@@ -194,6 +195,8 @@ say {$out} gp_generate(qw(symbol_is_terminal_set Marpa_Symbol_ID symbol_id int b
 say {$out} gp_generate(qw(symbol_is_valued Marpa_Symbol_ID symbol_id));
 say {$out} gp_generate(qw(symbol_is_valued_set Marpa_Symbol_ID symbol_id int boolean));
 say {$out} gp_generate(qw(symbol_new));
+say {$out} gp_generate(qw(zwa_new int default_value));
+say {$out} gp_generate(qw(zwa_place Marpa_Assertion_ID zwaid Marpa_Rule_ID xrl_id int rhs_ix));
 
 $main::CLASS_LETTER   = 'r';
 $main::LIBMARPA_CLASS = 'Marpa_Recognizer';
@@ -216,6 +219,7 @@ say {$out} gp_generate(qw(prediction_symbol_activate Marpa_Symbol_ID sym_id int 
 say {$out} gp_generate(qw(progress_report_finish));
 say {$out} gp_generate(qw(progress_report_start Marpa_Earley_Set_ID ordinal));
 say {$out} gp_generate(qw(terminal_is_expected Marpa_Symbol_ID xsyid));
+say {$out} gp_generate(qw(zwa_default_set Marpa_Assertion_ID zwaid int default_value));
 
 $main::CLASS_LETTER   = 'b';
 $main::LIBMARPA_CLASS = 'Marpa_Bocage';

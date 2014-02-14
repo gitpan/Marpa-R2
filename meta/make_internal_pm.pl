@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_014';
+$VERSION        = '2.079_015';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -335,11 +335,13 @@ __DATA__
     NULLED_EVENT_BY_ID
     PREDICTION_EVENT_BY_ID
     LEXEME_EVENT_BY_ID
-    TRACE_FILE_HANDLE
     SYMBOL_IDS_BY_EVENT_NAME_AND_TYPE
 
     { This saves a lot of time at points }
     CACHE_RULEIDS_BY_LHS_NAME
+
+    TRACE_FILE_HANDLE
+    TRACE_TERMINALS
 
     :package=Marpa::R2::Internal::Scanless::R
 

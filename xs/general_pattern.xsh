@@ -640,6 +640,40 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }
 
+void
+zwa_new( g_wrapper, default_value )
+    G_Wrapper *g_wrapper;
+    int default_value;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_zwa_new(self, default_value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->zwa_new(%d): %s",
+     default_value, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+zwa_place( g_wrapper, zwaid, xrl_id, rhs_ix )
+    G_Wrapper *g_wrapper;
+    Marpa_Assertion_ID zwaid;
+    Marpa_Rule_ID xrl_id;
+    int rhs_ix;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_zwa_place(self, zwaid, xrl_id, rhs_ix);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->zwa_place(%d, %d, %d): %s",
+     zwaid, xrl_id, rhs_ix, xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::R
 
 void
@@ -907,6 +941,23 @@ PPCODE:
   if ( gp_result < 0 && r_wrapper->base->throw ) {
     croak( "Problem in r->terminal_is_expected(%d): %s",
      xsyid, xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
+zwa_default_set( r_wrapper, zwaid, default_value )
+    R_Wrapper *r_wrapper;
+    Marpa_Assertion_ID zwaid;
+    int default_value;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_zwa_default_set(self, zwaid, default_value);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->zwa_default_set(%d, %d): %s",
+     zwaid, default_value, xs_g_error( r_wrapper->base ));
   }
   XPUSHs (sv_2mortal (newSViv (gp_result)));
 }

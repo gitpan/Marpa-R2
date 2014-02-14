@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.079_014';
+$VERSION        = '2.079_015';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -94,9 +94,9 @@ sub Marpa::R2::Internal::Scanless::G::set {
         { map { ( $_, 1 ); }
             qw(trace_file_handle action_object default_action bless_package) };
     state $set_method_args =
-        { map { ( $_, 1 ); } qw(trace_file_handle) };
+        { map { ( $_, 1 ); } qw(trace_file_handle trace_terminals) };
     state $new_method_args = {
-        map { ( $_, 1 ); } qw(source), keys %{$copy_to_g1_args}
+        map { ( $_, 1 ); } qw(source trace_terminals), keys %{$copy_to_g1_args}
     };
     for my $args (@hash_ref_args) {
         my $ref_type = ref $args;
@@ -161,7 +161,8 @@ sub Marpa::R2::Internal::Scanless::G::set {
     # the Scanless::G class, so this maps named args to the index of the array
     # that holds the members.
     state $copy_arg_to_index = {
-        trace_file_handle => Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE
+        trace_file_handle => Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE,
+        trace_terminals => Marpa::R2::Internal::Scanless::G::TRACE_TERMINALS
     };
 
     ARG: for my $arg_name ( keys %flat_args ) {
@@ -206,6 +207,7 @@ sub Marpa::R2::Internal::Scanless::G::set {
 sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
     my ( $slg, $hashed_source, $g1_args ) = @_;
 
+    my $trace_terminals = $slg->[Marpa::R2::Internal::Scanless::G::TRACE_TERMINALS] // 0;
     # Pre-lexer G1 processing
 
     my $start_lhs = $hashed_source->{'start_lhs'} // $hashed_source->{'first_lhs'};
@@ -315,13 +317,33 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
             $precompute_error );
     } ## end if ( defined( my $precompute_error = ...))
 
-    # Find out the list lexemes according to G1
+    # Current lexeme data is spread out in many places.
+    # Change so that it all resides in this hash, indexed by
+    # name
+    my %lexeme_data = ();
+
+    # Find out the list of lexemes according to G1
     # g1_lexeme[] is defined for G1 lexemes -- set to 0
     # g1_lexeme is incremented for each lexer which uses it
-    my @g1_lexemes = ();
-    for my $symbol_id ( 0 .. $g1_thin->highest_symbol_id() ) {
-        $g1_lexemes[$symbol_id] = 0
-            if $g1_thin->symbol_is_terminal($symbol_id);
+    SYMBOL: for my $symbol_id ( 0 .. $g1_thin->highest_symbol_id() ) {
+
+        # Not a lexeme, according to G1
+        next SYMBOL if not $g1_thin->symbol_is_terminal($symbol_id);
+
+        my $symbol_name = $g1_tracer->symbol_name($symbol_id);
+        $lexeme_data{$symbol_name}{'G1'}{'id'} = $symbol_id;
+    } ## end SYMBOL: for my $symbol_id ( 0 .. $g1_thin->highest_symbol_id(...))
+
+    # A first phase of applying defaults
+    my $lexeme_declarations = $hashed_source->{lexeme_declarations};
+    my $lexeme_default_adverbs = $hashed_source->{lexeme_default_adverbs};
+    my $forgiving_default_value = $lexeme_default_adverbs->{forgiving} // 0;
+
+    # Determine "forgiving" status
+    LEXEME: for my $lexeme_name ( keys %lexeme_data ) {
+        my $declarations = $lexeme_declarations->{$lexeme_name};
+        my $forgiving_value = $declarations->{forgiving} // $forgiving_default_value;
+        $lexeme_data{$lexeme_name}{forgiving} = $forgiving_value;
     }
 
     # Lexers
@@ -371,12 +393,8 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
                 if defined $symbol_data;
         }
 
-        my %is_lexeme_in_this_lexer = ();
-        LEX_LHS: for my $lex_lhs ( keys %lex_lhs ) {
-            next LEX_LHS if $lex_rhs{$lex_lhs};
-            next LEX_LHS if $lex_separator{$lex_lhs};
-            $is_lexeme_in_this_lexer{$lex_lhs} = 1;
-        }
+        my %is_lexeme_in_this_lexer = map { $_ => 1 } 
+           grep { not $lex_rhs{$_} and not $lex_separator{$_} } keys %lex_lhs;
 
         my @lex_lexeme_names   = keys %is_lexeme_in_this_lexer;
 
@@ -416,9 +434,72 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
 
         my $lex_grammar = Marpa::R2::Grammar->new( \%lex_args );
         $thick_grammar_by_lexer_name{$lexer_name} = $lex_grammar;
-        Marpa::R2::Internal::Grammar::slif_precompute($lex_grammar);
         my $lex_tracer = $lex_grammar->tracer();
         my $lex_thin    = $lex_tracer->grammar();
+        my $lex_discard_symbol_id =
+            $lex_tracer->symbol_by_name($discard_symbol_name) // -1;
+        my @lex_lexeme_to_g1_symbol;
+        $lex_lexeme_to_g1_symbol[$_] = -1
+            for 0 .. $g1_thin->highest_symbol_id();
+
+        LEXEME_NAME: for my $lexeme_name (@lex_lexeme_names) {
+            next LEXEME_NAME if $lexeme_name eq $discard_symbol_name;
+            next LEXEME_NAME if $lexeme_name eq $lex_start_symbol_name;
+            my $this_lexeme_data = $lexeme_data{$lexeme_name};
+            my $g1_symbol_id = $this_lexeme_data->{'G1'}->{'id'};
+            if ( not defined $g1_symbol_id ) {
+                Marpa::R2::exception(
+                    "A lexeme in lexer $lexer_name is not a lexeme in G1: $lexeme_name"
+                );
+            }
+            if ( not $g1_thin->symbol_is_accessible($g1_symbol_id) ) {
+                Marpa::R2::exception(
+                    "A lexeme in lexer $lexer_name is not accessible from the G1 start symbol: $lexeme_name"
+                );
+            }
+            my $lex_symbol_id = $lex_tracer->symbol_by_name($lexeme_name);
+            $lexeme_data{$lexeme_name}{lexers}{$lexer_name}{'id'} = $lex_symbol_id;
+            $lex_lexeme_to_g1_symbol[$lex_symbol_id] = $g1_symbol_id;
+        }
+
+        my @lex_rule_to_g1_lexeme;
+        RULE_ID: for my $rule_id ( 0 .. $lex_thin->highest_rule_id() ) {
+            my $lhs_id = $lex_thin->rule_lhs($rule_id);
+            my $lexeme_id =
+                $lhs_id == $lex_discard_symbol_id
+                ? -2
+                : ( $lex_lexeme_to_g1_symbol[$lhs_id] // -1 );
+            $lex_rule_to_g1_lexeme[$rule_id] = $lexeme_id;
+            next RULE_ID if $lexeme_id < 0;
+            my $lexeme_name = $g1_tracer->symbol_name($lexeme_id);
+            my $assertion_id =
+                $lexeme_data{$lexeme_name}{lexers}{$lexer_name}{'assertion'};
+            if ( not defined $assertion_id ) {
+                my $default_assertion_value =
+                    $lexeme_data{$lexeme_name}{forgiving} ? 0 : 1;
+                $assertion_id = $lex_thin->zwa_new($default_assertion_value);
+
+                if ( $trace_terminals >= 2 ) {
+                    say {
+                        $slg->[
+                            Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE
+                        ]
+                    } "Assertion $assertion_id defaults to $default_assertion_value";
+                } ## end if ( $trace_terminals >= 2 )
+
+                $lexeme_data{$lexeme_name}{lexers}{$lexer_name}{'assertion'}
+                    = $assertion_id;
+            } ## end if ( not defined $assertion_id )
+            $lex_thin->zwa_place( $assertion_id, $rule_id, 0 );
+            if ( $trace_terminals >= 2 ) {
+                say { $slg->[
+                        Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE] }
+                    "Assertion $assertion_id applied to $lexer_name rule ",
+                    slg_rule_show( $slg, $rule_id, $lex_grammar );
+            } ## end if ( $trace_terminals >= 2 )
+        } ## end RULE_ID: for my $rule_id ( 0 .. $lex_thin->highest_rule_id() )
+
+        Marpa::R2::Internal::Grammar::slif_precompute($lex_grammar);
         my $character_class_hash = $hashed_source->{character_classes};
         my @class_table = ();
 
@@ -438,46 +519,6 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
             push @class_table, [ $symbol_id, $compiled_re ];
         } ## end for my $class_symbol ( sort keys %{$character_class_hash...})
         $character_class_table_by_lexer_name{$lexer_name} = \@class_table;
-
-        my @lex_lexeme_to_g1_symbol;
-        $lex_lexeme_to_g1_symbol[$_] = -1
-            for 0 .. $g1_thin->highest_symbol_id();
-        my $lex_discard_symbol_id =
-            $lex_tracer->symbol_by_name($discard_symbol_name) // -1;
-
-        LEXEME_NAME: for my $lexeme_name (@lex_lexeme_names) {
-            next LEXEME_NAME if $lexeme_name eq $discard_symbol_name;
-            next LEXEME_NAME if $lexeme_name eq $lex_start_symbol_name;
-            my $g1_symbol_id = $g1_tracer->symbol_by_name($lexeme_name);
-            if ( not defined $g1_symbol_id ) {
-                Marpa::R2::exception(
-                    "A lexeme in lexer $lexer_name is not a symbol in G1: $lexeme_name"
-                );
-            }
-            if ( not $g1_thin->symbol_is_accessible($g1_symbol_id) ) {
-                Marpa::R2::exception(
-                    "A lexeme in lexer $lexer_name is not accessible from the G1 start symbol: $lexeme_name"
-                );
-            }
-            if ( not defined $g1_lexemes[$g1_symbol_id] ) {
-                Marpa::R2::exception(
-                    "A lexeme in lexer $lexer_name is not a lexeme in G1: $lexeme_name"
-                );
-            }
-            $g1_lexemes[$g1_symbol_id]++;
-            my $lex_symbol_id = $lex_tracer->symbol_by_name($lexeme_name);
-            $lex_lexeme_to_g1_symbol[$lex_symbol_id] = $g1_symbol_id;
-        }
-
-        my @lex_rule_to_g1_lexeme;
-        RULE_ID: for my $rule_id ( 0 .. $lex_thin->highest_rule_id() ) {
-            my $lhs_id = $lex_thin->rule_lhs($rule_id);
-            my $lexeme_id =
-                $lhs_id == $lex_discard_symbol_id
-                ? -2
-                : ( $lex_lexeme_to_g1_symbol[$lhs_id] // -1 );
-            $lex_rule_to_g1_lexeme[$rule_id] = $lexeme_id;
-        }
 
         $lexer_and_rule_to_g1_lexeme{$lexer_name} = \@lex_rule_to_g1_lexeme;
     } ## end for my $lexer_name (@lexer_names)
@@ -499,38 +540,15 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
         $lexer_id_by_name{$lexer_name} = $thin_slg->lexer_add($thin_g);
     }
 
-    LEXEME: for my $g1_lexeme ( 0 .. $#g1_lexemes ) {
-
-        my $lexer_count = $g1_lexemes[$g1_lexeme];
-
-        # OK if it never was a lexeme in G1
-        # OK if used in at least one lexer
-        if ( defined $lexer_count and $lexer_count < 0 ) {
-            my $lexeme_name = $g1_tracer->symbol_name($g1_lexeme);
-            Marpa::R2::exception(
-                "A lexeme in G1 is not a lexeme in any of the lexers: $lexeme_name"
-            );
-        } ## end if ( defined $lexer_count and $lexer_count < 0 )
-
-
-    } ## end LEXEME: for my $g1_lexeme ( 0 .. $#g1_lexemes )
+    LEXEME: for my $lexeme_name ( keys %lexeme_data ) {
+        Marpa::R2::exception(
+            "A lexeme in G1 is not a lexeme in any of the lexers: $lexeme_name"
+        ) if not defined $lexeme_data{$lexeme_name}{'lexers'};
+    }
 
     # At this point we know which symbols are lexemes.
 
-    # First phase of applying defaults
-    my $lexeme_default_adverbs = $hashed_source->{lexeme_default_adverbs};
-    APPLY_DEFAULT_LEXEME_ADVERBS: {
-        last APPLY_DEFAULT_LEXEME_ADVERBS if not $lexeme_default_adverbs;
-        my $forgiving_default_value = $lexeme_default_adverbs->{forgiving};
-        last APPLY_DEFAULT_LEXEME_ADVERBS if not $forgiving_default_value;
-        LEXEME: for my $g1_lexeme_id ( grep { defined } 0 .. $#g1_lexemes ) {
-            $thin_slg->g1_lexeme_forgiving_set( $g1_lexeme_id,
-                $forgiving_default_value );
-        }
-    } ## end APPLY_DEFAULT_LEXEME_ADVERBS:
-
     # More processing of G1 lexemes
-    my $lexeme_declarations = $hashed_source->{lexeme_declarations};
     for my $lexeme_name ( keys %{$lexeme_declarations} ) {
 
         my $declarations = $lexeme_declarations->{$lexeme_name};
@@ -538,14 +556,10 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
 
         Marpa::R2::exception(
             "Symbol <$lexeme_name> is declared as a lexeme, but it is not used as one.\n"
-        ) if not defined $g1_lexeme_id or not $g1_lexemes[$g1_lexeme_id];
+        ) if not defined $lexeme_data{$lexeme_name}{'G1'};
 
         if ( defined( my $value = $declarations->{priority} ) ) {
             $thin_slg->g1_lexeme_priority_set( $g1_lexeme_id, $value );
-        }
-
-        if ( defined( my $value = $declarations->{forgiving} ) ) {
-            $thin_slg->g1_lexeme_forgiving_set( $g1_lexeme_id, $value );
         }
 
         my $pause_value = $declarations->{pause};
@@ -564,19 +578,26 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
     # Now that we know the lexemes, check attempts to defined a
     # completion or a nulled event for one
     for my $symbol_name ( keys %{$completion_events_by_name} ) {
-        my $g1_lexeme_id = $g1_tracer->symbol_by_name($symbol_name);
         Marpa::R2::exception(
             "A completion event is declared for <$symbol_name>, but it is a lexeme.\n",
             "  Completion events are only valid for symbols on the LHS of G1 rules.\n"
-        ) if $g1_lexemes[$g1_lexeme_id];
+        ) if defined $lexeme_data{$symbol_name}{'G1'}
     } ## end for my $symbol_name ( keys %{$completion_events_by_name...})
     for my $symbol_name ( keys %{$nulled_events_by_name} ) {
-        my $g1_lexeme_id = $g1_tracer->symbol_by_name($symbol_name);
         Marpa::R2::exception(
             "A nulled event is declared for <$symbol_name>, but it is a G1 lexeme.\n",
             "  nulled events are only valid for symbols on the LHS of G1 rules.\n"
-        ) if $g1_lexemes[$g1_lexeme_id];
+        ) if defined $lexeme_data{$symbol_name}{'G1'}
     } ## end for my $symbol_name ( keys %{$nulled_events_by_name} )
+
+    # Now that we have created the SLG, we can set the forgiving value,
+    # already determined above.
+    LEXEME: for my $lexeme_name (keys %lexeme_data) {
+       my $g1_lexeme_id = $lexeme_data{$lexeme_name}{'G1'}{'id'};
+       next LEXEME if not defined $g1_lexeme_id;
+       my $forgiving_value = $lexeme_data{$lexeme_name}{forgiving} // 0;
+       $thin_slg->g1_lexeme_forgiving_set( $g1_lexeme_id, $forgiving_value );
+    }
 
     # Second phase of lexer processing
     for my $lexer_name (@lexer_names) {
@@ -586,8 +607,10 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
 
         RULE_ID: for my $lexer_rule_id ( 0 .. $#{$lexer_rule_to_g1_lexeme} ) {
             my $g1_lexeme_id = $lexer_rule_to_g1_lexeme->[$lexer_rule_id];
+            my $lexeme_name = $g1_tracer->symbol_name($g1_lexeme_id);
+            my $assertion_id = $lexeme_data{$lexeme_name}{lexers}{$lexer_name}{'assertion'} // -1;
             $thin_slg->lexer_rule_to_g1_lexeme_set( $lexer_id,
-                $lexer_rule_id, $g1_lexeme_id );
+                $lexer_rule_id, $g1_lexeme_id, $assertion_id );
         }
     } ## end for my $lexer_name (@lexer_names)
 
@@ -626,22 +649,24 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
         my $g1_symbols =
             $thick_g1_grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
         LEXEME:
-        for my $lexeme_id ( grep { $g1_lexemes[$_] } 0 .. $#g1_lexemes ) {
-            my $g1_symbol   = $g1_symbols->[$lexeme_id];
-            my $lexeme_name = $g1_tracer->symbol_name($lexeme_id);
+        for my $lexeme_name ( keys %lexeme_data ) {
+            my $g1_lexeme_id = $lexeme_data{$lexeme_name}{'G1'}{'id'};
+            next LEXEME if not defined $g1_lexeme_id;
+            my $g1_symbol   = $g1_symbols->[$g1_lexeme_id];
             next LEXEME if $lexeme_name =~ m/ \] \z/xms;
             $g1_symbol->[Marpa::R2::Internal::Symbol::LEXEME_SEMANTICS] //=
                 $action;
-        } ## end for my $lexeme_id ( grep { $g1_lexemes[$_] } 0 .. ...)
+        }
 
         my $blessing = $lexeme_default_adverbs->{bless};
         last APPLY_DEFAULT_LEXEME_ADVERBS if not $blessing;
         last APPLY_DEFAULT_LEXEME_ADVERBS if $blessing eq '::undef';
 
         LEXEME:
-        for my $lexeme_id ( grep { $g1_lexemes[$_] } 0 .. $#g1_lexemes ) {
-            my $g1_symbol   = $g1_symbols->[$lexeme_id];
-            my $lexeme_name = $g1_tracer->symbol_name($lexeme_id);
+        for my $lexeme_name ( keys %lexeme_data ) {
+               my $g1_lexeme_id = $lexeme_data{$lexeme_name}{'G1'}{'id'};
+               next LEXEME if not defined $g1_lexeme_id;
+            my $g1_symbol   = $g1_symbols->[$g1_lexeme_id];
             next LEXEME if $lexeme_name =~ m/ \] \z/xms;
             if ( $blessing eq '::name' ) {
                 if ( $lexeme_name =~ / [^ [:alnum:]] /xms ) {
@@ -663,7 +688,7 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
                 );
             } ## end if ( $blessing =~ / [\W] /xms )
             $g1_symbol->[Marpa::R2::Internal::Symbol::BLESSING] //= $blessing;
-        } ## end for my $lexeme_id ( grep { $g1_lexemes[$_] } 0 .. ...)
+        }
 
     } ## end APPLY_DEFAULT_LEXEME_ADVERBS:
 
