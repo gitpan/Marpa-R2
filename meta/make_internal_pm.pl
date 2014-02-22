@@ -97,7 +97,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.080000';
+$VERSION        = '2.081_000';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 END_OF_HEADER
@@ -143,8 +143,6 @@ __DATA__
     DEFAULT_ACTION { Action for rules without one }
     TRACE_FILE_HANDLE
     WARNINGS { print warnings about grammar? }
-    RULE_NAME_REQUIRED
-    RULE_BY_NAME
     INTERFACE { currently 'standard' or 'stuifzand' }
     INTERNAL { internal grammar -- relax various restrictions }
 

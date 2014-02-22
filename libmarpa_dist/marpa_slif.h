@@ -391,8 +391,8 @@ const char* marpa__slif_op_name (Marpa_Op op_id );
 #define MARPA_OP_INVALID_CHAR 5
 #define MARPA_OP_NOOP 6
 #define MARPA_OP_PAUSE 7
-#define MARPA_OP_PUSH_LENGTH 8
-#define MARPA_OP_PUSH_LHS 9
+#define MARPA_OP_PUSH_CONSTANT 8
+#define MARPA_OP_PUSH_LENGTH 9
 #define MARPA_OP_PUSH_ONE 10
 #define MARPA_OP_PUSH_SEQUENCE 11
 #define MARPA_OP_PUSH_START_LOCATION 12

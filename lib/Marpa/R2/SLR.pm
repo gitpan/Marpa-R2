@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.080000';
+$VERSION        = '2.081_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1352,17 +1352,7 @@ sub Marpa::R2::Scanless::R::rule_closure {
         my $symbols           = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
         my $tracer            = $grammar->[Marpa::R2::Internal::Grammar::TRACER];
 
-        Marpa::R2::Internal::Value::init_registrations(
-            $recce, 
-            $grammar, 
-            $grammar_c, 
-            $per_parse_arg, 
-            $trace_actions, 
-            $trace_file_handle, 
-            $symbols, 
-            $rules, 
-            $tracer
-        );
+        Marpa::R2::Internal::Value::registration_init( $recce, $per_parse_arg );
 
     } ## end if ( not $recce->[Marpa::R2::Internal::Recognizer::REGISTRATIONS...])
     

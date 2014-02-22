@@ -1234,43 +1234,6 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
           }
           return -1;
 
-        case MARPA_OP_PUSH_LHS:
-          {
-            if (!values_av)
-              {
-                values_av = (AV *) sv_2mortal ((SV *) newAV ());
-              }
-            switch (step_type)
-              {
-              case MARPA_STEP_TOKEN:
-                {
-                  Marpa_Rule_ID symbol_id = marpa_v_token (v);
-                  av_push (values_av, newSViv ((IV) symbol_id));
-                }
-                break;
-
-              case MARPA_STEP_RULE:
-                {
-                  Marpa_Grammar self = v_wrapper->base->g;
-                  Marpa_Rule_ID rule_id = marpa_v_rule (v);
-                  Marpa_Symbol_ID lhs_id = marpa_g_rule_lhs (self, rule_id);
-                  if (lhs_id < 0)
-                    {
-                      croak 
-                        ("Problem in v->stack_step: marpa_g_rule_lhs returned a negative: %d", lhs_id);
-                    }
-                  av_push (values_av, newSViv ((IV) lhs_id));
-                }
-                break;
-
-              default:
-              case MARPA_STEP_NULLING_SYMBOL:
-                av_push (values_av, &PL_sv_undef);
-                break;
-              }
-          }
-          goto NEXT_OP_CODE;
-
         case MARPA_OP_PUSH_VALUES:
         case MARPA_OP_PUSH_SEQUENCE:
           {
@@ -1351,6 +1314,29 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
                 values_av = (AV *) sv_2mortal ((SV *) newAV ());
               }
             av_push (values_av, &PL_sv_undef);
+          }
+          goto NEXT_OP_CODE;
+
+        case MARPA_OP_PUSH_CONSTANT:
+          {
+            IV constant_ix = ops[op_ix++];
+            SV **p_constant_sv;
+
+            if (!values_av)
+              {
+                values_av = (AV *) sv_2mortal ((SV *) newAV ());
+              }
+            p_constant_sv = av_fetch (v_wrapper->constants, constant_ix, 0);
+            if (p_constant_sv)
+              {
+                SV *constant_sv = newSVsv (*p_constant_sv);
+                av_push (values_av, SvREFCNT_inc_simple_NN (*p_constant_sv));
+              }
+            else
+              {
+                av_push (values_av, &PL_sv_undef);
+              }
+
           }
           goto NEXT_OP_CODE;
 
@@ -2375,7 +2361,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 }
 
 #define EXPECTED_LIBMARPA_MAJOR 5
-#define EXPECTED_LIBMARPA_MINOR 180
+#define EXPECTED_LIBMARPA_MINOR 181
 #define EXPECTED_LIBMARPA_MICRO 100
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin

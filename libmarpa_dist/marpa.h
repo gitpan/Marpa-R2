@@ -32,7 +32,7 @@
 #include "limits.h"
 
 #define MARPA_MAJOR_VERSION 5
-#define MARPA_MINOR_VERSION 180
+#define MARPA_MINOR_VERSION 181
 #define MARPA_MICRO_VERSION 100
 
 #line 1 "./marpa.h-err"
