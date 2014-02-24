@@ -655,7 +655,7 @@ and does not affect rules.
 Only the defaults for
 the L<C<action>|/"action">,
 L<C<bless>|/"bless">,
-and L<C<forgiving>|/"forgiving">
+and L<C<latm>|/"latm">
 adverbs
 can be specified in a lexeme default statement.
 Only one lexeme default statement is allowed in a grammar.
@@ -769,6 +769,115 @@ Named events may be queried using
 L<the Scanless recognizer's event()
 method|Marpa::R2::Scanless::R/"event()">.
 
+=head2 Inaccessible symbol statement
+
+=for Marpa::R2::Display
+name: inaccessible is ok statement
+partial: 1
+normalize-whitespace: 1
+
+    inaccessible is ok by default
+
+=for Marpa::R2::Display::End
+
+=for Marpa::R2::Display
+name: inaccessible is fatal statement
+partial: 1
+normalize-whitespace: 1
+
+    inaccessible is fatal by default
+
+=for Marpa::R2::Display::End
+
+Inaccessible symbols are symbols
+which cannot be reached from the start symbol.
+Often, they
+are the result of an error in grammar writing.
+But inaccessible symbols can also occur for legitimate reasons --
+for example,
+you may have rules and symbols in grammar intended for future use.
+
+The default can be specified
+or changed with a statement of the form:
+
+=for Marpa::R2::Display
+ignore: 1
+
+    inaccessible is TREATMENT by default
+
+=for Marpa::R2::Display
+
+where C<TREATMENT> is one of C<warn>, C<ok>, or C<fatal>.
+
+C<fatal> indicates that an inaccessible symbol should be 
+a fatal error.
+C<warn> indicates that Marpa should print a warning message,
+but proceed with the parse.
+C<warn> is the default.
+C<ok> indicates that the parse should proceed without
+warning messages.
+
+=head1 Ambiguity
+
+Marpa parses ambiguous grammars and the design of the SLIF exploits this.
+A flexible, but potentially ambiguous, syntax is used.
+Actual ambiguities are obvious to the human eye,
+and users will create them,
+so that
+the techniques of this section
+will rarely be needed.
+
+If and when an actual ambiguity does occur, an error message reports
+the ambiguity and its exact location.
+It will always possible to disambiguate a SLIF DSL,
+and there will always
+be more than one way to do this.
+
+=head2 Separating statements with semicolons
+
+=for Marpa::R2::Display
+name: statements separted by semicolon
+partial: 1
+normalize-whitespace: 1
+
+        :default ::= action => ::array
+        quartet  ::= a a a a;
+        inaccessible is warn by default
+        a ~ 'a'
+
+=for Marpa::R2::Display::End
+
+A statement may be terminated with a semicolon ("C<;>").
+
+=head2 Grouping statements in curly braces
+
+=for Marpa::R2::Display
+name: statements grouped in curly braces
+partial: 1
+normalize-whitespace: 1
+
+      {
+          :default ::= action => ::array
+          quartet  ::= a a a a
+      }
+      inaccessible is warn by default
+      a ~ 'a'
+
+=for Marpa::R2::Display::End
+
+Statements can be grouped, using curly braces.
+These do B<not> create scopes -- the curly braces
+serve merely to group and to separate groups of
+statements.
+
+=head2 Other ways to disambiguate
+
+There are many other ways to disambiguate SLIF statements.
+If the ambiguity is between keywords and symbol names,
+enclosing a symbol name in angle brackets will force it to be
+treated only as a symbol name.
+And while it is never necessary, statements can be re-ordered.
+
 =head1 Adverbs
 
 Adverbs consist of a keyword, the adverb operator ("C<< => >>"),
@@ -854,22 +963,34 @@ name: forgiving adverb example
 partial: 1
 normalize-whitespace: 1
 
-    :lexeme ~ value forgiving => 1
+    :lexeme ~ <name> forgiving => 1
 
 =for Marpa::R2::Display::End
 
-The C<forgiving> adverb applies only to lexemes and
+The forgiving adverb is a synonym for 
+L<the C<latm> adverb|/"latm">.
+
+=head2 latm
+
+=for Marpa::R2::Display
+name: latm adverb example
+partial: 1
+normalize-whitespace: 1
+
+    :lexeme ~ value latm => 1
+
+=for Marpa::R2::Display::End
+
+The C<latm> adverb applies only to lexemes and
 is only allowed in 
 L<a C<:lexeme> pseudo-rule|/"Lexeme pseudo-rule"> and 
 L<a C<:lexeme default> statement|/"Lexeme default statement">.
 Its value is a boolean.
 If the boolean is set it indicates that a token
-is "forgiving".  The default value is 0,
-which indicates that a token is not forgiving.
+is LATM.  The default value is 0,
+which indicates that a token is not LATM.
 
-Marking a token "forgiving" makes it subject to
-the "longest acceptable tokens match" (LATM)
-discipline.
+LATM means "longest acceptable tokens match".
 In this,
 the lexer find those tokens that
 are the longest that
@@ -902,10 +1023,10 @@ LATM is usually preferable.
 Usually if LATM is chosen, a parse will want to use the 
 L<a C<:lexeme default> statement|/"Lexeme default statement">
 and use LATM globally.
-It is possible to use the "forgiving" adverb on a lexeme by
+It is possible to use LATM adverb on a lexeme by
 lexeme basis.  When that is done, the lexemes marked
-"forgiving" will match only if acceptable to the G1 grammar,
-and the lexemes not marked "forgiving" will match regardless
+LATM will match only if acceptable to the G1 grammar,
+and the lexemes not marked LATM will match regardless
 of their acceptability to the G1 grammar.
 
 Whichever token discipline is chosen,
@@ -915,8 +1036,8 @@ Shorter tokens will not be considered.
 LTM is the default for reasons of backward compatibility.
 LTM was the SLIF's original token matching discipline because
 it more closely models traditional lexing.
-Historical reasons also explain why LATM lexemes
-are called "forgiving" -- in the original implementation, an
+For historical reasons, LATM lexemes
+are also called "forgiving" -- in the original implementation, an
 LTM search was always done for all lexemes,
 and LATM was implemented by "forgiving" rejection by the G1 grammar,
 and backing up over the input to find acceptable lexemes.
@@ -924,6 +1045,24 @@ Marpa now does LATM far more efficiently --
 the G1 grammar indicates to the lexer, in advance,
 which lexemes are acceptable, and the
 lexer searches only for those.
+
+=head2 name
+
+=for Marpa::R2::Display
+name: name adverb example
+partial: 1
+normalize-whitespace: 1
+
+    start ::= number1 number2 name => top
+    number1 ::= <forty two> name => 'number 1'
+    number2 ::= <forty three> name => 'number 2'
+
+=for Marpa::R2::Display::End
+
+The C<name> adverb applies only to rules and
+rule alternatives.
+When specified, it defines a name for that rule
+alternative.
 
 =head2 null-ranking
 

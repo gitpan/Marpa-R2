@@ -24,7 +24,7 @@ use warnings;
 use Carp;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.081_000';
+$VERSION        = '2.081_001';
 $STRING_VERSION = $VERSION;
 $VERSION = eval $VERSION;
 
@@ -37,6 +37,7 @@ use constant DISPLAY_FORM => 3;
 use constant DSL_FORM => 4;
 use constant LEGACY_NAME => 5;
 use constant DESCRIPTION => 6;
+use constant IF_INACCESSIBLE => 7;
 
 package Marpa::R2::Internal::Rule;
 use constant ID => 0;

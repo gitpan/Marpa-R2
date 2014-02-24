@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.081_000';
+$VERSION        = '2.081_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -111,7 +111,7 @@ $node_status{character_class} = "Character classes are not allowed";
 $node_status{completion_event_declaration} = "Completion events are not allowed";
 $node_status{discard_rule} = ":discard rules are not allowed";
 $node_status{event_specification} = qq{The "event" adverb is not allowed};
-$node_status{forgiving_specification} = qq{The "forgiving" adverb is not allowed};
+$node_status{latm_specification} = qq{The "latm" adverb is not allowed};
 $node_status{lexeme_default_statement} = "The lexeme default statement is not allowed";
 $node_status{lexeme_rule} = "Lexeme statements are not allowed";
 $node_status{nulled_event_declaration} = "Nulled events are not allowed";

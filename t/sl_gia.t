@@ -21,7 +21,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 20;
+use Test::More tests => 30;
 use English qw( -no_match_vars );
 use lib 'inc';
 use Marpa::R2::Test;
@@ -197,7 +197,13 @@ INPUT
 
 # Test of forgiving token from Peter Stuifzand
 {
-    my $source = <<'SOURCE';
+
+# Marpa::R2::Display
+# name: forgiving adverb example
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
+
+    my $source = <<'END_OF_SOURCE';
 :default ::= action => ::array
 product ::= sku (nl) name (nl) price price price (nl)
 
@@ -214,7 +220,9 @@ sp        ~ [ ]+
 :lexeme ~ <name> forgiving => 1
 name      ~ [^\n]+
 
-SOURCE
+END_OF_SOURCE
+
+# Marpa::R2::Display::END
 
     my $input = <<'INPUT';
 130.12312
@@ -231,11 +239,11 @@ INPUT
         ];
 }
 
-# Test of forgiving token from Ruslan Zakirov
+# Test of LATM token from Ruslan Zakirov
 {
 
 # Marpa::R2::Display
-# name: forgiving adverb example
+# name: latm adverb example
 # start-after-line: END_OF_SOURCE
 # end-before-line: '^END_OF_SOURCE$'
 
@@ -245,7 +253,7 @@ INPUT
 content ::= name ':' value
 name ~ [A-Za-z0-9-]+
 value ~ [A-Za-z0-9:-]+
-:lexeme ~ value forgiving => 1
+:lexeme ~ value latm => 1
 END_OF_SOURCE
 
 # Marpa::R2::Display
@@ -258,16 +266,16 @@ END_OF_SOURCE
     push @tests_data,
         [
         $slg, $input, $expected_output,
-        'Parse OK', 'Test of forgiving token from Ruslan Zakirov'
+        'Parse OK', 'Test of LATM token from Ruslan Zakirov'
         ];
 }
 
-# Test of forgiving token from Ruslan Zakirov
+# Test of LATM token from Ruslan Zakirov
 # This time using the lexeme default statement
 {
 
     my $source = <<'END_OF_SOURCE';
-lexeme default = forgiving => 1
+lexeme default = latm => 1
 :default ::= action => ::array
 :start ::= content
 content ::= name ':' value
@@ -283,7 +291,7 @@ END_OF_SOURCE
     push @tests_data,
         [
         $slg, $input, $expected_output,
-        'Parse OK', 'Test of forgiving token using lexeme default statement'
+        'Parse OK', 'Test of LATM token using lexeme default statement'
         ];
 }
 
@@ -316,6 +324,12 @@ END_OF_SOURCE
 
 # Test of 'symbol', 'name' array item descriptors
 {
+
+# Marpa::R2::Display
+# name: name adverb example
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
+
     my $source = <<'END_OF_SOURCE';
 
     :default ::= action => [symbol, name, values]
@@ -326,6 +340,8 @@ END_OF_SOURCE
     <forty two> ~ '42'
     <forty three> ~ '43'
 END_OF_SOURCE
+
+# Marpa::R2::Display::End
 
     my $input           = '4243';
     my $expected_output = [
@@ -342,6 +358,128 @@ END_OF_SOURCE
         'Parse OK', 'Test of rule array item descriptor for action adverb'
         ];
 }
+
+### Test of 'inaccessible is ok'
+{
+
+# Marpa::R2::Display
+# name: inaccessible is ok statement
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
+
+    my $source = <<'END_OF_SOURCE';
+
+    inaccessible is ok by default
+
+    :default ::= action => [values]
+    start ::= stuff*
+    stuff ::= a | b
+    a ::= x action => ::first
+    b ::= x action => ::first
+    c ::= x action => ::first
+    x ::= 'x'
+END_OF_SOURCE
+
+# Marpa::R2::Display::End
+
+    my $input           = 'xx';
+    my $expected_output = [
+        [ [ 'x' ] ],
+        [ [ 'x' ] ]
+    ];
+
+    my $slg = Marpa::R2::Scanless::G->new( { source => \$source } );
+    push @tests_data,
+        [
+        $slg, $input, $expected_output,
+        'Parse OK', qq{Test of "Inaccessible is ok"}
+        ];
+}
+
+if (1) {
+    my $source = <<'END_OF_SOURCE';
+ 
+    inaccessible is ok by default
+    :default ::= action => ::first
+    
+    start ::= !START!
+    start1 ::= X
+    start2 ::= Y
+ 
+    X ~ 'X'
+    Y ~ 'X'
+ 
+END_OF_SOURCE
+
+    my $input           = 'X';
+    my $expected_output = 'X';
+
+    for my $this_start (qw/start1 start2/) {
+
+        my $this_source = $source;
+        $this_source =~ s/!START!/$this_start/;
+        my $slg = Marpa::R2::Scanless::G->new( { source => \$this_source } );
+        push @tests_data,
+            [
+            $slg, $input, $expected_output,
+            'Parse OK', qq{Test of changing start symbols: <$this_start>}
+            ];
+
+    } ## end for my $this_start (qw/start1 start2/)
+}
+
+if (1) {
+    my $source = <<'END_OF_SOURCE';
+ 
+    :default ::= action => ::first
+    
+    dual_start ::= start1 name => 'first start rule'
+    dual_start ::= start2 name => 'second start rule'
+    start1 ::= X
+    start2 ::= Y
+ 
+    X ~ 'X'
+    Y ~ 'Y'
+ 
+END_OF_SOURCE
+
+    my $input           = 'X';
+    my $expected_output = 'X';
+
+    my $slg = Marpa::R2::Scanless::G->new( { source => \$source } );
+
+# Marpa::R2::Display
+# name: $slg->start_symbol_id() example
+
+    my $start_id = $slg->start_symbol_id();
+
+# Marpa::R2::Display::End
+
+    Test::More::is( $start_id, 0, q{Test of $slg->start_symbol_id()} );
+
+    my @rule_names = ();
+
+# Marpa::R2::Display
+# name: $slg->rule_name() example
+
+    push @rule_names, $slg->rule_name($_) for $slg->rule_ids();
+
+# Marpa::R2::Display::End
+
+    my $rule_names = join q{:}, @rule_names;
+    Test::More::is(
+        $rule_names,
+        'first start rule:second start rule:start1:start2:[:start]',
+        q{Test of $slg->rule_name()}
+    );
+
+    push @tests_data,
+        [
+        $slg, $input, $expected_output,
+        'Parse OK', qq{Test of alternative as start rule}
+        ];
+
+} ## end if (1)
 
 TEST:
 for my $test_data (@tests_data) {

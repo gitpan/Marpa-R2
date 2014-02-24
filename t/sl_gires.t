@@ -24,7 +24,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 2;
+use Test::More tests => 4;
 use English qw( -no_match_vars );
 use lib 'inc';
 use Marpa::R2::Test;
@@ -54,6 +54,41 @@ END_OF_MESSAGE
     'Parse OK', 'Missing action' ];
 }
 
+####
+
+{
+
+# Marpa::R2::Display
+# name: inaccessible is fatal statement
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
+
+    my $source = <<'END_OF_SOURCE';
+
+    inaccessible is fatal by default
+    :default ::= action => [symbol, name, values]
+    lexeme default = action => [symbol, name, value]
+    start ::= stuff*
+    stuff ::= a | b
+    a ::= x 
+    b ::= x 
+    c ::= x 
+    x ::= 'x'
+END_OF_SOURCE
+
+# Marpa::R2::Display::End
+
+    my $input           = 'xxx';
+    my $expected_value = 'SLIF grammar failed';
+
+    push @tests_data,
+        [
+        \$source, $input, $expected_value,
+        "Inaccessible symbol: c\n", qq{test "inaccessible is fatal by default"}
+        ];
+}
+
+###
 
 TEST:
 for my $test_data (@tests_data) {

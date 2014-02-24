@@ -90,7 +90,7 @@ typedef struct {
 
 struct symbol_g_properties {
      int priority;
-     unsigned int forgiving:1;
+     unsigned int latm:1;
      unsigned int pause_before:1;
      unsigned int pause_after:1;
 };
@@ -1329,7 +1329,6 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
             p_constant_sv = av_fetch (v_wrapper->constants, constant_ix, 0);
             if (p_constant_sv)
               {
-                SV *constant_sv = newSVsv (*p_constant_sv);
                 av_push (values_av, SvREFCNT_inc_simple_NN (*p_constant_sv));
               }
             else
@@ -2000,7 +1999,7 @@ slr_alternatives (Scanless_R * slr)
 	  if (!is_expected)
 	    {
 	      union marpa_slr_event_s *lexeme_entry =  marpa__slr_lexeme_push(slr->gift);
-              if (symbol_g_properties->forgiving) {
+              if (symbol_g_properties->latm) {
                   MARPA_SLREV_TYPE (lexeme_entry) = MARPA_SLRTR_LEXEME_FORGIVEN;
                   lexeme_entry->t_trace_lexeme_forgiven.t_start_of_lexeme =
                     slr->start_of_lexeme;
@@ -2362,7 +2361,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 5
 #define EXPECTED_LIBMARPA_MINOR 181
-#define EXPECTED_LIBMARPA_MICRO 100
+#define EXPECTED_LIBMARPA_MICRO 101
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -4782,7 +4781,7 @@ PPCODE:
     Newx (slg->symbol_g_properties, g1_symbol_count, struct symbol_g_properties);
     for (symbol_id = 0; symbol_id < g1_symbol_count; symbol_id++) {
         slg->symbol_g_properties[symbol_id].priority = 0;
-        slg->symbol_g_properties[symbol_id].forgiving = 0;
+        slg->symbol_g_properties[symbol_id].latm = 0;
         slg->symbol_g_properties[symbol_id].pause_before = 0;
         slg->symbol_g_properties[symbol_id].pause_after = 0;
     }
@@ -5042,10 +5041,10 @@ PPCODE:
 }
 
 void
-g1_lexeme_forgiving_set( slg, g1_lexeme, forgiving )
+g1_lexeme_latm_set( slg, g1_lexeme, latm )
     Scanless_G *slg;
     Marpa_Symbol_ID g1_lexeme;
-    int forgiving;
+    int latm;
 PPCODE:
 {
   Marpa_Symbol_ID highest_g1_symbol_id = marpa_g_highest_symbol_id (slg->g1);
@@ -5053,35 +5052,35 @@ PPCODE:
     if (slg->precomputed)
       {
         croak
-          ("slg->lexeme_forgiving_set(%ld, %ld) called after SLG is precomputed",
-           (long) g1_lexeme, (long) forgiving);
+          ("slg->lexeme_latm_set(%ld, %ld) called after SLG is precomputed",
+           (long) g1_lexeme, (long) latm);
       }
     if (g1_lexeme > highest_g1_symbol_id) 
     {
       croak
-        ("Problem in slg->g1_lexeme_forgiving(%ld, %ld): symbol ID was %ld, but highest G1 symbol ID = %ld",
+        ("Problem in slg->g1_lexeme_latm(%ld, %ld): symbol ID was %ld, but highest G1 symbol ID = %ld",
          (long) g1_lexeme,
-         (long) forgiving,
+         (long) latm,
          (long) g1_lexeme,
          (long) highest_g1_symbol_id
          );
     }
     if (g1_lexeme < 0) {
       croak
-        ("Problem in slg->lexeme_forgiving(%ld, %ld): symbol ID was %ld, a disallowed value",
+        ("Problem in slg->lexeme_latm(%ld, %ld): symbol ID was %ld, a disallowed value",
          (long) g1_lexeme,
-         (long) forgiving,
+         (long) latm,
          (long) g1_lexeme);
     }
-    switch (forgiving) {
+    switch (latm) {
     case 0: case 1:
-        g_properties->forgiving = forgiving;
+        g_properties->latm = latm;
         break;
     default:
       croak
-        ("Problem in slg->lexeme_forgiving(%ld, %ld): value of forgiving must be 0 or 1",
+        ("Problem in slg->lexeme_latm(%ld, %ld): value of latm must be 0 or 1",
          (long) g1_lexeme,
-         (long) forgiving);
+         (long) latm);
     }
   XSRETURN_YES;
 }

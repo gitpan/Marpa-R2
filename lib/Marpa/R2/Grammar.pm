@@ -26,7 +26,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.081_000';
+$VERSION        = '2.081_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -617,6 +617,7 @@ sub Marpa::R2::Internal::Grammar::slif_precompute {
     my $grammar = shift;
 
     my $rules     = $grammar->[Marpa::R2::Internal::Grammar::RULES];
+    my $symbols     = $grammar->[Marpa::R2::Internal::Grammar::SYMBOLS];
     my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
     my $trace_fh =
         $grammar->[Marpa::R2::Internal::Grammar::TRACE_FILE_HANDLE];
@@ -767,32 +768,33 @@ sub Marpa::R2::Internal::Grammar::slif_precompute {
             if $infinite_action eq 'fatal';
     } ## end if ( $loop_rule_count and $infinite_action ne 'quiet')
 
-    # A bit hackish here: INACCESSIBLE_OK is not a HASH ref iff
-    # it is a Boolean TRUE indicating that all inaccessibles are OK.
-    # A Boolean FALSE will have been replaced with an empty hash.
-    if ($grammar->[Marpa::R2::Internal::Grammar::WARNINGS]
-        and ref(
-            my $ok = $grammar->[Marpa::R2::Internal::Grammar::INACCESSIBLE_OK]
-        ) eq 'HASH'
-        )
+    my $default_if_inaccessible =
+        $grammar->[Marpa::R2::Internal::Grammar::INTERNAL]->{if_inaccessible}
+        // 'warn';
+    SYMBOL:
+    for my $symbol_id ( grep { !$grammar_c->symbol_is_accessible($_) }
+        ( 0 .. $#{$symbols} ) )
     {
-        SYMBOL:
-        for my $symbol (
-            @{ Marpa::R2::Grammar::inaccessible_symbols($grammar) } )
-        {
 
-            # Inaccessible internal symbols may be created
-            # from inaccessible use symbols -- ignore these.
-            # This assumes that Marpa's logic
-            # is correct and that
-            # it is not creating inaccessible symbols from
-            # accessible ones.
-            next SYMBOL if $symbol =~ /\]/xms;
-            next SYMBOL if $ok->{$symbol};
-            say {$trace_fh} "Inaccessible symbol: $symbol"
-                or Marpa::R2::exception("Could not print: $ERRNO");
-        } ## end SYMBOL: for my $symbol ( @{ ...})
-    } ## end if ( $grammar->[Marpa::R2::Internal::Grammar::WARNINGS...])
+        my $symbol      = $symbols->[$symbol_id];
+        my $symbol_name = $grammar->symbol_name($symbol_id);
+
+        # Inaccessible internal symbols may be created
+        # from inaccessible use symbols -- ignore these.
+        # This assumes that Marpa's logic
+        # is correct and that
+        # it is not creating inaccessible symbols from
+        # accessible ones.
+        next SYMBOL if $symbol_name =~ /\]/xms;
+        my $treatment =
+            $symbol->[Marpa::R2::Internal::Symbol::IF_INACCESSIBLE] //
+            $default_if_inaccessible;
+        next SYMBOL if $treatment eq 'ok';
+        my $message = "Inaccessible symbol: $symbol_name";
+        Marpa::R2::exception($message) if $treatment eq 'fatal';
+        say {$trace_fh} $message
+            or Marpa::R2::exception("Could not print: $ERRNO");
+    } ## end for my $symbol_id ( grep { !$grammar_c->...})
 
     # A bit hackish here: UNPRODUCTIVE_OK is not a HASH ref iff
     # it is a Boolean TRUE indicating that all inaccessibles are OK.
@@ -964,13 +966,22 @@ sub Marpa::R2::Grammar::unproductive_symbols {
     ];
 } ## end sub Marpa::R2::Grammar::unproductive_symbols
 
+sub Marpa::R2::Grammar::start_symbol {
+    my ( $grammar ) = @_;
+    my $grammar_c = $grammar->[Marpa::R2::Internal::Grammar::C];
+    return $grammar_c->start_symbol();
+}
+
 sub Marpa::R2::Grammar::rule_name {
     my ( $grammar, $rule_id ) = @_;
     my $rules = $grammar->[Marpa::R2::Internal::Grammar::RULES];
     my $rule  = $rules->[$rule_id];
     return "Non-existent rule $rule_id" if not defined $rule;
-    return $rule->[Marpa::R2::Internal::Rule::NAME]
-        // "Unnamed rule $rule_id";
+    my $name = $rule->[Marpa::R2::Internal::Rule::NAME];
+    return $name if defined $name;
+    my $tracer    = $grammar->[Marpa::R2::Internal::Grammar::TRACER];
+    my ( $lhs_id ) = $tracer->rule_expand($rule_id);
+    return $grammar->symbol_name($lhs_id);
 } ## end sub Marpa::R2::Grammar::rule_name
 
 sub Marpa::R2::Grammar::brief_rule {
@@ -1178,6 +1189,11 @@ sub assign_symbol {
         if ( $property eq 'display_form' ) {
             my $value = $options->{$property};
             $symbol->[Marpa::R2::Internal::Symbol::DISPLAY_FORM] = $value;
+            next PROPERTY;
+        }
+        if ( $property eq 'if_inaccessible' ) {
+            my $value = $options->{$property};
+            $symbol->[Marpa::R2::Internal::Symbol::IF_INACCESSIBLE] = $value;
             next PROPERTY;
         }
         Marpa::R2::exception(qq{Unknown symbol property "$property"});

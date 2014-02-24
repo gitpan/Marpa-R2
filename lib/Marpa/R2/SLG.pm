@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.081_000';
+$VERSION        = '2.081_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -219,13 +219,20 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
     $slg->[Marpa::R2::Internal::Scanless::G::DEFAULT_G1_START_ACTION] =
         $hashed_source->{'default_g1_start_action'};
 
-    $slg->[Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE] = $g1_args->{trace_file_handle} // \*STDERR;
+    my $trace_fh =
+        $slg->[Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE] =
+        $g1_args->{trace_file_handle} // \*STDERR;
 
+    my $if_inaccessible_default = $hashed_source->{defaults}->{if_inaccessible} // 'warn';
+
+    # Prepare the arguments for the G1 grammar
     $g1_args->{rules}   = $hashed_source->{rules}->{G1};
     $g1_args->{symbols} = $hashed_source->{symbols}->{G1};
     state $g1_target_symbol = '[:start]';
     $g1_args->{start} = $g1_target_symbol;
-    $g1_args->{'_internal_'} = 1;
+    $g1_args->{'_internal_'} =
+        { 'if_inaccessible' => $if_inaccessible_default };
+
     my $thick_g1_grammar = Marpa::R2::Grammar->new($g1_args);
     my $g1_tracer        = $thick_g1_grammar->tracer();
     my $g1_thin          = $g1_tracer->grammar();
@@ -337,13 +344,13 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
     # A first phase of applying defaults
     my $lexeme_declarations = $hashed_source->{lexeme_declarations};
     my $lexeme_default_adverbs = $hashed_source->{lexeme_default_adverbs};
-    my $forgiving_default_value = $lexeme_default_adverbs->{forgiving} // 0;
+    my $latm_default_value = $lexeme_default_adverbs->{latm} // 0;
 
-    # Determine "forgiving" status
+    # Determine "latm" status
     LEXEME: for my $lexeme_name ( keys %lexeme_data ) {
         my $declarations = $lexeme_declarations->{$lexeme_name};
-        my $forgiving_value = $declarations->{forgiving} // $forgiving_default_value;
-        $lexeme_data{$lexeme_name}{forgiving} = $forgiving_value;
+        my $latm_value = $declarations->{latm} // $latm_default_value;
+        $lexeme_data{$lexeme_name}{latm} = $latm_value;
     }
 
     # Lexers
@@ -423,15 +430,14 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
             }
         } sort keys %is_lexeme_in_this_lexer;
 
+        # Prepare the arguments for the lex grammar
         my %lex_args = ();
-        $lex_args{trace_file_handle} =
-            $slg->[Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE]
-            // \*STDERR;
+        $lex_args{trace_file_handle} = $trace_fh;
         $lex_args{start}        = $lex_start_symbol_name;
-        $lex_args{'_internal_'} = 1;
+        $lex_args{'_internal_'} = { 'if_inaccessible' => $if_inaccessible_default };
         $lex_args{rules}        = $lexer_rules;
         $lex_args{symbols}        = \%this_lexer_symbols;
-
+        
         my $lex_grammar = Marpa::R2::Grammar->new( \%lex_args );
         $thick_grammar_by_lexer_name{$lexer_name} = $lex_grammar;
         my $lex_tracer = $lex_grammar->tracer();
@@ -453,9 +459,9 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
                 );
             }
             if ( not $g1_thin->symbol_is_accessible($g1_symbol_id) ) {
-                Marpa::R2::exception(
-                    "A lexeme in lexer $lexer_name is not accessible from the G1 start symbol: $lexeme_name"
-                );
+                my $message = "A lexeme in lexer $lexer_name is not accessible from the G1 start symbol: $lexeme_name";
+                say {$trace_fh} $message if $if_inaccessible_default eq 'warn';
+                Marpa::R2::exception($message) if $if_inaccessible_default eq 'fatal';
             }
             my $lex_symbol_id = $lex_tracer->symbol_by_name($lexeme_name);
             $lexeme_data{$lexeme_name}{lexers}{$lexer_name}{'id'} = $lex_symbol_id;
@@ -476,15 +482,12 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
                 $lexeme_data{$lexeme_name}{lexers}{$lexer_name}{'assertion'};
             if ( not defined $assertion_id ) {
                 my $default_assertion_value =
-                    $lexeme_data{$lexeme_name}{forgiving} ? 0 : 1;
+                    $lexeme_data{$lexeme_name}{latm} ? 0 : 1;
                 $assertion_id = $lex_thin->zwa_new($default_assertion_value);
 
                 if ( $trace_terminals >= 2 ) {
-                    say {
-                        $slg->[
-                            Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE
-                        ]
-                    } "Assertion $assertion_id defaults to $default_assertion_value";
+                    say {$trace_fh}
+                     "Assertion $assertion_id defaults to $default_assertion_value";
                 } ## end if ( $trace_terminals >= 2 )
 
                 $lexeme_data{$lexeme_name}{lexers}{$lexer_name}{'assertion'}
@@ -492,8 +495,7 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
             } ## end if ( not defined $assertion_id )
             $lex_thin->zwa_place( $assertion_id, $rule_id, 0 );
             if ( $trace_terminals >= 2 ) {
-                say { $slg->[
-                        Marpa::R2::Internal::Scanless::G::TRACE_FILE_HANDLE] }
+                say {$trace_fh}
                     "Assertion $assertion_id applied to $lexer_name rule ",
                     slg_rule_show( $slg, $rule_id, $lex_grammar );
             } ## end if ( $trace_terminals >= 2 )
@@ -590,13 +592,13 @@ sub Marpa::R2::Internal::Scanless::G::hash_to_runtime {
         ) if defined $lexeme_data{$symbol_name}{'G1'}
     } ## end for my $symbol_name ( keys %{$nulled_events_by_name} )
 
-    # Now that we have created the SLG, we can set the forgiving value,
+    # Now that we have created the SLG, we can set the latm value,
     # already determined above.
     LEXEME: for my $lexeme_name (keys %lexeme_data) {
        my $g1_lexeme_id = $lexeme_data{$lexeme_name}{'G1'}{'id'};
        next LEXEME if not defined $g1_lexeme_id;
-       my $forgiving_value = $lexeme_data{$lexeme_name}{forgiving} // 0;
-       $thin_slg->g1_lexeme_forgiving_set( $g1_lexeme_id, $forgiving_value );
+       my $latm_value = $lexeme_data{$lexeme_name}{latm} // 0;
+       $thin_slg->g1_lexeme_latm_set( $g1_lexeme_id, $latm_value );
     }
 
     # Second phase of lexer processing
@@ -713,9 +715,19 @@ sub thick_subgrammar_by_name {
         ->[$lexer_id];
 } ## end sub thick_subgrammar_by_name
 
+sub Marpa::R2::Scanless::G::start_symbol_id {
+    my ( $slg, $rule_id, $subgrammar ) = @_;
+    return thick_subgrammar_by_name( $slg, $subgrammar )->start_symbol();
+}
+
+sub Marpa::R2::Scanless::G::rule_name {
+    my ( $slg, $rule_id, $subgrammar ) = @_;
+    return thick_subgrammar_by_name( $slg, $subgrammar )->rule_name($rule_id);
+}
+
 sub Marpa::R2::Scanless::G::rule_expand {
     my ( $slg, $rule_id, $subgrammar ) = @_;
-    return thick_subgrammar_by_name($slg, $subgrammar)->tracer()
+    return thick_subgrammar_by_name( $slg, $subgrammar )->tracer()
         ->rule_expand($rule_id);
 }
 

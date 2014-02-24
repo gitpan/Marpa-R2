@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.081_000';
+$VERSION        = '2.081_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -107,15 +107,15 @@ sub ast_to_hash {
         } ## end NAME_LEXER:
     } ## end for my $lexer (@lexers)
 
-        my %stripped_character_classes = ();
-        {
-            my $character_classes = $hashed_ast->{character_classes};
-            for my $symbol_name ( sort keys %{$character_classes} ) {
-                my ($re) = @{ $character_classes->{$symbol_name} };
-                $stripped_character_classes{$symbol_name} = $re;
-            }
+    my %stripped_character_classes = ();
+    {
+        my $character_classes = $hashed_ast->{character_classes};
+        for my $symbol_name ( sort keys %{$character_classes} ) {
+            my ($re) = @{ $character_classes->{$symbol_name} };
+            $stripped_character_classes{$symbol_name} = $re;
         }
-        $hashed_ast->{character_classes} = \%stripped_character_classes;
+    }
+    $hashed_ast->{character_classes} = \%stripped_character_classes;
 
     return $hashed_ast;
 } ## end sub ast_to_hash
@@ -374,10 +374,10 @@ sub Marpa::R2::Internal::MetaAST_Nodes::proper_specification::evaluate {
     return bless { proper => $child->value() }, $PROTO_ALTERNATIVE;
 }
 
-sub Marpa::R2::Internal::MetaAST_Nodes::forgiving_specification::evaluate {
+sub Marpa::R2::Internal::MetaAST_Nodes::latm_specification::evaluate {
     my ($values) = @_;
     my $child = $values->[2];
-    return bless { forgiving => $child->value() }, $PROTO_ALTERNATIVE;
+    return bless { latm => $child->value() }, $PROTO_ALTERNATIVE;
 }
 
 sub Marpa::R2::Internal::MetaAST_Nodes::pause_specification::evaluate {
@@ -403,7 +403,6 @@ sub Marpa::R2::Internal::MetaAST_Nodes::null_ranking_specification::evaluate {
     my $child = $values->[2];
     return bless { null_ranking => $child->value() }, $PROTO_ALTERNATIVE;
 }
-
 
 sub Marpa::R2::Internal::MetaAST_Nodes::null_ranking_constant::value {
     return $_[0]->[2];
@@ -485,7 +484,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_default_statement::evaluate {
             $parse->{lexeme_default_adverbs}->{$key} = $value;
             next ADVERB;
         }
-        if ( $key eq 'forgiving' ) {
+        if ( $key eq 'latm' ) {
             $parse->{lexeme_default_adverbs}->{$key} = $value;
             next ADVERB;
         }
@@ -495,6 +494,27 @@ sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_default_statement::evaluate {
     ## no critic(Subroutines::ProhibitExplicitReturnUndef)
     return undef;
 } ## end sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_default_statement::evaluate
+
+sub Marpa::R2::Internal::MetaAST_Nodes::inaccessible_statement::evaluate {
+    my ( $data, $parse ) = @_;
+    my ( $start, $length, $inaccessible_treatment ) = @{$data};
+    local $Marpa::R2::Internal::SUBGRAMMAR = 'G1';
+
+    if ( exists $parse->{defaults}->{if_inaccessible} ) {
+        my $problem_rule = $parse->substring( $start, $length );
+        Marpa::R2::exception(
+            qq{More than one inaccessible default statement is not allowed\n},
+            qq{  This was the rule that caused the problem:\n},
+            qq{  $problem_rule\n}
+        );
+    }
+    $parse->{defaults}->{if_inaccessible} = $inaccessible_treatment->value();
+    return undef;
+}
+
+sub Marpa::R2::Internal::MetaAST_Nodes::inaccessible_treatment::value {
+    return $_[0]->[2];
+}
 
 sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
     my ( $values, $parse ) = @_;
@@ -992,7 +1012,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::lexeme_rule::evaluate {
             $declarations{$key} = $raw_value;
             next ADVERB;
         }
-        if ( $key eq 'forgiving' ) {
+        if ( $key eq 'latm' ) {
             $declarations{$key} = $raw_value;
             next ADVERB;
         }
