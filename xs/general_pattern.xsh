@@ -946,6 +946,22 @@ PPCODE:
 }
 
 void
+zwa_default( r_wrapper, zwaid )
+    R_Wrapper *r_wrapper;
+    Marpa_Assertion_ID zwaid;
+PPCODE:
+{
+  Marpa_Recognizer self = r_wrapper->r;
+  int gp_result = marpa_r_zwa_default(self, zwaid);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && r_wrapper->base->throw ) {
+    croak( "Problem in r->zwa_default(%d): %s",
+     zwaid, xs_g_error( r_wrapper->base ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
 zwa_default_set( r_wrapper, zwaid, default_value )
     R_Wrapper *r_wrapper;
     Marpa_Assertion_ID zwaid;

@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.082000';
+$VERSION        = '2.083_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -620,7 +620,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
                 }
                 my ( $line, $column ) =
                     $parse->{meta_recce}->line_column($start);
-                die qq{Adverb "$key" not allowed in an empty rule\n},
+                die qq{Adverb "$key" not allowed in an prioritized rule\n},
                     '  Rule was ', $parse->substring( $start, $length ), "\n";
             } ## end ADVERB: for my $key ( keys %{$adverb_list} )
 
@@ -774,7 +774,7 @@ sub Marpa::R2::Internal::MetaAST_Nodes::priority_rule::evaluate {
                 next ADVERB;
             }
             my ( $line, $column ) = $parse->{meta_recce}->line_column($start);
-            die qq{Adverb "$key" not allowed in an empty rule\n},
+            die qq{Adverb "$key" not allowed in a prioritized rule\n},
                 '  Rule was ', $parse->substring( $start, $length ), "\n";
         } ## end ADVERB: for my $key ( keys %{$adverb_list} )
 

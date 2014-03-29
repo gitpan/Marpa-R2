@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.082000';
+$VERSION        = '2.083_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -371,13 +371,6 @@ sub Marpa::R2::Scanless::R::trace {
     return $thin_slr->trace($level);
 } ## end sub Marpa::R2::Scanless::R::trace
 
-sub Marpa::R2::Scanless::R::trace_lexers {
-    my ( $self, $level ) = @_;
-    my $thin_slr = $self->[Marpa::R2::Internal::Scanless::R::C];
-    $level //= 1;
-    return $thin_slr->trace_lexers($level);
-}
-
 sub Marpa::R2::Scanless::R::error {
     my ($self) = @_;
     return $self->[Marpa::R2::Internal::Scanless::R::READ_STRING_ERROR];
@@ -411,9 +404,10 @@ sub Marpa::R2::Scanless::R::read {
     my $thin_slr = $self->[Marpa::R2::Internal::Scanless::R::C];
     my $trace_terminals =
         $self->[Marpa::R2::Internal::Scanless::R::TRACE_TERMINALS] // 0;
-    my $trace_lexers = $self->[Marpa::R2::Internal::Scanless::R::TRACE_LEXERS] // 0;
+    my $trace_lexers =
+        $self->[Marpa::R2::Internal::Scanless::R::TRACE_LEXERS] // 0;
     $thin_slr->trace_terminals($trace_terminals) if $trace_terminals;
-    $self->trace_lexers($trace_lexers)               if $trace_lexers;
+    $thin_slr->trace_lexers($trace_lexers)       if $trace_lexers;
 
     $thin_slr->string_set($p_string);
 
@@ -481,34 +475,6 @@ my $libmarpa_trace_event_handlers = {
             $slg->[Marpa::R2::Internal::Scanless::G::LEXER_NAME_BY_ID]
             ->[$lexer_id];
         say {$trace_file_handle} qq{Lexer "$lexer_name" rejected lexeme },
-            input_range_describe( $slr, $lexeme_start_pos,
-            $lexeme_end_pos - 1 ),
-            q{: },
-            $thick_g1_grammar->symbol_in_display_form($g1_lexeme),
-            qq{; value="$raw_token_value"}
-            or Marpa::R2::exception("Could not say(): $ERRNO");
-    },
-    'forgiven lexeme' => sub {
-        my ( $slr, $event ) = @_;
-        # Necessary to check, because this one can be returned when not tracing
-        return if not $slr->[Marpa::R2::Internal::Scanless::R::TRACE_TERMINALS];
-        my ( undef, undef, $lexeme_start_pos, $lexeme_end_pos, $g1_lexeme,
-            $lexer_id )
-            = @{$event};
-        my $thin_slr = $slr->[Marpa::R2::Internal::Scanless::R::C];
-        my $raw_token_value =
-            $thin_slr->substring( $lexeme_start_pos,
-            $lexeme_end_pos - $lexeme_start_pos );
-        my $trace_file_handle =
-            $slr->[Marpa::R2::Internal::Scanless::R::TRACE_FILE_HANDLE];
-        my $thick_g1_recce =
-            $slr->[Marpa::R2::Internal::Scanless::R::THICK_G1_RECCE];
-        my $thick_g1_grammar = $thick_g1_recce->grammar();
-        my $slg              = $slr->[Marpa::R2::Internal::Scanless::R::GRAMMAR];
-        my $lexer_name =
-            $slg->[Marpa::R2::Internal::Scanless::G::LEXER_NAME_BY_ID]
-            ->[$lexer_id];
-        say {$trace_file_handle} qq{Lexer "$lexer_name" forgave lexeme },
             input_range_describe( $slr, $lexeme_start_pos,
             $lexeme_end_pos - 1 ),
             q{: },
@@ -891,8 +857,6 @@ sub Marpa::R2::Scanless::R::resume {
     my $trace_terminals =
         $slr->[Marpa::R2::Internal::Scanless::R::TRACE_TERMINALS] // 0;
     my $trace_lexers = $slr->[Marpa::R2::Internal::Scanless::R::TRACE_LEXERS] // 0;
-    $thin_slr->trace_terminals($trace_terminals) if $trace_terminals;
-    $slr->trace_lexers($trace_lexers)               if $trace_lexers;
 
     $thin_slr->pos_set( $start_pos, $length );
     $slr->[Marpa::R2::Internal::Scanless::R::EVENTS] = [];

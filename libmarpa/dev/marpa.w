@@ -3072,7 +3072,7 @@ int marpa_g_precompute(Marpa_Grammar g)
           and nulled symbol CILs@>@;
         @<Mark the event AHMs@>@;
         @<Calculate AHM Event Group Sizes@>@;
-        @<Find the direct ZWA's for each AHM's@>@;
+        @<Find the direct ZWA's for each AHM@>@;
         @<Find the indirect ZWA's for each AHM's@>@;
     }
     g->t_is_precomputed = 1;
@@ -5055,6 +5055,11 @@ the XRL is |NULL|, XRL position is not defined.
 @<Widely aligned AHM elements@> =
    XRL t_xrl;
 @ @d XRL_Position_of_AHM(ahm) ((ahm)->t_xrl_position)
+@d Raw_XRL_Position_of_AHM(ahm) (
+    XRL_Position_of_AHM(ahm) < 0
+    ? Length_of_XRL(XRL_of_AHM(ahm)) 
+    : XRL_Position_of_AHM(ahm)
+  )
 @<Int aligned AHM elements@> =
    int t_xrl_position;
 
@@ -5655,7 +5660,7 @@ marpa_g_highest_zwa_id (Marpa_Grammar g)
 {
   @<Return |-2| on failure@>@;
   @<Fail if fatal error@>@;
-  return ZWA_Count_of_G(g);
+  return ZWA_Count_of_G(g) - 1;
 }
 
 @ An attempt to insert a duplicate is treated as a soft failure,
@@ -5702,7 +5707,7 @@ marpa_g_zwa_place(Marpa_Grammar g,
 @ The direct ZWA's are the zero-width assertions triggered
 directly by the AHM.  ZWA's triggered via predictions are called
 ``indirect''.
-@<Find the direct ZWA's for each AHM's@> =
+@<Find the direct ZWA's for each AHM@> =
 {
   AHMID ahm_id;
   const int ahm_count_of_g = AHM_Count_of_G (g);
@@ -5717,7 +5722,7 @@ directly by the AHM.  ZWA's triggered via predictions are called
       cil_buffer_clear (&g->t_cilar);
       if (ahm_xrl)
 	{
-	  const int xrl_dot_end = XRL_Position_of_AHM (ahm);
+	  const int xrl_dot_end = Raw_XRL_Position_of_AHM (ahm);
 	  const int xrl_dot_start = xrl_dot_end - Null_Count_of_AHM (ahm);
           /* We assume the null count is zero for a sequence rule */
 
@@ -7516,8 +7521,10 @@ int evaluate_zwas(RECCE r, YSID ysid, AHM ahm)
      const ZWA zwa = RZWA_by_ID(zwaid);
       @t}\comment{@>
       /* Use the memoized value, if it is for this YS */
+     MARPA_DEBUG3("At %s, evaluating assertion %ld", STRLOC, (long)zwaid);
      if (Memo_YSID_of_ZWA(zwa) == ysid) {
          if (Memo_Value_of_ZWA(zwa)) continue;
+         MARPA_DEBUG3("At %s: returning 0 for assertion %ld", STRLOC, (long)zwaid);
          return 0;
      }
 
@@ -7531,7 +7538,12 @@ int evaluate_zwas(RECCE r, YSID ysid, AHM ahm)
       /* If the assertion fails we are done
       Otherwise, continue to check assertions.
       */
-     if (!value) return 0;
+     if (!value) {
+       MARPA_DEBUG3("At %s: returning 0 for assertion %ld", STRLOC, (long)zwaid);
+       return 0;
+     }
+
+     MARPA_DEBUG3("At %s: value is 1 for assertion %ld", STRLOC, (long)zwaid);
   }
   return 1;
 }
@@ -9268,6 +9280,21 @@ marpa_r_zwa_default_set(Marpa_Recognizer r,
     return old_default_value;
 }
 
+@ @<Function definitions@> =
+int
+marpa_r_zwa_default(Marpa_Recognizer r,
+    Marpa_Assertion_ID zwaid)
+{
+  @<Return |-2| on failure@>@;
+  @<Unpack recognizer objects@>@;
+  ZWA zwa;
+  @<Fail if fatal error@>@;
+  @<Fail if |zwaid| is malformed@>@;
+  @<Fail if |zwaid| does not exist@>@;
+  zwa = RZWA_by_ID(zwaid);
+  return Default_Value_of_ZWA(zwa);
+}
+
 @** Progress report code.
 @<Private typedefs@> =
    typedef struct marpa_progress_item* PROGRESS;
@@ -10148,7 +10175,6 @@ and this is the case if |Position_of_OR(or_node) == 0|.
                 IRL_of_OR (or_node) = irl;
                 Position_of_OR (or_node) = rhs_ix + 1;
 MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
-    MARPA_DEBUG2("At %s", STRLOC);
                 draft_and_node_add (bocage_setup_obs, or_node, predecessor,
                       cause);
               }
@@ -10246,7 +10272,6 @@ or-nodes follow a completion.
           IRL_of_OR (or_node) = path_irl;
           Position_of_OR (or_node) = rhs_ix + 1;
 MARPA_ASSERT(Position_of_OR(or_node) <= 1 || predecessor);
-    MARPA_DEBUG2("At %s", STRLOC);
           draft_and_node_add (bocage_setup_obs, or_node, predecessor, cause);
         }
       MARPA_ASSERT (Position_of_OR (or_node) <=
@@ -10464,7 +10489,6 @@ OR or_by_origin_and_symi ( struct s_bocage_setup_per_ys *per_ys_data,
   const OR dand_cause
     = set_or_from_yim(per_ys_data, cause_earley_item);
   if (!dand_is_duplicate(path_or_node, dand_predecessor, dand_cause)) {
-    MARPA_DEBUG2("At %s", STRLOC);
     draft_and_node_add (bocage_setup_obs, path_or_node,
 		      dand_predecessor, dand_cause);
   }
@@ -10492,7 +10516,6 @@ If so, the loop that ascends the Leo path can be ended at that point.
   const int origin = Ord_of_YS(YS_of_LIM(path_leo_item));
   const OR dand_cause = or_by_origin_and_symi(per_ys_data, origin, symbol_instance);
   if (!dand_is_duplicate(path_or_node, dand_predecessor, dand_cause)) {
-    MARPA_DEBUG2("At %s", STRLOC);
     draft_and_node_add (bocage_setup_obs, path_or_node,
           dand_predecessor, dand_cause);
   }
@@ -10553,12 +10576,6 @@ int dand_is_duplicate(OR parent, OR predecessor, OR cause)
       if (dands_are_equal(predecessor, cause,
         Predecessor_OR_of_DAND(dand), Cause_OR_of_DAND(dand)))
       {
-          MARPA_DEBUG2("Would-be Duplicate DAND for or %s",
-            or_tag(parent));
-          MARPA_DEBUG2("Would-be Duplicate DAND predcessor is or %s",
-            or_tag(predecessor));
-          MARPA_DEBUG2("Would-be Duplicate DAND cause is or %s",
-            or_tag(cause));
           return 1;
       }
   }

@@ -131,7 +131,6 @@ Recognizer methods
 * Recognizer constructor::      
 * Recognizer reference counting::  
 * Recognizer life cycle mutators::  
-* Methods for revising parses::  
 * Location accessors::          
 * Other parse status methods::  
 * Untested recognizer methods::  
@@ -200,6 +199,10 @@ Work in Progress
 
 * Experimental methods::        
 * Untested methods::            
+
+Untested methods
+
+* Methods for revising parses::  
 
 @end detailmenu
 @end menu
@@ -2290,7 +2293,6 @@ On failure, @minus{}2.
 * Recognizer constructor::      
 * Recognizer reference counting::  
 * Recognizer life cycle mutators::  
-* Methods for revising parses::  
 * Location accessors::          
 * Other parse status methods::  
 * Untested recognizer methods::  
@@ -2354,7 +2356,7 @@ to zero, it too is destroyed.
 
 @end deftypefun
 
-@node Recognizer life cycle mutators, Methods for revising parses, Recognizer reference counting, Recognizer methods
+@node Recognizer life cycle mutators, Location accessors, Recognizer reference counting, Recognizer methods
 @section Life cycle mutators
 
 @deftypefun int marpa_r_start_input (Marpa_Recognizer @var{r})
@@ -2589,20 +2591,7 @@ Return value:  On success, the number of events generated.
 On failure, @minus{}2.
 @end deftypefun
 
-@node Methods for revising parses, Location accessors, Recognizer life cycle mutators, Recognizer methods
-@section Methods for revising parses
-
-Marpa allows an application to ``change its mind'' about a parse,
-rejected rule previously recognized or predicted,
-and terminals previously scanned.
-The methods in this section provide that capability.
-
-@deftypefun Marpa_Earleme marpa_r_clean ( @
-    Marpa_Recognizer @var{r})
-
-@end deftypefun
-
-@node Location accessors, Other parse status methods, Methods for revising parses, Recognizer methods
+@node Location accessors, Other parse status methods, Recognizer life cycle mutators, Recognizer methods
 @section Location accessors
 
 @deftypefun @code{unsigned int} marpa_r_current_earleme (Marpa_Recognizer @var{r})
@@ -4256,8 +4245,7 @@ Suggested message: "Symbol was nulled".
 
 @deftypevr Macro int MARPA_EVENT_SYMBOL_PREDICTED
 The recognizer can be set to generate an event when a
-symbol is predicted -- that is, recognized as a
-zero-length symbol.
+symbol is predicted.
 To set an predicted symbol event,
 use the recognizer's @code{marpa_r_predicted_symbol_event_set()}
 method.
@@ -5422,16 +5410,41 @@ The error code can be determined by using the
     int @var{rhs_ix})
 @end deftypefun
 
+@deftypefun int marpa_r_zwa_default ( @
+    Marpa_Recognizer @var{r}, @
+    Marpa_Assertion_ID @var{zwaid})
+
+On success, returns previous default value of the assertion.
+@end deftypefun
+
 @deftypefun int marpa_r_zwa_default_set ( @
     Marpa_Recognizer @var{r}, @
     Marpa_Assertion_ID @var{zwaid}, @
     int @var{default_value})
 
+Changes default value to @var{default_value}.
 On success, returns previous default value of the assertion.
 @end deftypefun
 
 @deftypefun Marpa_Assertion_ID marpa_g_highest_zwa_id ( @
     Marpa_Grammar @var{g} )
+@end deftypefun
+
+@menu
+* Methods for revising parses::  
+@end menu
+
+@node Methods for revising parses,  , Untested methods, Untested methods
+@subsection Methods for revising parses
+
+Marpa allows an application to ``change its mind'' about a parse,
+rejected rule previously recognized or predicted,
+and terminals previously scanned.
+The methods in this section provide that capability.
+
+@deftypefun Marpa_Earleme marpa_r_clean ( @
+    Marpa_Recognizer @var{r})
+
 @end deftypefun
 
 @node GNU Free Documentation License,  , Work in Progress, Top

@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (27 February 2014) is for Libmarpa 5.182.100.
+This manual (29 March 2014) is for Libmarpa 5.183.101.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -16,7 +16,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (27 February 2014) is for Libmarpa 5.182.100.
+This manual (29 March 2014) is for Libmarpa 5.183.101.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -112,7 +112,6 @@ Recognizer methods
 * Recognizer constructor::
 * Recognizer reference counting::
 * Recognizer life cycle mutators::
-* Methods for revising parses::
 * Location accessors::
 * Other parse status methods::
 * Untested recognizer methods::
@@ -181,6 +180,10 @@ Work in Progress
 
 * Experimental methods::
 * Untested methods::
+
+Untested methods
+
+* Methods for revising parses::
 
 
 File: api.info,  Node: Copying,  Next: About this document,  Prev: Top,  Up: Top
@@ -1934,7 +1937,6 @@ File: api.info,  Node: Recognizer methods,  Next: Progress reports,  Prev: Gramm
 * Recognizer constructor::
 * Recognizer reference counting::
 * Recognizer life cycle mutators::
-* Methods for revising parses::
 * Location accessors::
 * Other parse status methods::
 * Untested recognizer methods::
@@ -1995,7 +1997,7 @@ File: api.info,  Node: Recognizer reference counting,  Next: Recognizer life cyc
 
 
 
-File: api.info,  Node: Recognizer life cycle mutators,  Next: Methods for revising parses,  Prev: Recognizer reference counting,  Up: Recognizer methods
+File: api.info,  Node: Recognizer life cycle mutators,  Next: Location accessors,  Prev: Recognizer reference counting,  Up: Recognizer methods
 
 12.4 Life cycle mutators
 ========================
@@ -2151,22 +2153,9 @@ File: api.info,  Node: Recognizer life cycle mutators,  Next: Methods for revisi
      failure, -2.
 
 
-File: api.info,  Node: Methods for revising parses,  Next: Location accessors,  Prev: Recognizer life cycle mutators,  Up: Recognizer methods
+File: api.info,  Node: Location accessors,  Next: Other parse status methods,  Prev: Recognizer life cycle mutators,  Up: Recognizer methods
 
-12.5 Methods for revising parses
-================================
-
-Marpa allows an application to "change its mind" about a parse,
-rejected rule previously recognized or predicted, and terminals
-previously scanned.  The methods in this section provide that
-capability.
-
- -- Function: Marpa_Earleme marpa_r_clean ( Marpa_Recognizer R)
-
-
-File: api.info,  Node: Location accessors,  Next: Other parse status methods,  Prev: Methods for revising parses,  Up: Recognizer methods
-
-12.6 Location accessors
+12.5 Location accessors
 =======================
 
  -- Function: `unsigned int' marpa_r_current_earleme (Marpa_Recognizer
@@ -2266,7 +2255,7 @@ File: api.info,  Node: Location accessors,  Next: Other parse status methods,  P
 
 File: api.info,  Node: Other parse status methods,  Next: Untested recognizer methods,  Prev: Location accessors,  Up: Recognizer methods
 
-12.7 Other parse status methods
+12.6 Other parse status methods
 ===============================
 
  -- Function: int marpa_r_earley_item_warning_threshold
@@ -2342,7 +2331,7 @@ File: api.info,  Node: Other parse status methods,  Next: Untested recognizer me
 
 File: api.info,  Node: Untested recognizer methods,  Prev: Other parse status methods,  Up: Recognizer methods
 
-12.8 Untested recognizer methods
+12.7 Untested recognizer methods
 ================================
 
  -- Function: int marpa_r_completion_symbol_activate ( Marpa_Recognizer
@@ -3431,8 +3420,7 @@ File: api.info,  Node: Event codes,  Prev: Event methods,  Up: Events
 
  -- Macro: int MARPA_EVENT_SYMBOL_PREDICTED
      The recognizer can be set to generate an event when a symbol is
-     predicted - that is, recognized as a zero-length symbol.  To set
-     an predicted symbol event, use the recognizer's
+     predicted.  To set an predicted symbol event, use the recognizer's
      `marpa_r_predicted_symbol_event_set()' method.  This event code
      indicates that a predicted symbol event occurred.  Event value:
      The ID of the predicted symbol.  Suggested message: "Symbol was
@@ -4269,12 +4257,34 @@ should regard these methods as unsupported.
  -- Function: int marpa_g_zwa_place ( Marpa_Grammar G,
           Marpa_Assertion_ID ZWAID, Marpa_Rule_ID XRL_ID, int RHS_IX)
 
+ -- Function: int marpa_r_zwa_default ( Marpa_Recognizer R,
+          Marpa_Assertion_ID ZWAID)
+     On success, returns previous default value of the assertion.
+
  -- Function: int marpa_r_zwa_default_set ( Marpa_Recognizer R,
           Marpa_Assertion_ID ZWAID, int DEFAULT_VALUE)
-     On success, returns previous default value of the assertion.
+     Changes default value to DEFAULT_VALUE.  On success, returns
+     previous default value of the assertion.
 
  -- Function: Marpa_Assertion_ID marpa_g_highest_zwa_id ( Marpa_Grammar
           G )
+
+* Menu:
+
+* Methods for revising parses::
+
+
+File: api.info,  Node: Methods for revising parses,  Prev: Untested methods,  Up: Untested methods
+
+21.2.1 Methods for revising parses
+----------------------------------
+
+Marpa allows an application to "change its mind" about a parse,
+rejected rule previously recognized or predicted, and terminals
+previously scanned.  The methods in this section provide that
+capability.
+
+ -- Function: Marpa_Earleme marpa_r_clean ( Marpa_Recognizer R)
 
 
 File: api.info,  Node: GNU Free Documentation License,  Prev: Work in Progress,  Up: Top
@@ -4765,107 +4775,107 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top486
-Node: Copying3789
-Node: About this document12220
-Node: How to read this document12437
-Node: Prerequisites12904
-Node: Parsing theory13503
-Node: About Libmarpa14191
-Node: Architecture16023
-Node: Major objects16229
-Node: Time objects17568
-Node: Reference counting19022
-Node: Numbered objects21075
-Node: Input21509
-Node: Earlemes21644
-Node: The traditional model22041
-Node: The earleme variables23329
-Node: The significances of the earleme variables25208
-Node: The initial earleme settings26834
-Node: The standard model of input27512
-Node: Ambiguous input29235
-Node: Variable length tokens30200
-Node: The generalized model31916
-Node: General rules for the earleme variables34258
-Node: Terminals35414
-Node: Semantics36264
-Node: How Libmarpa semantics work36439
-Node: Valued and unvalued symbols37586
-Node: Threads40000
-Node: Fatal Errors41258
-Node: Introduction to the external interface41853
-Node: About the overviews42204
-Node: Return values43040
-Node: Naming conventions44829
-Node: Static methods45943
-Node: Configuration methods47575
-Node: Grammar methods49262
-Node: Grammar overview49569
-Node: Grammar constructor50613
-Node: Grammar reference counting51466
-Node: Symbols52070
-Node: Rules62913
-Node: Sequences67937
-Node: Ranks72202
-Node: Grammar precomputation74445
-Ref: marpa_g_precompute74646
-Node: Recognizer methods78984
-Node: Recognizer overview79381
-Node: Recognizer constructor80111
-Node: Recognizer reference counting80665
-Node: Recognizer life cycle mutators81476
-Node: Methods for revising parses89830
-Node: Location accessors90310
-Node: Other parse status methods94842
-Node: Untested recognizer methods98432
-Node: Progress reports101476
-Node: Bocage methods105047
-Node: Bocage overview105288
-Node: Bocage constructor105808
-Node: Bocage reference counting106462
-Node: Bocage accessor107363
-Node: Ordering methods108105
-Node: Ordering overview108376
-Node: Ordering constructor108980
-Node: Ordering reference counting109447
-Node: Order accessor110431
-Node: Non-default ordering111211
-Node: Tree methods112351
-Node: Tree overview112576
-Node: Tree constructor113403
-Node: Tree reference counting114058
-Node: Tree iteration115027
-Node: Value methods116335
-Node: Value overview116773
-Node: How to use the valuator118205
-Node: Advantages of step-driven valuation120176
-Node: Maintaining the stack123846
-Node: Sizing the stack125857
-Node: Initializing locations in the stack127637
-Node: Valuator constructor129833
-Node: Valuator reference counting130684
-Node: Registering semantics131669
-Node: Stepping through the valuator133603
-Node: Valuator steps by type134369
-Node: Basic step accessors136316
-Node: Other step accessors138182
-Node: Events139728
-Node: Events overview139917
-Node: Event methods140787
-Node: Event codes141972
-Node: Error methods macros and codes145241
-Node: Error methods145510
-Node: Error Macros146337
-Node: External error codes146704
-Node: Internal error codes169419
-Node: Design notes173193
-Node: Why so many time objects173628
-Node: Design of numbered objects175378
-Node: LHS Terminals176617
-Node: Work in Progress177310
-Node: Experimental methods177520
-Node: Untested methods178354
-Node: GNU Free Documentation License181112
+Node: Top483
+Node: Copying3802
+Node: About this document12233
+Node: How to read this document12450
+Node: Prerequisites12917
+Node: Parsing theory13516
+Node: About Libmarpa14204
+Node: Architecture16036
+Node: Major objects16242
+Node: Time objects17581
+Node: Reference counting19035
+Node: Numbered objects21088
+Node: Input21522
+Node: Earlemes21657
+Node: The traditional model22054
+Node: The earleme variables23342
+Node: The significances of the earleme variables25221
+Node: The initial earleme settings26847
+Node: The standard model of input27525
+Node: Ambiguous input29248
+Node: Variable length tokens30213
+Node: The generalized model31929
+Node: General rules for the earleme variables34271
+Node: Terminals35427
+Node: Semantics36277
+Node: How Libmarpa semantics work36452
+Node: Valued and unvalued symbols37599
+Node: Threads40013
+Node: Fatal Errors41271
+Node: Introduction to the external interface41866
+Node: About the overviews42217
+Node: Return values43053
+Node: Naming conventions44842
+Node: Static methods45956
+Node: Configuration methods47588
+Node: Grammar methods49275
+Node: Grammar overview49582
+Node: Grammar constructor50626
+Node: Grammar reference counting51479
+Node: Symbols52083
+Node: Rules62926
+Node: Sequences67950
+Node: Ranks72215
+Node: Grammar precomputation74458
+Ref: marpa_g_precompute74659
+Node: Recognizer methods78997
+Node: Recognizer overview79362
+Node: Recognizer constructor80092
+Node: Recognizer reference counting80646
+Node: Recognizer life cycle mutators81457
+Node: Location accessors89802
+Node: Other parse status methods94337
+Node: Untested recognizer methods97927
+Node: Progress reports100971
+Node: Bocage methods104542
+Node: Bocage overview104783
+Node: Bocage constructor105303
+Node: Bocage reference counting105957
+Node: Bocage accessor106858
+Node: Ordering methods107600
+Node: Ordering overview107871
+Node: Ordering constructor108475
+Node: Ordering reference counting108942
+Node: Order accessor109926
+Node: Non-default ordering110706
+Node: Tree methods111846
+Node: Tree overview112071
+Node: Tree constructor112898
+Node: Tree reference counting113553
+Node: Tree iteration114522
+Node: Value methods115830
+Node: Value overview116268
+Node: How to use the valuator117700
+Node: Advantages of step-driven valuation119671
+Node: Maintaining the stack123341
+Node: Sizing the stack125352
+Node: Initializing locations in the stack127132
+Node: Valuator constructor129328
+Node: Valuator reference counting130179
+Node: Registering semantics131164
+Node: Stepping through the valuator133098
+Node: Valuator steps by type133864
+Node: Basic step accessors135811
+Node: Other step accessors137677
+Node: Events139223
+Node: Events overview139412
+Node: Event methods140282
+Node: Event codes141467
+Node: Error methods macros and codes144685
+Node: Error methods144954
+Node: Error Macros145781
+Node: External error codes146148
+Node: Internal error codes168863
+Node: Design notes172637
+Node: Why so many time objects173072
+Node: Design of numbered objects174822
+Node: LHS Terminals176061
+Node: Work in Progress176754
+Node: Experimental methods176964
+Node: Untested methods177798
+Node: Methods for revising parses180807
+Node: GNU Free Documentation License181248
 
 End Tag Table
