@@ -24,7 +24,7 @@ dnl ***********************************
 m4_define(marpa_configure_in)
 
 m4_define([marpa_major_version], [5])
-m4_define([marpa_minor_version], [184])
+m4_define([marpa_minor_version], [185])
 m4_define([marpa_micro_version], [100])
 m4_define([marpa_version],
           [marpa_major_version.marpa_minor_version.marpa_micro_version])
@@ -41,7 +41,7 @@ AM_INIT_AUTOMAKE([])
 # Specify a configuration file
 AC_CONFIG_HEADERS([config.h])
 
-LT_INIT([])
+LT_INIT()
 
 # Checks for programs.
 # The following were suggested by autoscan

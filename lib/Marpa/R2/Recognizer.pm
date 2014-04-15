@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.084000';
+$VERSION        = '2.085_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -404,7 +404,8 @@ sub Marpa::R2::Recognizer::set {
             }
             my $closures =
                 $recce->[Marpa::R2::Internal::Recognizer::CLOSURES] = $value;
-            while ( my ( $action, $closure ) = each %{$closures} ) {
+            for my $action ( keys %{$closures} ) {
+                my $closure = $closures->{$action};
                 Marpa::R2::exception(qq{Bad closure for action "$action"})
                     if ref $closure ne 'CODE';
             }

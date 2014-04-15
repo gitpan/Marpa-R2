@@ -26,7 +26,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.084000';
+$VERSION        = '2.085_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1300,12 +1300,13 @@ sub add_user_rule {
     my $keep_separation   = 0;
     my $description;
 
-    OPTION: while ( my ( $option, $value ) = each %{$options} ) {
+    OPTION: for my $option ( keys %{$options} ) {
+        my $value = $options->{$option};
         if ( $option eq 'name' )   { $rule_name = $value; next OPTION; }
         if ( $option eq 'rhs' )    { $rhs_names = $value; next OPTION }
         if ( $option eq 'lhs' )    { $lhs_name  = $value; next OPTION }
         if ( $option eq 'action' ) { $action    = $value; next OPTION }
-        if ( $option eq 'bless' ) { $blessing    = $value; next OPTION }
+        if ( $option eq 'bless' )  { $blessing  = $value; next OPTION }
         if ( $option eq 'rank' )   { $rank      = $value; next OPTION }
         if ( $option eq 'null_ranking' ) {
             $null_ranking = $value;
@@ -1321,10 +1322,10 @@ sub add_user_rule {
             next OPTION;
         }
         if ( $option eq 'keep' ) { $keep_separation = $value; next OPTION }
-        if ( $option eq 'mask' ) { $mask = $value; next OPTION }
+        if ( $option eq 'mask' ) { $mask            = $value; next OPTION }
         if ( $option eq 'description' ) { $description = $value; next OPTION }
         Marpa::R2::exception("Unknown user rule option: $option");
-    } ## end OPTION: while ( my ( $option, $value ) = each %{$options} )
+    } ## end OPTION: for my $option ( keys %{$options} )
 
     if ( defined $min and not Scalar::Util::looks_like_number($min) ) {
         Marpa::R2::exception(
