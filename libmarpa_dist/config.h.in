@@ -40,6 +40,15 @@
    */
 #undef LT_OBJDIR
 
+/* Marpa major version. */
+#undef MARPA_MAJOR_VERSION
+
+/* Marpa micro version. */
+#undef MARPA_MICRO_VERSION
+
+/* Marpa minor version. */
+#undef MARPA_MINOR_VERSION
+
 /* Name of package */
 #undef PACKAGE
 
