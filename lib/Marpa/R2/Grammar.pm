@@ -26,7 +26,7 @@ no warnings qw(recursion qw);
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.085_002';
+$VERSION        = '2.085_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -632,6 +632,9 @@ sub Marpa::R2::Internal::Grammar::slif_precompute {
     } ## end if ($problems)
 
     return if $grammar_c->is_precomputed();
+    if ($grammar_c->force_valued() < 0) {
+        Marpa::R2::uncaught_error( scalar $grammar_c->error() );
+    }
 
     set_start_symbol($grammar);
 

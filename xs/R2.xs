@@ -813,10 +813,11 @@ if (trace_lexers >= 1)
                     slr->codepoint = codepoint;
                     slr->input_symbol_id = symbol_id;
                     croak
-                      ("Problem alternative() failed at char ix %ld; symbol id %ld; codepoint 0x%lx\n"
+                      ("Problem alternative() failed at char ix %ld; symbol id %ld; codepoint 0x%lx value %ld\n"
                        "Problem in u_read(), alternative() failed: %s",
                        (long) slr->perl_pos, (long) symbol_id,
                        (unsigned long) codepoint,
+                       (long) value,
                        xs_g_error (slr->current_lexer->g_wrapper));
                   }
               }
@@ -2370,7 +2371,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 6
 #define EXPECTED_LIBMARPA_MINOR 0
-#define EXPECTED_LIBMARPA_MICRO 1
+#define EXPECTED_LIBMARPA_MICRO 2
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 

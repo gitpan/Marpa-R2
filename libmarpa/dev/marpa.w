@@ -586,8 +586,18 @@ prototypes, look at
 
 @** The public header file.
 @*0 Version constants.
-@ I should do something about making sure the |MARPA_H_MAJOR_VERSION|, etc.
-match these.  Static assertions?
+@ This macro checks that the header version numbers
+and the library version numbers are identical.
+It is all compile-time constants,
+so it is expected that
+it will be optimized out completely at compile time.
+@d HEADER_VERSION_MISMATCH (
+   MARPA_MAJOR_VERSION != MARPA_H_MAJOR_VERSION
+   || MARPA_MINOR_VERSION != MARPA_H_MINOR_VERSION
+   || MARPA_MICRO_VERSION != MARPA_H_MICRO_VERSION
+)
+@ Set globals to the library version numbers,
+so that they can be found at runtime.
 @<Global constant variables@> =
 const int marpa_major_version = MARPA_MAJOR_VERSION;
 const int marpa_minor_version = MARPA_MINOR_VERSION;
@@ -1360,8 +1370,34 @@ is arbitrary.
   BITFIELD t_is_valued:1;
   BITFIELD t_is_valued_locked:1;
 @ @<Initialize XSY elements@> =
-  XSY_is_Valued(xsy) = 0;
-  XSY_is_Valued_Locked(xsy) = 0;
+  XSY_is_Valued(xsy) = g->t_force_valued ? 1 : 0;
+  XSY_is_Valued_Locked(xsy) = g->t_force_valued ? 1 : 0;
+
+@ Force all symbols to be valued.
+Unvalued symbols are deprecated,
+so that this will be the default, going
+forward.
+@ @<Int aligned grammar elements@>= int t_force_valued;
+@ @<Initialize grammar elements@> =
+  g->t_force_valued = 0;
+@ @<Function definitions@> =
+int marpa_g_force_valued( Marpa_Grammar g)
+{
+    XSYID xsyid;
+    @<Return |-2| on failure@>@;
+    for (xsyid = 0; xsyid < XSY_Count_of_G(g); xsyid++) {
+      const XSY xsy = XSY_by_ID(xsyid);
+      if (!XSY_is_Valued(xsy) && XSY_is_Valued_Locked(xsy))
+      {
+        MARPA_ERROR ( MARPA_ERR_VALUED_IS_LOCKED);
+        return failure_indicator;
+      }
+      XSY_is_Valued(xsy) = 1;
+      XSY_is_Valued_Locked(xsy) = 1;
+    }
+    g->t_force_valued = 1;
+    return 0;
+}
 
 @ @<Function definitions@> =
 int marpa_g_symbol_is_valued(
@@ -14251,7 +14287,15 @@ if (_MARPA_UNLIKELY(!R_is_Consistent(r))) {
     @<Fail if fatal error@>@;
     @<Fail if recognizer not started@>@;
 
-@ @<Fail if fatal error@> =
+@ It is expected the first test, for
+mismatched headers, will be optimized
+completely out if the versions
+numbers are consistent.
+@<Fail if fatal error@> =
+if (HEADER_VERSION_MISMATCH) {
+    MARPA_ERROR(MARPA_ERR_HEADERS_DO_NOT_MATCH);
+    return failure_indicator;
+}
 if (_MARPA_UNLIKELY(!IS_G_OK(g))) {
     MARPA_ERROR(g->t_error);
     return failure_indicator;

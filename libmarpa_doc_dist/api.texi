@@ -22,6 +22,11 @@ A copy of the license is included in the section entitled
 @end quotation
 @end copying
 
+@dircategory Development
+@direntry
+  * Marpa R2: (marpa-r2).                Marpa R2 parser library
+@end direntry
+
 @titlepage
 @title Libmarpa
 @subtitle Version @value{VERSION}
@@ -68,6 +73,7 @@ Published @value{UPDATED} by Jeffrey Kegler
 * Error methods macros and codes::  
 * Design notes::                
 * Work in Progress::            
+* Deprecated techniques and methods::  
 * GNU Free Documentation License::  
 
 @detailmenu
@@ -102,11 +108,6 @@ Earlemes
 * Variable length tokens::      
 * The generalized model::       
 * General rules for the earleme variables::  
-
-Semantics
-
-* How Libmarpa semantics work::  
-* Valued and unvalued symbols::  
 
 Introduction to the external interface
 
@@ -165,7 +166,6 @@ Value methods
 * Maintaining the stack::       
 * Valuator constructor::        
 * Valuator reference counting::  
-* Registering semantics::       
 * Stepping through the valuator::  
 * Valuator steps by type::      
 * Basic step accessors::        
@@ -197,12 +197,23 @@ Design notes
 
 Work in Progress
 
-* Experimental methods::        
 * Untested methods::            
 
 Untested methods
 
+* Ranking methods::             
+* Zero-width assertion methods::  
 * Methods for revising parses::  
+
+Deprecated techniques and methods
+
+* Valued and unvalued symbols::  
+
+Valued and unvalued symbols
+
+* What unvalued symbols were::  
+* Grammar methods dealing with unvalued symbols::  
+* Registering semantics in the valuator::  
 
 @end detailmenu
 @end menu
@@ -977,14 +988,6 @@ parse evaluation.
 @node Semantics, Threads, Input, Top
 @chapter Semantics
 
-@menu
-* How Libmarpa semantics work::  
-* Valued and unvalued symbols::  
-@end menu
-
-@node How Libmarpa semantics work, Valued and unvalued symbols, Semantics, Semantics
-@section How the Libmarpa semantics work
-
 Libmarpa handling of semantics is unusual.
 Most semantics are left up to the application,
 but Libmarpa guides them.
@@ -1007,72 +1010,6 @@ under the appropriate methods and classes.
 The most extensive discussion of the semantics
 is in the section that deals with the methods of the value time class.
 @xref{Value methods}.
-
-@node Valued and unvalued symbols,  , How Libmarpa semantics work, Semantics
-@section Valued and unvalued symbols
-
-Libmarpa symbols can have values,
-which is the traditional way of doing semantics.
-Libmarpa also allows symbols to be unvalued.
-An @dfn{unvalued} symbol is one whose value
-is unpredictable from instance to instance.
-If a symbol is unvalued, we sometimes say that it
-has ``whatever'' semantics.
-
-Situations where the semantics can tolerate unvalued symbols
-are surprisingly frequent.
-For example, the top-level of many languages is a series
-of major units, all of whose semantics are typically accomplished
-via side effects.
-The compiler is typically indifferent to the actual value produced
-by these major units, and tracking them is a waste of time.
-Similarly, the value of the separators in a list is typically
-ignored.
-
-Rules are unvalued if and only if their LHS symbols
-are unvalued.
-When rules and symbols are unvalued,
-Libmarpa optimizes their evaluation.
-
-It is in principle unsafe to check the value 
-of a symbol if it can be unvalued.
-For this reason,
-once a symbol has been treated as valued,
-Libmarpa marks it as valued.
-Similarly,
-once a symbol has been treated as unvalued,
-Libmarpa marks it as unvalued.
-Once marked, a symbol's valued status is
-@dfn{locked} and cannot be changed later.
-
-The valued status of terminals is marked the first
-time they are read.
-The valued status of LHS symbols must be explicitly
-marked by the application when initializing the
-valuator --- this is Libmarpa's equivalent of
-registering a callback.
-
-LHS terminals are disabled by default.
-If allowed, the user should be aware that the valued
-status of a LHS terminal
-will be locked in the recognizer
-if it is used as a terminal,
-and the symbol's use as a rule LHS
-in the valuator must be
-consistent with the recognizer's marking.
-
-Marpa reports an error when a symbol's use
-conflicts with its locked valued status.
-Doing so usually saves the programmer
-some tricky debugging further down the road.
-But it is possible that an application might deliberately
-want to mix
-valued and unvalued uses of a symbol --- an application
-might be able to differentiate them using the larger
-context, or might be tolerant of the uncertainty.
-If there is interest,
-a future Libmarpa extension might allow a locked
-valued status to be overriden.
 
 @node Threads, Fatal Errors, Semantics, Top
 @chapter Threads
@@ -1415,7 +1352,7 @@ use the
 @cindex grammar constructor
 
 @deftypefun Marpa_Grammar marpa_g_new ( @
-    Marpa_Config* configuration )
+    Marpa_Config* @var{configuration} )
 
 Creates a new grammar time object.
 The returned grammar object is not yet precomputed,
@@ -1435,6 +1372,27 @@ Return value: On success, the grammar object.
 On failure, @code{NULL},
 and the error code is set in @var{configuration}.
 
+@end deftypefun
+
+@deftypefun int marpa_g_force_valued ( @
+    Marpa_Grammar @var{g} )
+
+It is recommended that
+this call be made immediately after the
+grammar constructor.
+It turns off a deprecated feature.
+
+The @code{marpa_g_force_valued} forces all the
+symbols in a grammar to be ``valued''.
+The opposite of a valued symbol is one about whose value
+you do not care.
+This distinction has been made in the past in hope
+of gaining efficiencies at evaluation time.
+Current thinking is that the gains do not repay the extra
+complexity.
+
+Return value: On success, a non-negative integer.
+On failure, a negative integer.
 @end deftypefun
 
 @node Grammar reference counting, Symbols, Grammar constructor, Grammar methods
@@ -1763,35 +1721,6 @@ if the terminal status is locked and @var{value}
 is different from its current value;
 if the grammar @var{g} is precomputed;
 or on other failure, @minus{}2.
-@end deftypefun
-
-@deftypefun int marpa_g_symbol_is_valued ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symbol_id})
-@deftypefunx int marpa_g_symbol_is_valued_set ( @
-    Marpa_Grammar @var{g}, @
-    Marpa_Symbol_ID @var{symbol_id}, @
-    int value)
-
-These methods, respectively, set
-and query the ``valued status'' of a symbol.
-Once set to a value with the
-@code{marpa_g_symbol_is_valued_set()} method,
-the valued status of a symbol is ``locked'' at that value.
-It cannot thereafter be changed.
-Subsequent calls to 
-@code{marpa_g_symbol_is_valued_set()}
-for the same @var{sym_id} will fail,
-leaving @var{sym_id}'s valued status unchanged,
-unless @var{value} is the same as the locked-in value.
-
-Return value: On success, 1 if the symbol @var{symbol_id}
-is valued after the call, 0 if not.
-If the valued status is locked and @var{value}
-is different from the current status, @minus{}2.
-If @var{value} is not 0 or 1;
-or on other failure, @minus{}2.
-
 @end deftypefun
 
 @deftypefun Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar @var{g})
@@ -2394,56 +2323,10 @@ their own, perhaps based on
 the earleme location and @var{token_id},
 instead of using Libmarpa's token values.
 
-A @var{value} of 0 has special significance --- it indicates
-that the token is unvalued --- that its value is allowed
-to be unpredictable.
-Note that if a token is unvalued,
-it must be the case,
-not just that Libmarpa need not care about its value,
-but also that @strong{the application}
-does not care about the value of the token.
-When a token is unvalued, Libmarpa 
-optimizes away the valuator steps that
-give the application an opportunity to provide
-a value for that token.
-Applications that do not use Libmarpa's token values,
-but that @strong{do} care about the token's value,
-must tell Libmarpa not to optimize away the
-relevant valuator steps.
-An application can do this by
-letting @var{value} be any non-zero integer.
-
-When @var{value}
-in a call to @code{marpa_r_alternative()}
-is 0,
-symbol @var{token_id} is considered to have
-been used as an unvalued symbol.
-When @var{value}
-in a call to @code{marpa_r_alternative()}
-is not zero,
-symbol @var{token_id} is considered to have
-been used as an valued symbol.
-On the first read by
-@code{marpa_r_alternative()},
-if symbol @var{token_id} is used as a valued
-symbol,
-the valued status of
-symbol @var{token_id} will be set to 1
-and locked.
-On the first read by
-@code{marpa_r_alternative()},
-if symbol @var{token_id} is used as a unvalued
-symbol,
-the valued status of
-symbol @var{token_id} will be set to 0
-and locked.
-
-If the valued status of
-symbol @var{token_id} is locked at 0,
-it is a failure if that symbol is used as an valued symbol.
-If the valued status of
-symbol @var{token_id} is locked at 1,
-it is a failure if that symbol is used as an unvalued symbol.
+A @var{value} of 0 is reserved for a now-deprecated feature.
+Do not use it.
+For more details on that feature, see the
+section @ref{Valued and unvalued symbols}.
 
 When @code{marpa_r_alternative()}
 is successful,
@@ -3252,10 +3135,10 @@ Failures: On failure, @minus{}2.
     Marpa_Order @var{o})
 These methods, respectively, set and discover
 the ``high rank only'' flag of ordering @var{o}.
-A flag of 1 indicates that, when ranking,
+A @var{flag} of 1 indicates that, when ranking,
 all choices should be discarded except those of the
 highest rank.
-A valued status of 0 indicates that
+A @var{flag} of 0 indicates that
 no choices should be discarded on the
 basis of their rank.
 
@@ -3406,7 +3289,6 @@ Always succeeds.
 * Maintaining the stack::       
 * Valuator constructor::        
 * Valuator reference counting::  
-* Registering semantics::       
 * Stepping through the valuator::  
 * Valuator steps by type::      
 * Basic step accessors::        
@@ -3423,17 +3305,6 @@ To create a valuator, use the @code{marpa_v_new()} method.
 When a valuator is no longer in use, its memory can be freed
 using the 
 @code{marpa_v_unref()} method.
-
-By default, Libmarpa assumes that
-non-terminal symbols have
-no semantics.
-The archetypal application will need to register
-symbols that contain semantics.
-The primary method for doing this is
-@code{marpa_v_symbol_is_valued()}.
-Applications will typically register semantics by rule,
-and these applications will find
-the @code{marpa_v_rule_is_valued()} method more convenient.
 
 The application is required to maintain the stack,
 and the application is also required to implement
@@ -3509,12 +3380,8 @@ Step-driven valuation
 hides Libmarpa's grammar rewrites from the application,
 and is quite efficient.
 Libmarpa knows which rules are sequences.
-Based on the individual symbol's valued statuses,
-Libmarpa also knows which rules
-and terminals have values that it need not bother tracking.
 Libmarpa optimizes stack manipulations based on this knowledge.
-Long sequences,
-as well as unvalued rules and symbols,
+Long sequences
 are very common in practical grammars.
 For these,
 the stack manipulations suggested by Libmarpa's
@@ -3714,8 +3581,7 @@ Third, special note should be made of the requirement
 that location 0 exist.
 By convention, the parse result resides
 in location 0 of the stack.
-But, because the start symbol
-may have unvalued status,
+Because of potential optimizations,
 an application cannot assume that it
 will receive a Libmarpa step instruction that
 either reads from or writes to location 0.
@@ -3737,21 +3603,17 @@ containing a trap value.)
 
 The requirement that locations be initialized before
 reading occurs in other implementations.
-Uninitialized locations will correspond to unvalued symbols,
-but an implementation may require even ``unvalued'' symbols to have
-a value that belongs to its ``universe'' of values.
-A symbol is
-``unvalued'' if it does not have a predictable @strong{specific} value.
-For example, an application may be implemented
-expecting every item on the stack
-to belong to a class,
-in which case
-the set of all objects of that class would
-be that application's
-``universe'' of values.
-In such an implementation,
-just as in standard-conformant C, every stack location
-would need to be initialized before being read.
+Any implementation that has a ``universe'' of ``safe'' values,
+may require special precautions.
+The required precautions may amount to a need to initialize
+``uninitialized'' values.
+A practical example might be an implementation that expects
+all locations to contain a pointer which it can safely indirect
+from.
+In such implementations,
+just as in standard-conformant C,
+every stack location
+needs to be initialized before being read.
 
 Due to write optimizations, an application
 cannot rely on Libmarpa's step instructions to
@@ -3800,7 +3662,7 @@ Return value:  On success, the newly created valuator.
 On failure, @code{NULL}.
 @end deftypefun
 
-@node Valuator reference counting, Registering semantics, Valuator constructor, Value methods
+@node Valuator reference counting, Stepping through the valuator, Valuator constructor, Value methods
 @section Reference counting
 
 @deftypefun Marpa_Value marpa_v_ref (Marpa_Value @var{v})
@@ -3832,65 +3694,7 @@ base grammar, if necessary.
 
 @end deftypefun
 
-@node Registering semantics, Stepping through the valuator, Valuator reference counting, Value methods
-@section Registering semantics
-
-@deftypefun int marpa_v_symbol_is_valued ( @
-    Marpa_Value @var{v}, @
-    Marpa_Symbol_ID @var{sym_id} )
-@deftypefunx int marpa_v_symbol_is_valued_set ( @
-    Marpa_Value @var{v}, @
-    Marpa_Symbol_ID @var{sym_id}, @
-    int @var{value} )
-These methods, respectively,
-discover and set to @var{value},
-the valued status for symbol @var{sym_id}.
-A valued status of 1 indicates that the symbol is valued.
-A valued status of 0 indicates that the symbol is unvalued.
-If the valued status is locked,
-an attempt to change to a status different from the
-current one will fail
-(error code @code{MARPA_ERR_VALUED_IS_LOCKED}).
-
-Return value:  On success, the valued status @strong{after}
-the call.
-If @var{value} is not either 0 or 1,
-or on other failure, @minus{}2.
-@end deftypefun
-
-@deftypefun int marpa_v_rule_is_valued ( @
-    Marpa_Value @var{v}, @
-    Marpa_Rule_ID @var{rule_id} )
-@deftypefunx int marpa_v_rule_is_valued_set ( @
-    Marpa_Value @var{v}, @
-    Marpa_Rule_ID @var{rule_id}, @
-    int @var{value} )
-These methods respectively,
-discover and set to @var{value},
-the valued status
-for the LHS symbol of rule @var{rule_id}.
-A valued status of 1 indicates that the symbol is valued.
-A valued status of 0 indicates that the symbol is unvalued.
-If the valued status is locked,
-an attempt to change to a status different from the
-current one will fail
-(error code @code{MARPA_ERR_VALUED_IS_LOCKED}).
-
-Rules have no valued status of their own.
-The valued status of a rule
-is always that of its LHS symbol.
-These methods are conveniences --- they
-save the application the trouble of looking
-up the rule's LHS.
-
-Return value:  On success, the valued status of the
-rule @var{rule_id}'s LHS symbol @strong{after}
-the call.
-If @var{value} is not either 0 or 1,
-or on other failure, @minus{}2.
-@end deftypefun
-
-@node Stepping through the valuator, Valuator steps by type, Registering semantics, Value methods
+@node Stepping through the valuator, Valuator steps by type, Valuator reference counting, Value methods
 @section Stepping through the valuator
 
 @deftypefun Marpa_Step_Type marpa_v_step ( @
@@ -3952,8 +3756,8 @@ stack location @code{marpa_v_result(v)}.
 The valuator has gone through all of its steps
 and is now inactive.
 The value of the parse will be in stack location 0.
-Because of unvalued symbols,
-it is quite possible for valuator to immediately
+Because of optimizations,
+it is possible for valuator to immediately
 became inactive --- @code{MARPA_STEP_INACTIVE} could
 be both the first and last step.
 
@@ -4029,7 +3833,7 @@ returned by the @code{marpa_v_symbol()}
 macro.
 @end deftypefn
 
-@deftypefn {Macro} void* marpa_v_token_value (Marpa_Value @var{v})
+@deftypefn {Macro} int marpa_v_token_value (Marpa_Value @var{v})
 For the @code{MARPA_STEP_TOKEN} step,
 returns the integer which is
 (or which represents)
@@ -4435,15 +4239,6 @@ Numeric value: 16.
 Suggested message: "No event at that index".
 @end deftypevr
 
-@deftypevr Macro int MARPA_ERR_I_AM_NOT_OK
-The Libmarpa base grammar is in a "not ok"
-state.
-Currently, the only way this can happen
-is if Libmarpa memory is being overwritten.
-Numeric value: 29.
-Suggested message: "Marpa is in a not OK state".
-@end deftypevr
-
 @deftypevr Macro int MARPA_ERR_GRAMMAR_HAS_CYCLE
 The grammar has a cycle --- one or more loop
 rules.
@@ -4453,6 +4248,26 @@ it as fatal.
 For more see the description of @ref{marpa_g_precompute}.
 Numeric value: 17.
 Suggested message: "Grammar has cycle".
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_HEADERS_DO_NOT_MATCH
+This is an internal error, and indicates that
+Libmarpa was wrongly built.
+Libmarpa was compiled with headers which do not
+match the rest of the code.
+The solution is to find a correctly built
+Libmarpa.
+Numeric value: 98.
+Suggested message: "Internal error: Libmarpa was built incorrectly"
+@end deftypevr
+
+@deftypevr Macro int MARPA_ERR_I_AM_NOT_OK
+The Libmarpa base grammar is in a "not ok"
+state.
+Currently, the only way this can happen
+is if Libmarpa memory is being overwritten.
+Numeric value: 29.
+Suggested message: "Marpa is in a not OK state".
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_INACCESSIBLE_TOKEN
@@ -4884,6 +4699,9 @@ Suggested message: "Symbol is not set up for prediction events".
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_SYMBOL_VALUED_CONFLICT
+Unvalued symbols are a deprecated Marpa feature,
+which may be avoided with 
+the @code{marpa_g_force_valued} method.
 An unvalued symbol may take on any value,
 and therefore a symbol which is unvalued at some points
 cannot safely to be used to contain a value at
@@ -4975,7 +4793,11 @@ Suggested message: "Valuator inactive".
 @end deftypevr
 
 @deftypevr Macro int MARPA_ERR_VALUED_IS_LOCKED
-The valued status of a symbol is locked,
+Unvalued symbols are a deprecated Marpa feature,
+which may be avoided with 
+the @code{marpa_g_force_valued} method.
+This error code
+indicates that the valued status of a symbol is locked,
 and an attempt was made 
 to change it to a status different from the
 current one.
@@ -5286,42 +5108,14 @@ For this reason,
 the traditional behavior is the default
 in Libmarpa.
 
-@node Work in Progress, GNU Free Documentation License, Design notes, Top
+@node Work in Progress, Deprecated techniques and methods, Design notes, Top
 @chapter Work in Progress
 
 @menu
-* Experimental methods::        
 * Untested methods::            
 @end menu
 
-@node Experimental methods, Untested methods, Work in Progress, Work in Progress
-@section Experimental methods
-
-The methods of this section are not in the external interface,
-because they are experimental.
-Their fate is uncertain.
-Users should regard these methods
-as unsupported.
-
-@deftypefun int marpa_v_valued_force ( @
-    Marpa_Value @var{v})
-
-This methods locks the valued status of all symbols
-to 1, indicated that the symbol is valued.
-If this is not possible, for example because one of
-the grammar's symbols already is locked at a valued 
-status of 0,
-failure is returned.
-
-Return value: On success, a non-negative number.
-On failure, returns @minus{}2,
-and sets the error code to an appropriate
-value, which will never be
-@code{MARPA_ERR_NONE}.
-
-@end deftypefun
-
-@node Untested methods,  , Experimental methods, Work in Progress
+@node Untested methods,  , Work in Progress, Work in Progress
 @section Untested methods
 
 The methods of this section are not in the external interface,
@@ -5329,6 +5123,15 @@ because they have not been adequately tested.
 Their fate is uncertain.
 Users should regard these methods
 as unsupported.
+
+@menu
+* Ranking methods::             
+* Zero-width assertion methods::  
+* Methods for revising parses::  
+@end menu
+
+@node Ranking methods, Zero-width assertion methods, Untested methods, Untested methods
+@subsection Ranking methods
 
 @deftypefun Marpa_Rank marpa_g_default_rank ( @
     Marpa_Grammar @var{g})
@@ -5398,6 +5201,9 @@ The error code can be determined by using the
 
 @end deftypefun
 
+@node Zero-width assertion methods, Methods for revising parses, Ranking methods, Untested methods
+@subsection Zero-width assertion methods
+
 @deftypefun Marpa_Assertion_ID marpa_g_zwa_new ( @
     Marpa_Grammar @var{g}, @
     int @var{default_value})
@@ -5430,11 +5236,7 @@ On success, returns previous default value of the assertion.
     Marpa_Grammar @var{g} )
 @end deftypefun
 
-@menu
-* Methods for revising parses::  
-@end menu
-
-@node Methods for revising parses,  , Untested methods, Untested methods
+@node Methods for revising parses,  , Zero-width assertion methods, Untested methods
 @subsection Methods for revising parses
 
 Marpa allows an application to ``change its mind'' about a parse,
@@ -5447,7 +5249,201 @@ The methods in this section provide that capability.
 
 @end deftypefun
 
-@node GNU Free Documentation License,  , Work in Progress, Top
+@node Deprecated techniques and methods, GNU Free Documentation License, Work in Progress, Top
+@chapter Deprecated techniques and methods
+
+@menu
+* Valued and unvalued symbols::  
+@end menu
+
+@node Valued and unvalued symbols,  , Deprecated techniques and methods, Deprecated techniques and methods
+@section Valued and unvalued symbols
+
+@menu
+* What unvalued symbols were::  
+* Grammar methods dealing with unvalued symbols::  
+* Registering semantics in the valuator::  
+@end menu
+
+@node What unvalued symbols were, Grammar methods dealing with unvalued symbols, Valued and unvalued symbols, Valued and unvalued symbols
+@subsection What unvalued symbols were
+
+Libmarpa symbols can have values,
+which is the traditional way of doing semantics.
+Libmarpa also allows symbols to be unvalued.
+An @dfn{unvalued} symbol is one whose value
+is unpredictable from instance to instance.
+If a symbol is unvalued, we sometimes say that it
+has ``whatever'' semantics.
+
+Situations where the semantics can tolerate unvalued symbols
+are surprisingly frequent.
+For example, the top-level of many languages is a series
+of major units, all of whose semantics are typically accomplished
+via side effects.
+The compiler is typically indifferent to the actual value produced
+by these major units, and tracking them is a waste of time.
+Similarly, the value of the separators in a list is typically
+ignored.
+
+Rules are unvalued if and only if their LHS symbols
+are unvalued.
+When rules and symbols are unvalued,
+Libmarpa optimizes their evaluation.
+
+It is in principle unsafe to check the value 
+of a symbol if it can be unvalued.
+For this reason,
+once a symbol has been treated as valued,
+Libmarpa marks it as valued.
+Similarly,
+once a symbol has been treated as unvalued,
+Libmarpa marks it as unvalued.
+Once marked, a symbol's valued status is
+@dfn{locked} and cannot be changed later.
+
+The valued status of terminals is marked the first
+time they are read.
+The valued status of LHS symbols must be explicitly
+marked by the application when initializing the
+valuator --- this is Libmarpa's equivalent of
+registering a callback.
+
+LHS terminals are disabled by default.
+If allowed, the user should be aware that the valued
+status of a LHS terminal
+will be locked in the recognizer
+if it is used as a terminal,
+and the symbol's use as a rule LHS
+in the valuator must be
+consistent with the recognizer's marking.
+
+Marpa reports an error when a symbol's use
+conflicts with its locked valued status.
+Doing so usually saves the programmer
+some tricky debugging further down the road.
+
+@node Grammar methods dealing with unvalued symbols, Registering semantics in the valuator, What unvalued symbols were, Valued and unvalued symbols
+@subsection Grammar methods dealing with unvalued symbols
+
+@deftypefun int marpa_g_symbol_is_valued ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symbol_id})
+@deftypefunx int marpa_g_symbol_is_valued_set ( @
+    Marpa_Grammar @var{g}, @
+    Marpa_Symbol_ID @var{symbol_id}, @
+    int value)
+
+These methods, respectively, set
+and query the ``valued status'' of a symbol.
+Once set to a value with the
+@code{marpa_g_symbol_is_valued_set()} method,
+the valued status of a symbol is ``locked'' at that value.
+It cannot thereafter be changed.
+Subsequent calls to 
+@code{marpa_g_symbol_is_valued_set()}
+for the same @var{sym_id} will fail,
+leaving @var{sym_id}'s valued status unchanged,
+unless @var{value} is the same as the locked-in value.
+
+Return value: On success, 1 if the symbol @var{symbol_id}
+is valued after the call, 0 if not.
+If the valued status is locked and @var{value}
+is different from the current status, @minus{}2.
+If @var{value} is not 0 or 1;
+or on other failure, @minus{}2.
+
+@end deftypefun
+
+@node Registering semantics in the valuator,  , Grammar methods dealing with unvalued symbols, Valued and unvalued symbols
+@subsection Registering semantics in the valuator
+
+By default, Libmarpa's valuator objects
+assume that
+non-terminal symbols have
+no semantics.
+The archetypal application will need to register
+symbols that contain semantics.
+The primary method for doing this is
+@code{marpa_v_symbol_is_valued()}.
+Applications will typically register semantics by rule,
+and these applications will find
+the @code{marpa_v_rule_is_valued()} method more convenient.
+
+@deftypefun int marpa_v_symbol_is_valued ( @
+    Marpa_Value @var{v}, @
+    Marpa_Symbol_ID @var{sym_id} )
+@deftypefunx int marpa_v_symbol_is_valued_set ( @
+    Marpa_Value @var{v}, @
+    Marpa_Symbol_ID @var{sym_id}, @
+    int @var{value} )
+These methods, respectively,
+discover and set to @var{value},
+the valued status for symbol @var{sym_id}.
+A valued status of 1 indicates that the symbol is valued.
+A valued status of 0 indicates that the symbol is unvalued.
+If the valued status is locked,
+an attempt to change to a status different from the
+current one will fail
+(error code @code{MARPA_ERR_VALUED_IS_LOCKED}).
+
+Return value:  On success, the valued status @strong{after}
+the call.
+If @var{value} is not either 0 or 1,
+or on other failure, @minus{}2.
+@end deftypefun
+
+@deftypefun int marpa_v_rule_is_valued ( @
+    Marpa_Value @var{v}, @
+    Marpa_Rule_ID @var{rule_id} )
+@deftypefunx int marpa_v_rule_is_valued_set ( @
+    Marpa_Value @var{v}, @
+    Marpa_Rule_ID @var{rule_id}, @
+    int @var{value} )
+These methods respectively,
+discover and set to @var{value},
+the valued status
+for the LHS symbol of rule @var{rule_id}.
+A valued status of 1 indicates that the symbol is valued.
+A valued status of 0 indicates that the symbol is unvalued.
+If the valued status is locked,
+an attempt to change to a status different from the
+current one will fail
+(error code @code{MARPA_ERR_VALUED_IS_LOCKED}).
+
+Rules have no valued status of their own.
+The valued status of a rule
+is always that of its LHS symbol.
+These methods are conveniences --- they
+save the application the trouble of looking
+up the rule's LHS.
+
+Return value:  On success, the valued status of the
+rule @var{rule_id}'s LHS symbol @strong{after}
+the call.
+If @var{value} is not either 0 or 1,
+or on other failure, @minus{}2.
+@end deftypefun
+
+@deftypefun int marpa_v_valued_force ( @
+    Marpa_Value @var{v})
+
+This methods locks the valued status of all symbols
+to 1, indicated that the symbol is valued.
+If this is not possible, for example because one of
+the grammar's symbols already is locked at a valued 
+status of 0,
+failure is returned.
+
+Return value: On success, a non-negative number.
+On failure, returns @minus{}2,
+and sets the error code to an appropriate
+value, which will never be
+@code{MARPA_ERR_NONE}.
+
+@end deftypefun
+
+@node GNU Free Documentation License,  , Deprecated techniques and methods, Top
 @appendix GNU Free Documentation License
 
 @include fdl-1.3.texi

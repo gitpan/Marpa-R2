@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (15 April 2014) is for Libmarpa 6.0.1.
+This manual (21 April 2014) is for Libmarpa 6.0.2.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -10,13 +10,18 @@ This manual (15 April 2014) is for Libmarpa 6.0.1.
      Foundation.  A copy of the license is included in the section
      entitled "GNU Free Documentation License."
 
+INFO-DIR-SECTION Development
+START-INFO-DIR-ENTRY
+* Marpa R2: (marpa-r2).                Marpa R2 parser library
+END-INFO-DIR-ENTRY
+
 
 File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (15 April 2014) is for Libmarpa 6.0.1.
+This manual (21 April 2014) is for Libmarpa 6.0.2.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -50,6 +55,7 @@ This manual (15 April 2014) is for Libmarpa 6.0.1.
 * Error methods macros and codes::
 * Design notes::
 * Work in Progress::
+* Deprecated techniques and methods::
 * GNU Free Documentation License::
 
  --- The Detailed Node Listing ---
@@ -83,11 +89,6 @@ Earlemes
 * Variable length tokens::
 * The generalized model::
 * General rules for the earleme variables::
-
-Semantics
-
-* How Libmarpa semantics work::
-* Valued and unvalued symbols::
 
 Introduction to the external interface
 
@@ -146,7 +147,6 @@ Value methods
 * Maintaining the stack::
 * Valuator constructor::
 * Valuator reference counting::
-* Registering semantics::
 * Stepping through the valuator::
 * Valuator steps by type::
 * Basic step accessors::
@@ -178,12 +178,23 @@ Design notes
 
 Work in Progress
 
-* Experimental methods::
 * Untested methods::
 
 Untested methods
 
+* Ranking methods::
+* Zero-width assertion methods::
 * Methods for revising parses::
+
+Deprecated techniques and methods
+
+* Valued and unvalued symbols::
+
+Valued and unvalued symbols
+
+* What unvalued symbols were::
+* Grammar methods dealing with unvalued symbols::
+* Registering semantics in the valuator::
 
 
 File: api.info,  Node: Copying,  Next: About this document,  Prev: Top,  Up: Top
@@ -971,17 +982,6 @@ File: api.info,  Node: Semantics,  Next: Threads,  Prev: Input,  Up: Top
 5 Semantics
 ***********
 
-* Menu:
-
-* How Libmarpa semantics work::
-* Valued and unvalued symbols::
-
-
-File: api.info,  Node: How Libmarpa semantics work,  Next: Valued and unvalued symbols,  Prev: Semantics,  Up: Semantics
-
-5.1 How the Libmarpa semantics work
-===================================
-
 Libmarpa handling of semantics is unusual.  Most semantics are left up
 to the application, but Libmarpa guides them.  Specifically, the
 application is expected to maintain the evaluation stack.  Libmarpa's
@@ -998,55 +998,6 @@ the reference chapters of this document, under the appropriate methods
 and classes.  The most extensive discussion of the semantics is in the
 section that deals with the methods of the value time class.  *Note
 Value methods::.
-
-
-File: api.info,  Node: Valued and unvalued symbols,  Prev: How Libmarpa semantics work,  Up: Semantics
-
-5.2 Valued and unvalued symbols
-===============================
-
-Libmarpa symbols can have values, which is the traditional way of doing
-semantics.  Libmarpa also allows symbols to be unvalued.  An "unvalued"
-symbol is one whose value is unpredictable from instance to instance.
-If a symbol is unvalued, we sometimes say that it has "whatever"
-semantics.
-
-   Situations where the semantics can tolerate unvalued symbols are
-surprisingly frequent.  For example, the top-level of many languages is
-a series of major units, all of whose semantics are typically
-accomplished via side effects.  The compiler is typically indifferent
-to the actual value produced by these major units, and tracking them is
-a waste of time.  Similarly, the value of the separators in a list is
-typically ignored.
-
-   Rules are unvalued if and only if their LHS symbols are unvalued.
-When rules and symbols are unvalued, Libmarpa optimizes their
-evaluation.
-
-   It is in principle unsafe to check the value of a symbol if it can
-be unvalued.  For this reason, once a symbol has been treated as valued,
-Libmarpa marks it as valued.  Similarly, once a symbol has been treated
-as unvalued, Libmarpa marks it as unvalued.  Once marked, a symbol's
-valued status is "locked" and cannot be changed later.
-
-   The valued status of terminals is marked the first time they are
-read.  The valued status of LHS symbols must be explicitly marked by
-the application when initializing the valuator -- this is Libmarpa's
-equivalent of registering a callback.
-
-   LHS terminals are disabled by default.  If allowed, the user should
-be aware that the valued status of a LHS terminal will be locked in the
-recognizer if it is used as a terminal, and the symbol's use as a rule
-LHS in the valuator must be consistent with the recognizer's marking.
-
-   Marpa reports an error when a symbol's use conflicts with its locked
-valued status.  Doing so usually saves the programmer some tricky
-debugging further down the road.  But it is possible that an
-application might deliberately want to mix valued and unvalued uses of
-a symbol -- an application might be able to differentiate them using
-the larger context, or might be tolerant of the uncertainty.  If there
-is interest, a future Libmarpa extension might allow a locked valued
-status to be overriden.
 
 
 File: api.info,  Node: Threads,  Next: Fatal Errors,  Prev: Semantics,  Up: Top
@@ -1314,7 +1265,7 @@ File: api.info,  Node: Grammar constructor,  Next: Grammar reference counting,  
 11.2 Creating a new grammar
 ===========================
 
- -- Function: Marpa_Grammar marpa_g_new ( Marpa_Config* configuration )
+ -- Function: Marpa_Grammar marpa_g_new ( Marpa_Config* CONFIGURATION )
      Creates a new grammar time object.  The returned grammar object is
      not yet precomputed, and will have no symbols and rules.  Its
      reference count will be 1.
@@ -1328,6 +1279,19 @@ File: api.info,  Node: Grammar constructor,  Next: Grammar reference counting,  
      Return value: On success, the grammar object.  On failure, `NULL',
      and the error code is set in CONFIGURATION.
 
+
+ -- Function: int marpa_g_force_valued ( Marpa_Grammar G )
+     It is recommended that this call be made immediately after the
+     grammar constructor.  It turns off a deprecated feature.
+
+     The `marpa_g_force_valued' forces all the symbols in a grammar to
+     be "valued".  The opposite of a valued symbol is one about whose
+     value you do not care.  This distinction has been made in the past
+     in hope of gaining efficiencies at evaluation time.  Current
+     thinking is that the gains do not repay the extra complexity.
+
+     Return value: On success, a non-negative integer.  On failure, a
+     negative integer.
 
 
 File: api.info,  Node: Grammar reference counting,  Next: Symbols,  Prev: Grammar constructor,  Up: Grammar methods
@@ -1553,24 +1517,6 @@ File: api.info,  Node: Symbols,  Next: Rules,  Prev: Grammar reference counting,
      is no such symbol, -1.  If VALUE is not 0 or 1; if the terminal
      status is locked and VALUE is different from its current value; if
      the grammar G is precomputed; or on other failure, -2.
-
- -- Function: int marpa_g_symbol_is_valued ( Marpa_Grammar G,
-          Marpa_Symbol_ID SYMBOL_ID)
- -- Function: int marpa_g_symbol_is_valued_set ( Marpa_Grammar G,
-          Marpa_Symbol_ID SYMBOL_ID, int value)
-     These methods, respectively, set and query the "valued status" of
-     a symbol.  Once set to a value with the
-     `marpa_g_symbol_is_valued_set()' method, the valued status of a
-     symbol is "locked" at that value.  It cannot thereafter be changed.
-     Subsequent calls to `marpa_g_symbol_is_valued_set()' for the same
-     SYM_ID will fail, leaving SYM_ID's valued status unchanged, unless
-     VALUE is the same as the locked-in value.
-
-     Return value: On success, 1 if the symbol SYMBOL_ID is valued
-     after the call, 0 if not.  If the valued status is locked and VALUE
-     is different from the current status, -2.  If VALUE is not 0 or 1;
-     or on other failure, -2.
-
 
  -- Function: Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar G)
      Creates a new symbol.
@@ -2023,33 +1969,9 @@ File: api.info,  Node: Recognizer life cycle mutators,  Next: Location accessors
      values on their own, perhaps based on the earleme location and
      TOKEN_ID, instead of using Libmarpa's token values.
 
-     A VALUE of 0 has special significance -- it indicates that the
-     token is unvalued -- that its value is allowed to be unpredictable.
-     Note that if a token is unvalued, it must be the case, not just
-     that Libmarpa need not care about its value, but also that *the
-     application* does not care about the value of the token.  When a
-     token is unvalued, Libmarpa optimizes away the valuator steps that
-     give the application an opportunity to provide a value for that
-     token.  Applications that do not use Libmarpa's token values, but
-     that *do* care about the token's value, must tell Libmarpa not to
-     optimize away the relevant valuator steps.  An application can do
-     this by letting VALUE be any non-zero integer.
-
-     When VALUE in a call to `marpa_r_alternative()' is 0, symbol
-     TOKEN_ID is considered to have been used as an unvalued symbol.
-     When VALUE in a call to `marpa_r_alternative()' is not zero,
-     symbol TOKEN_ID is considered to have been used as an valued
-     symbol.  On the first read by `marpa_r_alternative()', if symbol
-     TOKEN_ID is used as a valued symbol, the valued status of symbol
-     TOKEN_ID will be set to 1 and locked.  On the first read by
-     `marpa_r_alternative()', if symbol TOKEN_ID is used as a unvalued
-     symbol, the valued status of symbol TOKEN_ID will be set to 0 and
-     locked.
-
-     If the valued status of symbol TOKEN_ID is locked at 0, it is a
-     failure if that symbol is used as an valued symbol.  If the valued
-     status of symbol TOKEN_ID is locked at 1, it is a failure if that
-     symbol is used as an unvalued symbol.
+     A VALUE of 0 is reserved for a now-deprecated feature.  Do not use
+     it.  For more details on that feature, see the section *note
+     Valued and unvalued symbols::.
 
      When `marpa_r_alternative()' is successful, the value of the
      furthest earleme is set to the greater of its value before the
@@ -2664,10 +2586,10 @@ File: api.info,  Node: Non-default ordering,  Prev: Order accessor,  Up: Orderin
  -- Function: int marpa_o_high_rank_only_set ( Marpa_Order O, int FLAG)
  -- Function: int marpa_o_high_rank_only ( Marpa_Order O)
      These methods, respectively, set and discover the "high rank only"
-     flag of ordering O.  A flag of 1 indicates that, when ranking, all
+     flag of ordering O.  A FLAG of 1 indicates that, when ranking, all
      choices should be discarded except those of the highest rank.  A
-     valued status of 0 indicates that no choices should be discarded
-     on the basis of their rank.
+     FLAG of 0 indicates that no choices should be discarded on the
+     basis of their rank.
 
      Return value:  On success, the  value of the "high rank only" flag
      *after* the call.  On failure, -2.
@@ -2803,7 +2725,6 @@ File: api.info,  Node: Value methods,  Next: Events,  Prev: Tree methods,  Up: T
 * Maintaining the stack::
 * Valuator constructor::
 * Valuator reference counting::
-* Registering semantics::
 * Stepping through the valuator::
 * Valuator steps by type::
 * Basic step accessors::
@@ -2819,13 +2740,6 @@ The archetypal application needs a value object (or "valuator") to
 produce the value of the parse.  To create a valuator, use the
 `marpa_v_new()' method.  When a valuator is no longer in use, its
 memory can be freed using the `marpa_v_unref()' method.
-
-   By default, Libmarpa assumes that non-terminal symbols have no
-semantics.  The archetypal application will need to register symbols
-that contain semantics.  The primary method for doing this is
-`marpa_v_symbol_is_valued()'.  Applications will typically register
-semantics by rule, and these applications will find the
-`marpa_v_rule_is_valued()' method more convenient.
 
    The application is required to maintain the stack, and the
 application is also required to implement most of the semantics,
@@ -2886,13 +2800,11 @@ File: api.info,  Node: Advantages of step-driven valuation,  Next: Maintaining t
 
 Step-driven valuation hides Libmarpa's grammar rewrites from the
 application, and is quite efficient.  Libmarpa knows which rules are
-sequences.  Based on the individual symbol's valued statuses, Libmarpa
-also knows which rules and terminals have values that it need not
-bother tracking.  Libmarpa optimizes stack manipulations based on this
-knowledge.  Long sequences, as well as unvalued rules and symbols, are
-very common in practical grammars.  For these, the stack manipulations
-suggested by Libmarpa's step-driven valuator will be significantly
-faster than the traditional stack evaluation algorithm.
+sequences.  Libmarpa optimizes stack manipulations based on this
+knowledge.  Long sequences are very common in practical grammars.  For
+these, the stack manipulations suggested by Libmarpa's step-driven
+valuator will be significantly faster than the traditional stack
+evaluation algorithm.
 
    Step-driven evalution has another advantage.  To illustrate this,
 consider what is a very common case: The semantics are implemented in a
@@ -3024,9 +2936,9 @@ result will go into one of the locations that were read.
 
    Third, special note should be made of the requirement that location
 0 exist.  By convention, the parse result resides in location 0 of the
-stack.  But, because the start symbol may have unvalued status, an
-application cannot assume that it will receive a Libmarpa step
-instruction that either reads from or writes to location 0.
+stack.  Because of potential optimizations, an application cannot
+assume that it will receive a Libmarpa step instruction that either
+reads from or writes to location 0.
 
 
 File: api.info,  Node: Initializing locations in the stack,  Prev: Sizing the stack,  Up: Maintaining the stack
@@ -3043,15 +2955,13 @@ Reading a trap value may cause an abend.  (It is safe, in
 standard-conforming C, to write to a location containing a trap value.)
 
    The requirement that locations be initialized before reading occurs
-in other implementations.  Uninitialized locations will correspond to
-unvalued symbols, but an implementation may require even "unvalued"
-symbols to have a value that belongs to its "universe" of values.  A
-symbol is "unvalued" if it does not have a predictable *specific* value.
-For example, an application may be implemented expecting every item on
-the stack to belong to a class, in which case the set of all objects of
-that class would be that application's "universe" of values.  In such
-an implementation, just as in standard-conformant C, every stack
-location would need to be initialized before being read.
+in other implementations.  Any implementation that has a "universe" of
+"safe" values, may require special precautions.  The required
+precautions may amount to a need to initialize "uninitialized" values.
+A practical example might be an implementation that expects all
+locations to contain a pointer which it can safely indirect from.  In
+such implementations, just as in standard-conformant C, every stack
+location needs to be initialized before being read.
 
    Due to write optimizations, an application cannot rely on Libmarpa's
 step instructions to initialize every stack location before its first
@@ -3093,7 +3003,7 @@ File: api.info,  Node: Valuator constructor,  Next: Valuator reference counting,
      failure, `NULL'.
 
 
-File: api.info,  Node: Valuator reference counting,  Next: Registering semantics,  Prev: Valuator constructor,  Up: Value methods
+File: api.info,  Node: Valuator reference counting,  Next: Stepping through the valuator,  Prev: Valuator constructor,  Up: Value methods
 
 17.6 Reference counting
 =======================
@@ -3117,49 +3027,9 @@ File: api.info,  Node: Valuator reference counting,  Next: Registering semantics
 
 
 
-File: api.info,  Node: Registering semantics,  Next: Stepping through the valuator,  Prev: Valuator reference counting,  Up: Value methods
+File: api.info,  Node: Stepping through the valuator,  Next: Valuator steps by type,  Prev: Valuator reference counting,  Up: Value methods
 
-17.7 Registering semantics
-==========================
-
- -- Function: int marpa_v_symbol_is_valued ( Marpa_Value V,
-          Marpa_Symbol_ID SYM_ID )
- -- Function: int marpa_v_symbol_is_valued_set ( Marpa_Value V,
-          Marpa_Symbol_ID SYM_ID, int VALUE )
-     These methods, respectively, discover and set to VALUE, the valued
-     status for symbol SYM_ID.  A valued status of 1 indicates that the
-     symbol is valued.  A valued status of 0 indicates that the symbol
-     is unvalued.  If the valued status is locked, an attempt to change
-     to a status different from the current one will fail (error code
-     `MARPA_ERR_VALUED_IS_LOCKED').
-
-     Return value:  On success, the valued status *after* the call.  If
-     VALUE is not either 0 or 1, or on other failure, -2.
-
- -- Function: int marpa_v_rule_is_valued ( Marpa_Value V, Marpa_Rule_ID
-          RULE_ID )
- -- Function: int marpa_v_rule_is_valued_set ( Marpa_Value V,
-          Marpa_Rule_ID RULE_ID, int VALUE )
-     These methods respectively, discover and set to VALUE, the valued
-     status for the LHS symbol of rule RULE_ID.  A valued status of 1
-     indicates that the symbol is valued.  A valued status of 0
-     indicates that the symbol is unvalued.  If the valued status is
-     locked, an attempt to change to a status different from the
-     current one will fail (error code `MARPA_ERR_VALUED_IS_LOCKED').
-
-     Rules have no valued status of their own.  The valued status of a
-     rule is always that of its LHS symbol.  These methods are
-     conveniences -- they save the application the trouble of looking
-     up the rule's LHS.
-
-     Return value:  On success, the valued status of the rule RULE_ID's
-     LHS symbol *after* the call.  If VALUE is not either 0 or 1, or on
-     other failure, -2.
-
-
-File: api.info,  Node: Stepping through the valuator,  Next: Valuator steps by type,  Prev: Registering semantics,  Up: Value methods
-
-17.8 Stepping through the valuator
+17.7 Stepping through the valuator
 ==================================
 
  -- Function: Marpa_Step_Type marpa_v_step ( Marpa_Value V)
@@ -3176,7 +3046,7 @@ File: api.info,  Node: Stepping through the valuator,  Next: Valuator steps by t
 
 File: api.info,  Node: Valuator steps by type,  Next: Basic step accessors,  Prev: Stepping through the valuator,  Up: Value methods
 
-17.9 Valuator steps by type
+17.8 Valuator steps by type
 ===========================
 
  -- Macro: Marpa_Step_Type MARPA_STEP_RULE
@@ -3203,9 +3073,9 @@ File: api.info,  Node: Valuator steps by type,  Next: Basic step accessors,  Pre
  -- Macro: Marpa_Step_Type MARPA_STEP_INACTIVE
      The valuator has gone through all of its steps and is now inactive.
      The value of the parse will be in stack location 0.  Because of
-     unvalued symbols, it is quite possible for valuator to immediately
-     became inactive -- `MARPA_STEP_INACTIVE' could be both the first
-     and last step.
+     optimizations, it is possible for valuator to immediately became
+     inactive -- `MARPA_STEP_INACTIVE' could be both the first and last
+     step.
 
 
  -- Macro: Marpa_Step_Type MARPA_STEP_INITIAL
@@ -3219,8 +3089,8 @@ File: api.info,  Node: Valuator steps by type,  Next: Basic step accessors,  Pre
 
 File: api.info,  Node: Basic step accessors,  Next: Other step accessors,  Prev: Valuator steps by type,  Up: Value methods
 
-17.10 Basic step accessors
-==========================
+17.9 Basic step accessors
+=========================
 
 The basic step accessors are so called because their information is
 basic to the stack manipulation.  The basic step accessors are
@@ -3257,14 +3127,14 @@ implemented as macros.  They always succeed.
      value returned is the same as that returned by the
      `marpa_v_symbol()' macro.
 
- -- Macro: void* marpa_v_token_value (Marpa_Value V)
+ -- Macro: int marpa_v_token_value (Marpa_Value V)
      For the `MARPA_STEP_TOKEN' step, returns the integer which is (or
      which represents) the value of the token.
 
 
 File: api.info,  Node: Other step accessors,  Prev: Basic step accessors,  Up: Value methods
 
-17.11 Other step accessors
+17.10 Other step accessors
 ==========================
 
 This section contains the step accessors that are not basic to stack
@@ -3561,18 +3431,25 @@ codes::.
      was too large.  Numeric value: 16.  Suggested message: "No event
      at that index".
 
- -- Macro: int MARPA_ERR_I_AM_NOT_OK
-     The Libmarpa base grammar is in a "not ok" state.  Currently, the
-     only way this can happen is if Libmarpa memory is being
-     overwritten.  Numeric value: 29.  Suggested message: "Marpa is in
-     a not OK state".
-
  -- Macro: int MARPA_ERR_GRAMMAR_HAS_CYCLE
      The grammar has a cycle -- one or more loop rules.  This is a
      recoverable error, although most applications will want to treat
      it as fatal.  For more see the description of *note
      marpa_g_precompute::.  Numeric value: 17.  Suggested message:
      "Grammar has cycle".
+
+ -- Macro: int MARPA_ERR_HEADERS_DO_NOT_MATCH
+     This is an internal error, and indicates that Libmarpa was wrongly
+     built.  Libmarpa was compiled with headers which do not match the
+     rest of the code.  The solution is to find a correctly built
+     Libmarpa.  Numeric value: 98.  Suggested message: "Internal error:
+     Libmarpa was built incorrectly"
+
+ -- Macro: int MARPA_ERR_I_AM_NOT_OK
+     The Libmarpa base grammar is in a "not ok" state.  Currently, the
+     only way this can happen is if Libmarpa memory is being
+     overwritten.  Numeric value: 29.  Suggested message: "Marpa is in
+     a not OK state".
 
  -- Macro: int MARPA_ERR_INACCESSIBLE_TOKEN
      This error code indicates that the token symbol is an inaccessible
@@ -3871,11 +3748,13 @@ codes::.
      message: "Symbol is not set up for prediction events".
 
  -- Macro: int MARPA_ERR_SYMBOL_VALUED_CONFLICT
-     An unvalued symbol may take on any value, and therefore a symbol
-     which is unvalued at some points cannot safely to be used to
-     contain a value at others.  This error indicates that such an
-     unsafe use is being attempted.  Numeric value: 74.  Suggested
-     message: "Symbol is treated both as valued and unvalued".
+     Unvalued symbols are a deprecated Marpa feature, which may be
+     avoided with the `marpa_g_force_valued' method.  An unvalued
+     symbol may take on any value, and therefore a symbol which is
+     unvalued at some points cannot safely to be used to contain a
+     value at others.  This error indicates that such an unsafe use is
+     being attempted.  Numeric value: 74.  Suggested message: "Symbol
+     is treated both as valued and unvalued".
 
  -- Macro: int MARPA_ERR_TERMINAL_IS_LOCKED
      An attempt was made to change the terminal status of a symbol to a
@@ -3926,10 +3805,12 @@ codes::.
      case.  Numeric value: 83.  Suggested message: "Valuator inactive".
 
  -- Macro: int MARPA_ERR_VALUED_IS_LOCKED
-     The valued status of a symbol is locked, and an attempt was made
-     to change it to a status different from the current one.  Numeric
-     value: 84.  Suggested message: "The valued status of the symbol is
-     locked".
+     Unvalued symbols are a deprecated Marpa feature, which may be
+     avoided with the `marpa_g_force_valued' method.  This error code
+     indicates that the valued status of a symbol is locked, and an
+     attempt was made to change it to a status different from the
+     current one.  Numeric value: 84.  Suggested message: "The valued
+     status of the symbol is locked".
 
  -- Macro: int MARPA_ERR_SYMBOL_IS_NULLING
      An attempt was made to do something with a nulling symbol that is
@@ -4171,46 +4052,36 @@ from terminals.  For this reason, the traditional behavior is the
 default in Libmarpa.
 
 
-File: api.info,  Node: Work in Progress,  Next: GNU Free Documentation License,  Prev: Design notes,  Up: Top
+File: api.info,  Node: Work in Progress,  Next: Deprecated techniques and methods,  Prev: Design notes,  Up: Top
 
 21 Work in Progress
 *******************
 
 * Menu:
 
-* Experimental methods::
 * Untested methods::
 
 
-File: api.info,  Node: Experimental methods,  Next: Untested methods,  Prev: Work in Progress,  Up: Work in Progress
+File: api.info,  Node: Untested methods,  Prev: Work in Progress,  Up: Work in Progress
 
-21.1 Experimental methods
-=========================
-
-The methods of this section are not in the external interface, because
-they are experimental.  Their fate is uncertain.  Users should regard
-these methods as unsupported.
-
- -- Function: int marpa_v_valued_force ( Marpa_Value V)
-     This methods locks the valued status of all symbols to 1,
-     indicated that the symbol is valued.  If this is not possible, for
-     example because one of the grammar's symbols already is locked at
-     a valued status of 0, failure is returned.
-
-     Return value: On success, a non-negative number.  On failure,
-     returns -2, and sets the error code to an appropriate value, which
-     will never be `MARPA_ERR_NONE'.
-
-
-
-File: api.info,  Node: Untested methods,  Prev: Experimental methods,  Up: Work in Progress
-
-21.2 Untested methods
+21.1 Untested methods
 =====================
 
 The methods of this section are not in the external interface, because
 they have not been adequately tested.  Their fate is uncertain.  Users
 should regard these methods as unsupported.
+
+* Menu:
+
+* Ranking methods::
+* Zero-width assertion methods::
+* Methods for revising parses::
+
+
+File: api.info,  Node: Ranking methods,  Next: Zero-width assertion methods,  Prev: Untested methods,  Up: Untested methods
+
+21.1.1 Ranking methods
+----------------------
 
  -- Function: Marpa_Rank marpa_g_default_rank ( Marpa_Grammar G)
  -- Function: Marpa_Rank marpa_g_default_rank_set ( Marpa_Grammar G,
@@ -4250,6 +4121,12 @@ should regard these methods as unsupported.
      error code can be determined by using the `marpa_g_error()' call.
 
 
+
+File: api.info,  Node: Zero-width assertion methods,  Next: Methods for revising parses,  Prev: Ranking methods,  Up: Untested methods
+
+21.1.2 Zero-width assertion methods
+-----------------------------------
+
  -- Function: Marpa_Assertion_ID marpa_g_zwa_new ( Marpa_Grammar G, int
           DEFAULT_VALUE)
 
@@ -4268,14 +4145,10 @@ should regard these methods as unsupported.
  -- Function: Marpa_Assertion_ID marpa_g_highest_zwa_id ( Marpa_Grammar
           G )
 
-* Menu:
-
-* Methods for revising parses::
-
 
-File: api.info,  Node: Methods for revising parses,  Prev: Untested methods,  Up: Untested methods
+File: api.info,  Node: Methods for revising parses,  Prev: Zero-width assertion methods,  Up: Untested methods
 
-21.2.1 Methods for revising parses
+21.1.3 Methods for revising parses
 ----------------------------------
 
 Marpa allows an application to "change its mind" about a parse,
@@ -4286,7 +4159,155 @@ capability.
  -- Function: Marpa_Earleme marpa_r_clean ( Marpa_Recognizer R)
 
 
-File: api.info,  Node: GNU Free Documentation License,  Prev: Work in Progress,  Up: Top
+File: api.info,  Node: Deprecated techniques and methods,  Next: GNU Free Documentation License,  Prev: Work in Progress,  Up: Top
+
+22 Deprecated techniques and methods
+************************************
+
+* Menu:
+
+* Valued and unvalued symbols::
+
+
+File: api.info,  Node: Valued and unvalued symbols,  Prev: Deprecated techniques and methods,  Up: Deprecated techniques and methods
+
+22.1 Valued and unvalued symbols
+================================
+
+* Menu:
+
+* What unvalued symbols were::
+* Grammar methods dealing with unvalued symbols::
+* Registering semantics in the valuator::
+
+
+File: api.info,  Node: What unvalued symbols were,  Next: Grammar methods dealing with unvalued symbols,  Prev: Valued and unvalued symbols,  Up: Valued and unvalued symbols
+
+22.1.1 What unvalued symbols were
+---------------------------------
+
+Libmarpa symbols can have values, which is the traditional way of doing
+semantics.  Libmarpa also allows symbols to be unvalued.  An "unvalued"
+symbol is one whose value is unpredictable from instance to instance.
+If a symbol is unvalued, we sometimes say that it has "whatever"
+semantics.
+
+   Situations where the semantics can tolerate unvalued symbols are
+surprisingly frequent.  For example, the top-level of many languages is
+a series of major units, all of whose semantics are typically
+accomplished via side effects.  The compiler is typically indifferent
+to the actual value produced by these major units, and tracking them is
+a waste of time.  Similarly, the value of the separators in a list is
+typically ignored.
+
+   Rules are unvalued if and only if their LHS symbols are unvalued.
+When rules and symbols are unvalued, Libmarpa optimizes their
+evaluation.
+
+   It is in principle unsafe to check the value of a symbol if it can
+be unvalued.  For this reason, once a symbol has been treated as valued,
+Libmarpa marks it as valued.  Similarly, once a symbol has been treated
+as unvalued, Libmarpa marks it as unvalued.  Once marked, a symbol's
+valued status is "locked" and cannot be changed later.
+
+   The valued status of terminals is marked the first time they are
+read.  The valued status of LHS symbols must be explicitly marked by
+the application when initializing the valuator -- this is Libmarpa's
+equivalent of registering a callback.
+
+   LHS terminals are disabled by default.  If allowed, the user should
+be aware that the valued status of a LHS terminal will be locked in the
+recognizer if it is used as a terminal, and the symbol's use as a rule
+LHS in the valuator must be consistent with the recognizer's marking.
+
+   Marpa reports an error when a symbol's use conflicts with its locked
+valued status.  Doing so usually saves the programmer some tricky
+debugging further down the road.
+
+
+File: api.info,  Node: Grammar methods dealing with unvalued symbols,  Next: Registering semantics in the valuator,  Prev: What unvalued symbols were,  Up: Valued and unvalued symbols
+
+22.1.2 Grammar methods dealing with unvalued symbols
+----------------------------------------------------
+
+ -- Function: int marpa_g_symbol_is_valued ( Marpa_Grammar G,
+          Marpa_Symbol_ID SYMBOL_ID)
+ -- Function: int marpa_g_symbol_is_valued_set ( Marpa_Grammar G,
+          Marpa_Symbol_ID SYMBOL_ID, int value)
+     These methods, respectively, set and query the "valued status" of
+     a symbol.  Once set to a value with the
+     `marpa_g_symbol_is_valued_set()' method, the valued status of a
+     symbol is "locked" at that value.  It cannot thereafter be changed.
+     Subsequent calls to `marpa_g_symbol_is_valued_set()' for the same
+     SYM_ID will fail, leaving SYM_ID's valued status unchanged, unless
+     VALUE is the same as the locked-in value.
+
+     Return value: On success, 1 if the symbol SYMBOL_ID is valued
+     after the call, 0 if not.  If the valued status is locked and VALUE
+     is different from the current status, -2.  If VALUE is not 0 or 1;
+     or on other failure, -2.
+
+
+
+File: api.info,  Node: Registering semantics in the valuator,  Prev: Grammar methods dealing with unvalued symbols,  Up: Valued and unvalued symbols
+
+22.1.3 Registering semantics in the valuator
+--------------------------------------------
+
+By default, Libmarpa's valuator objects assume that non-terminal
+symbols have no semantics.  The archetypal application will need to
+register symbols that contain semantics.  The primary method for doing
+this is `marpa_v_symbol_is_valued()'.  Applications will typically
+register semantics by rule, and these applications will find the
+`marpa_v_rule_is_valued()' method more convenient.
+
+ -- Function: int marpa_v_symbol_is_valued ( Marpa_Value V,
+          Marpa_Symbol_ID SYM_ID )
+ -- Function: int marpa_v_symbol_is_valued_set ( Marpa_Value V,
+          Marpa_Symbol_ID SYM_ID, int VALUE )
+     These methods, respectively, discover and set to VALUE, the valued
+     status for symbol SYM_ID.  A valued status of 1 indicates that the
+     symbol is valued.  A valued status of 0 indicates that the symbol
+     is unvalued.  If the valued status is locked, an attempt to change
+     to a status different from the current one will fail (error code
+     `MARPA_ERR_VALUED_IS_LOCKED').
+
+     Return value:  On success, the valued status *after* the call.  If
+     VALUE is not either 0 or 1, or on other failure, -2.
+
+ -- Function: int marpa_v_rule_is_valued ( Marpa_Value V, Marpa_Rule_ID
+          RULE_ID )
+ -- Function: int marpa_v_rule_is_valued_set ( Marpa_Value V,
+          Marpa_Rule_ID RULE_ID, int VALUE )
+     These methods respectively, discover and set to VALUE, the valued
+     status for the LHS symbol of rule RULE_ID.  A valued status of 1
+     indicates that the symbol is valued.  A valued status of 0
+     indicates that the symbol is unvalued.  If the valued status is
+     locked, an attempt to change to a status different from the
+     current one will fail (error code `MARPA_ERR_VALUED_IS_LOCKED').
+
+     Rules have no valued status of their own.  The valued status of a
+     rule is always that of its LHS symbol.  These methods are
+     conveniences -- they save the application the trouble of looking
+     up the rule's LHS.
+
+     Return value:  On success, the valued status of the rule RULE_ID's
+     LHS symbol *after* the call.  If VALUE is not either 0 or 1, or on
+     other failure, -2.
+
+ -- Function: int marpa_v_valued_force ( Marpa_Value V)
+     This methods locks the valued status of all symbols to 1,
+     indicated that the symbol is valued.  If this is not possible, for
+     example because one of the grammar's symbols already is locked at
+     a valued status of 0, failure is returned.
+
+     Return value: On success, a non-negative number.  On failure,
+     returns -2, and sets the error code to an appropriate value, which
+     will never be `MARPA_ERR_NONE'.
+
+
+
+File: api.info,  Node: GNU Free Documentation License,  Prev: Deprecated techniques and methods,  Up: Top
 
 Appendix A GNU Free Documentation License
 *****************************************
@@ -4774,107 +4795,110 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top479
-Node: Copying3794
-Node: About this document12225
-Node: How to read this document12442
-Node: Prerequisites12909
-Node: Parsing theory13508
-Node: About Libmarpa14196
-Node: Architecture16028
-Node: Major objects16234
-Node: Time objects17573
-Node: Reference counting19027
-Node: Numbered objects21080
-Node: Input21514
-Node: Earlemes21649
-Node: The traditional model22046
-Node: The earleme variables23334
-Node: The significances of the earleme variables25213
-Node: The initial earleme settings26839
-Node: The standard model of input27517
-Node: Ambiguous input29240
-Node: Variable length tokens30205
-Node: The generalized model31921
-Node: General rules for the earleme variables34263
-Node: Terminals35419
-Node: Semantics36269
-Node: How Libmarpa semantics work36444
-Node: Valued and unvalued symbols37591
-Node: Threads40005
-Node: Fatal Errors41263
-Node: Introduction to the external interface41858
-Node: About the overviews42209
-Node: Return values43045
-Node: Naming conventions44834
-Node: Static methods45948
-Node: Configuration methods47525
-Node: Grammar methods49212
-Node: Grammar overview49519
-Node: Grammar constructor50563
-Node: Grammar reference counting51416
-Node: Symbols52020
-Node: Rules62863
-Node: Sequences67887
-Node: Ranks72152
-Node: Grammar precomputation74395
-Ref: marpa_g_precompute74596
-Node: Recognizer methods78934
-Node: Recognizer overview79299
-Node: Recognizer constructor80029
-Node: Recognizer reference counting80583
-Node: Recognizer life cycle mutators81394
-Node: Location accessors89739
-Node: Other parse status methods94274
-Node: Untested recognizer methods97864
-Node: Progress reports100908
-Node: Bocage methods104479
-Node: Bocage overview104720
-Node: Bocage constructor105240
-Node: Bocage reference counting105894
-Node: Bocage accessor106795
-Node: Ordering methods107537
-Node: Ordering overview107808
-Node: Ordering constructor108412
-Node: Ordering reference counting108879
-Node: Order accessor109863
-Node: Non-default ordering110643
-Node: Tree methods111783
-Node: Tree overview112008
-Node: Tree constructor112835
-Node: Tree reference counting113490
-Node: Tree iteration114459
-Node: Value methods115767
-Node: Value overview116205
-Node: How to use the valuator117637
-Node: Advantages of step-driven valuation119608
-Node: Maintaining the stack123278
-Node: Sizing the stack125289
-Node: Initializing locations in the stack127069
-Node: Valuator constructor129265
-Node: Valuator reference counting130116
-Node: Registering semantics131101
-Node: Stepping through the valuator133035
-Node: Valuator steps by type133801
-Node: Basic step accessors135748
-Node: Other step accessors137614
-Node: Events139160
-Node: Events overview139349
-Node: Event methods140219
-Node: Event codes141404
-Node: Error methods macros and codes144622
-Node: Error methods144891
-Node: Error Macros145718
-Node: External error codes146085
-Node: Internal error codes168800
-Node: Design notes172574
-Node: Why so many time objects173009
-Node: Design of numbered objects174759
-Node: LHS Terminals175998
-Node: Work in Progress176691
-Node: Experimental methods176901
-Node: Untested methods177735
-Node: Methods for revising parses180744
-Node: GNU Free Documentation License181185
+Node: Top612
+Node: Copying4112
+Node: About this document12543
+Node: How to read this document12760
+Node: Prerequisites13227
+Node: Parsing theory13826
+Node: About Libmarpa14514
+Node: Architecture16346
+Node: Major objects16552
+Node: Time objects17891
+Node: Reference counting19345
+Node: Numbered objects21398
+Node: Input21832
+Node: Earlemes21967
+Node: The traditional model22364
+Node: The earleme variables23652
+Node: The significances of the earleme variables25531
+Node: The initial earleme settings27157
+Node: The standard model of input27835
+Node: Ambiguous input29558
+Node: Variable length tokens30523
+Node: The generalized model32239
+Node: General rules for the earleme variables34581
+Node: Terminals35737
+Node: Semantics36587
+Node: Threads37638
+Node: Fatal Errors38896
+Node: Introduction to the external interface39491
+Node: About the overviews39842
+Node: Return values40678
+Node: Naming conventions42467
+Node: Static methods43581
+Node: Configuration methods45158
+Node: Grammar methods46845
+Node: Grammar overview47152
+Node: Grammar constructor48196
+Node: Grammar reference counting49680
+Node: Symbols50284
+Node: Rules60221
+Node: Sequences65245
+Node: Ranks69510
+Node: Grammar precomputation71753
+Ref: marpa_g_precompute71954
+Node: Recognizer methods76292
+Node: Recognizer overview76657
+Node: Recognizer constructor77387
+Node: Recognizer reference counting77941
+Node: Recognizer life cycle mutators78752
+Node: Location accessors85632
+Node: Other parse status methods90167
+Node: Untested recognizer methods93757
+Node: Progress reports96801
+Node: Bocage methods100372
+Node: Bocage overview100613
+Node: Bocage constructor101133
+Node: Bocage reference counting101787
+Node: Bocage accessor102688
+Node: Ordering methods103430
+Node: Ordering overview103701
+Node: Ordering constructor104305
+Node: Ordering reference counting104772
+Node: Order accessor105756
+Node: Non-default ordering106536
+Node: Tree methods107667
+Node: Tree overview107892
+Node: Tree constructor108719
+Node: Tree reference counting109374
+Node: Tree iteration110343
+Node: Value methods111651
+Node: Value overview112063
+Node: How to use the valuator113122
+Node: Advantages of step-driven valuation115093
+Node: Maintaining the stack118580
+Node: Sizing the stack120591
+Node: Initializing locations in the stack122351
+Node: Valuator constructor124390
+Node: Valuator reference counting125241
+Node: Stepping through the valuator126234
+Node: Valuator steps by type127006
+Node: Basic step accessors128944
+Node: Other step accessors130806
+Node: Events132352
+Node: Events overview132541
+Node: Event methods133411
+Node: Event codes134596
+Node: Error methods macros and codes137814
+Node: Error methods138083
+Node: Error Macros138910
+Node: External error codes139277
+Node: Internal error codes162630
+Node: Design notes166404
+Node: Why so many time objects166839
+Node: Design of numbered objects168589
+Node: LHS Terminals169828
+Node: Work in Progress170521
+Node: Untested methods170709
+Node: Ranking methods171127
+Node: Zero-width assertion methods173235
+Node: Methods for revising parses174152
+Node: Deprecated techniques and methods174605
+Node: Valued and unvalued symbols174856
+Node: What unvalued symbols were175192
+Node: Grammar methods dealing with unvalued symbols177349
+Node: Registering semantics in the valuator178549
+Node: GNU Free Documentation License181406
 
 End Tag Table

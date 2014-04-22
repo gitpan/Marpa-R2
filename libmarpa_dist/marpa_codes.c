@@ -129,6 +129,7 @@ const struct marpa_error_description_s marpa_error_description[] = {
   { 95, "MARPA_ERR_RECCE_IS_INCONSISTENT", "MARPA_ERR_RECCE_IS_INCONSISTENT" },
   { 96, "MARPA_ERR_INVALID_ASSERTION_ID", "Assertion ID is malformed" },
   { 97, "MARPA_ERR_NO_SUCH_ASSERTION_ID", "No assertion with this ID exists" },
+  { 98, "MARPA_ERR_HEADERS_DO_NOT_MATCH", "Internal error: Libmarpa was built incorrectly" },
 };
 
 

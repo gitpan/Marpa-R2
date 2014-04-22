@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.085_002';
+$VERSION        = '2.085_003';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -942,7 +942,7 @@ sub Marpa::R2::Scanless::R::resume {
                             or
                             Marpa::R2::exception("Could not say(): $ERRNO");
                     } ## end if ( $trace_terminals >= 2 )
-                    push @ops, $op_alternative, $symbol_id, 0, 1;
+                    push @ops, $op_alternative, $symbol_id, 1, 1;
                 } ## end if ( $character =~ $re )
             } ## end for my $entry ( @{$character_class_table} )
 

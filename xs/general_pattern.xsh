@@ -49,6 +49,21 @@ PPCODE:
 }
 
 void
+force_valued( g_wrapper )
+    G_Wrapper *g_wrapper;
+PPCODE:
+{
+  Marpa_Grammar self = g_wrapper->g;
+  int gp_result = marpa_g_force_valued(self);
+  if ( gp_result == -1 ) { XSRETURN_UNDEF; }
+  if ( gp_result < 0 && g_wrapper->throw ) {
+    croak( "Problem in g->force_valued(): %s",
+     xs_g_error( g_wrapper ));
+  }
+  XPUSHs (sv_2mortal (newSViv (gp_result)));
+}
+
+void
 has_cycle( g_wrapper )
     G_Wrapper *g_wrapper;
 PPCODE:
