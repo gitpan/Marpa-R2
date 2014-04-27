@@ -1,7 +1,7 @@
 This is internal.info, produced by makeinfo version 4.13 from
 internal.texi.
 
-This manual (21 April 2014) is for the internals of Libmarpa 6.0.2.
+This manual (26 April 2014) is for the internals of Libmarpa 6.0.3.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -17,7 +17,7 @@ File: internal.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa internals
 ******************
 
-This manual (21 April 2014) is for the internals of Libmarpa 6.0.2.
+This manual (26 April 2014) is for the internals of Libmarpa 6.0.3.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -270,14 +270,6 @@ File: internal.info,  Node: Symbol internal methods,  Next: Rule internals,  Pre
 2.1 Symbol internal methods
 ===========================
 
- -- Function: int _marpa_g_rule_first_child_set ( Marpa_Grammar G,
-          Marpa_Rule_ID RULE_ID)
-     If the desired semantics is simply to return the first child as
-     the value (not an uncommon case) Marpa could implement that as a
-     stack no-op.  This stub may become part of the external interface
-     at some point, once I fully work out the implications of "first
-     child" semantics.
-
  -- Function: int _marpa_g_nsy_is_start ( Marpa_Grammar G, Marpa_NSY_ID
           NSY_ID)
 
@@ -292,12 +284,6 @@ File: internal.info,  Node: Symbol internal methods,  Next: Rule internals,  Pre
 
  -- Function: Marpa_NSY_ID _marpa_g_xsy_nsy ( Marpa_Grammar G,
           Marpa_Symbol_ID SYMID)
-
- -- Function: Marpa_Symbol_ID _marpa_g_symbol_proper_alias (
-          Marpa_Grammar G, Marpa_Symbol_ID SYMID)
-
- -- Function: Marpa_Symbol_ID _marpa_g_symbol_null_alias (
-          Marpa_Grammar G, Marpa_Symbol_ID SYMID)
 
  -- Function: int _marpa_g_nsy_is_semantic ( Marpa_Grammar G,
           Marpa_NSY_ID NSY_ID)
@@ -402,9 +388,6 @@ use requires familiarity with Marpa's internals, as described in
 
  -- Function: Marpa_Symbol_ID _marpa_g_ahm_postdot (Marpa_Grammar G,
           Marpa_AHM_ID ITEM_ID)
-
- -- Function: int _marpa_g_ahm_sort_key (Marpa_Grammar G, Marpa_AHM_ID
-          ITEM_ID)
 
 
 File: internal.info,  Node: Recognizer internals,  Next: Bocage internals,  Prev: Grammar internals,  Up: Internal Interface
@@ -632,6 +615,13 @@ File: internal.info,  Node: Debugging methods,  Prev: Valuator internals,  Up: I
 
 2.9 Debugging methods
 =====================
+
+ -- Function: const char* _marpa_tag(void)
+     Returns a "tag" value.  This is to allow tagging the libraries
+     with an completely arbitrary string identifier.  independent even
+     of the versioning mechanism.  This allows debugging, for example,
+     to determine which of two otherwise exactly identical libraries is
+     in use.
 
  -- Function: int marpa_debug_level_set ( int LEVEL )
 
@@ -1132,14 +1122,14 @@ Node: Copying1413
 Node: About this document9849
 Node: Internal Interface10157
 Node: Symbol internal methods10947
-Node: Rule internals12621
-Node: Grammar internals15243
-Node: Recognizer internals16022
-Node: Bocage internals18767
-Node: Ordering internals21292
-Node: Tree internals21807
-Node: Valuator internals23815
-Node: Debugging methods24107
-Node: GNU Free Documentation License24405
+Node: Rule internals11996
+Node: Grammar internals14618
+Node: Recognizer internals15306
+Node: Bocage internals18051
+Node: Ordering internals20576
+Node: Tree internals21091
+Node: Valuator internals23099
+Node: Debugging methods23391
+Node: GNU Free Documentation License24028
 
 End Tag Table

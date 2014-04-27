@@ -2371,7 +2371,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 6
 #define EXPECTED_LIBMARPA_MINOR 0
-#define EXPECTED_LIBMARPA_MICRO 2
+#define EXPECTED_LIBMARPA_MICRO 3
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -2439,6 +2439,14 @@ PPCODE:
     XPUSHs (sv_2mortal (newSViv (version[0])));
     XPUSHs (sv_2mortal (newSViv (version[1])));
     XPUSHs (sv_2mortal (newSViv (version[2])));
+}
+
+void
+tag()
+PPCODE:
+{
+   const char* tag = _marpa_tag();
+   XSRETURN_PV(tag);
 }
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin::G

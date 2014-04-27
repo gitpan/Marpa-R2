@@ -660,6 +660,17 @@ Marpa_Error_Code marpa_c_error(Marpa_Config* config, const char** p_error_string
     return error_code;
 }
 
+const char* _marpa_tag(void)
+{
+#if defined(MARPA_TAG)
+  return STRINGIFY( MARPA_TAG );
+#elif defined(__GNUC__)
+  return __DATE__ " " __TIME__;
+#else
+  return "[no tag]";
+#endif
+}
+
 @** Grammar (GRAMMAR) code.
 @<Public incomplete structures@> =
 struct marpa_g;
@@ -12378,6 +12389,16 @@ Marpa_Nook_ID _marpa_v_nook(Marpa_Value public_v)
     lbv_clone (v->t_obs, Valued_Locked_BV_of_B (b), xsy_count);
 }
 
+
+@
+@<Function definitions@> =
+PRIVATE int symbol_is_valued(
+    VALUE v,
+    Marpa_Symbol_ID xsy_id)
+{
+    return lbv_bit_test(XSY_is_Valued_BV_of_V(v), xsy_id);
+}
+
 @
 @<Function definitions@> =
 int marpa_v_symbol_is_valued(
@@ -12481,6 +12502,23 @@ int marpa_v_rule_is_valued_set (
       const XRL xrl = XRL_by_ID (xrl_id);
       const XSYID xsy_id = LHS_ID_of_XRL (xrl);
       return symbol_is_valued_set (v, xsy_id, value);
+    }
+}
+
+@ @<Function definitions@> =
+int marpa_v_rule_is_valued (
+    Marpa_Value public_v, Marpa_Rule_ID xrl_id)
+{
+    const VALUE v = (VALUE)public_v;
+    @<Return |-2| on failure@>@;
+    @<Unpack value objects@>@;
+    @<Fail if fatal error@>@;
+    @<Fail if |xrl_id| is malformed@>@;
+    @<Soft fail if |xrl_id| does not exist@>@;
+    {
+      const XRL xrl = XRL_by_ID (xrl_id);
+      const XSYID xsy_id = LHS_ID_of_XRL (xrl);
+      return symbol_is_valued (v, xsy_id);
     }
 }
 

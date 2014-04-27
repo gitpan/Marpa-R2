@@ -39,6 +39,7 @@ STAGE_FILES = \
     stage/AUTHORS \
     stage/ChangeLog \
     stage/COPYING.LESSER \
+    stage/Makefile.win32 \
     stage/marpa_ami.c \
     stage/marpa_ami.h \
     stage/marpa_avl.c \
@@ -54,7 +55,9 @@ STAGE_FILES = \
     stage/marpa_tavl.h \
     stage/NEWS \
     stage/README \
-    stage/VERSION.in
+    stage/VERSION.in \
+    stage/win32/do_config_h.pl \
+    stage/win32/marpa.def
 
 dummy:
 	@echo install is the main target
@@ -73,7 +76,17 @@ stage/configure.ac: ac/configure.ac
 stage/Makefile.am: ac/Makefile.am
 	cp $? $@
 
+stage/Makefile.win32: win32/Makefile.win32
+	cp $? $@
+
+stage/win32/do_config_h.pl: win32/do_config_h.pl
+	test -d stage/win32 || mkdir stage/win32
+	cp $? $@
+
 stage/marpa.c: dev/marpa.c
+	cp $? $@
+
+stage/win32/marpa.def: dev/marpa.def
 	cp $? $@
 
 stage/marpa.h: public/marpa.h
@@ -112,22 +125,22 @@ stage/marpa_tavl.h: tavl/marpa_tavl.h
 stage/marpa_tavl.c: tavl/marpa_tavl.c
 	cp $? $@
 
-stage/NEWS: ac/NEWS
-	cp $? $@
-
 stage/AUTHORS: ac/AUTHORS
-	cp $? $@
-
-stage/README: ac/README
-	cp $? $@
-
-stage/VERSION.in: public/VERSION.in
 	cp $? $@
 
 stage/COPYING.LESSER: ac/COPYING.LESSER
 	cp $? $@
 
 stage/ChangeLog: ac/ChangeLog
+	cp $? $@
+
+stage/NEWS: ac/NEWS
+	cp $? $@
+
+stage/README: ac/README
+	cp $? $@
+
+stage/VERSION.in: public/VERSION.in
 	cp $? $@
 
 doc/README: ac_doc/README
