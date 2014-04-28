@@ -33,7 +33,7 @@
 
 #define MARPA_H_MAJOR_VERSION 6
 #define MARPA_H_MINOR_VERSION 0
-#define MARPA_H_MICRO_VERSION 3
+#define MARPA_H_MICRO_VERSION 4
 
 #line 1 "./marpa.h-err"
 #define MARPA_ERROR_COUNT 99
