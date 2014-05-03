@@ -1595,6 +1595,7 @@ v_do_stack_ops (V_Wrapper * v_wrapper, SV ** stack_results)
 
     }
 
+  /* Never reached */
   return -1;
 }
 
@@ -2371,7 +2372,7 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 
 #define EXPECTED_LIBMARPA_MAJOR 6
 #define EXPECTED_LIBMARPA_MINOR 0
-#define EXPECTED_LIBMARPA_MICRO 4
+#define EXPECTED_LIBMARPA_MICRO 5
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -2473,7 +2474,6 @@ PPCODE:
 	throw = throw_sv && SvTRUE (throw_sv);
       }
       break;
-      croak ("Usage: Marpa::R2::Thin:G::new(class, arg_hash)");
     case 2:
       {
 	I32 retlen;
@@ -2507,16 +2507,16 @@ PPCODE:
     }
 
   /* Make sure the header is from the version we want */
-  if (MARPA_H_MAJOR_VERSION != EXPECTED_LIBMARPA_MAJOR
-      || MARPA_H_MINOR_VERSION != EXPECTED_LIBMARPA_MINOR
-      || MARPA_H_MICRO_VERSION != EXPECTED_LIBMARPA_MICRO)
+  if (MARPA_MAJOR_VERSION != EXPECTED_LIBMARPA_MAJOR
+      || MARPA_MINOR_VERSION != EXPECTED_LIBMARPA_MINOR
+      || MARPA_MICRO_VERSION != EXPECTED_LIBMARPA_MICRO)
     {
       croak
 	("Problem in $g->new(): want Libmarpa %d.%d.%d, header was from Libmarpa %d.%d.%d",
 	 EXPECTED_LIBMARPA_MAJOR, EXPECTED_LIBMARPA_MINOR,
 	 EXPECTED_LIBMARPA_MICRO,
-	 MARPA_H_MAJOR_VERSION, MARPA_H_MINOR_VERSION,
-	 MARPA_H_MICRO_VERSION);
+	 MARPA_MAJOR_VERSION, MARPA_MINOR_VERSION,
+	 MARPA_MICRO_VERSION);
     }
 
   {

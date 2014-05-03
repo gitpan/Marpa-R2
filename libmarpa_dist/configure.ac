@@ -25,7 +25,7 @@ m4_define(marpa_configure_in)
 
 m4_define([marpa_major_version], [6])
 m4_define([marpa_minor_version], [0])
-m4_define([marpa_micro_version], [4])
+m4_define([marpa_micro_version], [5])
 m4_define([marpa_version],
           [marpa_major_version.marpa_minor_version.marpa_micro_version])
 
@@ -104,12 +104,19 @@ fi
 
 AC_SUBST(WARNING_CFLAGS)
 AC_SUBST(WARNING_CPPFLAGS)
-AC_SUBST(MARPA_MAJOR_VERSION, [marpa_major_version])
-AC_SUBST(MARPA_MINOR_VERSION, [marpa_minor_version])
-AC_SUBST(MARPA_MICRO_VERSION, [marpa_micro_version])
-AC_DEFINE([MARPA_MAJOR_VERSION], [marpa_major_version], [Marpa major version.])
-AC_DEFINE([MARPA_MINOR_VERSION], [marpa_minor_version], [Marpa minor version.])
-AC_DEFINE([MARPA_MICRO_VERSION], [marpa_micro_version], [Marpa micro version.])
+
+# There are two sets of version numbers, one that travels as
+# a define with the public headers, and this one, which is compiled
+# into the library.  Both *should* be the same.
+# We use these duplicate headers to make sure applications match the
+# right headers to the right library, and also for some sanity checking
+# at build and development time.
+AC_SUBST(MARPA_LIB_MAJOR_VERSION, [marpa_major_version])
+AC_SUBST(MARPA_LIB_MINOR_VERSION, [marpa_minor_version])
+AC_SUBST(MARPA_LIB_MICRO_VERSION, [marpa_micro_version])
+AC_DEFINE([MARPA_LIB_MAJOR_VERSION], [marpa_major_version], [Marpa major version.])
+AC_DEFINE([MARPA_LIB_MINOR_VERSION], [marpa_minor_version], [Marpa minor version.])
+AC_DEFINE([MARPA_LIB_MICRO_VERSION], [marpa_micro_version], [Marpa micro version.])
 AC_ARG_VAR(MARPA_DEBUG_FLAG,[Marpa debugging])
 
 AC_CHECK_SIZEOF([int])
@@ -131,7 +138,7 @@ fi
 # The following were suggested by autoscan
 AC_CHECK_FUNCS([memset])
 
-AC_CONFIG_FILES( [Makefile VERSION])
+AC_CONFIG_FILES( [Makefile LIB_VERSION])
 AC_OUTPUT
 
 # vim: expandtab shiftwidth=4:

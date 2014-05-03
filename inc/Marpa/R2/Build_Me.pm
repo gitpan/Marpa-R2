@@ -303,7 +303,7 @@ sub process_xs {
         }
         push @extra_linker_flags, '-L' . $libmarpa_libs_dir;
         my $version_file_name =
-            File::Spec->catfile( $libmarpa_build_directory, 'VERSION' );
+            File::Spec->catfile( $libmarpa_build_directory, 'LIB_VERSION' );
         my $libmarpa_version = $self->file_slurp($version_file_name);
         chomp $libmarpa_version;
         my @libmarpa_version = split /[.]/xms, $libmarpa_version;
@@ -509,7 +509,7 @@ sub do_libmarpa {
         
     # As of this writing, only used by Config::AutoConf logic,
     # but that may change.
-    my $libmarpa_version = $self->file_slurp('VERSION');
+    my $libmarpa_version = $self->file_slurp('LIB_VERSION');
     chomp $libmarpa_version;
     my @libmarpa_version = split /[.]/xms, $libmarpa_version;
 
@@ -574,9 +574,9 @@ INLINEHOOK
             }
 
             # Config::Autoconf mistakes 0 for undef, so these must be done explicitly
-            say {$config_fh} join q{ }, '#define MARPA_MAJOR_VERSION', $libmarpa_version[0];
-            say {$config_fh} join q{ }, '#define MARPA_MINOR_VERSION', $libmarpa_version[1];
-            say {$config_fh} join q{ }, '#define MARPA_MICRO_VERSION', $libmarpa_version[2];
+            say {$config_fh} join q{ }, '#define MARPA_LIB_MAJOR_VERSION', $libmarpa_version[0];
+            say {$config_fh} join q{ }, '#define MARPA_LIB_MINOR_VERSION', $libmarpa_version[1];
+            say {$config_fh} join q{ }, '#define MARPA_LIB_MICRO_VERSION', $libmarpa_version[2];
 
             close($config_fh);
             $ac = Config::AutoConf->new();

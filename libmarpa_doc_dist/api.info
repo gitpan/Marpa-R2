@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (27 April 2014) is for Libmarpa 6.0.4.
+This manual (2 May 2014) is for Libmarpa 6.0.5.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -21,7 +21,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (27 April 2014) is for Libmarpa 6.0.4.
+This manual (2 May 2014) is for Libmarpa 6.0.5.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -1410,7 +1410,7 @@ File: api.info,  Node: Symbols,  Next: Rules,  Prev: Grammar reference counting,
      completed events.
 
      Zero length derivations can be ambiguous.  When a zero length
-     symbol is recognized, all of its zero-length derviations are also
+     symbol is recognized, all of its zero-length derivations are also
      considered to be recognized.
 
      The nulled event marking cannot be changed once the grammar is
@@ -1519,7 +1519,8 @@ File: api.info,  Node: Symbols,  Next: Rules,  Prev: Grammar reference counting,
      the grammar G is precomputed; or on other failure, -2.
 
  -- Function: Marpa_Symbol_ID marpa_g_symbol_new (Marpa_Grammar G)
-     Creates a new symbol.
+     Creates a new symbol.  The symbol ID will be a non-negative
+     integer.
 
      Return value: On success, the ID of a new symbol; On failure, -2.
 
@@ -1606,9 +1607,16 @@ File: api.info,  Node: Rules,  Next: Sequences,  Prev: Symbols,  Up: Grammar met
 
  -- Function: Marpa_Rule_ID marpa_g_rule_new (Marpa_Grammar G,
           Marpa_Symbol_ID LHS_ID, Marpa_Symbol_ID *RHS_IDS, int LENGTH)
-     Creates a new external rule in grammar G.  The LHS symbol is
-     LHS_ID, and there are LENGTH symbols on the RHS.  The RHS symbols
-     are in an array pointed to by RHS_IDS.
+     Creates a new external BNF rule in grammar G.  The ID of the new
+     rule will be a non-negative integer, which will be unique to that
+     rule.  In addition to BNF rules, Marpa also allows sequence rules,
+     which are created by another method: `marpa_g_sequence_new()'.
+     Sequence rules and BNF rules are numbered in the same series, so
+     that a BNF rule will never have the same rule ID as a sequence
+     rule, and vice versa.
+
+     The LHS symbol is LHS_ID, and there are LENGTH symbols on the RHS.
+     The RHS symbols are in an array pointed to by RHS_IDS.
 
      Possible failures, with their error codes, include:
         * `MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE': The LHS symbol is the
@@ -1664,12 +1672,11 @@ File: api.info,  Node: Sequences,  Next: Ranks,  Prev: Rules,  Up: Grammar metho
  -- Function: Marpa_Rule_ID marpa_g_sequence_new (Marpa_Grammar G,
           Marpa_Symbol_ID LHS_ID, Marpa_Symbol_ID RHS_ID,
           Marpa_Symbol_ID SEPARATOR_ID, int MIN, int FLAGS )
-     Adds a new sequence rule to grammar G.  Sequence rules do not add
-     to the classes of grammar parsed by Libmarpa -- a sequence can
-     always be written as BNF rules.  When a rule is created with the
-     `marpa_g_sequence_new()' method, Libmarpa will understand that it
-     is a sequence, and will optimize accordingly.  The speedup is
-     often considerable.
+     Adds a new sequence rule to grammar G.  The ID of the new sequence
+     rule will be a non-negative integer, which is unique to that rule.
+     Sequence rules and BNF rules are numbered in the same series, so
+     that a BNF rule will never have the same rule ID as a sequence
+     rule, and vice versa.
 
      The sequence is LHS_ID, and the item to be repeated in the
      sequence is RHS_ID.  The sequence must be repeated at least MIN
@@ -1703,6 +1710,12 @@ File: api.info,  Node: Sequences,  Next: Ranks,  Prev: Rules,  Up: Grammar metho
      rule or a sequence rule.  On an attempt to create an sequence rule
      with a duplicate LHS, `marpa_g_sequence_new()' fails, setting the
      error code to `MARPA_ERR_SEQUENCE_LHS_NOT_UNIQUE'.
+
+     Sequence rules do not add to the classes of grammar parsed by
+     Libmarpa -- a sequence can always be written as BNF rules.  When a
+     rule is created with the `marpa_g_sequence_new()' method, Libmarpa
+     will understand that it is a sequence, and will optimize
+     accordingly.  The speedup is often considerable.
 
      Return value:  On success, the ID of the external rule.  On
      failure, -2.
@@ -2207,6 +2220,11 @@ File: api.info,  Node: Other parse status methods,  Next: Untested recognizer me
      at the current earleme.  if and only if the expected symbol event
      bit for SYMBOL_ID is 1.  The "expected symbol event bit" must be 1
      or 0.
+
+     In this context, "expected" means "expected as a terminal".  Even
+     if a symbol is predicted at the current earleme, if it is not
+     acceptable as a terminal, it does not trigger an "expected symbol
+     event".
 
      By default, the "expected symbol event bit" is 0.  It is an error
      to attempt to set the "expected symbol event bit" to 1 for a
@@ -3266,18 +3284,21 @@ File: api.info,  Node: Event codes,  Prev: Event methods,  Up: Events
 
  -- Macro: int MARPA_EVENT_SYMBOL_COMPLETED
      The recognizer can be set to generate an event a symbol is
-     completed using its `marpa_r_completed_symbol_event_set()' method.
-     (A symbol is "completed" if and only if any rule with that symbol
-     as its LHS is completed.)  This event code indicates that one of
-     those events occurred.  Event value: The ID of the completed
-     symbol.  Suggested message: "Completed symbol".
+     completed using its `marpa_g_symbol_is_completion_event_set()'
+     method.  (A symbol is "completed" if and only if any rule with
+     that symbol as its LHS is completed.)  This event code indicates
+     that one of those events occurred.  Event value: The ID of the
+     completed symbol.  Suggested message: "Completed symbol".
 
  -- Macro: int MARPA_EVENT_SYMBOL_EXPECTED
      The recognizer can be set to generate an event when a symbol is
-     expected using its `marpa_r_expected_symbol_event_set()' method.
-     This event code indicates that one of those events occurred.
-     Event value: The ID of the expected symbol.  Suggested message:
-     "Expecting symbol".
+     expected as a terminal, using its
+     `marpa_r_expected_symbol_event_set()' method.  Note that this
+     event only triggers if the symbol is expected as a terminal.
+     Predicted symbols which are not expected as terminals do not
+     trigger this event.  This event code indicates that one of those
+     events occurred.  Event value: The ID of the expected symbol.
+     Suggested message: "Expecting symbol".
 
  -- Macro: int MARPA_EVENT_SYMBOL_NULLED
      The recognizer can be set to generate an event when a symbol is
@@ -3290,10 +3311,12 @@ File: api.info,  Node: Event codes,  Prev: Event methods,  Up: Events
  -- Macro: int MARPA_EVENT_SYMBOL_PREDICTED
      The recognizer can be set to generate an event when a symbol is
      predicted.  To set an predicted symbol event, use the recognizer's
-     `marpa_r_predicted_symbol_event_set()' method.  This event code
-     indicates that a predicted symbol event occurred.  Event value:
-     The ID of the predicted symbol.  Suggested message: "Symbol was
-     predicted".
+     `marpa_r_predicted_symbol_event_set()' method.  Unlike the
+     `MARPA_EVENT_SYMBOL_EXPECTED' event, the
+     `MARPA_EVENT_SYMBOL_PREDICTED' event triggers for predictions of
+     both non-terminals and terminals.  This event code indicates that
+     a predicted symbol event occurred.  Event value: The ID of the
+     predicted symbol.  Suggested message: "Symbol was predicted".
 
 
 File: api.info,  Node: Error methods macros and codes,  Next: Design notes,  Prev: Events,  Up: Top
@@ -4795,110 +4818,110 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top612
-Node: Copying4112
-Node: About this document12543
-Node: How to read this document12760
-Node: Prerequisites13227
-Node: Parsing theory13826
-Node: About Libmarpa14514
-Node: Architecture16346
-Node: Major objects16552
-Node: Time objects17891
-Node: Reference counting19345
-Node: Numbered objects21398
-Node: Input21832
-Node: Earlemes21967
-Node: The traditional model22364
-Node: The earleme variables23652
-Node: The significances of the earleme variables25531
-Node: The initial earleme settings27157
-Node: The standard model of input27835
-Node: Ambiguous input29558
-Node: Variable length tokens30523
-Node: The generalized model32239
-Node: General rules for the earleme variables34581
-Node: Terminals35737
-Node: Semantics36587
-Node: Threads37638
-Node: Fatal Errors38896
-Node: Introduction to the external interface39491
-Node: About the overviews39842
-Node: Return values40678
-Node: Naming conventions42467
-Node: Static methods43581
-Node: Configuration methods45158
-Node: Grammar methods46845
-Node: Grammar overview47152
-Node: Grammar constructor48196
-Node: Grammar reference counting49680
-Node: Symbols50284
-Node: Rules60221
-Node: Sequences65245
-Node: Ranks69510
-Node: Grammar precomputation71753
-Ref: marpa_g_precompute71954
-Node: Recognizer methods76292
-Node: Recognizer overview76657
-Node: Recognizer constructor77387
-Node: Recognizer reference counting77941
-Node: Recognizer life cycle mutators78752
-Node: Location accessors85632
-Node: Other parse status methods90167
-Node: Untested recognizer methods93757
-Node: Progress reports96801
-Node: Bocage methods100372
-Node: Bocage overview100613
-Node: Bocage constructor101133
-Node: Bocage reference counting101787
-Node: Bocage accessor102688
-Node: Ordering methods103430
-Node: Ordering overview103701
-Node: Ordering constructor104305
-Node: Ordering reference counting104772
-Node: Order accessor105756
-Node: Non-default ordering106536
-Node: Tree methods107667
-Node: Tree overview107892
-Node: Tree constructor108719
-Node: Tree reference counting109374
-Node: Tree iteration110343
-Node: Value methods111651
-Node: Value overview112063
-Node: How to use the valuator113122
-Node: Advantages of step-driven valuation115093
-Node: Maintaining the stack118580
-Node: Sizing the stack120591
-Node: Initializing locations in the stack122351
-Node: Valuator constructor124390
-Node: Valuator reference counting125241
-Node: Stepping through the valuator126234
-Node: Valuator steps by type127006
-Node: Basic step accessors128944
-Node: Other step accessors130806
-Node: Events132352
-Node: Events overview132541
-Node: Event methods133411
-Node: Event codes134596
-Node: Error methods macros and codes137814
-Node: Error methods138083
-Node: Error Macros138910
-Node: External error codes139277
-Node: Internal error codes162630
-Node: Design notes166404
-Node: Why so many time objects166839
-Node: Design of numbered objects168589
-Node: LHS Terminals169828
-Node: Work in Progress170521
-Node: Untested methods170709
-Node: Ranking methods171127
-Node: Zero-width assertion methods173235
-Node: Methods for revising parses174152
-Node: Deprecated techniques and methods174605
-Node: Valued and unvalued symbols174856
-Node: What unvalued symbols were175192
-Node: Grammar methods dealing with unvalued symbols177349
-Node: Registering semantics in the valuator178549
-Node: GNU Free Documentation License181406
+Node: Top609
+Node: Copying4106
+Node: About this document12537
+Node: How to read this document12754
+Node: Prerequisites13221
+Node: Parsing theory13820
+Node: About Libmarpa14508
+Node: Architecture16340
+Node: Major objects16546
+Node: Time objects17885
+Node: Reference counting19339
+Node: Numbered objects21392
+Node: Input21826
+Node: Earlemes21961
+Node: The traditional model22358
+Node: The earleme variables23646
+Node: The significances of the earleme variables25525
+Node: The initial earleme settings27151
+Node: The standard model of input27829
+Node: Ambiguous input29552
+Node: Variable length tokens30517
+Node: The generalized model32233
+Node: General rules for the earleme variables34575
+Node: Terminals35731
+Node: Semantics36581
+Node: Threads37632
+Node: Fatal Errors38890
+Node: Introduction to the external interface39485
+Node: About the overviews39836
+Node: Return values40672
+Node: Naming conventions42461
+Node: Static methods43575
+Node: Configuration methods45152
+Node: Grammar methods46839
+Node: Grammar overview47146
+Node: Grammar constructor48190
+Node: Grammar reference counting49674
+Node: Symbols50278
+Node: Rules60267
+Node: Sequences65689
+Node: Ranks70219
+Node: Grammar precomputation72462
+Ref: marpa_g_precompute72663
+Node: Recognizer methods77001
+Node: Recognizer overview77366
+Node: Recognizer constructor78096
+Node: Recognizer reference counting78650
+Node: Recognizer life cycle mutators79461
+Node: Location accessors86341
+Node: Other parse status methods90876
+Node: Untested recognizer methods94689
+Node: Progress reports97733
+Node: Bocage methods101304
+Node: Bocage overview101545
+Node: Bocage constructor102065
+Node: Bocage reference counting102719
+Node: Bocage accessor103620
+Node: Ordering methods104362
+Node: Ordering overview104633
+Node: Ordering constructor105237
+Node: Ordering reference counting105704
+Node: Order accessor106688
+Node: Non-default ordering107468
+Node: Tree methods108599
+Node: Tree overview108824
+Node: Tree constructor109651
+Node: Tree reference counting110306
+Node: Tree iteration111275
+Node: Value methods112583
+Node: Value overview112995
+Node: How to use the valuator114054
+Node: Advantages of step-driven valuation116025
+Node: Maintaining the stack119512
+Node: Sizing the stack121523
+Node: Initializing locations in the stack123283
+Node: Valuator constructor125322
+Node: Valuator reference counting126173
+Node: Stepping through the valuator127166
+Node: Valuator steps by type127938
+Node: Basic step accessors129876
+Node: Other step accessors131738
+Node: Events133284
+Node: Events overview133473
+Node: Event methods134343
+Node: Event codes135528
+Node: Error methods macros and codes139102
+Node: Error methods139371
+Node: Error Macros140198
+Node: External error codes140565
+Node: Internal error codes163918
+Node: Design notes167692
+Node: Why so many time objects168127
+Node: Design of numbered objects169877
+Node: LHS Terminals171116
+Node: Work in Progress171809
+Node: Untested methods171997
+Node: Ranking methods172415
+Node: Zero-width assertion methods174523
+Node: Methods for revising parses175440
+Node: Deprecated techniques and methods175893
+Node: Valued and unvalued symbols176144
+Node: What unvalued symbols were176480
+Node: Grammar methods dealing with unvalued symbols178637
+Node: Registering semantics in the valuator179837
+Node: GNU Free Documentation License182694
 
 End Tag Table

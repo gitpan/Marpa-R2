@@ -587,47 +587,60 @@ prototypes, look at
 @** The public header file.
 @*0 Version constants.
 @ This macro checks that the header version numbers
-and the library version numbers are identical.
-It is all compile-time constants,
-so it is expected that
-it will be optimized out completely at compile time.
+(|MARPA_xxx_VERSION|)
+and the library version numbers
+(|MARPA_LIB_xxx_VERSION|)
+are identical.
+It is a sanity check.
+The best argument for the cost-effectiveness here
+is that the check is almost certainly cost-free at
+runtime --
+it is all compile-time constants,
+which I can reasonably expect to be
+optimized out.
 @d HEADER_VERSION_MISMATCH (
-   MARPA_MAJOR_VERSION != MARPA_H_MAJOR_VERSION
-   || MARPA_MINOR_VERSION != MARPA_H_MINOR_VERSION
-   || MARPA_MICRO_VERSION != MARPA_H_MICRO_VERSION
+   MARPA_LIB_MAJOR_VERSION != MARPA_MAJOR_VERSION
+   || MARPA_LIB_MINOR_VERSION != MARPA_MINOR_VERSION
+   || MARPA_LIB_MICRO_VERSION != MARPA_MICRO_VERSION
 )
 @ Set globals to the library version numbers,
 so that they can be found at runtime.
 @<Global constant variables@> =
-const int marpa_major_version = MARPA_MAJOR_VERSION;
-const int marpa_minor_version = MARPA_MINOR_VERSION;
-const int marpa_micro_version = MARPA_MICRO_VERSION;
+const int marpa_major_version = MARPA_LIB_MAJOR_VERSION;
+const int marpa_minor_version = MARPA_LIB_MINOR_VERSION;
+const int marpa_micro_version = MARPA_LIB_MICRO_VERSION;
 
-@ @<Function definitions@> =
+@ Check the arguments, which will usually be
+the version numbers from macros in the public
+header file,
+against the compiled-in version number.
+Currently, we don't support any kind of
+backward or forward compatibility here.
+@<Function definitions@> =
 Marpa_Error_Code
 marpa_check_version (int required_major,
                     int required_minor,
                     int required_micro)
 {
-  if (required_major != MARPA_MAJOR_VERSION)
+  if (required_major != marpa_major_version)
     return MARPA_ERR_MAJOR_VERSION_MISMATCH;
-  if (required_minor > MARPA_MINOR_VERSION)
+  if (required_minor != marpa_minor_version)
     return MARPA_ERR_MINOR_VERSION_MISMATCH;
-  if (required_minor < MARPA_MINOR_VERSION)
-    return MARPA_ERR_NONE;
-  if (required_micro > MARPA_MICRO_VERSION)
+  if (required_micro != marpa_minor_version)
     return MARPA_ERR_MICRO_VERSION_MISMATCH;
   return MARPA_ERR_NONE;
 }
 
-@ Always succeeds at this point.
+@ Returns the compiled-in version --
+not the one in the headers.
+Always succeeds at this point.
 @<Function definitions@> =
 Marpa_Error_Code
 marpa_version (int* version)
 {
-  *version++ = MARPA_MAJOR_VERSION;
-  *version++ = MARPA_MINOR_VERSION;
-  *version = MARPA_MICRO_VERSION;
+  *version++ = marpa_major_version;
+  *version++ = marpa_minor_version;
+  *version = marpa_micro_version;
   return 0;
 }
 
@@ -6107,6 +6120,10 @@ A boolean vector by symbol ID,
 with the bits set if, when
 that symbol is an expected symbol,
 an event should be created.
+Here ``expected'' means ``expected as a terminal''.
+All predicted symbols are expected symbols,
+but the reverse is not true --
+predicted non-terminals are not ``expected'' symbols.
 @<Widely aligned recognizer elements@> = LBV t_nsy_expected_is_event;
 @ @<Initialize recognizer elements@> = 
   r->t_nsy_expected_is_event = lbv_obs_new0(r->t_obs, nsy_count);
@@ -15907,13 +15924,6 @@ or used strictly for debugging.
 extern const int marpa_major_version;
 extern const int marpa_minor_version;
 extern const int marpa_micro_version;
-
-#define MARPA_CHECK_VERSION(major,minor,micro) @| \
-    @[ (MARPA_MAJOR_VERSION > (major) \
-        @| || (MARPA_MAJOR_VERSION == (major) && MARPA_MINOR_VERSION > (minor)) \
-        @| || (MARPA_MAJOR_VERSION == (major) && MARPA_MINOR_VERSION == (minor) \
-        @|  && MARPA_MICRO_VERSION >= (micro)))
-        @]@#
 
 @<Public defines@>@;
 @<Public incomplete structures@>@;
