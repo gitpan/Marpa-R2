@@ -21,7 +21,7 @@ use 5.010;
 use strict;
 use warnings;
 
-use Test::More tests => 30;
+use Test::More tests => 32;
 use English qw( -no_match_vars );
 use lib 'inc';
 use Marpa::R2::Test;
@@ -29,14 +29,13 @@ use Marpa::R2;
 use Data::Dumper;
 
 my @tests_data = ();
-my $input;
 
 our $DEBUG = 0;
 
 # In crediting test, JDD = Jean-Damien Durand
-
-my $glenn_grammar = Marpa::R2::Scanless::G->new(
-    {   source => \(<<'END_OF_SOURCE'),
+if (1) {
+    my $glenn_grammar = Marpa::R2::Scanless::G->new(
+        {   source => \(<<'END_OF_SOURCE'),
             :default ::= action => ::array
 
             Start  ::= Child DoubleColon Token
@@ -49,27 +48,29 @@ my $glenn_grammar = Marpa::R2::Scanless::G->new(
             word ~ [\w]+
 
 END_OF_SOURCE
-    }
-);
+        }
+    );
 
-$input = 'child::book';
+    my $input = 'child::book';
 
-push @tests_data,
-    [
-    $glenn_grammar,
-    'child::book',
-    [ 'child', q{::}, 'book' ],
-    'Parse OK',
-    'Nate Glenn bug regression'
-    ];
+    push @tests_data,
+        [
+        $glenn_grammar,
+        'child::book',
+        [ 'child', q{::}, 'book' ],
+        'Parse OK',
+        'Nate Glenn bug regression'
+        ];
+} ## end if (0)
 
 # Marpa::R2::Display
 # name: Case-insensitive characters examples
 # start-after-line: END_OF_SOURCE
 # end-before-line: '^END_OF_SOURCE$'
 
-my $ic_grammar = Marpa::R2::Scanless::G->new(
-    {   source => \(<<'END_OF_SOURCE'),
+if (1) {
+    my $ic_grammar = Marpa::R2::Scanless::G->new(
+        {   source => \(<<'END_OF_SOURCE'),
             :default ::= action => ::array
 
             Start  ::= Child DoubleColon Token
@@ -82,22 +83,24 @@ my $ic_grammar = Marpa::R2::Scanless::G->new(
             word ~ [\w]:ic +
 
 END_OF_SOURCE
-    }
-);
+        }
+    );
 
 # Marpa::R2::Display::End
 
-push @tests_data,
-    [
-    $ic_grammar,
-    'ChilD::BooK',
-    [ 'ChilD', q{::}, 'BooK' ],
-    'Parse OK',
-    'Case insensitivity test'
-    ];
+    push @tests_data,
+        [
+        $ic_grammar,
+        'ChilD::BooK',
+        [ 'ChilD', q{::}, 'BooK' ],
+        'Parse OK',
+        'Case insensitivity test'
+        ];
+} ## end if (0)
 
-my $durand_grammar1 = Marpa::R2::Scanless::G->new(
-    {   source => \(<<'END_OF_SOURCE'),
+if (1) {
+    my $durand_grammar1 = Marpa::R2::Scanless::G->new(
+        {   source => \(<<'END_OF_SOURCE'),
 :default ::= action => ::array
 start symbol is test
 test ::= TEST
@@ -114,20 +117,22 @@ COMMENT               ~ WS_any POUND NOT_NEWLINE_any _NEWLINE
 BLANKLINE             ~ WS_any _NEWLINE
 :discard              ~ BLANKLINE
 END_OF_SOURCE
-    }
-);
+        }
+    );
 
-push @tests_data, [
-    $durand_grammar1, <<INPUT,
+    push @tests_data, [
+        $durand_grammar1, <<INPUT,
 ## Allowed in the input
 
 # Another comment
 INPUT
-    ["## Allowed in the input\n"],
-    'Parse OK',
-    'JDD test of discard versus accepted'
-];
+        ["## Allowed in the input\n"],
+        'Parse OK',
+        'JDD test of discard versus accepted'
+    ];
+} ## end if (0)
 
+if (1) {
 my $durand_grammar2 = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
 :default ::= action => ::array
@@ -157,9 +162,11 @@ INPUT
     'Parse OK',
     'Regression test of bug found by JDD'
 ];
+}
 
 # ===============
 
+if (1) {
 my $durand_grammar3 = Marpa::R2::Scanless::G->new(
     {   source => \(<<'END_OF_SOURCE'),
 :default ::= action => ::array
@@ -194,9 +201,10 @@ INPUT
     'Parse OK',
     'Regression test of perl_pos bug found by JDD'
 ];
+}
 
 # Test of forgiving token from Peter Stuifzand
-{
+if (1) {
 
 # Marpa::R2::Display
 # name: forgiving adverb example
@@ -240,7 +248,7 @@ INPUT
 }
 
 # Test of LATM token from Ruslan Zakirov
-{
+if (1) {
 
 # Marpa::R2::Display
 # name: latm adverb example
@@ -272,7 +280,7 @@ END_OF_SOURCE
 
 # Test of LATM token from Ruslan Zakirov
 # This time using the lexeme default statement
-{
+if (1) {
 
     my $source = <<'END_OF_SOURCE';
 lexeme default = latm => 1
@@ -295,10 +303,56 @@ END_OF_SOURCE
         ];
 }
 
+# Test of rank adverb
+if (1) {
+
+# Marpa::R2::Display
+# name: rank adverb example
+# start-after-line: END_OF_SOURCE
+# end-before-line: '^END_OF_SOURCE$'
+
+    my $source = <<'END_OF_SOURCE';
+lexeme default = latm => 1
+:default ::= action => [name,values]
+:start ::= externals
+externals ::= external* action => [values]
+external ::= special action => ::first
+   | unspecial action => ::first
+unspecial ::= ('I' 'am' 'special') words ('--' 'NOT!' ';') rank => 1
+special ::= words (';') rank => -1
+words ::= word* action => [values]
+
+:discard ~ whitespace
+whitespace ~ [\s]+
+word ~ [\w!-]+
+END_OF_SOURCE
+
+    my $input = <<'END_OF_INPUT';
+I am special so very special -- NOT!;
+I am special and nothing is going to change that;
+END_OF_INPUT
+
+# Marpa::R2::Display
+
+    my $expected_output = [
+        [ 'unspecial', [qw(so very special)] ],
+        [   'special',
+            [qw(I am special and nothing is going to change that)],
+        ]
+    ];
+
+    my $slg = Marpa::R2::Scanless::G->new( { source => \$source } );
+    push @tests_data,
+        [
+        $slg, $input, $expected_output,
+        'Parse OK', 'Test of rank adverb from Ruslan Zakirov'
+        ];
+}
+
 # Test of rule array item descriptor for action adverb
 # todo: test by converting rule and lhs ID's to names
 # based on $slg->symbol_is_lexeme(symbol_id) -- to be written
-{
+if (1) {
     my $source = <<'END_OF_SOURCE';
 
     :default ::= action => [lhs, rule, values]
@@ -323,10 +377,10 @@ END_OF_SOURCE
 }
 
 # Test of 'symbol', 'name' array item descriptors
-{
+if (1) {
 
 # Marpa::R2::Display
-# name: name adverb example
+# name: symbol, name array descriptor example
 # start-after-line: END_OF_SOURCE
 # end-before-line: '^END_OF_SOURCE$'
 
@@ -360,7 +414,7 @@ END_OF_SOURCE
 }
 
 ### Test of 'inaccessible is ok'
-{
+if (1) {
 
 # Marpa::R2::Display
 # name: inaccessible is ok statement
@@ -479,7 +533,7 @@ END_OF_SOURCE
         'Parse OK', qq{Test of alternative as start rule}
         ];
 
-} ## end if (1)
+} ## end if (0)
 
 TEST:
 for my $test_data (@tests_data) {

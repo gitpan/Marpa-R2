@@ -2470,7 +2470,7 @@ if(required_major!=marpa_major_version)
 return MARPA_ERR_MAJOR_VERSION_MISMATCH;
 if(required_minor!=marpa_minor_version)
 return MARPA_ERR_MINOR_VERSION_MISMATCH;
-if(required_micro!=marpa_minor_version)
+if(required_micro!=marpa_micro_version)
 return MARPA_ERR_MICRO_VERSION_MISMATCH;
 return MARPA_ERR_NONE;
 }

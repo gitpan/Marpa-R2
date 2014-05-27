@@ -1,6 +1,6 @@
 This is api.info, produced by makeinfo version 4.13 from api.texi.
 
-This manual (2 May 2014) is for Libmarpa 6.0.5.
+This manual (26 May 2014) is for Libmarpa 6.0.6.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -21,7 +21,7 @@ File: api.info,  Node: Top,  Next: Copying,  Prev: (dir),  Up: (dir)
 Libmarpa: The Marpa low-level library
 *************************************
 
-This manual (2 May 2014) is for Libmarpa 6.0.5.
+This manual (26 May 2014) is for Libmarpa 6.0.6.
 
    Copyright (C) 2014 Jeffrey Kegler.
 
@@ -1040,7 +1040,7 @@ allocate memory, Libmarpa terminates the program with a fatal error.
 
    While this is in keeping with current practice, future versions of
 Libmarpa are likely to both allow an alternative memory allocator to be
-specificied, and to allow the user to specifier a handler to be called
+specified, and to allow the user to specifier a handler to be called
 when an out-of-memory condition occurs.
 
 
@@ -2608,6 +2608,10 @@ File: api.info,  Node: Non-default ordering,  Prev: Order accessor,  Up: Orderin
      choices should be discarded except those of the highest rank.  A
      FLAG of 0 indicates that no choices should be discarded on the
      basis of their rank.
+
+     A value of 1 is the default.  The value of the "high rank only"
+     flag has no effect unless ranking has been turned on using the
+     `marpa_o_rank()' method.
 
      Return value:  On success, the  value of the "high rank only" flag
      *after* the call.  On failure, -2.
@@ -4818,33 +4822,33 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top609
-Node: Copying4106
-Node: About this document12537
-Node: How to read this document12754
-Node: Prerequisites13221
-Node: Parsing theory13820
-Node: About Libmarpa14508
-Node: Architecture16340
-Node: Major objects16546
-Node: Time objects17885
-Node: Reference counting19339
-Node: Numbered objects21392
-Node: Input21826
-Node: Earlemes21961
-Node: The traditional model22358
-Node: The earleme variables23646
-Node: The significances of the earleme variables25525
-Node: The initial earleme settings27151
-Node: The standard model of input27829
-Node: Ambiguous input29552
-Node: Variable length tokens30517
-Node: The generalized model32233
-Node: General rules for the earleme variables34575
-Node: Terminals35731
-Node: Semantics36581
-Node: Threads37632
-Node: Fatal Errors38890
+Node: Top610
+Node: Copying4108
+Node: About this document12539
+Node: How to read this document12756
+Node: Prerequisites13223
+Node: Parsing theory13822
+Node: About Libmarpa14510
+Node: Architecture16342
+Node: Major objects16548
+Node: Time objects17887
+Node: Reference counting19341
+Node: Numbered objects21394
+Node: Input21828
+Node: Earlemes21963
+Node: The traditional model22360
+Node: The earleme variables23648
+Node: The significances of the earleme variables25527
+Node: The initial earleme settings27153
+Node: The standard model of input27831
+Node: Ambiguous input29554
+Node: Variable length tokens30519
+Node: The generalized model32235
+Node: General rules for the earleme variables34577
+Node: Terminals35733
+Node: Semantics36583
+Node: Threads37634
+Node: Fatal Errors38892
 Node: Introduction to the external interface39485
 Node: About the overviews39836
 Node: Return values40672
@@ -4881,47 +4885,47 @@ Node: Ordering constructor105237
 Node: Ordering reference counting105704
 Node: Order accessor106688
 Node: Non-default ordering107468
-Node: Tree methods108599
-Node: Tree overview108824
-Node: Tree constructor109651
-Node: Tree reference counting110306
-Node: Tree iteration111275
-Node: Value methods112583
-Node: Value overview112995
-Node: How to use the valuator114054
-Node: Advantages of step-driven valuation116025
-Node: Maintaining the stack119512
-Node: Sizing the stack121523
-Node: Initializing locations in the stack123283
-Node: Valuator constructor125322
-Node: Valuator reference counting126173
-Node: Stepping through the valuator127166
-Node: Valuator steps by type127938
-Node: Basic step accessors129876
-Node: Other step accessors131738
-Node: Events133284
-Node: Events overview133473
-Node: Event methods134343
-Node: Event codes135528
-Node: Error methods macros and codes139102
-Node: Error methods139371
-Node: Error Macros140198
-Node: External error codes140565
-Node: Internal error codes163918
-Node: Design notes167692
-Node: Why so many time objects168127
-Node: Design of numbered objects169877
-Node: LHS Terminals171116
-Node: Work in Progress171809
-Node: Untested methods171997
-Node: Ranking methods172415
-Node: Zero-width assertion methods174523
-Node: Methods for revising parses175440
-Node: Deprecated techniques and methods175893
-Node: Valued and unvalued symbols176144
-Node: What unvalued symbols were176480
-Node: Grammar methods dealing with unvalued symbols178637
-Node: Registering semantics in the valuator179837
-Node: GNU Free Documentation License182694
+Node: Tree methods108767
+Node: Tree overview108992
+Node: Tree constructor109819
+Node: Tree reference counting110474
+Node: Tree iteration111443
+Node: Value methods112751
+Node: Value overview113163
+Node: How to use the valuator114222
+Node: Advantages of step-driven valuation116193
+Node: Maintaining the stack119680
+Node: Sizing the stack121691
+Node: Initializing locations in the stack123451
+Node: Valuator constructor125490
+Node: Valuator reference counting126341
+Node: Stepping through the valuator127334
+Node: Valuator steps by type128106
+Node: Basic step accessors130044
+Node: Other step accessors131906
+Node: Events133452
+Node: Events overview133641
+Node: Event methods134511
+Node: Event codes135696
+Node: Error methods macros and codes139270
+Node: Error methods139539
+Node: Error Macros140366
+Node: External error codes140733
+Node: Internal error codes164086
+Node: Design notes167860
+Node: Why so many time objects168295
+Node: Design of numbered objects170045
+Node: LHS Terminals171284
+Node: Work in Progress171977
+Node: Untested methods172165
+Node: Ranking methods172583
+Node: Zero-width assertion methods174691
+Node: Methods for revising parses175608
+Node: Deprecated techniques and methods176061
+Node: Valued and unvalued symbols176312
+Node: What unvalued symbols were176648
+Node: Grammar methods dealing with unvalued symbols178805
+Node: Registering semantics in the valuator180005
+Node: GNU Free Documentation License182862
 
 End Tag Table

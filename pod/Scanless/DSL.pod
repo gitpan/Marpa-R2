@@ -1054,7 +1054,7 @@ lexer searches only for those.
 =head2 name
 
 =for Marpa::R2::Display
-name: name adverb example
+name: symbol, name array descriptor example
 partial: 1
 normalize-whitespace: 1
 
@@ -1271,6 +1271,16 @@ must actually separate
 sequence items.
 
 =head2 rank
+
+=for Marpa::R2::Display
+name: rank adverb example
+partial: 1
+normalize-whitespace: 1
+
+unspecial ::= ('I' 'am' 'special') words ('--' 'NOT!' ';') rank => 1
+special ::= words (';') rank => -1
+
+=for Marpa::R2::Display::End
 
 C<rank> is ignored unless
 the recognizer's C<ranking_method> named argument
