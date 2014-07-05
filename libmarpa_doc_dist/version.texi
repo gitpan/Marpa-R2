@@ -1,4 +1,0 @@
-@set UPDATED 31 May 2014
-@set UPDATED-MONTH May 2014
-@set EDITION 6.1.0
-@set VERSION 6.1.0
