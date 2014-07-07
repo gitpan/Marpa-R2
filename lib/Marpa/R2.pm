@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION @ISA $DEBUG);
-$VERSION        = '2.087_001';
+$VERSION        = '2.087_002';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -29,6 +29,7 @@ $DEBUG = 0;
 
 use Carp;
 use English qw( -no_match_vars );
+use XSLoader;
 
 use Marpa::R2::Version;
 
@@ -76,18 +77,7 @@ LOAD_EXPLICIT_LIBRARY: {
     $Marpa::R2::LIBMARPA_FILE = $file;
 }
 
-eval {
-    require XSLoader;
-    XSLoader::load( 'Marpa::R2', $Marpa::R2::STRING_VERSION );
-    1;
-} or eval {
-    require DynaLoader;
-## no critic(ClassHierarchies::ProhibitExplicitISA)
-    push @ISA, 'DynaLoader';
-    Dynaloader::bootstrap Marpa::R2 $Marpa::R2::STRING_VERSION;
-    1;
-} or Carp::croak("Could not load XS version of Marpa::R2: $EVAL_ERROR");
-
+XSLoader::load( 'Marpa::R2', $Marpa::R2::STRING_VERSION );
 
 if ( not $ENV{'MARPA_AUTHOR_TEST'} ) {
     $Marpa::R2::DEBUG = 0;
