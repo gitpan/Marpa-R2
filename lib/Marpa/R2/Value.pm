@@ -20,7 +20,7 @@ use warnings;
 use strict;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.090000';
+$VERSION        = '2.091_000';
 $STRING_VERSION = $VERSION;
 ## no critic (BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -415,9 +415,13 @@ sub show_semantics {
     return join q{ }, @op_descs;
 } ## end sub show_semantics
 
-sub Marpa::R2::Recognizer::ordering_create {
+# Return false if no ordering was created,
+# otherwise return the ordering.
+sub Marpa::R2::Recognizer::ordering_get {
     my ($recce) = @_;
     return if $recce->[Marpa::R2::Internal::Recognizer::NO_PARSE];
+    my $ordering = $recce->[Marpa::R2::Internal::Recognizer::O_C];
+    return $ordering if $ordering;
     my $parse_set_arg =
         $recce->[Marpa::R2::Internal::Recognizer::END_OF_PARSE];
     my $grammar   = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
@@ -432,7 +436,7 @@ sub Marpa::R2::Recognizer::ordering_create {
         $recce->[Marpa::R2::Internal::Recognizer::NO_PARSE] = 1;
         return;
     }
-    $recce->[Marpa::R2::Internal::Recognizer::O_C] =
+    $ordering = $recce->[Marpa::R2::Internal::Recognizer::O_C] =
         Marpa::R2::Thin::O->new($bocage);
 
     GIVEN_RANKING_METHOD: {
@@ -448,8 +452,8 @@ sub Marpa::R2::Recognizer::ordering_create {
         }
     } ## end GIVEN_RANKING_METHOD:
 
-    return 1;
-} ## end sub Marpa::R2::Recognizer::ordering_create
+    return $ordering;
+} ## end sub Marpa::R2::Recognizer::ordering_get
 
 sub resolve_rule_by_id {
     my ( $recce, $rule_id ) = @_;
@@ -1469,9 +1473,8 @@ sub Marpa::R2::Recognizer::value {
     else {
         # No tree, therefore not initialized
 
-        $recce->ordering_create();
-        return if $recce->[Marpa::R2::Internal::Recognizer::NO_PARSE];
-        my $order = $recce->[Marpa::R2::Internal::Recognizer::O_C];
+        my $order = $recce->ordering_get();
+        return if not $order;
         $tree = $recce->[Marpa::R2::Internal::Recognizer::T_C] =
             Marpa::R2::Thin::T->new($order);
 
