@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.091_000';
+$VERSION        = '2.091_001';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1294,71 +1294,11 @@ sub Marpa::R2::Scanless::R::ambiguity_metric {
     my ($slr) = @_;
     my $thick_g1_recce =
         $slr->[Marpa::R2::Internal::Scanless::R::THICK_G1_RECCE];
-    my $ordering = $thick_g1_recce->ordering_get();
+    $thick_g1_recce->ordering_create();
+    my $ordering = $thick_g1_recce->[Marpa::R2::Internal::Recognizer::O_C];
     return 0 if not $ordering;
     return $ordering->ambiguity_metric();
 } ## end sub Marpa::R2::Scanless::R::ambiguity_metric
-
-sub Marpa::R2::Scanless::R::ambiguous {
-    my ($slr) = @_;
-    return q{No parse} if $slr->ambiguity_metric() <= 0;
-    return q{} if $slr->ambiguity_metric() == 1;
-    my $asf = Marpa::R2::ASF->new( { slr => $slr } );
-    die 'Could not create ASF' if not defined $asf;
-    my $ambiguities = Marpa::R2::Internal::ASF::ambiguities($asf);
-    my @ambiguities = grep {defined} @{$ambiguities}[ 0 .. 1 ];
-    return Marpa::R2::Internal::ASF::ambiguities_show( $asf, \@ambiguities );
-} ## end sub Marpa::R2::Scanless::R::ambiguous
-
-# This is a Marpa Scanless::G method, but is included in this
-# file because internally it is allow about the recognizer.
-sub Marpa::R2::Scanless::G::parse {
-    my ( $slg, @args ) = @_;
-    if ( grep { ref ne 'HASH' } @args ) {
-        for my $arg_ix ( 0 .. $#args ) {
-            my $ref_type = ref $args[$arg_ix];
-            next ARG if $ref_type eq 'HASH';
-            my $message =
-                '$slr->parse(): Arguments to $slr->parse must be ref to HASH'
-                . "\n";
-            $message .= "  Argument $arg_ix is a ref to $ref_type\n"
-                if $ref_type;
-            $message .= "  Argument $arg_ix is not a ref\n" if not $ref_type;
-        } ## end for my $arg_ix ( 0 .. $#args )
-    } ## end if ( grep { ref ne 'HASH' } @args )
-    my $input_ref = scalar @args ? $args[0]->{input} : undef;
-    if ( not defined $input_ref ) {
-        Marpa::R2::exception(
-            q{$slr->parse: no 'input' named argument -- one is required});
-    }
-    if ( ref $input_ref ne 'SCALAR' ) {
-        Marpa::R2::exception(
-            q{$slr->parse: 'input' named argument must be a ref to SCALAR});
-    }
-    $args[0]->{grammar} = $slg;
-    delete $args[0]->{input};
-    my $slr          = Marpa::R2::Scanless::R->new(@args);
-    my $input_length = ${$input_ref};
-    my $length_read  = $slr->read($input_ref);
-    if ( $length_read != length $input_length ) {
-        die 'read in $slr->parse() ended prematurely', "\n",
-            "  The input length is $input_length\n",
-            "  The length read is $length_read\n",
-            "  The cause may be an event\n",
-            "  The $slr->parse() method does not allow parses to trigger events";
-    } ## end if ( $length_read != length $input_length )
-    if ( my $ambiguous_status = $slr->ambiguous() ) {
-        Marpa::R2::exception( "Parse of BNF/Scanless source is ambiguous\n",
-            $ambiguous_status );
-    }
-
-    my $value_ref = $slr->value();
-    Marpa::R2::exception(
-        '$slr->parse() read the input, but there was no parse', "\n" )
-        if not $value_ref;
-
-    return $value_ref;
-} ## end sub Marpa::R2::Scanless::G::parse
 
 sub Marpa::R2::Scanless::R::rule_closure {
 
