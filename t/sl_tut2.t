@@ -14,7 +14,7 @@
 # General Public License along with Marpa::R2.  If not, see
 # http://www.gnu.org/licenses/.
 
-# Landing page synopsis
+# Tutorial 2 synopsis
 
 use 5.010;
 use strict;
@@ -28,7 +28,7 @@ use Marpa::R2::Test;
 ## no critic (ErrorHandling::RequireCarping);
 
 # Marpa::R2::Display
-# name: Landing page synopsis
+# name: Tutorial 2 synopsis
 
 use Marpa::R2;
 
@@ -50,8 +50,20 @@ whitespace ~ [\s]+
 END_OF_DSL
 
 my $grammar = Marpa::R2::Scanless::G->new( { source => \$dsl } );
+my $recce = Marpa::R2::Scanless::R->new(
+    { grammar => $grammar, semantics_package => 'My_Actions' } );
 my $input = '42 * 1 + 7';
-my $value_ref = $grammar->parse( \$input, 'My_Actions' );
+my $length_read = $recce->read( \$input );
+
+die "Read ended after $length_read of ", length $input, " characters"
+    if $length_read != length $input;
+
+if ( my $ambiguous_status = $recce->ambiguous() ) {
+    die "Parse is ambiguous\n", $ambiguous_status;
+}
+
+my $value_ref = $recce->value;
+my $value = ${$value_ref};
 
 sub My_Actions::do_add {
     my ( undef, $t1, undef, $t2 ) = @_;
@@ -65,7 +77,7 @@ sub My_Actions::do_multiply {
 
 # Marpa::R2::Display::End
 
-Test::More::is( ${$value_ref}, 49, 'Landing page synopsis value' );
+Test::More::is( $value, 49, 'Tutorial 2 synopsis value' );
 
 1;    # In case used as "do" file
 

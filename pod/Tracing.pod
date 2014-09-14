@@ -77,7 +77,7 @@ tracing terminals can tell you a lot.
 Tracing the recognizer's progress
 with
 C<show_progress>
-is most powerful tool available
+is the most powerful tool available
 in the basic toolkit.
 C<show_progress>
 should provide all the
@@ -134,11 +134,6 @@ on the SLIF grammar.
 =item * Run
 L<C<show_progress()>|Marpa::R2::Progress>
 on the SLIF recognizer.
-
-=item * Set the
-L<SLIF recognizer's C<trace_terminals> named
-argument|Marpa::R2::Scanless::R/"trace_terminals">
-to level 1.
 
 =back
 

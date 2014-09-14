@@ -20,7 +20,7 @@ use strict;
 use warnings;
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.092000';
+$VERSION        = '2.093_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1275,11 +1275,19 @@ sub Marpa::R2::Internal::Scanless::input_escape {
         $pos++;
     } ## end CHAR: while ( $pos < $end_of_input )
 
-    my $first_non_space_ix = $#escaped_chars;
-    my $trailing_spaces    = 0;
-    $trailing_spaces++ while $escaped_chars[ $first_non_space_ix-- ] eq q{ };
+    my $trailing_spaces = 0;
+    TRAILING_SPACE:
+    for (
+        my $first_non_space_ix = $#escaped_chars;
+        $first_non_space_ix >= 0;
+        $first_non_space_ix--
+        )
+    {
+        last TRAILING_SPACE if $escaped_chars[$first_non_space_ix] ne q{ };
+        pop @escaped_chars;
+        $trailing_spaces++;
+    } ## end TRAILING_SPACE: for ( my $first_non_space_ix = $#escaped_chars; ...)
     if ($trailing_spaces) {
-        splice @escaped_chars, -$trailing_spaces;
         $length_so_far -= $trailing_spaces;
         TRAILING_SPACE: while ( $trailing_spaces-- > 0 ) {
             $length_so_far += 2;
@@ -1294,11 +1302,81 @@ sub Marpa::R2::Scanless::R::ambiguity_metric {
     my ($slr) = @_;
     my $thick_g1_recce =
         $slr->[Marpa::R2::Internal::Scanless::R::THICK_G1_RECCE];
-    $thick_g1_recce->ordering_create();
-    my $ordering = $thick_g1_recce->[Marpa::R2::Internal::Recognizer::O_C];
+    my $ordering = $thick_g1_recce->ordering_get();
     return 0 if not $ordering;
     return $ordering->ambiguity_metric();
 } ## end sub Marpa::R2::Scanless::R::ambiguity_metric
+
+sub Marpa::R2::Scanless::R::ambiguous {
+    my ($slr) = @_;
+    return q{No parse} if $slr->ambiguity_metric() <= 0;
+    return q{} if $slr->ambiguity_metric() == 1;
+    my $asf = Marpa::R2::ASF->new( { slr => $slr } );
+    die 'Could not create ASF' if not defined $asf;
+    my $ambiguities = Marpa::R2::Internal::ASF::ambiguities($asf);
+    my @ambiguities = grep {defined} @{$ambiguities}[ 0 .. 1 ];
+    return Marpa::R2::Internal::ASF::ambiguities_show( $asf, \@ambiguities );
+} ## end sub Marpa::R2::Scanless::R::ambiguous
+
+# This is a Marpa Scanless::G method, but is included in this
+# file because internally it is all about the recognizer.
+sub Marpa::R2::Scanless::G::parse {
+    my ( $slg, $input_ref, $arg1, @more_args ) = @_;
+    if ( not defined $input_ref or ref $input_ref ne 'SCALAR' ) {
+        Marpa::R2::exception(
+            q{$slr->parse(): first argument must be a ref to string});
+    }
+    my @recce_args = ( { grammar => $slg } );
+    my @semantics_package_arg = ();
+    DO_ARG1: {
+        last if not defined $arg1;
+        my $reftype = ref $arg1;
+        if ( $reftype eq 'HASH' ) {
+
+            # if second arg is ref to hash, it is the first set
+            # of named args for
+            # the recognizer
+            push @recce_args, $arg1;
+            last DO_ARG1;
+        } ## end if ( $reftype eq 'HASH' )
+        if ( $reftype eq q{} ) {
+
+            # if second arg is a string, it is the semantic package
+            push @semantics_package_arg, { semantics_package => $arg1 };
+        }
+        if ( ref $arg1 and ref $input_ref ne 'HASH' ) {
+            Marpa::R2::exception(
+                q{$slr->parse(): second argument must be a package name or a ref to HASH}
+            );
+        }
+    } ## end DO_ARG1:
+    if ( grep { ref $_ ne 'HASH' } @more_args ) {
+        Marpa::R2::exception(
+            q{$slr->parse(): third and later arguments must be ref to HASH});
+    }
+    my $slr = Marpa::R2::Scanless::R->new( @recce_args, @more_args,
+        @semantics_package_arg );
+    my $input_length = ${$input_ref};
+    my $length_read  = $slr->read($input_ref);
+    if ( $length_read != length $input_length ) {
+        die 'read in $slr->parse() ended prematurely', "\n",
+            "  The input length is $input_length\n",
+            "  The length read is $length_read\n",
+            "  The cause may be an event\n",
+            "  The $slr->parse() method does not allow parses to trigger events";
+    } ## end if ( $length_read != length $input_length )
+    if ( my $ambiguous_status = $slr->ambiguous() ) {
+        Marpa::R2::exception( "Parse of the input is ambiguous\n",
+            $ambiguous_status );
+    }
+
+    my $value_ref = $slr->value();
+    Marpa::R2::exception(
+        '$slr->parse() read the input, but there was no parse', "\n" )
+        if not $value_ref;
+
+    return $value_ref;
+} ## end sub Marpa::R2::Scanless::G::parse
 
 sub Marpa::R2::Scanless::R::rule_closure {
 
