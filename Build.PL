@@ -169,15 +169,17 @@ my $build = Marpa::R2::Build_Me->new(
         }
     },
     meta_merge => {
-        resources =>
-            { repository => 'git://github.com/jeffreykegler/Marpa--R2.git', },
+        resources => {
+            homepage => 'http://savage.net.au/Marpa.html',
+            repository => 'git://github.com/jeffreykegler/Marpa--R2.git',
+            IRC        => 'irc://irc.freenode.net/#marpa',
+            x_IRC      => 'irc://irc.freenode.net/#marpa',
+        },
     },
     pod_files     => \%pod_files,
     license       => 'lgpl3',
     create_readme => 0,
 
-    # Removed per suggestion of Andreas Koenig
-    # create_makefile_pl => 'small',
     test_files => [ map { glob $_ } qw(t/*.t html/t/*.t) ],
     getoptions => { Dev => {}, 'Marpa-debug' => {} },
 );
