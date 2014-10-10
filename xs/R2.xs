@@ -91,11 +91,13 @@ typedef struct {
 struct symbol_g_properties {
      int priority;
      unsigned int latm:1;
+     unsigned int is_lexeme:1;
      unsigned int pause_before:1;
      unsigned int pause_after:1;
 };
 
 struct symbol_r_properties {
+     int lexeme_priority;
      unsigned int pause_before_active:1;
      unsigned int pause_after_active:1;
 };
@@ -1646,91 +1648,95 @@ slr_discard (Scanless_R * slr)
       const int working_pos = slr->start_of_lexeme + earley_set;
       return_value = marpa_r_progress_report_start (r0, earley_set);
       if (return_value < 0)
-        {
-          croak ("Problem in marpa_r_progress_report_start(%p, %ld): %s",
-                 (void *) r0, (unsigned long) earley_set,
-                 xs_g_error (slr->current_lexer->g_wrapper));
-        }
+	{
+	  croak ("Problem in marpa_r_progress_report_start(%p, %ld): %s",
+		 (void *) r0, (unsigned long) earley_set,
+		 xs_g_error (slr->current_lexer->g_wrapper));
+	}
       while (1)
-        {
-          Marpa_Symbol_ID g1_lexeme;
-          int dot_position;
-          Marpa_Earley_Set_ID origin;
-          Marpa_Rule_ID rule_id =
-            marpa_r_progress_item (r0, &dot_position, &origin);
-          if (rule_id <= -2)
-            {
-              croak ("Problem in marpa_r_progress_item(): %s",
-                     xs_g_error (slr->current_lexer->g_wrapper));
-            }
-          if (rule_id == -1)
-            goto NO_MORE_REPORT_ITEMS;
-          if (origin != 0)
-            goto NEXT_REPORT_ITEM;
-          if (dot_position != -1)
-            goto NEXT_REPORT_ITEM;
-          g1_lexeme = slr->current_lexer->lexer_rule_to_g1_lexeme[rule_id];
-          if (g1_lexeme == -1)
-            goto NEXT_REPORT_ITEM;
-          lexemes_found++;
-          slr->end_of_lexeme = working_pos;
+	{
+	  Marpa_Symbol_ID g1_lexeme;
+	  int dot_position;
+	  Marpa_Earley_Set_ID origin;
+	  Marpa_Rule_ID rule_id =
+	    marpa_r_progress_item (r0, &dot_position, &origin);
+	  if (rule_id <= -2)
+	    {
+	      croak ("Problem in marpa_r_progress_item(): %s",
+		     xs_g_error (slr->current_lexer->g_wrapper));
+	    }
+	  if (rule_id == -1)
+	    goto NO_MORE_REPORT_ITEMS;
+	  if (origin != 0)
+	    goto NEXT_REPORT_ITEM;
+	  if (dot_position != -1)
+	    goto NEXT_REPORT_ITEM;
+	  g1_lexeme = slr->current_lexer->lexer_rule_to_g1_lexeme[rule_id];
+	  if (g1_lexeme == -1)
+	    goto NEXT_REPORT_ITEM;
+	  lexemes_found++;
+	  slr->end_of_lexeme = working_pos;
 
-          /* -2 means a discarded item */
-if (g1_lexeme <= -2)
-  {
-    lexemes_discarded++;
-    if (slr->trace_terminals)
-      {
-                        union marpa_slr_event_s *slr_event = marpa__slr_event_push(slr->gift);
-        MARPA_SLREV_TYPE(slr_event) = MARPA_SLRTR_LEXEME_DISCARDED;
+	  /* -2 means a discarded item */
+	  if (g1_lexeme <= -2)
+	    {
+	      lexemes_discarded++;
+	      if (slr->trace_terminals)
+		{
+		  union marpa_slr_event_s *slr_event =
+		    marpa__slr_event_push (slr->gift);
+		  MARPA_SLREV_TYPE (slr_event) = MARPA_SLRTR_LEXEME_DISCARDED;
 
-        /* We do not have the lexeme, but we have the 
-         * lexer rule.
-         * The upper level will have to figure things out.
-         */
-        slr_event->t_trace_lexeme_discarded.t_rule_id = rule_id;
-        slr_event->t_trace_lexeme_discarded.t_start_of_lexeme =
-          slr->start_of_lexeme;
-        slr_event->t_trace_lexeme_discarded.t_end_of_lexeme =
-          slr->end_of_lexeme;
-        slr_event->t_trace_lexeme_discarded.t_current_lexer_ix =
-          slr->current_lexer->index;
+		  /* We do not have the lexeme, but we have the 
+		   * lexer rule.
+		   * The upper level will have to figure things out.
+		   */
+		  slr_event->t_trace_lexeme_discarded.t_rule_id = rule_id;
+		  slr_event->t_trace_lexeme_discarded.t_start_of_lexeme =
+		    slr->start_of_lexeme;
+		  slr_event->t_trace_lexeme_discarded.t_end_of_lexeme =
+		    slr->end_of_lexeme;
+		  slr_event->t_trace_lexeme_discarded.t_current_lexer_ix =
+		    slr->current_lexer->index;
 
-      }
-    /* If there is discarded item, we are fine,
-     * and can return success.
-     */
-    slr->lexer_start_pos = slr->perl_pos = working_pos;
-    return 0;
-  }
+		}
+	      /* If there is discarded item, we are fine,
+	       * and can return success.
+	       */
+	      slr->lexer_start_pos = slr->perl_pos = working_pos;
+	      return 0;
+	    }
 
-          /*
-           * Ignore everything else.
-           * We don't try to read lexemes into an exhausted
-           * R1 -- we only are looking for discardable tokens.
-           */
-          if (slr->trace_terminals)
-            {
-                        union marpa_slr_event_s *slr_event = marpa__slr_event_push(slr->gift);
-MARPA_SLREV_TYPE(slr_event) = MARPA_SLRTR_LEXEME_IGNORED;
+	  /*
+	   * Ignore everything else.
+	   * We don't try to read lexemes into an exhausted
+	   * R1 -- we only are looking for discardable tokens.
+	   */
+	  if (slr->trace_terminals)
+	    {
+	      union marpa_slr_event_s *slr_event =
+		marpa__slr_event_push (slr->gift);
+	      MARPA_SLREV_TYPE (slr_event) = MARPA_SLRTR_LEXEME_IGNORED;
 
-              slr_event->t_trace_lexeme_ignored.t_lexeme = g1_lexeme;
-              slr_event->t_trace_lexeme_ignored.t_start_of_lexeme = slr->start_of_lexeme;
-              slr_event->t_trace_lexeme_ignored.t_end_of_lexeme = slr->end_of_lexeme;
-            }
-        NEXT_REPORT_ITEM:;
-        }
+	      slr_event->t_trace_lexeme_ignored.t_lexeme = g1_lexeme;
+	      slr_event->t_trace_lexeme_ignored.t_start_of_lexeme =
+		slr->start_of_lexeme;
+	      slr_event->t_trace_lexeme_ignored.t_end_of_lexeme =
+		slr->end_of_lexeme;
+	    }
+	NEXT_REPORT_ITEM:;
+	}
     NO_MORE_REPORT_ITEMS:;
       if (lexemes_found)
-        {
-          /* We found a lexeme at this location and we are not allowed
-           * to discard this input.
-           * Return failure.
-           */
-          slr->perl_pos = slr->problem_pos = slr->lexer_start_pos =
-            slr->start_of_lexeme;
-          return -4;
-        }
+	{
+	  /* We found a lexeme at this location and we are not allowed
+	   * to discard this input.
+	   * Return failure.
+	   */
+	  slr->perl_pos = slr->problem_pos = slr->lexer_start_pos =
+	    slr->start_of_lexeme;
+	  return -4;
+	}
       earley_set--;
     }
 
@@ -1959,6 +1965,7 @@ slr_alternatives (Scanless_R * slr)
       while (!end_of_earley_items)
 	{
 	  struct symbol_g_properties *symbol_g_properties;
+	  struct symbol_r_properties *symbol_r_properties;
 	  Marpa_Symbol_ID g1_lexeme;
 	  int this_lexeme_priority;
 	  int is_expected;
@@ -2002,6 +2009,7 @@ slr_alternatives (Scanless_R * slr)
 	      goto NEXT_PASS1_REPORT_ITEM;
 	    }
 	  symbol_g_properties = slg->symbol_g_properties + g1_lexeme;
+	  symbol_r_properties = slr->symbol_r_properties + g1_lexeme;
 	  is_expected = marpa_r_terminal_is_expected (r1, g1_lexeme);
 	  if (!is_expected)
 	    {
@@ -2034,7 +2042,7 @@ slr_alternatives (Scanless_R * slr)
 	   * but we do not yet know about priority
 	   */
 
-	  this_lexeme_priority = symbol_g_properties->priority;
+	  this_lexeme_priority = symbol_r_properties->lexeme_priority;
 	  if (!is_priority_set || this_lexeme_priority > high_lexeme_priority)
 	    {
 	      high_lexeme_priority = this_lexeme_priority;
@@ -2376,8 +2384,8 @@ slr_es_span_to_literal_sv (Scanless_R * slr,
 }
 
 #define EXPECTED_LIBMARPA_MAJOR 7
-#define EXPECTED_LIBMARPA_MINOR 0
-#define EXPECTED_LIBMARPA_MICRO 3
+#define EXPECTED_LIBMARPA_MINOR 2
+#define EXPECTED_LIBMARPA_MICRO 0
 
 MODULE = Marpa::R2        PACKAGE = Marpa::R2::Thin
 
@@ -4815,6 +4823,7 @@ PPCODE:
     for (symbol_id = 0; symbol_id < g1_symbol_count; symbol_id++) {
         slg->symbol_g_properties[symbol_id].priority = 0;
         slg->symbol_g_properties[symbol_id].latm = 0;
+        slg->symbol_g_properties[symbol_id].is_lexeme = 0;
         slg->symbol_g_properties[symbol_id].pause_before = 0;
         slg->symbol_g_properties[symbol_id].pause_after = 0;
     }
@@ -4959,8 +4968,11 @@ PPCODE:
   XSRETURN_YES;
 }
 
+ # Mark the symbol as a lexeme.
+ # A priority is required.
+ #
 void
-g1_lexeme_priority_set( slg, g1_lexeme, priority )
+g1_lexeme_set( slg, g1_lexeme, priority )
     Scanless_G *slg;
     Marpa_Symbol_ID g1_lexeme;
     int priority;
@@ -4991,6 +5003,7 @@ PPCODE:
          (long) g1_lexeme);
     }
   slg->symbol_g_properties[g1_lexeme].priority = priority;
+  slg->symbol_g_properties[g1_lexeme].is_lexeme = 1;
   XSRETURN_YES;
 }
 
@@ -5210,6 +5223,8 @@ PPCODE:
       {
         const struct symbol_g_properties *g_properties =
           slg->symbol_g_properties + symbol_id;
+        slr->symbol_r_properties[symbol_id].lexeme_priority =
+          g_properties->priority;
         slr->symbol_r_properties[symbol_id].pause_before_active =
           g_properties->pause_before;
         slr->symbol_r_properties[symbol_id].pause_after_active =
@@ -6438,6 +6453,75 @@ current_lexer( slr )
 PPCODE:
 {
   XSRETURN_IV(slr->current_lexer->index);
+}
+
+  # Untested
+void
+lexeme_priority( slr, g1_lexeme )
+    Scanless_R *slr;
+    Marpa_Symbol_ID g1_lexeme;
+PPCODE:
+{
+  const Scanless_G *slg = slr->slg;
+  Marpa_Symbol_ID highest_g1_symbol_id = marpa_g_highest_symbol_id (slg->g1);
+    if (g1_lexeme > highest_g1_symbol_id) 
+    {
+      croak
+        ("Problem in slr->g1_lexeme_priority(%ld): symbol ID was %ld, but highest G1 symbol ID = %ld",
+         (long) g1_lexeme,
+         (long) g1_lexeme,
+         (long) highest_g1_symbol_id
+         );
+    }
+    if (g1_lexeme < 0) {
+      croak
+        ("Problem in slr->g1_lexeme_priority(%ld): symbol ID was %ld, a disallowed value",
+         (long) g1_lexeme,
+         (long) g1_lexeme);
+    }
+  if ( ! slg->symbol_g_properties[g1_lexeme].is_lexeme ) {
+      croak
+        ("Problem in slr->g1_lexeme_priority(%ld): symbol ID %ld is not a lexeme",
+         (long) g1_lexeme,
+         (long) g1_lexeme);
+  }
+  XSRETURN_IV( slr->symbol_r_properties[g1_lexeme].lexeme_priority);
+}
+
+void
+lexeme_priority_set( slr, g1_lexeme, new_priority )
+    Scanless_R *slr;
+    Marpa_Symbol_ID g1_lexeme;
+    int new_priority;
+PPCODE:
+{
+  int old_priority;
+  const Scanless_G *slg = slr->slg;
+  Marpa_Symbol_ID highest_g1_symbol_id = marpa_g_highest_symbol_id (slg->g1);
+    if (g1_lexeme > highest_g1_symbol_id) 
+    {
+      croak
+        ("Problem in slr->g1_lexeme_priority(%ld): symbol ID was %ld, but highest G1 symbol ID = %ld",
+         (long) g1_lexeme,
+         (long) g1_lexeme,
+         (long) highest_g1_symbol_id
+         );
+    }
+    if (g1_lexeme < 0) {
+      croak
+        ("Problem in slr->g1_lexeme_priority(%ld): symbol ID was %ld, a disallowed value",
+         (long) g1_lexeme,
+         (long) g1_lexeme);
+    }
+  if ( ! slg->symbol_g_properties[g1_lexeme].is_lexeme ) {
+      croak
+        ("Problem in slr->g1_lexeme_priority(%ld): symbol ID %ld is not a lexeme",
+         (long) g1_lexeme,
+         (long) g1_lexeme);
+  }
+  old_priority = slr->symbol_r_properties[g1_lexeme].lexeme_priority;
+  slr->symbol_r_properties[g1_lexeme].lexeme_priority = new_priority;
+  XSRETURN_IV( old_priority );
 }
 
 INCLUDE: general_pattern.xsh
