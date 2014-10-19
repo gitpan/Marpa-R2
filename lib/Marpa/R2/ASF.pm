@@ -21,7 +21,7 @@ use warnings;
 no warnings qw(recursion);
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.097_001';
+$VERSION        = '2.097_002';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -1476,10 +1476,11 @@ sub Marpa::R2::Internal::ASF::Traverse::next_symch {
     my $glade_id = $glade->[Marpa::R2::Internal::Glade::ID];
     my $asf         = $traverser->[Marpa::R2::Internal::ASF::Traverse::ASF];
     my $symch_ix = $traverser->[Marpa::R2::Internal::ASF::Traverse::SYMCH_IX];
-    my $last_symch = $asf->glade_symch_count( $glade_id, $symch_ix ) - 1;
+    my $last_symch = $asf->glade_symch_count( $glade_id ) - 1;
     return if $symch_ix >= $last_symch;
     $symch_ix++;
     $traverser->[Marpa::R2::Internal::ASF::Traverse::SYMCH_IX] = $symch_ix;
+    $traverser->[Marpa::R2::Internal::ASF::Traverse::FACTORING_IX] = 0;
     return $symch_ix;
 } ## end sub Marpa::R2::Internal::ASF::Traverse::next_symch
 
