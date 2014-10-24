@@ -36,13 +36,15 @@ my $dsl = <<'END_OF_DSL';
 :default ::= action => [name,values]
 lexeme default = latm => 1
 
-Expression ::= Term action => ::first
+Calculator ::= Expression action => ::first
+
+Factor ::= Number action => ::first
 Term ::=
-      Factor action => ::first
-    | Term '+' Term action => do_add
-Factor ::=
-      Number action => ::first
-    | Factor '*' Factor action => do_multiply
+    Term '*' Factor action => do_multiply
+    | Factor action => ::first
+Expression ::=
+    Expression '+' Term action => do_add
+    | Term action => ::first
 Number ~ digits
 digits ~ [\d]+
 :discard ~ whitespace
@@ -59,6 +61,7 @@ die "Read ended after $length_read of ", length $input, " characters"
     if $length_read != length $input;
 
 if ( my $ambiguous_status = $recce->ambiguous() ) {
+    chomp $ambiguous_status;
     die "Parse is ambiguous\n", $ambiguous_status;
 }
 
