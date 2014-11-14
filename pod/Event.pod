@@ -120,11 +120,15 @@ means an occurrence
 of the symbol in that parse
 with a specific start location and length.
 An instance of a symbol is also called
-B<symbol instance>.
+a B<symbol instance>.
 A consequence of this definition
 is that every symbol instance
 has exactly one end location.
 
+For some string and grammar,
+we say that a parse is B<valid>
+if the parse of the string
+is valid according to the grammar.
 In a parse,
 a nulled symbol instance,
 or B<nulled symbol>, is a symbol instance with a length of zero.
@@ -134,37 +138,49 @@ nulled.
 A symbol in a grammar is 
 a B<nullable symbol> if it has
 at least one nulled instance
-in at least one parse of at least one input.
+in at least one valid parse of at least one string.
 A symbol in a grammar is 
 a B<nulling symbol> if,
-in all parses of all inputs,
-all of its instances are nulled instances.
+for all strings,
+all of its instances in valid parses are nulled instances.
 A symbol is B<non-nulling> if it is not nulling.
 
-In the following, we say that
-an input is consistent with
-the actual input up to location I<L>,
-or simply, B<actual to L>,
-if it is the actual input up to location I<L>,
-and any possible string after location I<L>.
-We say that a symbol I<S> is B<acceptable> at
-a location I<L>,
-if an instance of symbol I<S>
-starting at location I<L>
-is in a valid parse,
-according to the grammar,
-of some input actual to I<L>.
-We say that a symbol instance
-is B<recognized> at
-a location I<L>
-if its end location is I<L>,
-and it is in
-a valid parse, according to the grammar,
-of some input actual to I<L>.
+Intuitively, a string is actual to I<L> if we
+know the actual input as far as I<L>,
+and the string is consistent with the input.
+More formally,
+let C<A> be the actual input to a parse.
+Let C<S> be an arbitrary string in the same alphabet.
+Let C<prefix(A, L)> be the prefix of length I<L>
+that is of length C<L>,
+and let C<prefix(S, L)> be defined in the same way.
+If C<prefix(A, L) = prefix(S, L)>,
+then we say that
+string C<S> is B<consistent with
+the actual input up to location L>.
+For brevity,
+we will often say
+that C<S> is B<actual to L>.
+
+If an instance of symbol I<S>
+that starts at location I<L> is in a valid parse
+of some string actual to I<L>,
+we say that a symbol I<S> is B<acceptable> at
+a location I<L>.
+We say that a symbol
+is B<acceptable> at
+a location I<L> if it is the symbol of
+a symbol instance acceptable at location I<L>.
+
+If an instance of symbol I<S>
+that ends at location I<L> is in a valid parse
+of some string actual to I<L>,
+we say that a symbol I<S> is B<recognized> at
+a location I<L>.
 We say that a symbol
 is B<recognized> at
 a location I<L> if it is the symbol of
-a symbol instance at location I<L>.
+a symbol instance recognized at location I<L>.
 
 =head1 The life cycle of events
 
@@ -178,20 +194,20 @@ a symbol instance at location I<L>.
 
 =back
 
-Events are declared in the SLIF DSL.
-Parse events can be either a lexeme event
+Parse events are declared in the SLIF DSL.
+A parse event is either a lexeme event
 or a non-lexeme event.
-Lexeme events are declared using
-L<C<:lexeme> pseudo-rules|Marpa::R2::Scanless::DSL/"Lexeme pseudo-rule">.
-Non-lexeme events are declared using
-L<named event statements|Marpa::R2::Scanless::DSL/"Named event statement">.
+A lexeme event is declared using a
+L<C<:lexeme> pseudo-rule|Marpa::R2::Scanless::DSL/"Lexeme pseudo-rule">.
+A non-lexeme event is declared using a
+L<named event statement|Marpa::R2::Scanless::DSL/"Named event statement">.
 The various types of parse events are described in detail
 L<below|/"Types of parse event">.
 The description of
 each type of parse event
-indicates whether it is a lexeme or a non-lexeme event.
+will state whether it is a lexeme or a non-lexeme event.
 
-Once declared, events
+Once declared, a parse event
 may trigger during any event-triggering SLIF
 recognizer method.
 The event-triggering SLIF recognizer methods are
@@ -200,7 +216,7 @@ L<C<resume()>|Marpa::R2::Scanless::R/"resume()">,
 L<C<lexeme_read()>|Marpa::R2::Scanless::R/"lexeme_read()"> and
 L<C<lexeme_complete()>|Marpa::R2::Scanless::R/"lexeme_complete()">.
 
-The location at which an event triggers is the B<event location>.
+The location at which a parse event triggers is the B<event location>.
 An event may trigger at any location, including location 0.
 When an event triggers, it causes the event-triggering
 method to return immediately, with the current location
@@ -209,9 +225,9 @@ The trigger location is the same as the event location,
 except in the case of
 L<pre-lexeme events|/"Pre-lexeme events">.
 
-Non-lexeme events may trigger during any of the event-triggering
+A non-lexeme event may trigger during any of the event-triggering
 methods.
-Lexeme events will only trigger during calls of the
+A lexeme event will only trigger during calls of the
 C<< $slr->read() >> and C<< $slr->resume() >> methods.
 
 The triggering of events may be controlled with
@@ -244,7 +260,7 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-Completion SLIF parse events can be specified for any
+A completion SLIF parse event can be specified for any
 symbol that is not a lexeme.
 Completion events are non-lexeme events.
 A completion event triggers
@@ -269,7 +285,7 @@ the name of completed event is the only element.
 
 =head2 Nulling events
 
-Nulling events are declared in the SLIF DSL
+A nulling event is declared in the SLIF DSL
 using the
 L<named event statement|Marpa::R2::Scanless::DSL/"Named event statement">:
 
@@ -290,16 +306,27 @@ are set to the current location,
 which will be
 the location where the triggering instance both begins and ends.
 
-Nulling events are non-lexeme events.
-Nulling SLIF parse events can be specifed for any
+A nulling event is a non-lexeme event.
+A nulling SLIF parse event can be specifed for any
 symbol that is not a lexeme.
-Nulled symbols may derive other null symbols,
-producing nulled trees;
-and null derivations may be ambiguous,
-producing nulled forests.
-All activated nulling events declared
-for symbols in nulled trees and forests will
-trigger.
+A nulled symbol may derive other null symbols,
+producing one or more nulled trees;
+because a null derivation may be ambiguous,
+a nulled symbol may derive more than one nulled
+tree.
+A set of one or more nulled trees
+is called a nulled forest.
+
+When a nulling event triggers for a symbol instance,
+all activated nulling events declared
+for symbols derived
+from the triggered symbol instance will
+also trigger.
+The triggering of nulling events is recursive,
+so that when a nulled symbol instance
+triggers an event, it triggers all the events
+in the nulled forest derived
+from the triggering symbol instance.
 Nulled forests are described in more detail
 in L<a separate
 section|"Nulled forests">.
@@ -312,7 +339,7 @@ the name of nulling event is the only element.
 
 =head2 Prediction events
 
-Prediction events are declared in the SLIF DSL
+A prediction event is declared in the SLIF DSL
 using the
 L<named event statement|Marpa::R2::Scanless::DSL/"Named event statement">:
 
@@ -425,11 +452,13 @@ There is a lot of similarity
 between pre-lexeme events and predictions,
 and the two can trigger together,
 but there are important differences.
-A pre-lexeme event does not occur unless that the lexeme is actually
+A pre-lexeme event does not occur
+unless triggering lexeme is actually
 found in the input.
 On the other hand,
 a prediction event is,
-as the name suggests, only a prediction -- the lexeme may not
+as the name suggests, only a prediction --
+the triggering lexeme may never
 actually be found in the input.
 
 In the SLIF parse event descriptor returned
@@ -437,6 +466,120 @@ by the
 L<the C<< $slr->events() >>
 method|Marpa::R2::Scanless::R/"events()">,
 the name of pre-lexeme event is the only element.
+
+=head2 Exhaustion events
+
+=for Marpa::R2::Display
+name: SLIF exhaustion recognizer setting synopsis
+partial: 1
+normalize-whitespace: 1
+
+        my @shortest_span = ();
+        my $recce         = Marpa::R2::Scanless::R->new(
+            {   grammar    => $g,
+                exhaustion => 'event',
+            },
+            $recce_debug_args
+        );
+        my $pos = $recce->read( \$string, $target_start );
+
+        EVENT:
+        for my $event ( @{ $recce->events() } ) {
+            my ($name) = @{$event};
+            if ( $name eq 'target' ) {
+                @shortest_span = $recce->last_completed_span('target');
+                diag(
+                    "Preliminary target at $pos: ",
+                    $recce->literal(@shortest_span)
+                ) if $verbose;
+                next EVENT;
+            } ## end if ( $name eq 'target' )
+                # Not all exhaustion has an exhaustion event,
+                # so we look for exhaustion explicitly below.
+            next EVENT if $name eq q('exhausted);
+            die join q{ }, "Spurious event at position $pos: '$name'";
+        } ## end EVENT: for my $event ( @{ $recce->events() } )
+
+=for Marpa::R2::Display::End
+
+An exhaustion parse event triggers on asynchronous parse exhaustion,
+if the recognizer's C<exhaustion> setting is "C<event>".
+The name of the event is
+"C<'exhausted>"
+(The initial single quote is part of the event's name,
+and indicates it is a reserved name,
+which will not conflict with
+the name of any user-named event.)
+
+Intuitively, parse exhaustion events are created only when
+needed for control to return to the application.
+More precisely,
+a parse exhaustion event is called B<synchronous> if it
+occurs at a G1 location where control would return to the application
+in any case, either due to end of string or another event.
+A parse exhaustion event is called B<asynchronous> if it is not
+synchronous.
+
+The event itself is often simply discarded,
+because an application typically
+does not care whether
+exhaustion is synchronous or asynchronous.
+The L<C<exhausted()> method|/"exhausted()">
+can be relied on to report
+both asynchronous and synchronous parse exhaustion,
+and it is usually used instead.
+Exhaustion is discussed further in
+L<a separate document|Marpa::R2::Exhaustion>.
+
+=head2 Rejection events
+
+=for Marpa::R2::Display
+name: SLIF rejection recognizer setting synopsis
+partial: 1
+normalize-whitespace: 1
+
+    my $recce = Marpa::R2::Scanless::R->new(
+        {   grammar   => $g,
+            rejection => 'event',
+        },
+        $recce_debug_args
+    );
+    my $pos = $recce->read( \$suffixed_string, 0, $original_length );
+
+    READ_LOOP: while (1) {
+        my $rejection = 0;
+        my $pos       = $recce->pos();
+        EVENT:
+        for my $event ( @{ $recce->events() } ) {
+            my ($name) = @{$event};
+            if ( $name eq q('rejected) ) {
+                $rejection = 1;
+                diag("You fool! you forget the semi-colon at location $pos!")
+                    if $verbose;
+                next EVENT;
+
+            } ## end if ( $name eq q('rejected) )
+            die join q{ }, "Spurious event at position $pos: '$name'";
+        } ## end EVENT: for my $event ( @{ $recce->events() } )
+
+        last READ_LOOP if not $rejection;
+
+        $recce->resume( $original_length, 1 );
+        diag("I fixed it for you.  Now you owe me.") if $verbose;
+        $recce->resume( $pos, $original_length - $pos );
+    } ## end READ_LOOP: while (1)
+
+=for Marpa::R2::Display::End
+
+A rejection event triggers if
+all lexemes at a G1 location are rejected,
+and the recognizer's C<rejection> setting is "C<event>".
+The name of the event is
+"C<'rejected">
+(The initial single quote is part of the event's name,
+and indicates it is a reserved name,
+which will not conflict with the name
+of any user-named event.)
 
 =head1 Lexeme events
 
@@ -469,6 +612,7 @@ The G1 grammar would accept its lexeme at that location.
 
 The lexeme is not scanned externally,
 that is,
+it is not scanned
 by a call of the
 L<C<< $slr->lexeme_complete() >> method|Marpa::R2::Scanless::R/"lexeme_complete()">
 or of the
@@ -482,7 +626,7 @@ An event is activated by default when it
 is declared.
 Deactivation and reactivation of events is
 done with the SLIF recognizer's
-L<activate() method|Marpa::R2::Scanless::R/"activate()">
+L<activate() method|Marpa::R2::Scanless::R/"activate()">.
 
 =item *
 
@@ -495,14 +639,14 @@ have been applied.
 
 If it is a post-lexeme event,
 none of other remaining events are pre-lexeme events.
-(In other words, a pre-lexeme event prevents any
+(In other words, a pre-lexeme event prevents
 post-lexeme events from triggering at the same location.)
 
 =back
 
 Marpa allows ambiguous lexemes and,
 even after all the above criteria have been applied,
-there may be more than one lexeme event at a location.
+there may be more than one lexeme event at a G1 location.
 
 =head2 Pause span and pause lexeme
 
@@ -516,7 +660,8 @@ originally undefined.
 Every call
 to the L<C<read()>|Marpa::R2::Scanless::R/"read()">
 or the L<C<resume()>|Marpa::R2::Scanless::R/"resume()">
-methods resets the pause span to undefined.
+methods resets the pause lexeme
+and the pause span to undefined.
 
 The pause span may be accessed directly
 with the
@@ -549,9 +694,31 @@ L<named event statement|Marpa::R2::Scanless::DSL/"Named event statement">.
 
 =item *
 
-It is a prediction and its symbol is acceptable at the current location;
-or it is a completion or a nulling event and its symbol is recognized
+Its B<triggering condition> is true.  Specifically,
+
+=over 4
+
+=item *
+
+It is a prediction and its symbol is acceptable at the current location; or
+
+=item *
+
+it is a completion or a nulling event and its symbol is recognized
+at the current location; or
+
+=item *
+
+it is an exhaustion event, and asynchronous parse exhaustion,
+L<as defined above|/"Exhaustion events">,
+occurs at the current location; or
+
+=item *
+
+it is an rejection event, and all lexeme alternatives are rejected
 at the current location.
+
+=back
 
 =item *
 
@@ -560,7 +727,7 @@ An event is activated by default when it
 is declared.
 Deactivation and reactivation of events is
 done with the SLIF recognizer's
-L<activate() method|Marpa::R2::Scanless::R/"activate()">
+L<activate() method|Marpa::R2::Scanless::R/"activate()">.
 
 =back
 
@@ -569,7 +736,7 @@ L<activate() method|Marpa::R2::Scanless::R/"activate()">
 =head2 External scanning
 
 Switching to external scanning is an intended use case
-for all events.
+for all events, other than exhaustion events.
 In particular,
 the behavior of pre-lexeme events
 is most intuitive when thought about with
@@ -593,7 +760,8 @@ normalize-whitespace: 1
 When this triggers, the code in the example switches to
 external scanning:
 It reads a C<< <d> >> symbol externally,
-skips over lexeme actually in the input,
+skips over the lexeme actually found
+in the physical input,
 and resumes internal scanning.
 
 =head2 Markers
@@ -623,8 +791,8 @@ rule.
 This section describes 
 some implications of the SLIF parse events mechanism
 that may be unexpected at first.
-These implications are Marpa working as designed,
-and I hope the reader will usually come to agree,
+These implications are Marpa working as designed and,
+I hope the reader will agree,
 as is desirable.
 
 =head2 Ambiguity
@@ -654,7 +822,8 @@ and the actual input to the right of the event
 location is taken into account,
 it is quite possible that
 none of the parse trees
-will match a triggered event.
+will actually contain the symbol instance
+that triggered an event.
 
 In L<the example|/"An example">,
 prediction and completion
@@ -668,18 +837,22 @@ winds up in
 any of the parse tress.
 This is because they are derived from
 C<< <ambig1> >> or
-C<< <ambig2> >>.
-But for
-C<< <ambig1> >> or
-C<< <ambig2> >> to be fully recognized,
-there must be a 
+C<< <ambig2> >>,
+and C<< <ambig1> >> or
+C<< <ambig2> >> will never be fully recognized
+in any of the parse trees.
+The reason that 
+C<< <ambig1> >> and
+C<< <ambig2> >> will not be fully recognized
+is that their full recognition requires
+that there be a 
 C<< <z> >> symbol in the input and the
-input stream
-in the example does not contain a
+input stream in the example does not contain a
 C<< <z> >> symbol.
 
-All SLIF parse events are tentative,
-not just completion events.
+Exhaustion events are not tentative.
+All other SLIF parse events are tentative.
+
 In the example, the predictions
 for 
 C<< <mid1> >> and
@@ -697,6 +870,18 @@ one or more of the lexeme alternatives
 may not be used in any final parse tree.
 Because of this,
 lexeme events are also tentative.
+
+After rejection events,
+input can be,
+and typically is,
+retried at the same G1 location.
+This is what happens when the Ruby Slippers technique
+is used.
+Often, on the second or later attempt, one or
+more lexemes are found that are acceptable
+to the grammar.
+For this reason,
+rejection events are tentative.
 
 =head2 Nulled forests
 
@@ -724,9 +909,7 @@ C<< <g4> >> are in another,
 so that not just a parse tree,
 but an entire parse forest
 is nulled.
-(This section usually speaks 
-of nulled forests because,
-pedantically, a nulled tree is a forest
+(Pedantically, a nulled tree is a forest
 of a single tree.)
 
 More precisely,
@@ -850,7 +1033,7 @@ because there is no practical distinction between predicting
 a nulled symbol, and actually seeing one.
 This means that the prediction and completion of a nulled symbol
 would always occur together.
-The very special nature of nulled symbols motivates their
+This very special nature of nulled symbols motivates their
 treatment as a special case.
 
 =head2 Hidden events

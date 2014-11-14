@@ -114,7 +114,7 @@ The phrase "input stream location" and
 the word "location",
 unless otherwise specified,
 refer
-to physical input stream location,
+to physical input stream location.
 
 Virtual input streams complicate the idea of parse
 location,
@@ -133,7 +133,7 @@ and to read sections of the stream repeatedly.
 Input streams are ordered sets of characters,
 and the locations in them are
 represented as the integers from 0 to I<N>,
-where I<N-1> is the size of the set.
+where I<N+1> is the size of the set.
 In this document, we will refer to ordered subsets of
 contiguous locations as either B<ranges> or B<spans>.
 
@@ -146,7 +146,8 @@ A range is a subset of a "universe" --
 some larger ordered set of locations
 0 to I<N>.
 In this document the larger sets,
-or universes, will be physical input streams
+or universes, will be
+either physical input streams
 or L<G1 location streams|"G1 locations">.
 
 The start and end locations of the range
@@ -189,6 +190,11 @@ As examples,
 
 The entire input stream is the range C<[0 ... -1]>
 and the span C<[0, -1]>.
+
+=item *
+
+The first 42 characters of the input stream are the range C<[0 ... 41]>
+and the span C<[0, 42]>.
 
 =item *
 
@@ -257,10 +263,10 @@ input string.
 
 The C<read()> method may only be called once for a recognizer,
 but internal scanning can be resumed with the L<C<resume()>|/"resume()"> method.
-The C<resume> method uses a new input string to scan
+The C<resume()> method uses a new input string to scan
 the physical input stream that was specified
 to the C<read()> method.
-C<resume>'s input string may be specified explicitly or implicitly.
+C<resume()>'s input string may be specified explicitly or implicitly.
 By default, the new input string runs from the current location
 to the end of the physical input stream.
 
@@ -280,14 +286,13 @@ L<C<resume()>|/"resume()"> methods, below.
 
 When the application considers input complete,
 and is ready to produce a parse value,
-the L<C<< $slr->value >> method|/"value()"> method
+the L<C<< $slr->value() >> method|/"value()"> method
 is used.
 In most cases, this is all that is needed.
 But Marpa also allows repeated passes over the same input
 with different settings.
 More details on the semantics are provided in
 L<a separate document|Marpa::R2::Semantics>.
-
 
 =head1 External scanning
 
@@ -328,7 +333,7 @@ one very general way to deal with external lexemes
 which have no natural mapping into
 the physical input stream.
 Call what would ordinarily be the input string, the "natural input".
-Form the physical input stream by prefixing these 7 character:
+Form the physical input stream by appending these 7 character:
 "C<NO TEXT>".
 For example, if the natural input is "C<Hi! I am the real input>",
 then the physical input stream will be
@@ -336,25 +341,25 @@ then the physical input stream will be
 =for Marpa::R2::Display
 ignore: 1
 
-    "NO TEXTHi! I am the real input"
+    "Hi! I am the real inputNO TEXT"
 
 =for Marpa::R2::Display::End
 
 To read the natural input,
 the initial call to the L<C<read()>|/"read()"> method should be
 of the form
-C<< $slr->read($input_string, 7) >>.
+C<< $slr->read($input_string, -8) >>.
 When externally reading a lexeme which has no real relationship
 to the natural input,
 use a method call similar to
-C<< $slr->lexeme_read($symbol_name, 0, 7, $value) >>.
+C<< $slr->lexeme_read($symbol_name, -7, -1, $value) >>.
 
 =head1 G1 locations
 
 In addition to input stream location,
 the SLIF also tracks G1 location.
 G1 locations run from 0 to I<N>,
-where I<N-1> is the length of the input stream.
+where I<N+1> is the length of the input stream.
 The conventions
 and notation
 for numbering G1 locations
@@ -369,22 +374,26 @@ and when dealing with ambiguous terminals.
 the G1 location is the G1 Earley set index.)
 
 Because lexemes may be ambiguous,
-a set of lexemes is read at a single G1 location.
+more than one lexeme may be read 
+at a single G1 location.
+We can think of the lexemes read at a single
+G1 location as a set -- call it the B<G1 lexeme set>,
+or, for brevity, the B<G1 set>.
 If a lexeme is unambiguous,
-its set will contain exactly one lexeme.
+its G1 set will contain exactly one lexeme.
 
 G1 location can be thought of
 as location in terms of
-boundaries of sets of lexemes,
+boundaries of G1 sets,
 so that the 
-the first set of lexemes starts at G1 location 0
+the first G1 set starts at G1 location 0
 and ends at G1 location 1.
-When we speak of a set of lexemes B<at> G1 location I<L>,
-we refer to the set of lexemes ending at G1 location I<L>.
-That means that there is no set of lexemes at
+When we speak of a G1 set B<at> G1 location I<L>,
+we refer to the G1 set ending at G1 location I<L>.
+That means that there is no G1 set at
 G1 location 0.
 
-As each new set of lexemes is read,
+As each G1 set is read,
 G1 location 
 increases by one.
 B<G1 length>
@@ -405,8 +414,9 @@ For more complicated cases, the exact rules are described in
 this section.
 
 Except for G1 location zero,
-every G1 location I<X> corresponds to a range in the physical
-input stream.
+every G1 location I<X> corresponds
+to one or more characters
+in the physical input stream.
 We'll call the physical input stream range that corresponds to
 G1 location I<X>, [I<s(X) ... e(X)>].
 Only two things are guaranteed about I<s(X)> and I<e(X)> as
@@ -525,6 +535,14 @@ More details about parse series and parse trees
 are in
 L<a separate document|Marpa::R2::Semantics::Phases>.
 
+=head2 Evaluation time
+
+A recognizer is in B<evaluation time> after the
+first call of the C<< $recce->value() >> method
+for the current parse series.
+B<Evaluation time> ends when the recognizer is
+destroyed, or when the parse series ends.
+
 =head1 Recognizer settings
 
 The B<recognizer settings> are the named arguments
@@ -548,10 +566,36 @@ The L<C<end>|/"end"> setting is only allowed in
 the L<C<new()>|/"Constructor">,
 and L<C<series_restart()>|"series_restart()"> methods.
 
+=head2 exhaustion
+
+The C<exhaustion> recognizer setting
+determines what happens when asynchronous parse exhaustion occurs.
+Intuitively, "asynchronous" parse exhaustion is parse
+exhaustion at a point when control would not normally
+return to the application.
+The C<too_many_earley_items> setting is allowed
+in any call of any of the recognizer setting-aware methods.
+For details
+see the
+L<description of exhaustion parse events|Marpa::R2::Event/"Exhaustion events">.
+
+The value
+of the C<exhaustion> recognizer setting
+must be either "C<fatal>"
+or "C<event>".
+"C<fatal>" is the default.
+If the value is "C<fatal>",
+asynchronous parse exhaustion is treated as an error,
+and an exception is thrown.
+If the value is "C<event>",
+an event occurs
+as described in the
+L<section on exhaustion parse events|Marpa::R2::Event/"Exhaustion events">.
+
 =head2 grammar
 
 The value of the C<grammar> setting must be
-an SLIF grammar object.
+a SLIF grammar object.
 The C<new()> method is required to have
 a C<grammar> setting.
 The C<grammar> setting is only allowed
@@ -599,21 +643,34 @@ and to exclude some parse results from the parse series.
 For details, see L<the document
 on parse order|Marpa::R2::Semantics::Order>.
 
-The C<ranking_method> setting is not allowed
-once evaluation of the current parse series has begun.
-Specifically,
-the L<C<ranking_method>|/"ranking"> setting is always allowed in
-the L<C<new()>|/"Constructor">,
-and L<C<series_restart()>|"series_restart()"> methods,
-because they initialize a new parse series.
-And, while a parse series is in progress,
-the L<C<ranking_method>|/"ranking"> setting is allowed in
-calls of the
+The C<ranking_method>
+is always allowed in
+calls of the L<C<new()>|/"Constructor">,
+and of the L<C<series_restart()>|"series_restart()"> methods.
+The C<ranking_method> setting is also allowed
+in those calls of the
 L<C<< $slr->set() >>|"set()"> method
-if and only if they are made before
-the first call of the
-L<C<< $slr->value() >>|"value()"> method
-in that parse series.
+that are not made during
+L<evaluation time|/"Evaluation time">.
+
+=head2 rejection
+
+The C<rejection> recognizer setting
+determines what happens when all tokens are rejected by the
+G1 parser.
+The C<too_many_earley_items> setting is allowed
+in any call of any of the recognizer setting-aware methods.
+The value must be either "C<fatal>"
+or "C<event>".
+"C<fatal>" is the default.
+
+If the value is "C<fatal>",
+rejection of all tokens is treated as an error,
+and an exception is thrown.
+If the value is "C<event>",
+an event occurs
+as described in the
+L<section on rejection parse events|Marpa::R2::Event/"Rejection events">.
 
 =head2 semantics_package
 
@@ -621,7 +678,8 @@ Sets the semantic package for the recognizer.
 This setting takes precedence
 over any package implied by the blessing of the per-parse arguments to
 the SLIF recognizer's C<value()> method.
-The semantics package is used when resolving action names to
+The C<semantics_package> recognizer setting
+is used when resolving action names to
 fully qualified Perl names.
 For more details on the SLIF semantics,
 see the L<document on SLIF
@@ -632,6 +690,11 @@ when a new parse series is begun.
 That is, it is only allowed in calls
 of the L<C<new()>|/"Constructor">
 and L<C<series_restart()>|"series_restart()"> methods.
+The C<semantics_package> recognizer setting
+should not be confused with the 
+L<SLIF's
+C<bless_package> grammar setting|Marpa::R2::Scanless::G/"bless_package">.
+The two are not closely related.
 
 =head2 too_many_earley_items
 
@@ -672,7 +735,8 @@ warnings about large Earley sets are turned off.
 An Earley item threshold warning almost always
 indicates a serious issue,
 and turning these warnings off will
-rarely be what an application wants.
+rarely be something
+that an application wants to do.
 
 The C<too_many_earley_items> setting is allowed
 in any call of any of the recognizer setting-aware methods.
@@ -780,7 +844,7 @@ normalize-whitespace: 1
 Given a pointer to a physical input stream and,
 optionally, a span specifying an input string within it,
 C<read()> parses the input string according to the grammar.
-C<read()> returns successfully if it parses to the end
+C<read()> returns success if it parses to the end
 of the input string,
 or if it triggers a SLIF parse event.
 Only a single call to C<read()>
@@ -788,7 +852,10 @@ is allowed for a SLIF
 recognizer.
 
 The first argument of C<read()> is a pointer to the physical
-input stream, which by default will also be the virtual input stream.
+input stream which,
+by default,
+will be
+exactly the same as the virtual input stream.
 To specify the input string,
 C<read()> recognizes
 optional second and third arguments and treats them
@@ -808,12 +875,12 @@ and the parse reaches the end of the input string without a
 failure,
 the current location is set to the end of the input string.
 
-The call is considered successful
-if it reached the end of input string,
-or if a SLIF parse event triggered.
 On success, C<read()> returns the current
 physical input stream location.
 This value may be zero.
+The call is considered successful
+if it reaches the end of input string,
+or if a SLIF parse event triggers.
 On failure, C<read()> throws an exception.
 
 =head2 series_restart()
@@ -891,7 +958,9 @@ This per-parse argument can be a Perl scalar of any type,
 but the most useful
 type for a per-parse argument is a reference
 (blessed or unblessed) to a hash or to an array.
-The per-parse argument will be the first argument of all 
+The per-parse argument,
+if provided,
+will be the first argument of all 
 Perl semantics closures.
 When data does not conveniently fit into the bottom-up
 flow of parse tree evaluation,
@@ -905,14 +974,40 @@ If the L<C<semantics_package>|/"semantics_package">
 setting of the SLIF
 recognizer was not specified,
 Marpa will use the package into which the per-parse argument was blessed
-as the semantics package --
-the package in which to look for the parse's Perl semantic closures.
-In this case, Marpa will regard the per-parse arguments of all
-calls in the same parse series as the source of the semantics package,
-and it will require that the calls be consistent --
-each call must have a per-parse argument,
-and each per-parse argument
-must be blessed into the same semantics package.
+as the semantics package.
+(As a reminder, the semantics package is the package
+in which Marpa looks for the parse's Perl semantic closures.)
+
+When the per-parse argument of the value() method is the
+source of the semantics package,
+all calls to the C<value()> method in the same
+parse series must have a per-parse
+argument that
+specifies the same semantics package.
+More precisely,
+if the per-parse argument of the first
+call of the C<value()> method
+in a parse series
+is
+the source of the semantics package,
+it will be a fatal error if any subsequent
+C<value()> call in that parse series
+
+=over 4
+
+=item *
+
+does not have a per-parse argument;
+
+=item *
+
+if that per-parse argument is not blessed; or
+
+=item *
+
+if that per-parse argument is blessed into a different package.
+
+=back
 
 =head1 Mutators for external scanning
 
@@ -1018,7 +1113,8 @@ normalize-whitespace: 1
 
 The C<lexeme_complete()> method allows an external scanner to read
 ambiguous tokens.
-Most applications will prefer the simpler C<lexeme_read()>.
+Most applications
+will prefer the simpler L<C<lexeme_read()>|/"lexeme_read()">.
 
 The C<lexeme_complete()> method
 requires two arguments,
@@ -1040,7 +1136,31 @@ On success, C<lexeme_complete()>
 returns the new current location.
 This will never be location zero, because a succesful
 call of C<lexeme_complete()> always advances the location.
-On unthrown failure, C<lexeme_complete()> returns 0.
+Failure is thrown as an exception.
+
+=head2 lexeme_priority_set()
+
+=for Marpa::R2::Display
+name: SLIF recognizer lexeme_priority_set() synopsis
+normalize-whitespace: 1
+
+        $recce->lexeme_priority_set( 'prefix lexeme', -1 );
+
+=for Marpa::R2::Display::End
+
+Takes as its first argument the name of a lexeme
+and changes the priority of that lexeme to the value
+of its second argument.
+Both arguments are required.
+
+Changing the lexeme priority is a very flexible
+technique.
+It can, in effect, allow an application
+to switch lexers.
+
+On success, returns the old priority value
+is returned.
+Failure is thrown.
 
 =head2 lexeme_read()
 
@@ -1075,7 +1195,9 @@ as L<described above|/"Spans">.
 
 The span will be interpreted as the section
 of the physical input stream
-that corresponds to the tokens read at the current G1 location.
+that corresponds to the current G1 set.
+(As a reminder, the G1 set consists
+of the tokens read at at single G1 location.)
 This correspondence between the span and the token
 may be artificial, but a span is defined for every token,
 even if only by default.
@@ -1129,15 +1251,15 @@ the current G1 location by one.
 The token read by C<lexeme_read()>
 will start at the previous G1 location
 and end at the new current G1 location.
-Current location in the input stream is moved
-to the end location of the new lexeme.
+The new current location in the input stream will
+be at the end location of the new lexeme.
 
 On success, C<lexeme_read()> returns the new current physical
 input stream location.
 This will never be location zero, because lexemes cannot be zero length.
 If the token was rejected,
 C<lexeme_read()> returns a Perl C<undef>.
-On other unthrown failure, C<lexeme_read()> returns 0.
+Failure is thrown as an exception.
 
 =head2 resume()
 
@@ -1201,6 +1323,7 @@ On success, C<resume()> returns
 the new current location.
 On unthrown failure,
 C<resume()> returns a Perl C<undef>.
+Currently, all failures are thrown.
 
 =head1 Accessors
 
@@ -1219,6 +1342,14 @@ Succeeds and
 returns 2 or greater if there is a ambiguous parse.
 Fails and returns zero if called before parsing.
 Returns zero or a negative number on other unthrown failure.
+
+When the return value is 2 or greater,
+an applications should not rely on the exact value, which is subject to change.
+In the future, return values of 2 or greater may represent a "metric" which
+estimates the degree of ambiguity in some useful way,
+but is cheap to compute.
+(The best metric is, of course, the exact parse count,
+but determining that can be very expensive.)
 
 =head2 current_g1_location()
 
@@ -1386,6 +1517,30 @@ the longest.
 If there was no match,
 C<last_completed()> returns the empty array in array context
 and a Perl false in scalar context.
+
+=head2 last_completed_span()
+
+=for Marpa::R2::Display
+name: SLIF recognizer last_completed_span() synopsis
+normalize-whitespace: 1
+
+        my @longest_span = $recce->last_completed_span('target');
+        diag( "Actual target at $pos: ", $recce->literal(@longest_span) ) if $verbose;
+        
+=for Marpa::R2::Display::End
+
+Returns the most recent input stream span for the symbol
+that is its first and only argument.
+That argument is required.
+For details on how the input stream span is determined,
+see L<"Literals and G1 spans">.
+
+If more than one instance of the symbol
+ends at the same location,
+C<last_completed_span()> returns the longest span.
+If there is no symbol instance for the argument symbol,
+C<last_completed_span()> returns the empty array.
+Other failures are thrown.
 
 =head2 line_column()
 
@@ -1584,7 +1739,8 @@ normalize-whitespace: 1
 
 =for Marpa::R2::Display::End
 
-Shows the progress of the G1 parse.
+Returns a string showing
+the progress of the G1 parse.
 For a description of its output,
 see L<Marpa::R2::Progress>.
 With no arguments,
@@ -1606,11 +1762,15 @@ For example,
 the method call C<< $recce->show_progress(0, -1) >>
 will print progress reports for the entire parse.
 
-Locations are G1 locations instead of physical input stream locations,
+The arguments are G1 locations instead of physical input stream locations,
 because G1 locations represent a unique point in the parse.
 By contrast,
 a single physical input stream location might be visited many times
 by a SLIF recognizer.
+
+The output is intended only for reading by humans.
+The exact format is subject to change
+and should not be relied on by applications.
 
 =head2 substring()
 

@@ -77,7 +77,7 @@ typedef struct {
     int linecol;
     /* Lines are 1-based, columns are zero-based and negated.
      * In the first column (column 0), linecol is the 1-based line number.
-     * In subsequenct columns, linecol is -n, where n is the 0-based column
+     * In subsequent columns, linecol is -n, where n is the 0-based column
      * number.
      */
 } Pos_Entry;
@@ -5972,7 +5972,7 @@ PPCODE:
   XPUSHs (sv_2mortal (newSViv ((IV) length)));
 }
 
- # Return values are 1-based, as is the tradition */
+ # Return values are 1-based, as is the tradition
  # EOF is reported as the last line, last column plus one.
 void
 line_column(slr, pos)
@@ -6290,32 +6290,34 @@ string_set( slr, string )
      SVREF string;
 PPCODE:
 {
-  U8* p;
-  U8* start_of_string;
-  U8* end_of_string;
+  U8 *p;
+  U8 *start_of_string;
+  U8 *end_of_string;
   int input_is_utf8;
 
   /* Initialized to a Unicode non-character.  In fact, anything
    * but a CR would work here.
    */
   UV previous_codepoint = 0xFDD0;
-  int next_line = 1;
-  int next_column = 0;
+  /* Counts are 1-based */
+  int this_line = 1;
+  int this_column = 1;
 
   STRLEN pv_length;
 
   /* Fail fast with a tainted input string */
-  if (SvTAINTED(string)) {
+  if (SvTAINTED (string))
+    {
       croak
-        ("Problem in v->string_set(): Attempt to use a tainted input string with Marpa::R2\n"
-        "Marpa::R2 is insecure for use with tainted data\n");
-  }
+	("Problem in v->string_set(): Attempt to use a tainted input string with Marpa::R2\n"
+	 "Marpa::R2 is insecure for use with tainted data\n");
+    }
 
   /* Get our own copy and coerce it to a PV.
    * Stealing is OK, magic is not.
    */
   SvSetSV (slr->input, string);
-  start_of_string = (U8*)SvPV_force_nomg (slr->input, pv_length);
+  start_of_string = (U8 *) SvPV_force_nomg (slr->input, pv_length);
   end_of_string = start_of_string + pv_length;
   input_is_utf8 = SvUTF8 (slr->input);
 
@@ -6325,54 +6327,74 @@ PPCODE:
   slr->pos_db_physical_size = 1024;
   Newx (slr->pos_db, slr->pos_db_physical_size, Pos_Entry);
 
-  for (p = start_of_string; p < end_of_string; ) {
+  for (p = start_of_string; p < end_of_string;)
+    {
       STRLEN codepoint_length;
       UV codepoint;
       if (input_is_utf8)
-        {
-          codepoint = utf8_to_uvchr_buf (p, end_of_string, &codepoint_length);
-          /* Perl API documents that return value is 0 and length is -1 on error,
-           * "if possible".  length can be, and is, in fact unsigned.
-           * I deal with this by noting that 0 is a valid UTF8 char but should
-           * have a length of 1, when valid.
-           */
-          if (codepoint == 0 && codepoint_length != 1)
-            {
-              croak
-                ("Problem in slr->string_set(): invalid UTF8 character");
-            }
-        }
+	{
+	  codepoint = utf8_to_uvchr_buf (p, end_of_string, &codepoint_length);
+	  /* Perl API documents that return value is 0 and length is -1 on error,
+	   * "if possible".  length can be, and is, in fact unsigned.
+	   * I deal with this by noting that 0 is a valid UTF8 char but should
+	   * have a length of 1, when valid.
+	   */
+	  if (codepoint == 0 && codepoint_length != 1)
+	    {
+	      croak ("Problem in slr->string_set(): invalid UTF8 character");
+	    }
+	}
       else
-        {
-          codepoint = (UV) * p;
-          codepoint_length = 1;
-        }
+	{
+	  codepoint = (UV) * p;
+	  codepoint_length = 1;
+	}
       /* Ensure that there is enough space */
       if (slr->pos_db_logical_size >= slr->pos_db_physical_size)
-        {
-          slr->pos_db_physical_size *= 2;
-          Renew (slr->pos_db, slr->pos_db_physical_size, Pos_Entry);
-        }
+	{
+	  slr->pos_db_physical_size *= 2;
+	  Renew (slr->pos_db, slr->pos_db_physical_size, Pos_Entry);
+	}
       p += codepoint_length;
-      slr->pos_db[slr->pos_db_logical_size].next_offset =
-        p - start_of_string;
+      slr->pos_db[slr->pos_db_logical_size].next_offset = p - start_of_string;
 
-        /* The definition of newline here follows the Unicode standard TR13 */
-      if (codepoint == 0x0a && previous_codepoint == 0x0d) {
-        slr->pos_db[slr->pos_db_logical_size].linecol =
-          slr->pos_db[slr->pos_db_logical_size-1].linecol - 1;
-      } else {
-        slr->pos_db[slr->pos_db_logical_size].linecol = next_column ? next_column : next_line;
-      }
-      switch (codepoint) {
-      case 0x0a: case 0x0b: case 0x0c: case 0x0d:
-      case 0x85: case 0x2028: case 0x2029:
-          next_line++;
-          next_column = 0;
-          break;
-      default:
-          next_column--;
-      }
+      /* The definition of newline here follows the Unicode standard TR13 */
+      if (codepoint == 0x0a && previous_codepoint == 0x0d)
+	{
+          /* Set the next column to one after the last column,
+           * instead of using the next line and column.
+           * Delay using those until the next pass through this
+           * loop.
+           */
+          const int pos = slr->pos_db_logical_size - 1;
+          const int previous_linecol = slr->pos_db[pos].linecol;
+          if (previous_linecol < 0)
+          {
+            slr->pos_db[slr->pos_db_logical_size].linecol = previous_linecol-1;
+          } else {
+            slr->pos_db[slr->pos_db_logical_size].linecol = -1;
+          }
+	}
+      else
+	{
+	  slr->pos_db[slr->pos_db_logical_size].linecol =
+	    this_column > 1 ? 1-this_column : this_line;
+	  switch (codepoint)
+	    {
+	    case 0x0a:
+	    case 0x0b:
+	    case 0x0c:
+	    case 0x0d:
+	    case 0x85:
+	    case 0x2028:
+	    case 0x2029:
+	      this_line++;
+	      this_column = 1;
+	      break;
+	    default:
+	      this_column++;
+	    }
+	}
       slr->pos_db_logical_size++;
       previous_codepoint = codepoint;
     }
