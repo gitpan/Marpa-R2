@@ -21,7 +21,7 @@ use strict;
 use English qw( -no_match_vars );
 
 use vars qw($VERSION $STRING_VERSION);
-$VERSION        = '2.100000';
+$VERSION        = '2.101_000';
 $STRING_VERSION = $VERSION;
 ## no critic(BuiltinFunctions::ProhibitStringyEval)
 $VERSION = eval $VERSION;
@@ -126,6 +126,7 @@ sub Marpa::R2::Recognizer::new {
     $recce->[Marpa::R2::Internal::Recognizer::WARNINGS]       = 1;
     $recce->[Marpa::R2::Internal::Recognizer::RANKING_METHOD] = 'none';
     $recce->[Marpa::R2::Internal::Recognizer::MAX_PARSES]     = 0;
+    $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS]     = 0;
 
     # Position 0 is not used because 0 indicates an unvalued token.
     # Position 1 is reserved for undef.
@@ -142,16 +143,14 @@ sub Marpa::R2::Recognizer::new {
 
     $recce->set(@arg_hashes);
 
-    my $trace_terminals =
-        $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS] // 0;
-    if ( $trace_terminals > 1 ) {
+    if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS] > 1 ) {
         my @terminals_expected = @{ $recce->terminals_expected() };
         for my $terminal ( sort @terminals_expected ) {
             say {$Marpa::R2::Internal::TRACE_FH}
                 qq{Expecting "$terminal" at earleme 0}
                 or Marpa::R2::exception("Cannot print: $ERRNO");
         }
-    } ## end if ( $trace_terminals > 1 )
+    } ## end if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS...])
 
     return $recce;
 } ## end sub Marpa::R2::Recognizer::new
@@ -165,6 +164,16 @@ sub Marpa::R2::Recognizer::thin {
     $_[0]->[Marpa::R2::Internal::Recognizer::C];
 }
 
+# For the non-legacy case,
+# I reset the ordering, forcing it to be recalculated
+# for each parse series.
+# But I do not actually allow the ranking method to
+# be changed once a parse is created.
+# Since I am stabilizing Marpa::R2, the "fix" should
+# probably be to save the overhead, rather than
+# to allow 'ranking_method' to be changed.
+# But for now I will do nothing.
+# JK -- Mon Nov 24 17:35:24 PST 2014
 sub Marpa::R2::Recognizer::reset_evaluation {
     my ($recce) = @_;
     my $grammar = $recce->[Marpa::R2::Internal::Recognizer::GRAMMAR];
@@ -361,7 +370,7 @@ sub Marpa::R2::Recognizer::set {
 
         if ( defined( my $value = $args->{'trace_terminals'} ) ) {
             $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS] =
-                $value;
+                Scalar::Util::looks_like_number($value) ? $value : 0;
             if ($value) {
                 say {$trace_fh} 'Setting trace_terminals option'
                     or Marpa::R2::exception("Cannot print: $ERRNO");
@@ -765,7 +774,7 @@ sub Marpa::R2::Recognizer::earleme_complete {
     } ## end if ( $recce->[Marpa::R2::Internal::Recognizer::TRACE_EARLEY_SETS...])
 
     my $trace_terminals =
-        $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS] // 0;
+        $recce->[Marpa::R2::Internal::Recognizer::TRACE_TERMINALS];
     if ( $trace_terminals > 1 ) {
         my $current_earleme    = $recce_c->current_earleme();
         my $terminals_expected = $recce->terminals_expected();

@@ -95,7 +95,7 @@ By default, this
 is identical to a physical input stream.
 The physical input stream is
 a Perl string passed as the first argument
-to the L<C<< $slr->read() >> method|/read()> method.
+to the L<C<< $recce->read() >> method|/read()> method.
 Once set by the C<read()> method, the physical input
 stream cannot be changed.
 
@@ -165,7 +165,8 @@ etc.
 A span is an ordered set of contiguous locations
 specified by start location and length:
 [I<S, L>].
-A span is a subset of a universe, as was
+A span is a subset of a universe of locations,
+as was
 described above for ranges.
 
 The range corresponding to the span
@@ -242,7 +243,8 @@ for C<read()> defaults to the range [I<0 ... -1>].
 
 L<C<read()>|/"read()"> will return success when it reaches the end of its
 input string, or when a SLIF parse event triggers.
-(Parse events are described in L<a separate
+(Parse events are described in
+L<a separate
 document|Marpa::R2::Event>.)
 In many cases there are no parse events declared,
 or none trigger.
@@ -286,7 +288,7 @@ L<C<resume()>|/"resume()"> methods, below.
 
 When the application considers input complete,
 and is ready to produce a parse value,
-the L<C<< $slr->value() >> method|/"value()"> method
+the L<C<< $recce->value() >> method|/"value()"> method
 is used.
 In most cases, this is all that is needed.
 But Marpa also allows repeated passes over the same input
@@ -297,11 +299,11 @@ L<a separate document|Marpa::R2::Semantics>.
 =head1 External scanning
 
 External scanning is usually performed by reading lexemes using the 
-L<C<< $slr->lexeme_read() >> method|/"lexeme_read()">, which
+L<C<< $recce->lexeme_read() >> method|/"lexeme_read()">, which
 allows the reading of unambiguous lexemes.
 If ambiguous lexemes are needed, then
-the L<C<< $slr->lexeme_alternative() >>|/"lexeme_alternative()"> and
-L<C<< $slr->lexeme_complete() >>|/"lexeme_complete()"> methods can be used.
+the L<C<< $recce->lexeme_alternative() >>|/"lexeme_alternative()"> and
+L<C<< $recce->lexeme_complete() >>|/"lexeme_complete()"> methods can be used.
 
 Scanning must always begin with a call 
 to the L<C<read()>|/"read()"> method,
@@ -332,8 +334,8 @@ Here is
 one very general way to deal with external lexemes
 which have no natural mapping into
 the physical input stream.
-Call what would ordinarily be the input string, the "natural input".
-Form the physical input stream by appending these 7 character:
+We will call what would ordinarily be the input string, the "natural input".
+To form the physical input stream, we append these 7 characters:
 "C<NO TEXT>".
 For example, if the natural input is "C<Hi! I am the real input>",
 then the physical input stream will be
@@ -346,13 +348,16 @@ ignore: 1
 =for Marpa::R2::Display::End
 
 To read the natural input,
-the initial call to the L<C<read()>|/"read()"> method should be
+we will use
+an initial call to the L<C<read()>|/"read()"> method
 of the form
-C<< $slr->read($input_string, -8) >>.
-When externally reading a lexeme which has no real relationship
+C<< $recce->read($input_string, -8) >>.
+If we want to read a lexeme
+which has no real relationship
 to the natural input,
-use a method call similar to
-C<< $slr->lexeme_read($symbol_name, -7, -1, $value) >>.
+we can read it externally,
+using a method call similar to
+C<< $recce->lexeme_read($symbol_name, -7, -1, $value) >>.
 
 =head1 G1 locations
 
@@ -370,7 +375,7 @@ G1 location can be ignored most of the time,
 but it does become relevant
 when tracing the G1 grammar,
 and when dealing with ambiguous terminals.
-(For those more familiar with Marpa's internals,
+(For those familiar with Marpa's internals,
 the G1 location is the G1 Earley set index.)
 
 Because lexemes may be ambiguous,
@@ -401,6 +406,13 @@ is length calculated in terms of G1 locations.
 For example, if a span of G1 locations which begin at G1 location
 42 and has length 2, 
 it will contain a pair of G1 locations: G1 location 42 and G1 location 43.
+
+Sometimes it is convenient to think of
+a G1 location as corresponding to a single input stream location.
+When this is the case,
+what is meant is the location
+at the end of physical input stream span:
+C<$span_start+$span_length>.
 
 =head2 Literals and G1 spans
 
@@ -515,33 +527,89 @@ may want to use custom logic to reassemble the input
 from the physical input stream.
 The L</"literal()"> method can assist in this process.
 
-=head1 Parse series
+=head1 The life cycle of a recognizer
 
-The SLIF recognizer can be run several times on the same
-virtual input stream.
-Each of these runs is called a B<parse series>.
-This is useful for parsing the same input with different settings.
-
-The recognizer is always dealing with exactly one parse series.
-The L<C<new()>|/"Constructor"> starts the first
-(and usually the only) parse series.
-To end the current parse series and start a new one,
-use the L<C<series_restart()>|"series_restart()"> method.
-
-A parse series may result in no parses or be ambiguous,
-so that each parse series has zero or more B<parse trees>,
-each with its own B<parse result>.
-More details about parse series and parse trees
-are in
+This describes the life cycle of a recognizer
+which has only one parse series.
+Your recognizer has only one parse series
+unless it
+calls the L<C<series_restart()>|"series_restart()"> method.
+Use of multiple parse series is an advanced technique,
+one which most applications will not need.
+Full details about parse series are in
 L<a separate document|Marpa::R2::Semantics::Phases>.
 
-=head2 Evaluation time
+=head2 The Initial Phase
 
-A recognizer is in B<evaluation time> after the
-first call of the C<< $recce->value() >> method
-for the current parse series.
-B<Evaluation time> ends when the recognizer is
-destroyed, or when the parse series ends.
+The B<Initial Phase>
+begins when the recognizer is created with the
+calls the L<C<new()>|/"Constructor"> method.
+It ends when
+the L<C<read()>|"read()"> method
+is called.
+It will also end, of course, if
+the recognizer is destroyed,
+but most applications will want to
+continue into the next phase.
+Very little can happen in this phase.
+It is possible to change some recognizer settings
+using the L<C<set()>|/"set()"> method.
+
+=head2 The Reading Phase
+
+The B<Reading Phase> of a recognizer
+begins when
+it calls the L<C<read()>|"read()"> method.
+It ends when it first calls
+the L<C<value()>|"value()"> method.
+The Reading Phase will also end, of course, if
+the recognizer is destroyed,
+but most applications will want to
+continue into the next phase.
+During this phase, it is possible to add other
+input strings to the virtual input,
+by calling
+the L<C<resume()>|"resume()"> method.
+
+=head2 The Evaluation Phase
+
+The B<Evaluation Phase> of a SLIF recognizer
+begins when
+it first calls the L<C<value()>|"value()"> method,
+which returns the result of the first parse tree.
+If there were no parses,
+the L<C<value()>|"value()"> method will return
+a Perl C<undef>.
+
+The L<C<value()>|"value()"> method
+may be called more than once during the Evaluation Phase.
+The second and later calls of
+the L<C<value()>|"value()"> method will return
+the result of the next parse tree.
+When there are no more parse trees,
+the L<C<value()>|"value()"> method will return
+a Perl C<undef>
+The L<C<resume()>|"resume()"> method should
+B<not> be called during Evaluation Phase.
+
+=head2 For more details
+
+In the above, we have described the life cycle for
+recognizers which have 
+only one parse series.
+A recognizer will have only one parse series,
+unless it calls
+the L<C<series_restart()>|"series_restart()"> method.
+
+Using multiple parse series,
+an application can run
+the SLIF recognizer several times on the same
+virtual input stream.
+More detail
+about the recognizer's life cycle,
+including a full treatment of parse series,
+is in
+L<a separate document|Marpa::R2::Semantics::Phases>.
 
 =head1 Recognizer settings
 
@@ -563,7 +631,7 @@ specifies the parse end, as a G1 location.
 The default is for the parse to end where the input did,
 so that the parse returned is of the entire virtual input stream.
 The L<C<end>|/"end"> setting is only allowed in
-the L<C<new()>|/"Constructor">,
+the L<C<new()>|/"Constructor">
 and L<C<series_restart()>|"series_restart()"> methods.
 
 =head2 exhaustion
@@ -573,7 +641,7 @@ determines what happens when asynchronous parse exhaustion occurs.
 Intuitively, "asynchronous" parse exhaustion is parse
 exhaustion at a point when control would not normally
 return to the application.
-The C<too_many_earley_items> setting is allowed
+The C<exhaustion> setting is allowed
 in any call of any of the recognizer setting-aware methods.
 For details
 see the
@@ -625,6 +693,9 @@ calls of the recognizer setting-aware methods.
 
 =head2 ranking_method
 
+The C<ranking_method>
+is only allowed in
+calls of the L<C<new()>|/"Constructor"> method.
 The value must be a string:
 one of "C<none>",
 "C<rule>",
@@ -643,22 +714,13 @@ and to exclude some parse results from the parse series.
 For details, see L<the document
 on parse order|Marpa::R2::Semantics::Order>.
 
-The C<ranking_method>
-is always allowed in
-calls of the L<C<new()>|/"Constructor">,
-and of the L<C<series_restart()>|"series_restart()"> methods.
-The C<ranking_method> setting is also allowed
-in those calls of the
-L<C<< $slr->set() >>|"set()"> method
-that are not made during
-L<evaluation time|/"Evaluation time">.
 
 =head2 rejection
 
 The C<rejection> recognizer setting
 determines what happens when all tokens are rejected by the
 G1 parser.
-The C<too_many_earley_items> setting is allowed
+The C<rejection> setting is allowed
 in any call of any of the recognizer setting-aware methods.
 The value must be either "C<fatal>"
 or "C<event>".
@@ -889,13 +951,13 @@ On failure, C<read()> throws an exception.
 name: SLIF recognizer series_restart() synopsis
 normalize-whitespace: 1
 
-    $slr->series_restart( { end => $i } );
+    $recce->series_restart( { end => $i } );
 
 =for Marpa::R2::Display::End
 
 The C<series_restart()> method ends the current parse series,
 and starts another.
-Parse series are described L<above|"Parse series">.
+Parse series are described L<in another document|Marpa::R2::Semantics::Phases>.
 The C<series_restart()> method allows,
 as optional arguments, hashes whose key-value pairs
 are L<recognizer settings|/"Recognizer settings">.
@@ -904,7 +966,7 @@ The C<series_restart()> method
 cannot change the C<grammar> recognizer setting.
 If any other recognizer setting is not specified explicitly,
 it is reset to its default.
-If an application that wants an explicit recognizer setting to persist
+If an application wants an explicit recognizer setting to persist
 into a new parse series,
 it must specify that setting explicitly in the new parse series.
 C<series_restart()> is particularly useful with
@@ -917,7 +979,7 @@ C<end> and C<semantics_package> named arguments.
 name: SLIF recognizer set() synopsis
 normalize-whitespace: 1
 
-    $slr->set( { max_parses => 42 } );
+    $recce->set( { max_parses => 42 } );
 
 =for Marpa::R2::Display::End
 
@@ -925,7 +987,7 @@ This method allows recognizer settings to be changed after a SLIF
 grammar is created.
 The arguments to
 C<set()> must be one or more hashes whose key-value pairs
-are recognizer settings.
+are recognizer settings and their values.
 The allowed recognizer settings are
 L<described above|/"Recognizer settings">.
 
@@ -978,7 +1040,7 @@ as the semantics package.
 (As a reminder, the semantics package is the package
 in which Marpa looks for the parse's Perl semantic closures.)
 
-When the per-parse argument of the value() method is the
+When the per-parse argument of the C<value()> method is the
 source of the semantics package,
 all calls to the C<value()> method in the same
 parse series must have a per-parse
@@ -1018,7 +1080,7 @@ name: SLIF activate() method synopsis
 partial: 1
 normalize-whitespace: 1
 
-        $slr->activate($_, 0) for @events;
+        $recce->activate($_, 0) for @events;
 
 =for Marpa::R2::Display::End
 
@@ -1113,8 +1175,12 @@ normalize-whitespace: 1
 
 The C<lexeme_complete()> method allows an external scanner to read
 ambiguous tokens.
+It completes the reading of a set of tokens specified by
+one or more calls of the L<C<lexeme_alternative()>|/"lexeme_alternative()">
+method
+at a G1 location.
 Most applications
-will prefer the simpler L<C<lexeme_read()>|/"lexeme_read()">.
+will prefer the simpler L<C<lexeme_read()>|/"lexeme_read()"> method.
 
 The C<lexeme_complete()> method
 requires two arguments,
@@ -1158,8 +1224,7 @@ technique.
 It can, in effect, allow an application
 to switch lexers.
 
-On success, returns the old priority value
-is returned.
+On success, returns the old priority value.
 Failure is thrown.
 
 =head2 lexeme_read()
@@ -1184,7 +1249,7 @@ In the span specified by
 the second and third arguments,
 the start location defaults to the current location.
 If the
-L<pause span|Marpa::R2::Event/"Pause span and lexeme">
+L<pause span|Marpa::R2::Event/"Pause span and pause lexeme">
 is defined,
 and the start of the pause lexeme is
 the same as the current location,
@@ -1202,20 +1267,24 @@ This correspondence between the span and the token
 may be artificial, but a span is defined for every token,
 even if only by default.
 
-If the fourth argument specifying the value of the lexeme
+The fourth argument specifies the lexeme value.
+The lexeme value plays an important role in the SLIF's semantics.
+More details on the SLIF's semantics are in
+L<a document dedicated to them|Marpa::R2::Semantics>.
+If the fourth argument
 is omitted,
-the token's value will be a string
+the lexeme value will be a string
 containing the corresponding substring
 of the input stream.
 Omitting the value argument does not have the same
 effect as passing an explicit Perl C<undef>.
 If the value argument is an explicit Perl C<undef>,
-the value of the lexeme will be a Perl C<undef>.
+the lexeme value will be a Perl C<undef>.
 
 =for Marpa::R2::Display
 ignore: 1
 
-    $slr->lexeme_read($symbol, $start, $length, $value)
+    $recce->lexeme_read($symbol, $start, $length, $value)
 
 =for Marpa::R2::Display::End
 
@@ -1224,8 +1293,8 @@ is roughly equivalent to
 =for Marpa::R2::Display
 ignore: 1
 
-    $slr->lexeme_alternative($symbol, $value)
-    $slr->lexeme_complete($start, $length)
+    $recce->lexeme_alternative($symbol, $value)
+    $recce->lexeme_complete($start, $length)
 
 =for Marpa::R2::Display::End
 
@@ -1297,7 +1366,9 @@ L<as described
 above|/"Internal scanning">.
 A physical input stream must already have
 been specified using the 
-L<C<< $slr->read() >> method|/"read()">.
+L<C<< $recce->read() >> method|/"read()">.
+The C<resume()> method should only be called during the
+Reading Phase.
 
 The C<resume()> method takes two optional arguments,
 which represent the start and length parameters of
@@ -1332,7 +1403,7 @@ Currently, all failures are thrown.
 =for Marpa::R2::Display
 name: Scanless ambiguity_metric() synopsis
 
-    my $ambiguity_metric = $slr->ambiguity_metric();
+    my $ambiguity_metric = $recce->ambiguity_metric();
 
 =for Marpa::R2::Display::End
 
@@ -1344,7 +1415,7 @@ Fails and returns zero if called before parsing.
 Returns zero or a negative number on other unthrown failure.
 
 When the return value is 2 or greater,
-an applications should not rely on the exact value, which is subject to change.
+an application should not rely on the exact value, which is subject to change.
 In the future, return values of 2 or greater may represent a "metric" which
 estimates the degree of ambiguity in some useful way,
 but is cheap to compute.
@@ -1356,7 +1427,7 @@ but determining that can be very expensive.)
 =for Marpa::R2::Display
 name: Scanless current_g1_location() synopsis
 
-    my $current_g1_location = $slr->current_g1_location();
+    my $current_g1_location = $recce->current_g1_location();
 
 =for Marpa::R2::Display::End
 
@@ -1370,7 +1441,7 @@ normalize-whitespace: 1
 partial: 1
 
         EVENT:
-        for my $event ( @{ $slr->events() } ) {
+        for my $event ( @{ $recce->events() } ) {
             my ($name) = @{$event};
             push @actual_events, $name;
         }
@@ -1392,9 +1463,8 @@ containing the name of the event.
 Typically the name of the event is only element.
 Other elements
 will be as
-L<described for
-each type of parse event|
-document|Marpa::R2::Event/"Types of parse event">.
+L<described for each type of parse
+event|Marpa::R2::Event/"Types of parse event">.
 
 Any other SLIF recognizer mutator
 may clear the events.
@@ -1424,9 +1494,9 @@ the order of events is arbitrary.
 =head2 exhausted()
 
 =for Marpa::R2::Display
-name: $slr->exhausted example
+name: $recce->exhausted example
 
-    my $exhausted_status = $slr->exhausted();
+    my $exhausted_status = $recce->exhausted();
 
 =for Marpa::R2::Display::End
 
@@ -1438,7 +1508,7 @@ recognizer will not accept any further input.
 Marpa usually "does what you mean" in case of parse exhaustion,
 but this method
 allows the recognizer's exhaustion status to be discovered directly.
-Parse exhaustion is discussion in detail in
+Parse exhaustion is discussed in detail in
 L<a separate document|Marpa::R2::Exhaustion>.
 
 =head2 g1_location_to_span()
@@ -1447,7 +1517,7 @@ L<a separate document|Marpa::R2::Exhaustion>.
 name: Scanless g1_location_to_span() synopsis
 
         my ( $span_start, $span_length ) =
-            $slr->g1_location_to_span($g1_location);
+            $recce->g1_location_to_span($g1_location);
 
 =for Marpa::R2::Display::End
 
@@ -1460,13 +1530,6 @@ G1 location 0 does not correspond to a input stream span so,
 as a special case,
 the input stream span for G1 location 0 is returned as (0,0).
 
-Sometimes it is convenient to think of
-a G1 location as corresponding to a single input stream location.
-When this is the case,
-what is meant is the location
-at the end of physical input stream span:
-C<$span_start+$span_length>.
-
 =head2 input_length()
 
 =for Marpa::R2::Display
@@ -1474,7 +1537,7 @@ name: SLIF input_length() example
 partial: 1
 normalize-whitespace: 1
 
-    my $input_length = $slr->input_length();
+    my $input_length = $recce->input_length();
 
 =for Marpa::R2::Display::End
 
@@ -1529,9 +1592,14 @@ normalize-whitespace: 1
         
 =for Marpa::R2::Display::End
 
-Returns the most recent input stream span for the symbol
+Returns the most recent input stream span for a completed
+instance of the symbol name
 that is its first and only argument.
 That argument is required.
+The search for a completed instance of a symbol
+can only succeed if the first argument
+is the name
+of the LHS symbol of some rule in the grammar.
 For details on how the input stream span is determined,
 see L<"Literals and G1 spans">.
 
@@ -1647,15 +1715,18 @@ normalize-whitespace: 1
 
 Use of this method is discouraged.
 New applications should avoid it.
-Instead a named event should be used,
-and the name of the event used to determine the name of
-the lexeme that triggers a lexeme event.
+Instead the lexeme event should be declared as
+a named event.
+The named lexeme event can be set up in such
+a way that
+it uniquely identifies
+the lexeme that triggered it.
 SLIF parse events are described in detail in
 L<a separate document|Marpa::R2::Event>.
 
 The C<pause_lexeme()> method accepts no arguments.
 It returns the current
-L<pause lexeme|Marpa::R2::Event/"Pause span and lexeme">.
+L<pause lexeme|Marpa::R2::Event/"Pause span and pause lexeme">.
 More than one lexeme may trigger at the same location,
 in which case the choice of pause lexeme
 is made arbitrarily.
@@ -1681,7 +1752,7 @@ the pause span
 as a 2-element array: start and length.
 The "pause span" is
 described in detail
-L<in another document|Marpa::R2::Event/"Pause span and lexeme">.
+L<in another document|Marpa::R2::Event/"Pause span and pause lexeme">.
 C<pause_span()> returns a Perl C<undef> if
 the pause span is undefined.
 
@@ -1692,7 +1763,7 @@ name: SLIF pos() example
 partial: 1
 normalize-whitespace: 1
 
-    my $pos = $slr->pos();
+    my $pos = $recce->pos();
 
 =for Marpa::R2::Display::End
 
@@ -1704,11 +1775,12 @@ and returns the current physical input stream location.
 =for Marpa::R2::Display
 name: Scanless progress() synopsis
 
-    my $progress_output = $slr->progress();
+    my $progress_output = $recce->progress();
 
 =for Marpa::R2::Display::End
 
-Returns an array that describes the progress
+Returns a reference to an array
+that describes the progress
 of a parse
 at a location.
 With no argument, C<progress()> reports progress at
@@ -1735,7 +1807,7 @@ name: Scanless show_progress() synopsis
 partial: 1
 normalize-whitespace: 1
 
-    my $show_progress_output = $slr->show_progress();
+    my $show_progress_output = $recce->show_progress();
 
 =for Marpa::R2::Display::End
 
@@ -1755,9 +1827,6 @@ Two numeric arguments are interpreted as a
 L<span|/"Spans"> of G1 locations,
 and the returned string contains
 reports for all locations in the span.
-Negative arguments are allowed and are
-interpreted as
-L<described above|/"Spans">.
 For example,
 the method call C<< $recce->show_progress(0, -1) >>
 will print progress reports for the entire parse.
@@ -1802,7 +1871,7 @@ L<described above|/"Literals and G1 spans">.
 name: Scanless terminals_expected() synopsis
 normalize-whitespace: 1
 
-    my @terminals_expected = @{$slr->terminals_expected()};
+    my @terminals_expected = @{$recce->terminals_expected()};
 
 =for Marpa::R2::Display::End
 
@@ -1813,6 +1882,24 @@ that lexeme will be acceptable in the next call of the L<C<resume()>|/"resume()"
 This is highly useful for Ruby Slippers parsing.
 A more fine-tuned approach is to identify the lexemes of interest
 and create "predicted symbol" events for them.
+
+Some lexemes are specified in the G1 rules
+of the DSL as quoted strings
+or as character classes,
+This is convenient,
+but the lexemes created in this way
+do not have real names.
+Instead, internal names, like
+C<[Lex-1]> are created for them,
+and these are what appear in the 
+list of strings
+returned by C<terminals_expected()>.
+If an application wants a quoted string
+or a character class to have a
+mnemonic name,
+the application must provide that name explicitly,
+by specifying the character class
+or quoted string in an L0 rule.
 
 =head1 Discouraged methods
 
@@ -1827,7 +1914,7 @@ name: SLR event() method synopsis
 normalize-whitespace: 1
 partial: 1
 
-            my $event    = $slr->event($event_ix);
+            my $event    = $recce->event($event_ix);
 
 =for Marpa::R2::Display::End
 
